@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CalendarClock, History, Loader2, Store } from 'lucide-react';
-import { Modal, useToast } from '@tiendafy/ui';
+import { CalendarClock, History, Store } from 'lucide-react';
+import { Modal, useToast, Spinner } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime } from '../lib/format';
@@ -71,7 +71,7 @@ export function HistoryModal({
     <Modal open={open} onClose={onClose} title="Historial de publicaciones">
       {shown === null ? (
         <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+          <Spinner inline /> Cargando…
         </div>
       ) : shown.length === 0 ? (
         <p className="py-4 text-sm text-fg-muted">

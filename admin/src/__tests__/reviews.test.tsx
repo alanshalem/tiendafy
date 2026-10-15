@@ -60,7 +60,7 @@ describe('reseñas: la bandeja', () => {
   it('muestra las pendientes con sus contadores y avisa de las denunciadas', async () => {
     const { api } = await open('/resenas', 'Reseñas', (a) => a.on('GET', '/api/v1/admin/reviews', LIST));
     expect(api.calls.some((c) => c.path.startsWith('/api/v1/admin/reviews?status=pending'))).toBe(true);
-    expect(screen.getByRole('tab', { name: /Pendientes\s*2/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: /Pendientes\s*2/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/denunciada por varias personas/)).toBeInTheDocument();
     expect(screen.getByText('Denunciada (3)')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'ana@mail.com' })).toHaveLength(2);
@@ -76,7 +76,7 @@ describe('reseñas: la bandeja', () => {
     expect(last()).toContain('rating=1');
     await user.type(screen.getByRole('searchbox', { name: 'Buscar reseñas' }), 'ruido');
     await waitFor(() => expect(last()).toContain('q=ruido'));
-    await user.click(screen.getByRole('tab', { name: /Aprobadas/ }));
+    await user.click(screen.getByRole('button', { name: /Aprobadas/ }));
     await waitFor(() => expect(last()).toContain('status=approved'));
   });
 

@@ -16,6 +16,7 @@ import {
   type RoleRow,
 } from './team-access';
 import { TableSkeleton } from '../../components/Skeleton';
+import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
 /**
  * La columna de la izquierda queda fija al scrollear de costado: sin esto se
@@ -135,7 +136,7 @@ export function RolesPage() {
 
           <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
             <table className="w-full min-w-[52rem] border-separate border-spacing-0 text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_TEXT}>
                 <tr>
                   <th
                     className={cn(
@@ -237,13 +238,13 @@ function RoleHeader({
           </Tooltip>
         )}
       </div>
-      <div className="text-[11px] font-normal text-fg-muted">{role.summary}</div>
+      <div className="text-2xs font-normal text-fg-muted">{role.summary}</div>
       {customized && editable && (
         <button
           type="button"
           onClick={onRestore}
           disabled={busy}
-          className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+          className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
         >
           <RotateCcw className="h-3 w-3" /> Restaurar
         </button>
@@ -294,7 +295,7 @@ export function SensitiveBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'rounded-full bg-warning-bg px-1.5 py-0.5 text-[10px] font-semibold text-warning',
+        'rounded-full bg-warning-bg px-1.5 py-0.5 text-3xs font-semibold text-warning',
         className,
       )}
       title="Permiso sensible: puede mover plata o dar más accesos."

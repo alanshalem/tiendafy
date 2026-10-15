@@ -10,14 +10,13 @@ import {
   Download,
   ExternalLink,
   FileText,
-  Loader2,
   Lock,
   Plus,
   ShieldCheck,
   Store,
   Trash2,
 } from 'lucide-react';
-import { Button, Input, Select, Switch, Textarea, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, Input, Select, Switch, Textarea, cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { formatDate } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
@@ -218,7 +217,7 @@ function StepCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-bold text-primary">
               Paso {step}
             </span>
             {/* Encabezado (y no un span): con un lector de pantalla se salta de paso en paso. */}
@@ -376,7 +375,7 @@ export function IssuerStep({
 
         <div className="flex justify-end">
           <Button onClick={save} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Guardar datos
+            {busy && <Spinner inline />} Guardar datos
           </Button>
         </div>
       </div>
@@ -524,14 +523,14 @@ export function CertificateStep({
               )}
             </dl>
             <Button variant="secondary" className="mt-3" onClick={generate} disabled={generating}>
-              {generating && <Loader2 className="h-4 w-4 animate-spin" />} Regenerar certificado
+              {generating && <Spinner inline />} Regenerar certificado
             </Button>
           </div>
         ) : (
           <>
             {!csr && (
               <Button onClick={generate} disabled={generating}>
-                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {generating ? <Spinner inline /> : <FileText className="h-4 w-4" />}
                 Generar solicitud (CSR)
               </Button>
             )}
@@ -606,11 +605,7 @@ export function CertificateStep({
                 Es el archivo .pem / .crt que descargaste de ARCA. Abrilo con un editor y copiá todo.
               </Hint>
               <Button className="mt-2" onClick={activate} disabled={activating || !pendingCertId}>
-                {activating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ShieldCheck className="h-4 w-4" />
-                )}
+                {activating ? <Spinner inline /> : <ShieldCheck className="h-4 w-4" />}
                 Activar certificado
               </Button>
             </div>
@@ -742,11 +737,7 @@ export function PointsOfSaleStep({
                 title="Eliminar"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50"
               >
-                {deleting === p.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
+                {deleting === p.id ? <Spinner inline /> : <Trash2 className="h-4 w-4" />}
               </button>
             </div>
           ))}
@@ -780,7 +771,7 @@ export function PointsOfSaleStep({
           />
         </div>
         <Button onClick={add} disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Agregar
+          {busy ? <Spinner inline /> : <Plus className="h-4 w-4" />} Agregar
         </Button>
       </div>
     </StepCard>
@@ -891,7 +882,7 @@ export function EmissionStep({
 
         <div className="flex justify-end">
           <Button onClick={save} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Guardar preferencias
+            {busy && <Spinner inline />} Guardar preferencias
           </Button>
         </div>
       </div>
@@ -975,8 +966,7 @@ export function ConnectionTestStep({
 
       <div className="mt-4">
         <Button onClick={run} disabled={!ready || busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />} Probar
-          conexión con ARCA
+          {busy ? <Spinner inline /> : <PlugZap className="h-4 w-4" />} Probar conexión con ARCA
         </Button>
         {!ready && (
           <p className="mt-2 text-xs text-fg-subtle">

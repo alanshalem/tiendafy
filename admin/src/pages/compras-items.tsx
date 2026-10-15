@@ -60,7 +60,11 @@ export function ItemsEditor({
                   <InfoDot info="El costo REAL por unidad puesta en tu depósito: FOB × tipo de cambio + los gastos del embarque prorrateados por valor." />
                 </span>
               </th>
-              {editable && <th className="py-2" />}
+              {editable && (
+                <th className="py-2">
+                  <span className="sr-only">Acciones</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>

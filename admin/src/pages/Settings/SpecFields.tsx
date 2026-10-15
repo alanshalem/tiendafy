@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { GripVertical, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -12,6 +12,7 @@ import {
   Switch,
   useConfirm,
   useToast,
+  Spinner,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -164,7 +165,7 @@ export function SpecFieldsPage() {
                   {f.filterable && <Badge variant="success">Filtra el catálogo</Badge>}
                   {!f.showOnProduct && <Badge variant="neutral">Oculto en la tienda</Badge>}
                   {f.meliAttributeId && (
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
                       ML: {f.meliAttributeId}
                     </span>
                   )}
@@ -287,7 +288,7 @@ function FieldModal({
             Cancelar
           </Button>
           <Button onClick={save} disabled={busy || name.trim().length < 2}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+            {busy && <Spinner inline />} Guardar
           </Button>
         </>
       }

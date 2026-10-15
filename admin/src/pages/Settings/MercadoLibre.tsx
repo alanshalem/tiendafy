@@ -6,13 +6,12 @@ import {
   ExternalLink,
   FlaskConical,
   Link2,
-  Loader2,
   MessageCircle,
   Package,
   RefreshCw,
   Store,
 } from 'lucide-react';
-import { Button, Input, Switch, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, Input, Switch, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -207,12 +206,12 @@ export function MeliSettingsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-fg">Mercado Libre</span>
               {c.connected && !c.isDemo && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+                <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-2xs font-semibold text-success">
                   <CheckCircle2 className="h-3 w-3" /> Conectado como {c.nickname}
                 </span>
               )}
               {c.isDemo && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
                   <FlaskConical className="h-3 w-3" /> Cuenta de ejemplo
                 </span>
               )}
@@ -232,7 +231,7 @@ export function MeliSettingsPage() {
               </Button>
             ) : (
               <Button onClick={connect} disabled={busy || !c.available}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Conectar mi cuenta
+                {busy && <Spinner inline />} Conectar mi cuenta
               </Button>
             )}
           </div>
@@ -408,7 +407,7 @@ export function MeliSettingsPage() {
 
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <Button variant="secondary" onClick={refreshOrders} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {busy ? <Spinner inline /> : <RefreshCw className="h-4 w-4" />}
                 Importar últimas ventas
               </Button>
               <p className="text-sm text-fg-muted">

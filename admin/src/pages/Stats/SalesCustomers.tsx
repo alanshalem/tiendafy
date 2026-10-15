@@ -1,5 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KPI_GRID,
+  KpiCard,
+  StatsPageHeader,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, DonutChart, RankBars } from '../../components/charts/viz';
@@ -7,6 +13,7 @@ import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
 import { orderStatusLabel } from '../../lib/orderStatus';
+import { CardsSkeleton } from '../../components/Skeleton';
 
 interface Sales {
   currency: string;
@@ -37,14 +44,10 @@ export function StatsSalesPage() {
       />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
-          ))}
-        </div>
+        <CardsSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className={KPI_GRID}>
             <KpiCard
               title="Facturación"
               hint="Solo ventas pagadas del período."

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Ban, Banknote, Loader2, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { Ban, Banknote, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
+import { cn, Spinner } from '@tiendafy/ui';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { ORDER_CHANNEL, ORDER_PAYMENT, ORDER_SHIPPING } from '../lib/orderFacets';
@@ -219,8 +219,7 @@ export function OrderDetail({
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}{' '}
-            Registrar pago
+            {busy ? <Spinner inline size={14} /> : <Banknote className="h-3.5 w-3.5" />} Registrar pago
           </button>
         </div>
       )}
@@ -232,8 +231,7 @@ export function OrderDetail({
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger-bg disabled:opacity-50"
           >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}{' '}
-            Cancelar venta
+            {busy ? <Spinner inline size={14} /> : <Ban className="h-3.5 w-3.5" />} Cancelar venta
           </button>
           <span className="text-xs text-fg-subtle">
             Todavía no se cobró: cancelarla anula el link de pago y libera el stock reservado.
@@ -250,7 +248,7 @@ export function OrderDetail({
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
             >
               {busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner inline size={14} />
               ) : o.isPickup ? (
                 <PackageCheck className="h-3.5 w-3.5" />
               ) : (
@@ -284,8 +282,7 @@ export function OrderDetail({
               disabled={busy}
               className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger-bg disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}{' '}
-              Reembolsar
+              {busy ? <Spinner inline size={14} /> : <Undo2 className="h-3.5 w-3.5" />} Reembolsar
             </button>
           )}
         </div>

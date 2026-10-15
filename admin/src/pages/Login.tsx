@@ -1,9 +1,9 @@
 import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { Captcha } from '../components/Captcha';
 import { LogoMark } from '../components/LogoMark';
+import { Spinner } from '@tiendafy/ui';
 
 const AUTH_INPUT =
   'h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary';
@@ -30,7 +30,9 @@ function AuthField({ label, ...input }: { label: string } & InputHTMLAttributes<
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+    // `main`: sin él la pantalla de entrada no tenía región principal y un
+    // lector de pantalla no podía saltar directo al formulario.
+    <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-7 shadow-card">
         <div className="mb-6 flex items-center gap-2.5">
           <LogoMark className="h-9 w-9" />
@@ -38,7 +40,7 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
         {children}
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -180,7 +182,7 @@ export function Login() {
             className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
           >
             {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner inline />
             ) : mode === 'forgot' ? (
               'Enviar link'
             ) : mode === 'login' ? (
@@ -306,7 +308,7 @@ function ResetPasswordForm() {
           disabled={busy || password.length < 10}
           className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
+          {busy ? <Spinner inline /> : 'Cambiar contraseña'}
         </button>
       </form>
     </Shell>
@@ -366,14 +368,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-subtle">
-        <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-bg-subtle">
+        <Spinner inline size={24} label="Cargando" className="text-fg-muted" />
+      </main>
     );
   }
   if (!user && unreachable) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+      <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
         <div role="alert" className="max-w-sm text-center">
           <p className="text-base font-semibold text-fg">No pudimos conectar con el servidor</p>
           <p className="mt-1 text-sm text-fg-muted">
@@ -387,7 +389,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
             Reintentar
           </button>
         </div>
-      </div>
+      </main>
     );
   }
   if (!user) return <Login />;

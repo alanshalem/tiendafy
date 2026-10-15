@@ -14,6 +14,7 @@ import {
   useToast,
   type BadgeVariant,
   type TableColumn,
+  PageHeader,
 } from '@tiendafy/ui';
 import { MoreVertical, Pencil, Archive, ArchiveRestore, Plus, Trash2 } from 'lucide-react';
 import type { Tenant } from '@tiendafy/types';
@@ -253,7 +254,7 @@ export function TenantsPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: <span className="sr-only">Acciones</span>,
       cell: (t) =>
         manageable.has(t.id) && (
           <div className="flex justify-end">
@@ -302,23 +303,21 @@ export function TenantsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          {/* Mismo nombre que en el menú: entrar a "Mis tiendas" y leer
-              "Tiendas" hacía dudar de si era la misma pantalla. */}
-          <h1 className="text-2xl font-bold text-fg">Mis tiendas</h1>
-          <p className="text-sm text-fg-muted">
-            Todas las tiendas del grupo y cómo viene cada una en los últimos {WINDOW_DAYS} días.
-          </p>
-        </div>
-        {canCreate && (
-          <Button onClick={() => setCreateOpen(true)}>
-            <span className="inline-flex items-center gap-1.5">
-              <Plus className="h-4 w-4" /> Crear tienda
-            </span>
-          </Button>
-        )}
-      </div>
+      {/* Mismo nombre que en el menú: entrar a "Mis tiendas" y leer
+          "Tiendas" hacía dudar de si era la misma pantalla. */}
+      <PageHeader
+        title="Mis tiendas"
+        subtitle={`Todas las tiendas del grupo y cómo viene cada una en los últimos ${WINDOW_DAYS} días.`}
+        actions={
+          canCreate && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> Crear tienda
+              </span>
+            </Button>
+          )
+        }
+      />
 
       <ListStats
         items={[

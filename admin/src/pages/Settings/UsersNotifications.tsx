@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
-import { cn, useToast, useConfirm } from '@tiendafy/ui';
+import { Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
+import { cn, useToast, useConfirm, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import type { Perm } from '../../lib/access';
 import { HelpLink } from '../../components/HelpLink';
@@ -218,7 +218,7 @@ export function UsersNotificationsPage() {
         )}
         {m.customized && (
           <span
-            className="mt-1 block text-[11px] font-medium text-primary"
+            className="mt-1 block text-2xs font-medium text-primary"
             title="Tiene permisos distintos de los de su rol."
           >
             Personalizado
@@ -281,11 +281,8 @@ export function UsersNotificationsPage() {
     <div>
       <SettingsHeader
         title="Usuarios y permisos"
-        description={`Invitá a tu equipo y elegí qué puede hacer cada uno en el panel.${
-          total > 0
-            ? ` · ${pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'usuario' : 'usuarios')}`
-            : ''
-        }`}
+        description="Invitá a tu equipo y elegí qué puede hacer cada uno en el panel."
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'usuario' : 'usuarios')}
         action={
           canManage && (
             <button
@@ -386,7 +383,7 @@ export function UsersNotificationsPage() {
                   disabled={!email || addM.isPending}
                   className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
                 >
-                  {addM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Agregar'}
+                  {addM.isPending ? <Spinner inline /> : 'Agregar'}
                 </button>
               </div>
             </div>
@@ -395,7 +392,7 @@ export function UsersNotificationsPage() {
           {mobile ? (
             <div className={TABLE_CARD}>
               {membersQ.isLoading ? (
-                <Loader2 className="mx-auto my-8 h-5 w-5 animate-spin text-fg-muted" />
+                <Spinner className="py-8" />
               ) : members.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-fg-muted">No hay usuarios.</p>
               ) : (
@@ -431,7 +428,7 @@ export function UsersNotificationsPage() {
               <div className={TABLE_SCROLL_X}>
                 <table className="w-full text-sm">
                   <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium text-fg-muted">
                       <th className="px-4 py-2.5">Nombre</th>
                       <th className="px-4 py-2.5">Email</th>
                       <th className="px-4 py-2.5">Rol</th>
@@ -446,7 +443,7 @@ export function UsersNotificationsPage() {
                     {membersQ.isLoading && (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
-                          <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+                          <Spinner inline size={20} />
                         </td>
                       </tr>
                     )}

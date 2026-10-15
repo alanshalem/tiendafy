@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
-import { Button, Checkbox, FormField, Input, Radio, RadioGroup, useToast } from '@tiendafy/ui';
+import { Button, Checkbox, FormField, Input, Radio, RadioGroup, useToast, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { toDomainPrice, toCents, isValidPrice } from '../../lib/price';
@@ -23,6 +23,7 @@ import {
   parseShipping,
 } from './product-form';
 import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
+import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
 interface ProductDto {
   id: string;
@@ -301,7 +302,7 @@ export function NewProductPage() {
 
   return (
     <div className="space-y-4 pb-24">
-      <h1 className="text-2xl font-bold text-fg">Nuevo producto</h1>
+      <PageHeader title="Nuevo producto" />
 
       {/* En pantallas anchas, lo principal a la izquierda y lo que se toca poco
           (publicación, categorías, SEO) en una columna al costado. */}
@@ -431,7 +432,7 @@ export function NewProductPage() {
                 {variantRows.length > 0 && (
                   <div className="overflow-x-auto rounded-md border border-border">
                     <table className="w-full text-sm">
-                      <thead>
+                      <thead className={TABLE_HEAD_TEXT}>
                         <tr className="border-b border-border bg-bg-muted text-left text-xs text-fg-muted">
                           <th className="px-3 py-2 font-medium">Variante</th>
                           <th className="px-3 py-2 font-medium">Precio (ARS)</th>

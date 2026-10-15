@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { cn, Tooltip } from '@tiendafy/ui';
+import { cn, PageHeader, Tooltip } from '@tiendafy/ui';
 import { HeaderActions } from '../../components/HeaderActions';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { visibleSettingsNav } from '../../config/navigation';
@@ -29,10 +29,10 @@ export function SettingsLayout() {
         <span className="text-sm font-bold">Configuración</span>
       </button>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      <nav aria-label="Secciones de configuración" className="flex-1 space-y-5 overflow-y-auto p-3">
         {visibleGroups.map((group) => (
           <div key={group.heading}>
-            <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
+            <div className="px-3 pb-1.5 text-3xs font-bold uppercase tracking-widest text-accent-fg/65">
               {group.heading}
             </div>
             <div className="space-y-0.5">
@@ -90,20 +90,15 @@ export function SettingsHeader({
   title,
   description,
   action,
+  count,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  /** El "1–7 de 7 usuarios" del listado (ver PageHeader). */
+  count?: React.ReactNode;
 }) {
-  return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-fg-muted">{description}</p>}
-      </div>
-      {action}
-    </div>
-  );
+  return <PageHeader className="mb-5" title={title} subtitle={description} actions={action} count={count} />;
 }
 
 /** Barra inferior sticky de guardar/cancelar. */

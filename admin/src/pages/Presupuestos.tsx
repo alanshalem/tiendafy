@@ -6,8 +6,7 @@ import {
   Badge,
   Button,
   Card,
-  clickableRowProps,
-  cn,
+  Table,
   FormField,
   Input,
   Modal,
@@ -16,6 +15,9 @@ import {
   useConfirm,
   useToast,
   type BadgeVariant,
+  EmptyList,
+  PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -24,7 +26,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
@@ -175,28 +177,19 @@ function QuoteList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Presupuestos</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Los precios que le pasás a un cliente antes de que compre. Si lo acepta, la venta se genera con
-            los precios que cotizaste — no con los de hoy.
-          </p>
-          {(data?.total ?? 0) > 0 && (
-            <p className="mt-1 text-xs text-fg-subtle">
-              {pageRangeLabel(
-                page,
-                PAGE_SIZE,
-                data!.total,
-                data!.total === 1 ? 'presupuesto' : 'presupuestos',
-              )}
-            </p>
-          )}
-        </div>
-        <Button onClick={onNew}>
-          <Plus className="h-4 w-4" /> Nuevo presupuesto
-        </Button>
-      </div>
+      <PageHeader
+        title="Presupuestos"
+        subtitle="Los precios que le pasás a un cliente antes de que compre. Si lo acepta, la venta se genera con los precios que cotizaste — no con los de hoy."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'presupuesto' : 'presupuestos')
+        }
+        actions={
+          <Button onClick={onNew}>
+            <Plus className="h-4 w-4" /> Nuevo presupuesto
+          </Button>
+        }
+      />
 
       {summary && summary.total > 0 && (
         <ListStats
@@ -230,8 +223,7 @@ function QuoteList({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar presupuestos"
           className="w-64"
           value={search}
@@ -249,68 +241,74 @@ function QuoteList({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <FileText className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">
-            {debounced || status ? 'Ningún presupuesto coincide' : 'Todavía no hiciste presupuestos'}
-          </p>
-          {!debounced && !status && (
-            <p className="mt-1 text-sm text-fg-muted">
-              Sirve para cotizarle a un revendedor y que, cuando conteste que sí, la venta salga sola con esos
-              precios. Si el cliente tiene lista de precios asignada, los precios se cargan de ahí.
-            </p>
-          )}
-        </div>
+        <EmptyList
+          icon={<FileText />}
+          title={debounced || status ? 'Ningún presupuesto coincide' : 'Todavía no hiciste presupuestos'}
+        >
+          {!debounced &&
+            !status &&
+            'Sirve para cotizarle a un revendedor y que, cuando conteste que sí, la venta salga sola con esos precios. Si el cliente tiene lista de precios asignada, los precios se cargan de ahí.'}
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
-          <div className={TABLE_SCROLL_X}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Número</th>
-                  <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
-                  <th className="px-4 py-2 font-medium">Vence</th>
-                  <th className="px-4 py-2 text-right font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((q) => {
-                  // El número es un link de verdad (Tab, Enter, abrir en otra
-                  // pestaña); el resto de la fila responde al mouse.
-                  const row = clickableRowProps(() => onOpen(q.id), { focusable: false });
+          <Table
+            rows={rows}
+            rowKey={(q) => q.id}
+            // El número es un link de verdad (Tab, Enter, abrir en otra
+            // pestaña); el resto de la fila responde al mouse.
+            onRowClick={(q) => onOpen(q.id)}
+            rowFocusable={false}
+            columns={[
+              {
+                key: 'number',
+                header: 'Número',
+                className: 'whitespace-nowrap font-medium',
+                cell: (q) => {
                   const link = recordLink(q.id);
                   return (
-                    <tr key={q.id} {...row} className={cn('hover:bg-bg-muted', row.className)}>
-                      <td className="whitespace-nowrap px-4 py-2 font-medium">
-                        <Link to={{ search: link.search }} state={link.state} className="hover:underline">
-                          {q.number}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2">
-                        {q.customerName}
-                        <div className="text-xs text-fg-subtle">
-                          {q.items} producto{q.items === 1 ? '' : 's'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
-                          {q.expired && <Badge variant="warning">Vencido</Badge>}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                        {formatDate(q.validUntilUtc)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                        {formatMoney(q.totalMinor, q.currency)}
-                      </td>
-                    </tr>
+                    <Link to={{ search: link.search }} state={link.state} className="hover:underline">
+                      {q.number}
+                    </Link>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                },
+              },
+              {
+                key: 'customer',
+                header: 'Cliente',
+                cell: (q) => (
+                  <>
+                    {q.customerName}
+                    <div className="text-xs text-fg-subtle">
+                      {q.items} producto{q.items === 1 ? '' : 's'}
+                    </div>
+                  </>
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Estado',
+                cell: (q) => (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
+                    {q.expired && <Badge variant="warning">Vencido</Badge>}
+                  </div>
+                ),
+              },
+              {
+                key: 'validUntil',
+                header: 'Vence',
+                className: 'whitespace-nowrap',
+                cell: (q) => <span className="text-fg-muted">{formatDate(q.validUntilUtc)}</span>,
+              },
+              {
+                key: 'total',
+                header: 'Total',
+                align: 'right',
+                className: 'whitespace-nowrap font-medium tabular-nums',
+                cell: (q) => formatMoney(q.totalMinor, q.currency),
+              },
+            ]}
+          />
         </div>
       )}
 
@@ -544,7 +542,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
           >
             <ArrowLeft className="h-4 w-4" /> Presupuestos
           </button>
-          <h1 className="mt-1 flex flex-wrap items-center gap-2 text-xl font-semibold">
+          <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-bold text-fg">
             {quote ? quote.number : 'Nuevo presupuesto'}
             {quote && <Badge variant={STATUS[quote.status].variant}>{STATUS[quote.status].label}</Badge>}
             {quote?.expired && <Badge variant="warning">Vencido</Badge>}

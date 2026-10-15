@@ -6,12 +6,10 @@ import {
   ArrowUp,
   ArrowUpDown,
   Download,
-  Loader2,
   MoreVertical,
   Pencil,
   Trash2,
   Plus,
-  Search,
   UserPlus,
   UserRound,
 } from 'lucide-react';
@@ -27,6 +25,9 @@ import {
   useToast,
   useConfirm,
   type TableColumn,
+  Spinner,
+  PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -323,7 +324,11 @@ export function CustomersPage() {
           <span className="text-sm text-fg-subtle">Nunca</span>
         ),
     },
-    { key: 'id', header: '', cell: (c) => <div className="flex justify-end">{actions(c)}</div> },
+    {
+      key: 'id',
+      header: <span className="sr-only">Acciones</span>,
+      cell: (c) => <div className="flex justify-end">{actions(c)}</div>,
+    },
   ];
 
   if (!store) return <NoStoreSelected />;
@@ -332,51 +337,46 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Clientes</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Quiénes te compran: cuánto, cada cuánto y cómo escribirles.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={exportCsv}
-            disabled={exporting || total === 0}
-            title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Exportar
-            </span>
-          </Button>
-          {canEdit && (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => importFromOrders.mutate()}
-                disabled={importFromOrders.isPending}
-                title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {importFromOrders.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="h-4 w-4" />
-                  )}
-                  Traer de mis ventas
-                </span>
-              </Button>
-              <Button onClick={() => setCreateOpen(true)}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" /> Agregar cliente
-                </span>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Clientes"
+        subtitle="Quiénes te compran: cuánto, cada cuánto y cómo escribirles."
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={exportCsv}
+              disabled={exporting || total === 0}
+              title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />}
+                Exportar
+              </span>
+            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => importFromOrders.mutate()}
+                  disabled={importFromOrders.isPending}
+                  title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {importFromOrders.isPending ? <Spinner inline /> : <UserPlus className="h-4 w-4" />}
+                    Traer de mis ventas
+                  </span>
+                </Button>
+                <Button onClick={() => setCreateOpen(true)}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Plus className="h-4 w-4" /> Agregar cliente
+                  </span>
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <form
@@ -385,13 +385,10 @@ export function CustomersPage() {
             e.preventDefault();
             list.set({ q: term }, { replace: true });
           }}
-          className="relative min-w-[14rem] flex-1 sm:max-w-xs"
+          className="min-w-[14rem] flex-1 sm:max-w-xs"
         >
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar clientes"
-            className="pl-8"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Nombre, email o teléfono"
@@ -415,11 +412,6 @@ export function CustomersPage() {
             ]}
             className="w-auto"
           />
-        )}
-        {total > 0 && (
-          <span className="text-xs text-fg-subtle">
-            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
-          </span>
         )}
       </div>
 

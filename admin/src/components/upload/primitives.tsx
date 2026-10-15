@@ -133,7 +133,7 @@ export function FileDropzone({
       </button>
       {!compact && (
         <>
-          <span className="hidden text-[11px] font-normal text-fg-subtle sm:block">o arrastralo acá</span>
+          <span className="hidden text-2xs font-normal text-fg-subtle sm:block">o arrastralo acá</span>
           <UploadSpecHint kind={kind} centered />
         </>
       )}
@@ -157,7 +157,7 @@ export function UploadSpecHint({
   const spec: UploadSpec = override ?? UPLOADS[kind];
   const d = describe(spec);
   return (
-    <div className={cn('text-[11px] leading-snug', centered && 'text-center')}>
+    <div className={cn('text-2xs leading-snug', centered && 'text-center')}>
       <div className={cn('flex flex-wrap gap-1', centered && 'justify-center')}>
         {[d.formats, d.weight, d.ideal, d.count]
           .filter((t): t is string => !!t)
@@ -284,7 +284,7 @@ export function ProgressTrack({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      className={cn('h-1.5 overflow-hidden rounded-full bg-black/10', className)}
+      className={cn('h-1.5 overflow-hidden rounded-full bg-bg-muted', className)}
     >
       <div
         className={cn(

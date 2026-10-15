@@ -117,7 +117,7 @@ export function ProductPicker({
                 {p?.image ? (
                   <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
                 ) : (
-                  <div className="h-8 w-8 rounded bg-black/5" />
+                  <div className="h-8 w-8 rounded bg-bg-muted" />
                 )}
                 <span className="flex-1 truncate">{p?.name ?? 'Producto'}</span>
                 <button
@@ -164,7 +164,7 @@ export function ProductPicker({
               {p.image ? (
                 <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
               ) : (
-                <div className="h-8 w-8 rounded bg-black/5" />
+                <div className="h-8 w-8 rounded bg-bg-muted" />
               )}
               <span className="flex-1 truncate">{p.name}</span>
               <Plus className="h-4 w-4 text-primary" />

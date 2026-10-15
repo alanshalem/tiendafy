@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, PackagePlus, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, PackagePlus, Plus, Truck } from 'lucide-react';
 import {
   Badge,
   Button,
-  clickableRowProps,
   cn,
   FormField,
   Input,
   Modal,
   Textarea,
   useToast,
+  Spinner,
+  EmptyList,
+  PageHeader,
+  SearchInput,
+  Table,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { ScreenSkeleton } from '../components/Skeleton';
@@ -151,35 +155,28 @@ function SupplierList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Proveedores</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Con quiénes comprás: sus datos, todas sus órdenes de compra y cuánto les debés. Al cargar una
-            compra podés elegir el proveedor de esta lista en vez de volver a escribir el nombre.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => importFromPurchases.mutate()}
-            disabled={importFromPurchases.isPending}
-            title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {importFromPurchases.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <PackagePlus className="h-4 w-4" />
-              )}
-              Traer de mis compras
-            </span>
-          </Button>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Nuevo proveedor
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Proveedores"
+        subtitle="Con quiénes comprás: sus datos, todas sus órdenes de compra y cuánto les debés. Al cargar una compra podés elegir el proveedor de esta lista en vez de volver a escribir el nombre."
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => importFromPurchases.mutate()}
+              disabled={importFromPurchases.isPending}
+              title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {importFromPurchases.isPending ? <Spinner inline /> : <PackagePlus className="h-4 w-4" />}
+                Traer de mis compras
+              </span>
+            </Button>
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" /> Nuevo proveedor
+            </Button>
+          </>
+        }
+      />
 
       {rows.length > 0 && (
         <ListStats
@@ -201,8 +198,7 @@ function SupplierList({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar proveedores"
           className="w-64"
           value={search}
@@ -220,82 +216,91 @@ function SupplierList({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <Truck className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">
-            {debounced ? 'Ningún proveedor coincide con la búsqueda' : 'Todavía no cargaste proveedores'}
-          </p>
-          {!debounced && (
-            <p className="mt-1 text-sm text-fg-muted">
-              Cargá uno y después vas a poder elegirlo al armar una orden de compra, y ver ahí mismo su cuenta
-              corriente.
-            </p>
-          )}
-        </div>
+        <EmptyList
+          icon={<Truck />}
+          title={debounced ? 'Ningún proveedor coincide con la búsqueda' : 'Todavía no cargaste proveedores'}
+        >
+          {!debounced &&
+            'Cargá uno y después vas a poder elegirlo al armar una orden de compra, y ver ahí mismo su cuenta corriente.'}
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
-          <div className={TABLE_SCROLL_X}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Proveedor</th>
-                  <th className="px-4 py-2 font-medium">CUIT</th>
-                  <th className="px-4 py-2 text-right font-medium">Compras</th>
-                  <th className="px-4 py-2 text-right font-medium">Saldo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((s) => {
-                  // El nombre es un link de verdad (Tab, Enter, abrir en otra
-                  // pestaña); el resto de la fila responde al mouse.
-                  const row = clickableRowProps(() => onOpen(s.id), { focusable: false });
+          <Table
+            rows={rows}
+            rowKey={(s) => s.id}
+            // El nombre es un link de verdad (Tab, Enter, abrir en otra
+            // pestaña); el resto de la fila responde al mouse.
+            onRowClick={(s) => onOpen(s.id)}
+            rowFocusable={false}
+            columns={[
+              {
+                key: 'name',
+                header: 'Proveedor',
+                cell: (s) => {
                   const link = recordLink(s.id);
                   return (
-                    <tr key={s.id} {...row} className={cn('hover:bg-bg-muted', row.className)}>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={{ search: link.search }}
-                            state={link.state}
-                            className="font-medium hover:underline"
-                          >
-                            {s.name}
-                          </Link>
-                          {!s.active && <Badge variant="neutral">Inactivo</Badge>}
-                        </div>
-                        {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{s.taxId ?? '—'}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                        {s.purchaseCount > 0 ? s.purchaseCount : '—'}
-                        {s.lastPurchaseAtUtc && (
-                          <div className="text-xs text-fg-subtle">
-                            última {formatDate(s.lastPurchaseAtUtc)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right">
-                        {s.balanceMinor === 0 ? (
-                          <span className="text-fg-subtle">Al día</span>
-                        ) : (
-                          <>
-                            <div
-                              className={`font-medium tabular-nums ${s.balanceMinor < 0 ? 'text-danger' : 'text-success'}`}
-                            >
-                              {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
-                            </div>
-                            <div className="text-xs text-fg-subtle">
-                              {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
-                            </div>
-                          </>
-                        )}
-                      </td>
-                    </tr>
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={{ search: link.search }}
+                          state={link.state}
+                          className="font-medium hover:underline"
+                        >
+                          {s.name}
+                        </Link>
+                        {!s.active && <Badge variant="neutral">Inactivo</Badge>}
+                      </div>
+                      {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
+                    </>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                },
+              },
+              {
+                key: 'taxId',
+                header: 'CUIT',
+                className: 'whitespace-nowrap',
+                cell: (s) => <span className="text-fg-muted">{s.taxId ?? '—'}</span>,
+              },
+              {
+                key: 'purchases',
+                header: 'Compras',
+                align: 'right',
+                className: 'whitespace-nowrap tabular-nums',
+                cell: (s) => (
+                  <>
+                    {s.purchaseCount > 0 ? s.purchaseCount : '—'}
+                    {s.lastPurchaseAtUtc && (
+                      <div className="text-xs text-fg-subtle">última {formatDate(s.lastPurchaseAtUtc)}</div>
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'balance',
+                header: 'Saldo',
+                align: 'right',
+                className: 'whitespace-nowrap',
+                cell: (s) =>
+                  s.balanceMinor === 0 ? (
+                    <span className="text-fg-subtle">Al día</span>
+                  ) : (
+                    <>
+                      <div
+                        className={cn(
+                          'font-medium tabular-nums',
+                          s.balanceMinor < 0 ? 'text-danger' : 'text-success',
+                        )}
+                      >
+                        {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
+                      </div>
+                      <div className="text-xs text-fg-subtle">
+                        {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
+                      </div>
+                    </>
+                  ),
+              },
+            ]}
+          />
         </div>
       )}
 
@@ -332,7 +337,7 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           >
             <ArrowLeft className="h-4 w-4" /> Proveedores
           </button>
-          <h1 className="mt-1 flex items-center gap-2 text-xl font-semibold">
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold text-fg">
             {data.name}
             {!data.active && <Badge variant="neutral">Inactivo</Badge>}
           </h1>
@@ -386,43 +391,44 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <div className="space-y-2">
         <h2 className="font-medium">Órdenes de compra</h2>
         {data.purchases.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-fg-muted">
+          <EmptyList className="p-8">
             Todavía no hay compras asociadas a este proveedor. Al crear una orden de compra, elegilo en el
             selector de proveedor.
-          </div>
+          </EmptyList>
         ) : (
           <div className={TABLE_CARD}>
-            <div className={TABLE_SCROLL_X}>
-              <table className="w-full text-sm">
-                <thead className={TABLE_HEAD_STICKY}>
-                  <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                    <th className="px-4 py-2 font-medium">Referencia</th>
-                    <th className="px-4 py-2 font-medium">Estado</th>
-                    <th className="px-4 py-2 font-medium">Factura</th>
-                    <th className="px-4 py-2 font-medium">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {data.purchases.map((p) => (
-                    <tr key={p.id}>
-                      <td className="px-4 py-2">
-                        {/* Cada compra abre su ficha en Compras (?orden=<id>). */}
-                        <Link to={`/compras?orden=${p.id}`} className="text-primary hover:underline">
-                          {p.reference ?? 'Sin referencia'}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2">
-                        <Badge variant="neutral">{PO_STATUS[p.status] ?? p.status}</Badge>
-                      </td>
-                      <td className="px-4 py-2 text-fg-muted">{p.invoiceNumber ?? 'Sin cargar'}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                        {formatDate(p.createdAtUtc)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table
+              rows={data.purchases}
+              rowKey={(p) => p.id}
+              columns={[
+                {
+                  key: 'reference',
+                  header: 'Referencia',
+                  // Cada compra abre su ficha en Compras (?orden=<id>).
+                  cell: (p) => (
+                    <Link to={`/compras?orden=${p.id}`} className="text-primary hover:underline">
+                      {p.reference ?? 'Sin referencia'}
+                    </Link>
+                  ),
+                },
+                {
+                  key: 'status',
+                  header: 'Estado',
+                  cell: (p) => <Badge variant="neutral">{PO_STATUS[p.status] ?? p.status}</Badge>,
+                },
+                {
+                  key: 'invoice',
+                  header: 'Factura',
+                  cell: (p) => <span className="text-fg-muted">{p.invoiceNumber ?? 'Sin cargar'}</span>,
+                },
+                {
+                  key: 'date',
+                  header: 'Fecha',
+                  className: 'whitespace-nowrap',
+                  cell: (p) => <span className="text-fg-muted">{formatDate(p.createdAtUtc)}</span>,
+                },
+              ]}
+            />
           </div>
         )}
       </div>

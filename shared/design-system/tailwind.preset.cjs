@@ -60,6 +60,15 @@ module.exports = {
           fg: cssVar('--color-status-fg'),
         },
       },
+      // Dos tamaños por debajo de `text-xs` (12 px) para etiquetas chicas:
+      // contadores, chips, pies de tarjeta. Antes cada pantalla elegía el suyo
+      // a mano (11px, 0.7rem, 0.65rem, 10px…) y no había dos iguales.
+      // Sin interlineado propio a propósito: heredan el del texto que los
+      // rodea, igual que los `text-[11px]` que reemplazan.
+      fontSize: {
+        '2xs': '0.6875rem', // 11 px
+        '3xs': '0.625rem', // 10 px
+      },
       fontFamily: {
         sans: 'var(--font-sans)',
         heading: 'var(--font-heading)',

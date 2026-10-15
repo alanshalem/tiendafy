@@ -1,14 +1,26 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftRight, Banknote, Landmark, Plus, Wallet } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea, useToast } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+  useToast,
+  EmptyList,
+  PageHeader,
+  Table,
+} from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { parseMoneyInput } from '../lib/price';
 import { useListParams } from '../lib/useListParams';
@@ -66,30 +78,27 @@ export function TesoreriaPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Tesorería</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Dónde está la plata: tus cajas y cuentas bancarias, con cada movimiento que las tocó. Los cobros y
-            pagos que cargás en Cuentas corrientes entran acá solos.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {activas.length >= 2 && (
-            <Button variant="secondary" onClick={() => setTransfer(true)}>
-              <ArrowLeftRight className="h-4 w-4" /> Transferir
+      <PageHeader
+        title="Tesorería"
+        subtitle="Dónde está la plata: tus cajas y cuentas bancarias, con cada movimiento que las tocó. Los cobros y pagos que cargás en Cuentas corrientes entran acá solos."
+        actions={
+          <>
+            {activas.length >= 2 && (
+              <Button variant="secondary" onClick={() => setTransfer(true)}>
+                <ArrowLeftRight className="h-4 w-4" /> Transferir
+              </Button>
+            )}
+            {activas.length > 0 && (
+              <Button variant="secondary" onClick={() => setMovement(true)}>
+                <Plus className="h-4 w-4" /> Movimiento
+              </Button>
+            )}
+            <Button onClick={() => setNewAccount(true)}>
+              <Plus className="h-4 w-4" /> Nueva cuenta
             </Button>
-          )}
-          {activas.length > 0 && (
-            <Button variant="secondary" onClick={() => setMovement(true)}>
-              <Plus className="h-4 w-4" /> Movimiento
-            </Button>
-          )}
-          <Button onClick={() => setNewAccount(true)}>
-            <Plus className="h-4 w-4" /> Nueva cuenta
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {(data?.totals ?? []).length > 0 && (
         <ListStats
@@ -122,14 +131,10 @@ function AccountsGrid({ accounts }: { accounts: FinanceAccount[] }) {
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-        <Wallet className="mx-auto h-8 w-8 text-fg-subtle" />
-        <p className="mt-2 text-sm font-medium">Todavía no cargaste ninguna caja ni cuenta bancaria</p>
-        <p className="mt-1 text-sm text-fg-muted">
-          Creá al menos una para poder registrar cobros y pagos. Si arrancás con plata en la caja, ponela como
-          saldo inicial.
-        </p>
-      </div>
+      <EmptyList icon={<Wallet />} title="Todavía no cargaste ninguna caja ni cuenta bancaria">
+        Creá al menos una para poder registrar cobros y pagos. Si arrancás con plata en la caja, ponela como
+        saldo inicial.
+      </EmptyList>
     );
   }
 
@@ -332,48 +337,52 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
       </div>
 
       {(data?.items ?? []).length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-fg-muted">
-          Todavía no hay movimientos en esta cuenta.
-        </div>
+        <EmptyList className="p-8">Todavía no hay movimientos en esta cuenta.</EmptyList>
       ) : (
         <div className={TABLE_CARD}>
-          <div className={TABLE_SCROLL_X}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Fecha</th>
-                  <th className="px-4 py-2 font-medium">Concepto</th>
-                  <th className="px-4 py-2 font-medium">Cuenta</th>
-                  <th className="px-4 py-2 text-right font-medium">Importe</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data!.items.map((m) => (
-                  <tr key={m.id}>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                      {formatDateTime(m.occurredAtUtc)}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate">{m.concept}</span>
-                        {m.transferGroupId && <Badge variant="neutral">Transferencia</Badge>}
-                      </div>
-                      {m.reference && <div className="text-xs text-fg-subtle">{m.reference}</div>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{m.accountName}</td>
-                    <td
-                      className={`whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums ${
-                        m.kind === 'in' ? 'text-success' : 'text-danger'
-                      }`}
-                    >
-                      {m.kind === 'in' ? '+' : '−'}
-                      {formatMoney(m.amountMinor, m.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            rows={data!.items}
+            rowKey={(m) => m.id}
+            columns={[
+              {
+                key: 'date',
+                header: 'Fecha',
+                className: 'whitespace-nowrap',
+                cell: (m) => <span className="text-fg-muted">{formatDateTime(m.occurredAtUtc)}</span>,
+              },
+              {
+                key: 'concept',
+                header: 'Concepto',
+                cell: (m) => (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate">{m.concept}</span>
+                      {m.transferGroupId && <Badge variant="neutral">Transferencia</Badge>}
+                    </div>
+                    {m.reference && <div className="text-xs text-fg-subtle">{m.reference}</div>}
+                  </>
+                ),
+              },
+              {
+                key: 'account',
+                header: 'Cuenta',
+                className: 'whitespace-nowrap',
+                cell: (m) => <span className="text-fg-muted">{m.accountName}</span>,
+              },
+              {
+                key: 'amount',
+                header: 'Importe',
+                align: 'right',
+                className: 'whitespace-nowrap font-medium tabular-nums',
+                cell: (m) => (
+                  <span className={m.kind === 'in' ? 'text-success' : 'text-danger'}>
+                    {m.kind === 'in' ? '+' : '−'}
+                    {formatMoney(m.amountMinor, m.currency)}
+                  </span>
+                ),
+              },
+            ]}
+          />
         </div>
       )}
 

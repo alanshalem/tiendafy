@@ -10,7 +10,18 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
+import {
+  Button,
+  Dropdown,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  cn,
+  useConfirm,
+  useToast,
+  PageHeader,
+} from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { storePublicUrl } from '../../lib/storefront';
@@ -245,20 +256,16 @@ export function CategoriesPage() {
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Categorías</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
+      <PageHeader
+        title="Categorías"
+        subtitle={
+          <>
             Para organizar tus productos, creá categorías y subcategorías que aparecerán en el menú de la
             tienda. Arrastrá <GripVertical className="inline h-3.5 w-3.5 text-fg" /> para reordenar.
-          </p>
-        </div>
-        {!isEmpty && (
-          <Button onClick={() => setCreateOpen(true)} className="shrink-0 whitespace-nowrap">
-            Crear categoría
-          </Button>
-        )}
-      </div>
+          </>
+        }
+        actions={!isEmpty && <Button onClick={() => setCreateOpen(true)}>Crear categoría</Button>}
+      />
 
       {loadFailed ? (
         <LoadError

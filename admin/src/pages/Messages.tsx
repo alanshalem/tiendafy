@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
-import { Badge, cn, Input, useToast } from '@tiendafy/ui';
+import { Badge, cn, useToast, EmptyList, PageHeader, Tabs, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -92,53 +92,40 @@ export function MessagesPage() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Mensajes de contacto</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Lo que te escriben desde tu tienda — incluye las solicitudes del Botón de Arrepentimiento.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {(data?.total ?? 0) > 0 && (
-            <span className="text-xs text-fg-subtle">
-              {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'mensaje' : 'mensajes')}
-            </span>
-          )}
-          {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
-          {/* La bandeja junta esto con el chat posventa y Mercado Libre, y deja contestar por email. */}
-          <Link to="/bandeja?canal=contacto" className="text-sm font-medium text-primary hover:underline">
-            Responder desde la Bandeja
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Mensajes de contacto"
+        subtitle="Lo que te escriben desde tu tienda — incluye las solicitudes del Botón de Arrepentimiento."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'mensaje' : 'mensajes')
+        }
+        actions={
+          <>
+            {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
+            {/* La bandeja junta esto con el chat posventa y Mercado Libre, y deja contestar por email. */}
+            <Link to="/bandeja?canal=contacto" className="text-sm font-medium text-primary hover:underline">
+              Responder desde la Bandeja
+            </Link>
+          </>
+        }
+      />
 
-      <div className="mb-4 flex gap-1 border-b border-border text-sm">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            // La pestaña filtra la página que se ve: no la cambia.
-            onClick={() => list.set({ filtro: f.id, pagina: page })}
-            className={cn(
-              '-mb-px border-b-2 px-4 pb-2.5 font-medium',
-              filter === f.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg',
-            )}
-          >
-            {f.label}
-            {f.id === 'repentance' && repentanceCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger">
-                {repentanceCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mb-4"
+        label="Tipo de mensaje"
+        items={FILTERS.map((f) => ({
+          id: f.id,
+          label: f.label,
+          count: f.id === 'repentance' ? repentanceCount : null,
+          countTone: 'danger',
+        }))}
+        value={filter}
+        // La pestaña filtra la página que se ve: no la cambia.
+        onChange={(id) => list.set({ filtro: id, pagina: page })}
+      />
 
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar mensajes"
         placeholder="Buscar por nombre, email o texto del mensaje…"
         className="mb-3"
@@ -151,14 +138,11 @@ export function MessagesPage() {
           <TableSkeleton label="Cargando mensajes…" />
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center text-fg-muted">
-          <Mail className="h-8 w-8 opacity-50" />
-          <p>
-            {filter === 'repentance'
-              ? 'Sin solicitudes de arrepentimiento. 🎉'
-              : 'Todavía no recibiste mensajes.'}
-          </p>
-        </div>
+        <EmptyList icon={<Mail />}>
+          {filter === 'repentance'
+            ? 'Sin solicitudes de arrepentimiento. 🎉'
+            : 'Todavía no recibiste mensajes.'}
+        </EmptyList>
       ) : (
         <div className="space-y-3">
           {items.map((m) => {

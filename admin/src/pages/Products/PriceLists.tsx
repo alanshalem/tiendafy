@@ -1,7 +1,20 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea, useConfirm, useToast } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+  useConfirm,
+  useToast,
+  EmptyList,
+  PageHeader,
+  SearchInput,
+} from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
@@ -118,30 +131,22 @@ function ListsOverview({ onOpen }: { onOpen: (list: PriceListRow) => void }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Listas de precios</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Un precio distinto para mayoristas, revendedores o un canal, sin duplicar el catálogo. Cada lista
-            es un porcentaje sobre el precio del producto (o sobre otra lista), así que cuando cambiás un
-            precio, todas las listas se mueven con él.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Nueva lista
-        </Button>
-      </div>
+      <PageHeader
+        title="Listas de precios"
+        subtitle="Un precio distinto para mayoristas, revendedores o un canal, sin duplicar el catálogo. Cada lista es un porcentaje sobre el precio del producto (o sobre otra lista), así que cuando cambiás un precio, todas las listas se mueven con él."
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Nueva lista
+          </Button>
+        }
+      />
 
       {lists.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <Tags className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">Todavía no hay listas de precios</p>
-          <p className="mt-1 text-sm text-fg-muted">
-            El precio que cargás en cada producto es el que ve todo el mundo. Creá una lista —&ldquo;Mayorista
-            −30%&rdquo;, por ejemplo— y asignásela a los clientes que corresponda desde su ficha: las ventas
-            manuales van a usar ese precio solas.
-          </p>
-        </div>
+        <EmptyList icon={<Tags />} title="Todavía no hay listas de precios">
+          El precio que cargás en cada producto es el que ve todo el mundo. Creá una lista —&ldquo;Mayorista
+          −30%&rdquo;, por ejemplo— y asignásela a los clientes que corresponda desde su ficha: las ventas
+          manuales van a usar ese precio solas.
+        </EmptyList>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {lists.map((l) => (
@@ -447,7 +452,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
           >
             <ArrowLeft className="h-4 w-4" /> Listas de precios
           </button>
-          <h1 className="mt-1 text-xl font-semibold">{list.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-fg">{list.name}</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
             Los precios los calcula la regla de la lista. Escribí uno solo si ese producto necesita otro
             número: ese queda fijo y deja de moverse con el precio del producto. Vaciá la casilla para que
@@ -464,8 +469,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
             </p>
           )}
         </div>
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar en la lista"
           className="w-64"
           value={search}
@@ -475,17 +479,17 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-sm text-fg-muted">
+        <EmptyList>
           {debounced
             ? 'Ningún producto coincide con la búsqueda.'
             : 'Todavía no hay productos en el catálogo.'}
-        </div>
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>
             <table className="w-full text-sm">
               <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                <tr className="text-left text-xs text-fg-muted">
                   <th className="px-4 py-2 font-medium">Producto</th>
                   <th className="px-4 py-2 text-right font-medium">Precio del producto</th>
                   <th className="px-4 py-2 text-right font-medium">Precio en esta lista</th>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2 } from 'lucide-react';
-import { Button, Card, Input, useToast } from '@tiendafy/ui';
+import { Button, Card, Input, useToast, PageHeader, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { replaceAt } from '../../lib/arrays';
 import { api, errMsg } from '../../lib/api';
@@ -132,12 +132,10 @@ export function KitsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Kits y combos</h1>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          Definí qué piezas componen cada kit: al venderse, el stock de los componentes se descuenta solo.
-        </p>
-      </div>
+      <PageHeader
+        title="Kits y combos"
+        subtitle="Definí qué piezas componen cada kit: al venderse, el stock de los componentes se descuenta solo."
+      />
 
       {!editingKit ? (
         <>
@@ -152,11 +150,9 @@ export function KitsPage() {
           </Card>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Input
-              type="search"
+            <SearchInput
               aria-label="Buscar kits"
               placeholder="Buscar kit por nombre, SKU o componente…"
-              className="max-w-md"
               value={listSearch}
               onChange={(e) => setListSearch(e.target.value)}
             />
@@ -171,7 +167,9 @@ export function KitsPage() {
                   <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                     <th className="px-4 py-2.5 font-medium">Kit</th>
                     <th className="px-4 py-2.5 font-medium">Componentes</th>
-                    <th className="px-4 py-2.5" />
+                    <th className="px-4 py-2.5">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

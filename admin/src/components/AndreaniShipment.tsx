@@ -1,6 +1,6 @@
 import { useEffect, useState, useId } from 'react';
-import { Download, Loader2, Truck } from 'lucide-react';
-import { Input, Modal, Switch, useToast } from '@tiendafy/ui';
+import { Download, Truck } from 'lucide-react';
+import { Input, Modal, Switch, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
@@ -102,12 +102,7 @@ export function AndreaniShipmentButton({ order }: { order: ShippingOrderLike }) 
             disabled={downloading}
             className={`${shipmentTriggerCls} disabled:opacity-50`}
           >
-            {downloading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="h-3.5 w-3.5" />
-            )}{' '}
-            Etiqueta PDF
+            {downloading ? <Spinner inline size={14} /> : <Download className="h-3.5 w-3.5" />} Etiqueta PDF
           </button>
         )}
         <button
@@ -115,7 +110,7 @@ export function AndreaniShipmentButton({ order }: { order: ShippingOrderLike }) 
           disabled={tracking}
           className={`${shipmentTriggerCls} disabled:opacity-50`}
         >
-          {tracking && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Seguimiento
+          {tracking && <Spinner inline size={14} />} Seguimiento
         </button>
       </span>
     );

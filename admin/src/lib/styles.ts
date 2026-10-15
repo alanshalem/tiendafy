@@ -87,11 +87,22 @@ export const TABLE_CARD = 'overflow-clip rounded-lg border border-border bg-surf
  * ella, y tiene que perder.
  */
 export const TABLE_HEAD_STICKY =
-  'z-10 xl:sticky xl:top-[var(--header-height)] [&_th]:bg-surface [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+  'z-10 xl:sticky xl:top-[var(--header-height)] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))] [&_th]:text-xs [&_th]:font-medium [&_th]:normal-case [&_th]:tracking-normal [&_th]:text-fg-muted';
 
-/** Igual, para las tablas cuyo encabezado va sobre el gris de fondo. */
-export const TABLE_HEAD_STICKY_SUBTLE =
-  'z-10 xl:sticky xl:top-[var(--header-height)] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+/**
+ * El texto de los nombres de columna de las tablas armadas a mano: el mismo
+ * que el de <Table> (TABLE_TH de @tiendafy/ui). Va en el `thead` y gana a lo
+ * que diga cada fila, así que las tablas que estaban en MAYÚSCULAS (Productos,
+ * Mercado Libre, Usuarios, Dominios…) quedan como el resto sin tocar cada `th`.
+ */
+export const TABLE_HEAD_TEXT =
+  '[&_th]:text-xs [&_th]:font-medium [&_th]:normal-case [&_th]:tracking-normal [&_th]:text-fg-muted';
+
+/**
+ * Igual que TABLE_HEAD_STICKY. Antes uno iba sobre blanco y otro sobre gris
+ * según la pantalla; ahora todos los encabezados van sobre gris, como <Table>.
+ */
+export const TABLE_HEAD_STICKY_SUBTLE = TABLE_HEAD_STICKY;
 
 /**
  * Envoltorio de las tablas anchas, las que no entran y hay que correr de
@@ -109,4 +120,4 @@ export const TABLE_SCROLL_X = 'overflow-x-auto xl:overflow-x-visible';
  * cuando estás editando en lote.
  */
 export const TABLE_HEAD_STICKY_UNDER_BAR =
-  'z-10 xl:sticky xl:top-[calc(var(--header-height)+var(--bulk-bar,0px))] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+  'z-10 xl:sticky xl:top-[calc(var(--header-height)+var(--bulk-bar,0px))] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))] [&_th]:text-xs [&_th]:font-medium [&_th]:normal-case [&_th]:tracking-normal [&_th]:text-fg-muted';

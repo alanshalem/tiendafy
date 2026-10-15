@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { ExternalLink, ImageOff, Loader2, Sparkles } from 'lucide-react';
+import { ExternalLink, ImageOff, Sparkles } from 'lucide-react';
 import { Button, EmptyList, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
@@ -259,7 +259,7 @@ function AnswerBox({
             disabled={suggesting}
             title="Sugerir una respuesta con IA (después la editás)"
           >
-            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
           </Button>
         )}
       </div>
@@ -268,7 +268,7 @@ function AnswerBox({
           Se publica en Mercado Libre y no se puede editar. {SEND_KEYS} para publicar.
         </p>
         <Button onClick={onSend} disabled={sending || !value.trim()}>
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publicar respuesta'}
+          {sending ? <Spinner inline /> : 'Publicar respuesta'}
         </Button>
       </div>
     </div>

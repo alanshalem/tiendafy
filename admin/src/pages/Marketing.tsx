@@ -1,7 +1,16 @@
 import { Suspense, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
-import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
+import { BarChart3, Copy, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Modal,
+  PageHeader,
+  useConfirm,
+  useToast,
+  type BadgeVariant,
+  Spinner,
+} from '@tiendafy/ui';
 import { formatAmount, formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { lazyComponent } from '../lib/lazyPage';
@@ -130,17 +139,14 @@ export function MarketingPage() {
         className="mb-5"
         title="Email marketing"
         subtitle="Campañas de email para tus clientes: novedades, promos, lanzamientos."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'campaña' : 'campañas')
+        }
         actions={
-          <div className="flex items-center gap-3">
-            {(data?.total ?? 0) > 0 && (
-              <span className="text-xs text-fg-subtle">
-                {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'campaña' : 'campañas')}
-              </span>
-            )}
-            <Button onClick={() => setEditing('new')}>
-              <Plus className="h-4 w-4" /> Nueva campaña
-            </Button>
-          </div>
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Nueva campaña
+          </Button>
         }
       />
 
@@ -252,7 +258,7 @@ export function MarketingPage() {
               role="status"
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 text-sm text-white"
             >
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abriendo el editor…
+              <Spinner inline size={20} className="mr-2" /> Abriendo el editor…
             </div>
           }
         >
@@ -285,9 +291,7 @@ function DetailModal({ campaignId, onClose }: { campaignId: string; onClose: () 
   return (
     <Modal open size="lg" onClose={onClose} title={data ? data.campaign.subject : 'Cargando…'}>
       {!data ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
-        </div>
+        <Spinner className="py-10" />
       ) : (
         <div className="max-h-[68vh] space-y-5 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -347,7 +351,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
     <div className="rounded-lg border border-border bg-surface p-3">
       <div className="text-xs text-fg-subtle">{label}</div>
       <div className="mt-0.5 text-xl font-bold tabular-nums text-fg">{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] leading-tight text-fg-subtle">{sub}</div>}
+      {sub && <div className="mt-0.5 text-2xs leading-tight text-fg-subtle">{sub}</div>}
     </div>
   );
 }

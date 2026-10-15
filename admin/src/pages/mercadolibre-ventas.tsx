@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Loader2, MessageSquare, Search, Send, X } from 'lucide-react';
+import { FileText, MessageSquare, Send, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -10,11 +10,11 @@ import {
   Modal,
   Select,
   Spinner,
-  StatCard,
   cn,
   useConfirm,
   useToast,
   type BadgeVariant,
+  SearchInput,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -30,6 +30,7 @@ import { useListParams, useListSearch } from '../lib/useListParams';
 import { useFiscalReady } from '../lib/useFiscalReady';
 import { useIsNarrow } from '../lib/useMediaQuery';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
+import { ListStats } from '../components/stats/ListStats';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -261,12 +262,7 @@ export function VentasTab() {
         disabled={row?.state === 'working' || !!progress}
         onClick={() => invoice(o)}
       >
-        {row?.state === 'working' ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <FileText className="h-4 w-4" />
-        )}{' '}
-        Facturar
+        {row?.state === 'working' ? <Spinner inline /> : <FileText className="h-4 w-4" />} Facturar
       </Button>
     );
   };
@@ -292,37 +288,38 @@ export function VentasTab() {
   return (
     <div>
       {stats && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <StatCard
-            label="Ventas ML (30 días)"
-            hint="Ventas pagadas de los últimos 30 días en tu cuenta de ML."
-            value={String(stats.orders)}
-          />
-          <StatCard
-            label="Facturado en ML"
-            hint="Solo ventas pagadas: las canceladas no suman."
-            value={moneyMajor(stats.revenue, stats.currency)}
-          />
-          <StatCard
-            label="Unidades vendidas"
-            hint="Suma de unidades de todas las ventas pagadas."
-            value={String(stats.unitsSold)}
-          />
-        </div>
+        // La misma fila de métricas que el resto de los listados: eran tres
+        // tarjetas sueltas que en el teléfono iban una abajo de la otra.
+        <ListStats
+          className="mb-4"
+          items={[
+            {
+              label: 'Ventas ML (30 días)',
+              hint: 'Ventas pagadas de los últimos 30 días en tu cuenta de ML.',
+              value: String(stats.orders),
+            },
+            {
+              label: 'Facturado en ML',
+              hint: 'Solo ventas pagadas: las canceladas no suman.',
+              value: moneyMajor(stats.revenue, stats.currency),
+            },
+            {
+              label: 'Unidades vendidas',
+              hint: 'Suma de unidades de todas las ventas pagadas.',
+              value: String(stats.unitsSold),
+            },
+          ]}
+        />
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[14rem] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-          <Input
-            type="search"
-            aria-label="Buscar ventas de Mercado Libre"
-            className="pl-8"
-            placeholder="Buscar por comprador, número de venta o producto…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          className="min-w-[14rem] flex-1"
+          aria-label="Buscar ventas de Mercado Libre"
+          placeholder="Buscar por comprador, número de venta o producto…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <div className="w-full sm:w-52">
           <Select
             aria-label="Filtrar ventas de Mercado Libre"
@@ -344,8 +341,7 @@ export function VentasTab() {
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={invoiceSelected} disabled={!!progress}>
-              {progress ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}{' '}
-              Facturar seleccionadas
+              {progress ? <Spinner inline /> : <FileText className="h-4 w-4" />} Facturar seleccionadas
             </Button>
             <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={!!progress}>
               <X className="h-4 w-4" /> Deseleccionar
@@ -439,7 +435,7 @@ export function VentasTab() {
             <div className={`${TABLE_SCROLL_X} rounded-lg border border-border bg-surface shadow-card`}>
               <table className="w-full min-w-[760px] text-sm">
                 <thead className={TABLE_HEAD_STICKY}>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
+                  <tr className="border-b border-border text-left text-xs text-fg-subtle">
                     {selectable && (
                       <th className="w-10 px-3 py-3">
                         <Checkbox
@@ -460,7 +456,9 @@ export function VentasTab() {
                     <th className="px-4 py-3">Productos</th>
                     <th className="px-4 py-3">Total</th>
                     <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -576,9 +574,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
                 }`}
               >
                 {m.text}
-                <div
-                  className={`mt-0.5 text-[10px] ${m.fromSeller ? 'text-primary-fg/70' : 'text-fg-subtle'}`}
-                >
+                <div className={`mt-0.5 text-3xs ${m.fromSeller ? 'text-primary-fg/70' : 'text-fg-subtle'}`}>
                   {fecha(m.dateCreated)}
                 </div>
               </div>
@@ -596,7 +592,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
           onKeyDown={(e) => e.key === 'Enter' && send()}
         />
         <Button aria-label="Enviar" onClick={send} disabled={sending || !text.trim()}>
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
     </Modal>

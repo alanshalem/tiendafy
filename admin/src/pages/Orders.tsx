@@ -1,16 +1,20 @@
 import { Fragment, useCallback, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Download, Loader2, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
+import { Download, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
 import {
   Checkbox,
   clickableRowProps,
   cn,
-  Input,
   Select,
   useToast,
   useConfirm,
   usePrompt,
+  Spinner,
+  EmptyList,
+  PageHeader,
+  Button,
+  SearchInput,
 } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -33,6 +37,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats, type ListStat } from '../components/stats/ListStats';
 import { TableSkeleton } from '../components/Skeleton';
+import { LoadError } from '../components/LoadError';
 
 interface OrderItem {
   variantId: string;
@@ -438,37 +443,32 @@ export function OrdersPage() {
   return (
     // Lugar para la barra de lo elegido, que en el celular va fija abajo.
     <div className={cn(selected.size > 0 && 'pb-44 sm:pb-0')}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fg">Ventas</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {can('orders.create') && (
-            <button
-              type="button"
-              onClick={() => setManualOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+      <PageHeader
+        className="mb-5"
+        title="Ventas"
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
+        actions={
+          <>
+            <Button variant="secondary" onClick={load}>
+              <RefreshCw className="h-4 w-4" /> Actualizar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={exportCsv}
+              disabled={exporting || total === 0}
+              title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
             >
-              <Plus className="h-4 w-4" /> Venta manual
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={exporting || total === 0}
-            title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
-          >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{' '}
-            Exportar
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-          >
-            <RefreshCw className="h-4 w-4" /> Actualizar
-          </button>
-        </div>
-      </div>
+              {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />} Exportar
+            </Button>
+            {/* La principal va última: arriba a la derecha, como en todo el panel. */}
+            {can('orders.create') && (
+              <Button onClick={() => setManualOpen(true)}>
+                <Plus className="h-4 w-4" /> Venta manual
+              </Button>
+            )}
+          </>
+        }
+      />
       {manualOpen && <ManualSaleModal onClose={() => setManualOpen(false)} onCreated={load} />}
 
       {listStats.length > 0 && (
@@ -484,11 +484,6 @@ export function OrdersPage() {
         onChange={(patch) => list.set(patch)}
         showMeliLink={can('meli.operate')}
       />
-      {total > 0 && (
-        <p className="mb-3 text-xs text-fg-subtle">
-          {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
-        </p>
-      )}
 
       {focusOrder && !focusInPage && ordersQuery.isSuccess && (
         <FocusedOrder
@@ -518,26 +513,15 @@ export function OrdersPage() {
           <TableSkeleton rows={8} label="Cargando ventas…" />
         </div>
       ) : failedLoad ? (
-        <div
-          role="alert"
-          className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-danger/40 py-16 text-center text-fg-muted"
-        >
-          <AlertTriangle className="h-8 w-8 text-danger" />
-          <p className="text-fg">No se pudieron cargar las ventas.</p>
-          <p className="text-xs">{errMsg(ordersQuery.error, 'Revisá la conexión y probá de nuevo.')}</p>
-          <button
-            type="button"
-            onClick={() => ordersQuery.refetch()}
-            className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-          >
-            <RefreshCw className="h-4 w-4" /> Reintentar
-          </button>
-        </div>
+        <LoadError
+          title="No se pudieron cargar las ventas."
+          error={ordersQuery.error}
+          onRetry={() => ordersQuery.refetch()}
+          retrying={ordersQuery.isFetching}
+        />
       ) : orders.length === 0 ? (
         filtered ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-            <Search className="h-8 w-8 opacity-50" />
-            <p>Ninguna venta coincide con la búsqueda o el filtro.</p>
+          <EmptyList icon={<Search />} title="Ninguna venta coincide con la búsqueda o el filtro.">
             <button
               type="button"
               onClick={list.reset}
@@ -545,13 +529,11 @@ export function OrdersPage() {
             >
               Limpiar búsqueda y filtros
             </button>
-          </div>
+          </EmptyList>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-            <Package className="h-8 w-8 opacity-50" />
-            <p>Todavía no hay ventas.</p>
-            <p className="text-xs">Cuando un cliente pague con Mercado Pago, la orden aparece acá.</p>
-          </div>
+          <EmptyList icon={<Package />} title="Todavía no hay ventas.">
+            Cuando un cliente pague con Mercado Pago, la orden aparece acá.
+          </EmptyList>
         )
       ) : narrow ? (
         // Celular: una tarjeta por venta con lo que se mira primero (número,
@@ -670,17 +652,12 @@ function OrderFilters({
     'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary';
   return (
     <div className="mb-2 space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-        <Input
-          type="search"
-          aria-label="Buscar ventas"
-          className="pl-8"
-          placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-        />
-      </div>
+      <SearchInput
+        aria-label="Buscar ventas"
+        placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
+        value={search}
+        onChange={(e) => onSearch(e.target.value)}
+      />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Select
           aria-label="Filtrar por estado"
@@ -711,7 +688,7 @@ function OrderFilters({
         />
         {/* Con el rótulo a la vista: un "dd/mm/aaaa" vacío no dice si es desde o hasta. */}
         <label className="relative block">
-          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-3xs font-medium text-fg-subtle">
             Desde
           </span>
           <input
@@ -725,7 +702,7 @@ function OrderFilters({
           />
         </label>
         <label className="relative block">
-          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-3xs font-medium text-fg-subtle">
             Hasta (incluido)
           </span>
           <input

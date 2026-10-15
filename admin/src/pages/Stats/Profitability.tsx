@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Select, useToast } from '@tiendafy/ui';
+import { Button, cn, Select, Table, useToast } from '@tiendafy/ui';
 import {
+  KPI_GRID,
   KpiCard,
   StatsPageHeader,
   defaultStatsRange,
@@ -16,7 +17,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDayShort, formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
+import { CardsSkeleton } from '../../components/Skeleton';
 
 interface Profitability {
   currency: string;
@@ -126,11 +127,7 @@ export function StatsProfitabilityPage() {
       />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
-          ))}
-        </div>
+        <CardsSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
           {partial && (
@@ -166,7 +163,7 @@ export function StatsProfitabilityPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4 lg:grid-cols-4">
+              <div className={KPI_GRID}>
                 <KpiCard
                   title="Ganancia real"
                   hint="Ventas netas de cupón − costo de lo vendido − comisión real de MP. El envío cobrado va aparte."
@@ -203,32 +200,34 @@ export function StatsProfitabilityPage() {
                 {data.byChannel.length === 0 ? (
                   <p className="py-4 text-sm text-fg-muted">Sin ventas en el período.</p>
                 ) : (
-                  <div className={TABLE_SCROLL_X}>
-                    <table className="w-full text-sm">
-                      <thead className={TABLE_HEAD_STICKY}>
-                        <tr className="border-b border-border text-left text-xs text-fg-muted">
-                          <th className="py-2 font-medium">Canal</th>
-                          <th className="py-2 text-right font-medium">Ventas</th>
-                          <th className="py-2 text-right font-medium">Facturado</th>
-                          <th className="py-2 text-right font-medium">Ganancia</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.byChannel.map((c) => (
-                          <tr key={c.source} className="border-b border-border last:border-b-0">
-                            <td className="py-2 capitalize text-fg">{c.source}</td>
-                            <td className="py-2 text-right tabular-nums text-fg-muted">{c.orders}</td>
-                            <td className="py-2 text-right tabular-nums text-fg">
-                              {formatMoney(c.revenue, data.currency)}
-                            </td>
-                            <td className="py-2 text-right tabular-nums font-medium text-fg">
-                              {c.ordersWithCost > 0 ? formatMoney(c.profit, data.currency) : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <Table
+                    className="-mx-5"
+                    rows={data.byChannel}
+                    rowKey={(c) => c.source}
+                    columns={[
+                      { key: 'source', header: 'Canal', className: 'capitalize' },
+                      {
+                        key: 'orders',
+                        header: 'Ventas',
+                        align: 'right',
+                        cell: (c) => <span className="tabular-nums text-fg-muted">{c.orders}</span>,
+                      },
+                      {
+                        key: 'revenue',
+                        header: 'Facturado',
+                        align: 'right',
+                        className: 'tabular-nums',
+                        cell: (c) => formatMoney(c.revenue, data.currency),
+                      },
+                      {
+                        key: 'profit',
+                        header: 'Ganancia',
+                        align: 'right',
+                        className: 'tabular-nums font-medium',
+                        cell: (c) => (c.ordersWithCost > 0 ? formatMoney(c.profit, data.currency) : '—'),
+                      },
+                    ]}
+                  />
                 )}
               </ChartCard>
 
@@ -239,43 +238,58 @@ export function StatsProfitabilityPage() {
                 {data.byProduct.length === 0 ? (
                   <p className="py-4 text-sm text-fg-muted">Sin ventas con costo en el período.</p>
                 ) : (
-                  <div className={TABLE_SCROLL_X}>
-                    <table className="w-full min-w-[560px] text-sm">
-                      <thead className={TABLE_HEAD_STICKY}>
-                        <tr className="border-b border-border text-left text-xs text-fg-muted">
-                          <th className="py-2 font-medium">Producto</th>
-                          <th className="py-2 text-right font-medium">Unidades</th>
-                          <th className="py-2 text-right font-medium">Facturado</th>
-                          <th className="py-2 text-right font-medium">Costo</th>
-                          <th className="py-2 text-right font-medium">Ganancia</th>
-                          <th className="py-2 text-right font-medium">Margen</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.byProduct.map((p) => (
-                          <tr key={p.product} className="border-b border-border last:border-b-0">
-                            <td className="py-2 text-fg">{p.product}</td>
-                            <td className="py-2 text-right tabular-nums text-fg-muted">{p.units}</td>
-                            <td className="py-2 text-right tabular-nums text-fg">
-                              {formatMoney(p.revenue, data.currency)}
-                            </td>
-                            <td className="py-2 text-right tabular-nums text-fg-muted">
+                  <>
+                    <Table
+                      className="-mx-5"
+                      tableClassName="min-w-[560px]"
+                      rows={data.byProduct}
+                      rowKey={(p) => p.product}
+                      columns={[
+                        { key: 'product', header: 'Producto' },
+                        {
+                          key: 'units',
+                          header: 'Unidades',
+                          align: 'right',
+                          cell: (p) => <span className="tabular-nums text-fg-muted">{p.units}</span>,
+                        },
+                        {
+                          key: 'revenue',
+                          header: 'Facturado',
+                          align: 'right',
+                          className: 'tabular-nums',
+                          cell: (p) => formatMoney(p.revenue, data.currency),
+                        },
+                        {
+                          key: 'cost',
+                          header: 'Costo',
+                          align: 'right',
+                          cell: (p) => (
+                            <span className="tabular-nums text-fg-muted">
                               {formatMoney(p.cost, data.currency)}
-                            </td>
-                            <td className="py-2 text-right tabular-nums font-medium text-fg">
-                              {formatMoney(p.profit, data.currency)}
-                            </td>
-                            <td
-                              className={`py-2 text-right tabular-nums ${p.marginPct < 15 ? 'text-danger' : 'text-fg'}`}
-                            >
+                            </span>
+                          ),
+                        },
+                        {
+                          key: 'profit',
+                          header: 'Ganancia',
+                          align: 'right',
+                          className: 'tabular-nums font-medium',
+                          cell: (p) => formatMoney(p.profit, data.currency),
+                        },
+                        {
+                          key: 'margin',
+                          header: 'Margen',
+                          align: 'right',
+                          cell: (p) => (
+                            <span className={cn('tabular-nums', p.marginPct < 15 && 'text-danger')}>
                               {formatPercent(p.marginPct)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
                     <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
-                  </div>
+                  </>
                 )}
               </ChartCard>
 
@@ -486,20 +500,23 @@ function MetaAdsSection({
         </div>
       </div>
       {spend && spend.campaigns.length > 0 && (
-        <div className={TABLE_SCROLL_X}>
-          <table className="mt-3 w-full text-sm">
-            <tbody>
-              {spend.campaigns.map((c) => (
-                <tr key={c.id} className="border-b border-border last:border-b-0">
-                  <td className="py-1.5 text-fg">{c.name}</td>
-                  <td className="py-1.5 text-right tabular-nums text-fg-muted">
-                    {formatMoney(c.spend, currency)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        // Con encabezado como el resto: era la única tabla del panel sin nombres de columna.
+        <Table
+          className="-mx-5 mt-3"
+          rows={spend.campaigns}
+          rowKey={(c) => c.id}
+          columns={[
+            { key: 'name', header: 'Campaña' },
+            {
+              key: 'spend',
+              header: 'Gasto',
+              align: 'right',
+              cell: (c) => (
+                <span className="tabular-nums text-fg-muted">{formatMoney(c.spend, currency)}</span>
+              ),
+            },
+          ]}
+        />
       )}
     </ChartCard>
   );

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { History, Loader2 } from 'lucide-react';
+import { History } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
+import { Spinner } from '@tiendafy/ui';
 
 interface ActivityItem {
   id: string;
@@ -39,9 +40,7 @@ export function TeamActivity() {
       </h2>
       <div className="rounded-lg border border-border bg-surface">
         {isLoading ? (
-          <div className="py-6 text-center text-fg-muted">
-            <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-          </div>
+          <Spinner className="py-6" />
         ) : isError ? (
           <p className="px-4 py-6 text-center text-sm text-fg-muted">
             {errMsg(error, 'No se pudo cargar la actividad.')}

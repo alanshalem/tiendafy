@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Store } from 'lucide-react';
-import { Tabs } from '@tiendafy/ui';
+import { PageHeader, Tabs } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -63,7 +63,7 @@ export function MercadoLibrePage() {
   if (isError && !status)
     return (
       <div className="mx-auto max-w-xl py-16">
-        <h1 className="mb-4 text-2xl font-bold tracking-tight">Mercado Libre</h1>
+        <PageHeader className="mb-4" title="Mercado Libre" />
         <LoadError
           title="No se pudo cargar el estado de Mercado Libre."
           error={error}
@@ -80,7 +80,7 @@ export function MercadoLibrePage() {
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-warning-bg text-warning">
           <Store className="h-7 w-7" />
         </span>
-        <h1 className="mt-4 text-2xl font-bold tracking-tight">Mercado Libre</h1>
+        <h1 className="mt-4 text-2xl font-bold text-fg">Mercado Libre</h1>
         <p className="mt-2 text-fg-muted">
           Conectá tu cuenta de vendedor y mirá tus ventas, preguntas y mensajes de Mercado Libre sin salir del
           panel. Vinculando publicaciones, el stock queda unificado.
@@ -98,18 +98,18 @@ export function MercadoLibrePage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mercado Libre</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
+      <PageHeader
+        className="mb-4"
+        title="Mercado Libre"
+        subtitle={
+          <>
             Conectado como <span className="font-medium text-fg">{status.nickname}</span>
-          </p>
-        </div>
-        {/* max-w-full: sin tope, la fila de pestañas se quedaba con el ancho de
-            su contenido y en un celular "Reclamos" caía fuera de la pantalla;
-            con tope, la fila corre de costado. */}
-        <Tabs items={tabs} value={tab} onChange={setTab} className="max-w-full" />
-      </div>
+          </>
+        }
+      />
+      {/* Debajo del título, como en el resto del panel; la fila corre de
+          costado si no entra (en un celular "Reclamos" caía fuera de la pantalla). */}
+      <Tabs items={tabs} value={tab} onChange={setTab} className="mb-5" />
 
       {tab === 'ventas' && <VentasTab />}
       {tab === 'preguntas' && <PreguntasTab />}

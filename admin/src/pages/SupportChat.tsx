@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
-import { cn, useToast } from '@tiendafy/ui';
+import { Archive, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { cn, useToast, Spinner, PageHeader, Button } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
@@ -290,21 +290,20 @@ export function SupportChatPage() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
-        <Link
-          to="/bandeja?canal=posventa"
-          className="ml-auto mr-3 text-sm font-medium text-primary hover:underline"
-        >
-          Ver en la Bandeja
-        </Link>
-        <button
-          onClick={loadConvs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-        >
-          <RefreshCw className="h-4 w-4" /> Actualizar
-        </button>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Chat posventa"
+        actions={
+          <>
+            <Link to="/bandeja?canal=posventa" className="text-sm font-medium text-primary hover:underline">
+              Ver en la Bandeja
+            </Link>
+            <Button variant="secondary" onClick={loadConvs}>
+              <RefreshCw className="h-4 w-4" /> Actualizar
+            </Button>
+          </>
+        }
+      />
 
       {allCount > 0 && (
         <div className="mb-4">
@@ -345,7 +344,7 @@ export function SupportChatPage() {
           )}
           {loading ? (
             <div className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+              <Spinner inline /> Cargando…
             </div>
           ) : loadError !== null && convs.length === 0 ? (
             <LoadError
@@ -382,7 +381,7 @@ export function SupportChatPage() {
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-fg">{c.customerEmail}</span>
                     {c.status === 'CLOSED' && (
-                      <span className="rounded-full bg-bg-muted px-1.5 py-px text-[10px] text-fg-muted">
+                      <span className="rounded-full bg-bg-muted px-1.5 py-px text-3xs text-fg-muted">
                         Cerrada
                       </span>
                     )}
@@ -393,7 +392,7 @@ export function SupportChatPage() {
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-fg">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-2xs font-bold text-primary-fg">
                     {c.unreadForStaff}
                   </span>
                 )}
@@ -455,7 +454,7 @@ export function SupportChatPage() {
                       disabled={loadingOlder}
                       className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
                     >
-                      {loadingOlder && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Ver anteriores
+                      {loadingOlder && <Spinner inline />} Ver anteriores
                     </button>
                   </div>
                 )}
@@ -492,7 +491,7 @@ export function SupportChatPage() {
                             <Paperclip className="h-3.5 w-3.5" /> {m.attachment.name}
                           </a>
                         ))}
-                      <p className="mt-1 text-[10px] opacity-60">
+                      <p className="mt-1 text-3xs opacity-60">
                         {m.authorName} · {formatDateTime(m.createdAtUtc)}
                       </p>
                     </div>
@@ -551,11 +550,7 @@ export function SupportChatPage() {
                     className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
                     aria-label="Sugerir con IA"
                   >
-                    {suggesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
+                    {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
                   </button>
                 )}
                 <button
@@ -564,7 +559,7 @@ export function SupportChatPage() {
                   className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40"
                   aria-label="Enviar"
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
             </>

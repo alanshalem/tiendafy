@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
-import { Loader2, Mail, Package } from 'lucide-react';
-import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
+import { Mail, Package } from 'lucide-react';
+import { Button, FormField, Input, Modal, Select, Switch, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatAmount } from '../../lib/format';
@@ -49,7 +49,7 @@ export function CorreoArgentinoCard() {
         extraBadges={
           config.configured &&
           config.environment === 'TEST' && (
-            <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+            <span className="rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
               Modo prueba
             </span>
           )
@@ -187,14 +187,14 @@ function ConfigModal({
         <>
           {config.configured && (
             <Button variant="secondary" onClick={test} disabled={testing}>
-              {testing && <Loader2 className="h-4 w-4 animate-spin" />} Probar cotización
+              {testing && <Spinner inline />} Probar cotización
             </Button>
           )}
           <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+            {saving && <Spinner inline />} Guardar
           </Button>
         </>
       }

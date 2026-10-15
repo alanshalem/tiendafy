@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BadgeCheck, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
-import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { BadgeCheck, Link2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
+import { Button, cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -194,7 +194,7 @@ function DisconnectedView({
           className="w-full sm:w-auto"
           style={{ background: MP_BLUE }}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          {busy ? <Spinner inline /> : <Link2 className="h-4 w-4" />}
           Conectá tu cuenta de Mercado Pago
         </Button>
       )}
@@ -287,7 +287,9 @@ function ConnectedView({
             <table className="w-full min-w-[480px] text-xs">
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th className="py-2 pr-3 font-medium text-fg-muted" />
+                  <th className="py-2 pr-3 font-medium text-fg-muted">
+                    <span className="sr-only">Característica</span>
+                  </th>
                   <th className="py-2 pr-3 font-semibold text-fg">Checkout Pro</th>
                   <th className="py-2 font-semibold text-fg">Checkout integrado</th>
                 </tr>
@@ -422,7 +424,7 @@ function ModeCard({
           {icon}
         </span>
         <span className="font-semibold text-fg">{title}</span>
-        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-medium text-fg-muted">
           {tag}
         </span>
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Loader2, Sparkles, Upload } from 'lucide-react';
-import { Badge, Button, Card, FormField, Input, useToast } from '@tiendafy/ui';
+import { FileSpreadsheet, Sparkles, Upload } from 'lucide-react';
+import { Badge, Button, Card, FormField, Input, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
@@ -47,7 +47,7 @@ export function VatBookDownload() {
         className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
       />
       <Button variant="secondary" onClick={download} disabled={busy} title="Libro de IVA compras del mes">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+        {busy ? <Spinner inline /> : <FileSpreadsheet className="h-4 w-4" />}
         Libro IVA compras
       </Button>
     </div>
@@ -150,7 +150,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
       </div>
       <div className="mt-3 flex justify-end">
         <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {save.isPending ? <Spinner inline /> : null}
           Guardar comprobante
         </Button>
       </div>
@@ -188,14 +188,14 @@ function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan
         disabled={scans.busy}
         title={`${spec.formats} · ${spec.weight}`}
       >
-        {current ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {current ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
         {!current
           ? 'Leer factura'
           : current.progress < 1
             ? `Subiendo… ${Math.round(current.progress * 100)} %`
             : 'Leyendo…'}
       </Button>
-      <p className="text-right text-[11px] text-fg-subtle">
+      <p className="text-right text-2xs text-fg-subtle">
         {spec.formats} · {spec.weight}
       </p>
       <UploadNotes notes={scans.notes} onDismiss={scans.dismissNotes} showFile={false} />

@@ -177,7 +177,7 @@ export function ActionMenu({
                   <div
                     key={i}
                     role="presentation"
-                    className="px-3 pb-1 pt-2 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle"
+                    className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wide text-fg-subtle"
                   >
                     {entry.label}
                   </div>

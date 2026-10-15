@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
-import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
+import { Camera, Check, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
+import { Badge, Button, Card, Input, Tabs, useToast, Spinner, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { fetchStock, isStockChanged, type StockItem } from '../../lib/products';
@@ -148,13 +148,10 @@ export function ScannerPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Escáner</h1>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          El depósito en el celular: buscá por código, prepará pedidos sin errores de despacho y contá stock
-          escaneando.
-        </p>
-      </div>
+      <PageHeader
+        title="Escáner"
+        subtitle="El depósito en el celular: buscá por código, prepará pedidos sin errores de despacho y contá stock escaneando."
+      />
 
       <Tabs
         items={[
@@ -516,11 +513,7 @@ function PickingTab() {
                     />
                   </div>
                   <Button onClick={() => fulfill.mutate()} disabled={fulfill.isPending}>
-                    {fulfill.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Truck className="h-4 w-4" />
-                    )}
+                    {fulfill.isPending ? <Spinner inline /> : <Truck className="h-4 w-4" />}
                     Marcar enviada
                   </Button>
                 </div>

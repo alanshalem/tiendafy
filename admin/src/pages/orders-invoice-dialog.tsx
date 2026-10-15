@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
-import { Button, FormField, Input, Modal, Select } from '@tiendafy/ui';
+import { Search } from 'lucide-react';
+import { Button, FormField, Input, Modal, Select, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
@@ -95,7 +95,7 @@ export function InvoiceDialog({
             Cancelar
           </Button>
           <Button onClick={confirmar} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {busy && <Spinner inline />}
             Facturar
           </Button>
         </>
@@ -120,11 +120,7 @@ export function InvoiceDialog({
             </FormField>
           </div>
           <Button variant="secondary" className="mt-6" onClick={consultar} disabled={!esCuit || consultando}>
-            {consultando ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Search className="h-4 w-4" aria-hidden="true" />
-            )}
+            {consultando ? <Spinner inline /> : <Search className="h-4 w-4" aria-hidden="true" />}
             Consultar en ARCA
           </Button>
         </div>

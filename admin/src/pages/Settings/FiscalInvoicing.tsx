@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Download, Loader2, Lock } from 'lucide-react';
-import { useToast } from '@tiendafy/ui';
+import { Download, Lock } from 'lucide-react';
+import { useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { useStore } from '../../context/StoreContext';
@@ -135,7 +135,7 @@ function ExportLibroIva() {
         className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border-strong px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
         title="CSV con los comprobantes aprobados del mes: fecha, tipo, número, neto, IVA, total y CAE."
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        {busy ? <Spinner inline /> : <Download className="h-4 w-4" />}
         Libro IVA ventas
       </button>
     </div>

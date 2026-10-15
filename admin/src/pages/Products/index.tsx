@@ -1,14 +1,14 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Search, Trash2, Upload, X } from 'lucide-react';
-import { Button, Checkbox, Dropdown, Modal, useToast } from '@tiendafy/ui';
+import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast, SearchInput } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
 import { useVariantStock, useCatalogHealth } from './queries';
-import { Pagination } from '../../components/Pagination';
+import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { useListParams, useListSearch } from '../../lib/useListParams';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -317,10 +317,15 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fg">Productos</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && (
+      <PageHeader
+        title="Productos"
+        count={
+          !isEmpty &&
+          total > 0 &&
+          pageRangeLabel(pageClamped, PAGE_SIZE, total, total === 1 ? 'producto' : 'productos')
+        }
+        actions={
+          canEdit && (
             <>
               <Link to="/productos/exportar-importar">
                 <HeaderBtn>
@@ -358,9 +363,9 @@ export function ProductsPage() {
                 </Dropdown>
               )}
             </>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {health && health.total > 0 && (
         <ListStats
@@ -435,17 +440,13 @@ export function ProductsPage() {
         <>
           {/* Toolbar búsqueda + filtros + orden */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[16rem]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-              <input
-                type="search"
-                aria-label="Buscar productos"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, SKU o tags"
-                className="h-10 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            <SearchInput
+              className="min-w-[16rem] flex-1"
+              aria-label="Buscar productos"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, SKU o tags"
+            />
             <button
               type="button"
               onClick={() => {
@@ -473,10 +474,6 @@ export function ProductsPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="text-sm text-fg-muted">
-            {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
           </div>
 
           {bulkResult && (
@@ -594,7 +591,7 @@ export function ProductsPage() {
               <div className={TABLE_SCROLL_X}>
                 <table className="w-full text-sm">
                   <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
-                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium text-fg-muted">
                       <th className="w-10 px-3 py-2.5">
                         {canEdit && (
                           <Checkbox

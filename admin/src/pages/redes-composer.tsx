@@ -6,14 +6,13 @@ import {
   ChevronRight,
   Heart,
   ImagePlus,
-  Loader2,
   MessageCircle,
   Send,
   Sparkles,
   X as XIcon,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Input, Modal, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
+import { Button, Input, Modal, Spinner, Textarea, cn, useToast, SearchInput } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
@@ -217,17 +216,17 @@ export function ComposerModal({
               Cancelar
             </Button>
             <Button variant="secondary" onClick={() => save('draft')} disabled={busy}>
-              {saving === 'draft' && <Loader2 className="h-4 w-4 animate-spin" />} Guardar borrador
+              {saving === 'draft' && <Spinner inline />} Guardar borrador
             </Button>
             <Button
               variant="secondary"
               onClick={() => save('schedule')}
               disabled={busy || !canPublish || !scheduleAt}
             >
-              {saving === 'schedule' && <Loader2 className="h-4 w-4 animate-spin" />} Programar
+              {saving === 'schedule' && <Spinner inline />} Programar
             </Button>
             <Button onClick={() => save('now')} disabled={busy || !canPublish}>
-              {saving === 'now' && <Loader2 className="h-4 w-4 animate-spin" />} Publicar ahora
+              {saving === 'now' && <Spinner inline />} Publicar ahora
             </Button>
           </>
         )
@@ -286,11 +285,7 @@ export function ComposerModal({
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
                       title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
                     >
-                      {improving ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3 w-3" />
-                      )}
+                      {improving ? <Spinner inline size={12} /> : <Sparkles className="h-3 w-3" />}
                       Mejorar con IA
                     </button>
                   )}
@@ -478,8 +473,7 @@ function CatalogImagePicker({
 
   return (
     <Modal open onClose={onClose} title="Imagen del catálogo" size="lg">
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => setSearch(e.target.value)}

@@ -39,7 +39,7 @@ export function TemplatePicker({
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-fg">{tpl.name}</span>
-              <span className="text-[0.7rem] text-fg-subtle">{tpl.sections.length} secciones</span>
+              <span className="text-2xs text-fg-subtle">{tpl.sections.length} secciones</span>
             </div>
             <p className="mt-0.5 text-xs text-fg-muted">{tpl.description}</p>
             <TemplateWireframe sections={tpl.sections} />

@@ -1,7 +1,18 @@
 import { useState, useId } from 'react';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Select,
+  useConfirm,
+  useToast,
+  Spinner,
+  PageHeader,
+  SearchInput,
+} from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
@@ -122,6 +133,7 @@ export function CostsPage() {
   if (!isLoading && items.length === 0 && !q) {
     return (
       <EmptyState
+        as="h1"
         kicker="Costos"
         title="Primero, productos"
         body="Cuando cargues productos vas a poder cargar el costo de cada variante y ver tu ganancia real."
@@ -131,13 +143,10 @@ export function CostsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Costos</h1>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          Cuánto te cuesta cada variante (en pesos). Con el costo cargado, Estadísticas → Rentabilidad muestra
-          tu ganancia real por venta. Para cargar en masa usá la columna «Costo» del CSV.
-        </p>
-      </div>
+      <PageHeader
+        title="Costos"
+        subtitle="Cuánto te cuesta cada variante (en pesos). Con el costo cargado, Estadísticas → Rentabilidad muestra tu ganancia real por venta. Para cargar en masa usá la columna «Costo» del CSV."
+      />
 
       {onlyMissing && (
         <div className="flex items-center gap-2 text-sm text-fg-muted">
@@ -189,8 +198,7 @@ export function CostsPage() {
 
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar en costos"
             placeholder="Buscar por producto o SKU…"
             value={search}
@@ -219,7 +227,9 @@ export function CostsPage() {
                   </span>
                 </th>
                 <th className="px-4 py-2.5 text-center font-medium">Costo ($)</th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-2.5">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -370,7 +380,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
             Cancelar
           </Button>
           <Button onClick={apply} disabled={busy || !percent}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Repreciar
+            {busy && <Spinner inline />} Repreciar
           </Button>
         </>
       }

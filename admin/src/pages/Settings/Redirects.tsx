@@ -1,12 +1,12 @@
 import { useState, useId } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
-import { Button, Input, useConfirm, useToast } from '@tiendafy/ui';
+import { Trash2 } from 'lucide-react';
+import { Button, Input, useConfirm, useToast, Spinner, EmptyList, Table } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { SETTINGS_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
+import { SETTINGS_CARD } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
 import { useUnsavedInScope } from '../../lib/unsavedScope';
 
@@ -119,7 +119,7 @@ export function RedirectsPage() {
             />
           </div>
           <Button onClick={add} disabled={!from.trim() || !to.trim() || busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Agregar
+            {busy && <Spinner inline />} Agregar
           </Button>
         </div>
         <p className="mt-2 text-xs text-fg-muted">
@@ -129,54 +129,50 @@ export function RedirectsPage() {
         {loadError && <p className="mt-4 text-sm text-danger">{loadError}</p>}
 
         {items && items.length === 0 && (
-          <p className="mt-4 rounded-lg border border-dashed border-border py-8 text-center text-sm text-fg-muted">
+          <EmptyList className="mt-4 p-8">
             Todavía no hay ninguna. Creá una cada vez que cambies o borres una dirección que ya estaba
             publicada.
-          </p>
+          </EmptyList>
         )}
 
         {items && items.length > 0 && (
-          <div className={TABLE_SCROLL_X}>
-            <table className="mt-4 w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="border-b border-border text-left text-xs text-fg-muted">
-                  <th className="py-2 font-medium">Desde</th>
-                  <th className="py-2 font-medium">Hacia</th>
-                  <th className="py-2 font-medium">Se usó</th>
-                  <th className="py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r.id} className="border-b border-border last:border-b-0">
-                    <td className="py-2 font-mono text-xs text-fg">{r.from}</td>
-                    <td className="py-2 font-mono text-xs text-fg">{r.to}</td>
-                    <td className="py-2 text-xs">
-                      {r.hits === 0 ? (
-                        <span className="text-fg-subtle">Nunca</span>
-                      ) : (
-                        <span
-                          className="text-fg"
-                          title={r.lastHitAtUtc ? formatDateTime(r.lastHitAtUtc) : ''}
-                        >
-                          {formatNumber(r.hits)} {r.hits === 1 ? 'vez' : 'veces'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 text-right">
-                      <button
-                        onClick={() => remove(r)}
-                        aria-label={`Eliminar la redirección de ${r.from}`}
-                        className="rounded-md p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            className="-mx-5 mt-4"
+            rows={items}
+            rowKey={(r) => r.id}
+            columns={[
+              { key: 'from', header: 'Desde', className: 'font-mono text-xs', cell: (r) => r.from },
+              { key: 'to', header: 'Hacia', className: 'font-mono text-xs', cell: (r) => r.to },
+              {
+                key: 'hits',
+                header: 'Se usó',
+                className: 'text-xs',
+                cell: (r) =>
+                  r.hits === 0 ? (
+                    <span className="text-fg-subtle">Nunca</span>
+                  ) : (
+                    <span title={r.lastHitAtUtc ? formatDateTime(r.lastHitAtUtc) : ''}>
+                      {formatNumber(r.hits)} {r.hits === 1 ? 'vez' : 'veces'}
+                    </span>
+                  ),
+              },
+              {
+                key: 'actions',
+                header: <span className="sr-only">Acciones</span>,
+                align: 'right',
+                cell: (r) => (
+                  <button
+                    type="button"
+                    onClick={() => remove(r)}
+                    aria-label={`Eliminar la redirección de ${r.from}`}
+                    className="rounded-md p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ),
+              },
+            ]}
+          />
         )}
       </div>
 

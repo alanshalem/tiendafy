@@ -107,7 +107,7 @@ export function QuickStyles<T extends object>({
             {p.thumb && <span className="mb-1.5 block overflow-hidden rounded">{p.thumb}</span>}
             {p.name}
             {p.recommended && (
-              <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[0.6rem] font-semibold text-primary-fg">
+              <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-3xs font-semibold text-primary-fg">
                 Recomendado
               </span>
             )}

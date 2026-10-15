@@ -6,7 +6,6 @@ import {
   ArchiveRestore,
   ArrowLeft,
   ExternalLink,
-  Loader2,
   Mail,
   MailOpen,
   Package,
@@ -15,7 +14,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
-import { Badge, Button, cn, Select, Textarea, useToast } from '@tiendafy/ui';
+import { Badge, Button, cn, Select, Textarea, useToast, Spinner } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
@@ -114,7 +113,7 @@ export function ChannelChip({ channel }: { channel: InboxChannel }) {
     'ml-mensaje': 'bg-warning-bg text-warning',
   };
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', tone[channel])}>
+    <span className={cn('rounded-full px-2 py-0.5 text-2xs font-semibold', tone[channel])}>
       {CHANNELS[channel].short}
     </span>
   );
@@ -236,7 +235,7 @@ function Bubble({ message }: { message: ChatMessage }) {
             <Paperclip className="h-3.5 w-3.5" /> {message.attachment.name}
           </a>
         )}
-        <p className="mt-1 text-[10px] opacity-60">
+        <p className="mt-1 text-3xs opacity-60">
           {[message.author, message.at ? formatDateTime(message.at) : null].filter(Boolean).join(' · ')}
         </p>
       </div>
@@ -260,7 +259,7 @@ function MessageList({
   if (loading)
     return (
       <p className="flex items-center gap-2 text-sm text-fg-muted">
-        <Loader2 className="h-4 w-4 animate-spin" /> Cargando la conversación…
+        <Spinner inline /> Cargando la conversación…
       </p>
     );
   if (messages.length === 0) return <p className="text-sm text-fg-muted">{empty}</p>;
@@ -600,11 +599,11 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
             title="Sugerir una respuesta con IA (después la editás)"
             aria-label="Sugerir con IA"
           >
-            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
           </Button>
         )}
         <Button size="sm" onClick={() => void send()} disabled={!canSend}>
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
           {spec.label}
         </Button>
       </div>

@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react';
-import { AlertTriangle, ExternalLink, Link2, Link2Off, Loader2, Store, Upload } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Link2, Link2Off, Store, Upload } from 'lucide-react';
 import {
   Badge,
   Button,
   cn,
   EmptyList,
-  Input,
   Modal,
   Select,
   Spinner,
   useConfirm,
   useToast,
   type BadgeVariant,
+  SearchInput,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useProductSearch } from '../lib/useProductSearch';
@@ -277,7 +277,7 @@ function LinkModal({
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving || !productId || !variantId}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Vincular
+            {saving && <Spinner inline />} Vincular
           </Button>
         </>
       }
@@ -380,7 +380,7 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
             Cancelar
           </Button>
           <Button onClick={publish} disabled={publishing || !product || !categoryId}>
-            {publishing && <Loader2 className="h-4 w-4 animate-spin" />} Publicar
+            {publishing && <Spinner inline />} Publicar
           </Button>
         </>
       }
@@ -447,8 +447,7 @@ function ProductFinder({
 
   return (
     <div>
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => onSearch(e.target.value)}

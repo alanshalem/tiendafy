@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check } from 'lucide-react';
-import { Badge, Card } from '@tiendafy/ui';
+import { Badge, Card, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { api } from '../lib/api';
@@ -107,16 +107,20 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">Hola 👋</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Esto es lo que está pasando en <strong className="text-fg">{store.name}</strong>.
-        </p>
-      </div>
+      <PageHeader
+        title="Hola 👋"
+        subtitle={
+          <>
+            Esto es lo que está pasando en <strong className="text-fg">{store.name}</strong>.
+          </>
+        }
+      />
 
       <AvisosCard />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* De a dos en el teléfono, como el resto de las métricas del panel; la
+          tercera ocupa la fila entera. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1">
         {canStats && (
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
@@ -168,7 +172,7 @@ export function HomePage() {
               className="flex items-start gap-3 border-b border-border px-4 py-3.5 transition-colors last:border-b-0 hover:bg-bg-subtle"
             >
               <span
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.65rem] font-bold ${
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-3xs font-bold ${
                   step.done
                     ? 'border-success bg-success-bg text-success'
                     : 'border-border-strong text-fg-subtle'

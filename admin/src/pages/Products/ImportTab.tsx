@@ -7,6 +7,7 @@ import { api, errMsg, UploadAbortedError } from '../../lib/api';
 import { FileDropzone, UploadBar, UploadNotes, useUploadQueue } from '../../components/upload/primitives';
 import { pollWhileRunning } from './queries';
 import { BOM, buildCsv, CSV_HEADER, downloadCsv, TEMPLATE_EXAMPLES } from './import-templates';
+import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
 interface ImportJobStatus {
   jobId: string;
@@ -163,7 +164,7 @@ export function ImportTab() {
       {preview && !job && (
         <div className="mt-4 overflow-x-auto rounded-md border border-border">
           <table className="w-full text-xs">
-            <thead>
+            <thead className={TABLE_HEAD_TEXT}>
               <tr className="bg-bg-subtle text-left text-fg-muted">
                 {preview.headers.slice(0, 6).map((h, i) => (
                   <th key={i} className="whitespace-nowrap px-2 py-1.5 font-medium">
@@ -306,7 +307,7 @@ export function Stat({ label, value, tone }: { label: string; value: number; ton
   return (
     <div className="rounded-md border border-border bg-surface px-2 py-2">
       <div className={cn('text-lg font-bold', tone)}>{value}</div>
-      <div className="text-[0.7rem] text-fg-subtle">{label}</div>
+      <div className="text-2xs text-fg-subtle">{label}</div>
     </div>
   );
 }

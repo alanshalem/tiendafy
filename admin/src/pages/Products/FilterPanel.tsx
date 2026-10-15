@@ -1,7 +1,6 @@
 import { useId } from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { Button, cn, Modal } from '@tiendafy/ui';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SETTINGS_BASE } from '../../lib/access';
 
@@ -94,118 +93,86 @@ export function FilterPanel({
   const fid = useId();
   const { can } = usePermissions();
   return (
-    <>
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-black/40 transition-opacity',
-          open ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-        onClick={onClose}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="product-filters-title"
-        // Cerrado queda fuera de pantalla pero en el DOM (para la animación):
-        // sin esto sus botones se alcanzaban con Tab y un lector de pantalla
-        // los leía como parte del listado.
-        inert={!open}
-        aria-hidden={!open}
-        className={cn(
-          'fixed right-0 top-0 z-50 flex h-full w-96 max-w-[90vw] flex-col bg-surface shadow-overlay transition-transform',
-          open ? 'translate-x-0' : 'translate-x-full',
-        )}
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 id="product-filters-title" className="text-base font-semibold text-fg">
-            Filtrar productos
-          </h2>
-          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-fg-muted hover:text-fg">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
-          <div>
-            <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
-              Categoría
-            </label>
-            <select
-              id={`${fid}-1`}
-              aria-label="Categoría"
-              value={draft.category}
-              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-              className="h-10 w-full appearance-none rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Todas</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {'— '.repeat(c.depth - 1)}
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {chipGroups.map((group) => (
-            <div key={group.key}>
-              <div className="mb-2 text-sm font-medium text-fg">{group.label}</div>
-              <div className="flex flex-wrap gap-2">
-                {group.options.map((opt) => {
-                  const active = draft[group.key] === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setDraft({ ...draft, [group.key]: opt.value })}
-                      className={cn(
-                        'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                        active
-                          ? 'border-primary bg-primary text-primary-fg'
-                          : 'border-border-strong text-fg-muted hover:bg-bg-muted',
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {/* Los campos propios existen: son la ficha técnica, en Configuración.
-              Antes esto decía "Próximamente". */}
-          {can('catalog.write') && (
-            <Link
-              to={`${SETTINGS_BASE}/ficha-tecnica`}
-              className="block rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-4 text-sm hover:bg-primary/[0.06]"
-            >
-              <span className="font-semibold text-primary">Crear campo personalizado</span>
-              <span className="mt-1 block text-fg-muted">
-                Agregá atributos a tus productos (material, garantía, talle…) desde Configuración → Ficha
-                técnica.
-              </span>
-            </Link>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
-          <button
-            type="button"
-            onClick={onClear}
-            className="inline-flex h-10 items-center rounded-md border border-border-strong px-4 text-sm font-medium text-fg hover:bg-bg-muted"
-          >
+    // Panel lateral sobre el <dialog> de Modal: foco atrapado, Escape y fondo
+    // los da el navegador. Antes era un cajón con un div fijo de fondo, que no
+    // cerraba con Escape y dejaba que el Tab se escapara al listado de atrás.
+    <Modal
+      open={open}
+      onClose={onClose}
+      placement="right"
+      title="Filtrar productos"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClear}>
             Borrar filtros
-          </button>
-          <button
-            type="button"
-            onClick={() => onApply(draft)}
-            className="inline-flex h-10 items-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+          </Button>
+          <Button onClick={() => onApply(draft)}>Filtrar</Button>
+        </>
+      }
+    >
+      <div className="space-y-6">
+        <div>
+          <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+            Categoría
+          </label>
+          <select
+            id={`${fid}-1`}
+            aria-label="Categoría"
+            value={draft.category}
+            onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+            className="h-10 w-full appearance-none rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            Filtrar
-          </button>
+            <option value="">Todas</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {'— '.repeat(c.depth - 1)}
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-      </aside>
-    </>
+
+        {chipGroups.map((group) => (
+          <div key={group.key}>
+            <div className="mb-2 text-sm font-medium text-fg">{group.label}</div>
+            <div className="flex flex-wrap gap-2">
+              {group.options.map((opt) => {
+                const active = draft[group.key] === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDraft({ ...draft, [group.key]: opt.value })}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                      active
+                        ? 'border-primary bg-primary text-primary-fg'
+                        : 'border-border-strong text-fg-muted hover:bg-bg-muted',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Los campos propios existen: son la ficha técnica, en Configuración.
+              Antes esto decía "Próximamente". */}
+        {can('catalog.write') && (
+          <Link
+            to={`${SETTINGS_BASE}/ficha-tecnica`}
+            className="block rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-4 text-sm hover:bg-primary/[0.06]"
+          >
+            <span className="font-semibold text-primary">Crear campo personalizado</span>
+            <span className="mt-1 block text-fg-muted">
+              Agregá atributos a tus productos (material, garantía, talle…) desde Configuración → Ficha
+              técnica.
+            </span>
+          </Link>
+        )}
+      </div>
+    </Modal>
   );
 }

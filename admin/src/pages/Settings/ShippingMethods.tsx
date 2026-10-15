@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
-import { Calculator, Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
-import { Button, Modal, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { Calculator, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
+import { Button, Modal, Switch, cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -181,11 +181,11 @@ export function ShippingMethodsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-fg">{m.name}</span>
-                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-medium text-fg-muted">
                       {KIND_LABEL[m.kind]}
                     </span>
                     {!m.active && (
-                      <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                      <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-semibold text-fg-muted">
                         Inactivo
                       </span>
                     )}
@@ -223,11 +223,7 @@ export function ShippingMethodsPage() {
                     title="Eliminar"
                     className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50"
                   >
-                    {deleting === m.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
+                    {deleting === m.id ? <Spinner inline /> : <Trash2 className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -342,7 +338,7 @@ function MethodDialog({
             Cancelar
           </Button>
           <Button onClick={submit} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy && <Spinner inline />}
             {method ? 'Guardar cambios' : 'Crear medio de envío'}
           </Button>
         </>

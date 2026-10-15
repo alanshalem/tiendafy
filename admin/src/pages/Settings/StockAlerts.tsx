@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Trash2 } from 'lucide-react';
-import { Badge, Button, Input, Radio, RadioGroup, Select, Switch, useToast } from '@tiendafy/ui';
+import { Trash2 } from 'lucide-react';
+import { Badge, Button, Input, Radio, RadioGroup, Select, Switch, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
@@ -108,7 +108,7 @@ export function StockAlertsPage() {
         <h2 className="text-base font-semibold text-fg">Cuándo avisar</h2>
         {!settings ? (
           <p className="mt-3 flex items-center gap-2 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+            <Spinner inline /> Cargando…
           </p>
         ) : (
           <>
@@ -139,7 +139,7 @@ export function StockAlertsPage() {
             )}
             <div className="mt-4 flex justify-end">
               <Button onClick={() => void save()} disabled={!dirty || saving}>
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+                {saving && <Spinner inline />} Guardar
               </Button>
             </div>
           </>

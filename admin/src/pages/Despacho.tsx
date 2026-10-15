@@ -1,8 +1,19 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, FileText, Loader2, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Input, Select, Tabs, useToast } from '@tiendafy/ui';
+import { ClipboardList, FileText, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  cn,
+  Input,
+  Select,
+  Tabs,
+  useToast,
+  Spinner,
+  PageHeader,
+} from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
@@ -10,7 +21,7 @@ import { useStore } from '../context/StoreContext';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { HelpLink } from '../components/HelpLink';
-import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_HEAD_STICKY, TABLE_HEAD_TEXT, TABLE_SCROLL_X } from '../lib/styles';
 import {
   base64ToBlob,
   CARRIERS,
@@ -49,13 +60,10 @@ export function DespachoPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">Despacho</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Lo cobrado y sin despachar, para preparar de a muchos: picking, etiquetas, remitos y despachar
-          escaneando.
-        </p>
-      </div>
+      <PageHeader
+        title="Despacho"
+        subtitle="Lo cobrado y sin despachar, para preparar de a muchos: picking, etiquetas, remitos y despachar escaneando."
+      />
       <Tabs
         items={[
           { id: 'cola', label: 'Pedidos para preparar' },
@@ -200,11 +208,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('picking')}
         >
-          {busy === 'picking' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ClipboardList className="h-4 w-4" />
-          )}
+          {busy === 'picking' ? <Spinner inline /> : <ClipboardList className="h-4 w-4" />}
           Lista de picking
         </Button>
         <Button
@@ -213,7 +217,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('labels')}
         >
-          {busy === 'labels' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+          {busy === 'labels' ? <Spinner inline /> : <Tag className="h-4 w-4" />}
           Etiquetas
         </Button>
         <Button
@@ -222,7 +226,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('slips')}
         >
-          {busy === 'slips' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+          {busy === 'slips' ? <Spinner inline /> : <FileText className="h-4 w-4" />}
           Remitos
         </Button>
       </div>
@@ -254,7 +258,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           )}
           <div className={TABLE_SCROLL_X}>
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_TEXT}>
                 <tr className="border-b border-border text-left text-xs text-fg-muted">
                   <th className="py-2 pr-3 font-medium">Ubicación</th>
                   <th className="py-2 pr-3 font-medium">Producto</th>
@@ -334,7 +338,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
       <div className="rounded-lg border border-border bg-surface shadow-card">
         {isLoading ? (
           <p className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando pedidos…
+            <Spinner inline /> Cargando pedidos…
           </p>
         ) : error && !data ? (
           <LoadError
@@ -363,7 +367,9 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
                   <th className="px-3 py-2 font-medium">Comprador</th>
                   <th className="px-3 py-2 font-medium">Envío</th>
                   <th className="px-3 py-2 text-right font-medium">Unid.</th>
-                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2">
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

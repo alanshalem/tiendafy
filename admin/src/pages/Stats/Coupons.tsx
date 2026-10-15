@@ -1,5 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KPI_GRID,
+  KpiCard,
+  StatsPageHeader,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { Delta, RankBars } from '../../components/charts/viz';
@@ -8,7 +14,7 @@ import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
+import { Table } from '@tiendafy/ui';
 import { TableSkeleton } from '../../components/Skeleton';
 
 interface CouponRow {
@@ -65,7 +71,7 @@ export function StatsCouponsPage() {
         onRangeChange={setRange}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={KPI_GRID}>
         <KpiCard
           title="Venta con cupón"
           hint="Lo que facturaron las ventas cobradas que usaron un cupón. Es lo que hay que mirar contra el descuento."
@@ -119,36 +125,39 @@ export function StatsCouponsPage() {
           <p className="py-4 text-sm text-fg-muted">Todavía nadie usó un cupón.</p>
         ) : (
           <>
-            <div className={TABLE_SCROLL_X}>
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className={TABLE_HEAD_STICKY}>
-                  <tr className="border-b border-border text-left text-xs text-fg-muted">
-                    <th className="py-2 font-medium">Código</th>
-                    <th className="py-2 text-center font-medium">Usos</th>
-                    <th className="py-2 text-center font-medium">Pagados</th>
-                    <th className="py-2 text-right font-medium">Venta</th>
-                    <th className="py-2 text-right font-medium">Descuento</th>
-                    <th className="py-2 text-right font-medium">Neto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((c) => (
-                    <tr key={c.code} className="border-b border-border last:border-b-0">
-                      <td className="py-2.5 font-mono text-fg">{c.code}</td>
-                      <td className="py-2.5 text-center tabular-nums">{c.uses}</td>
-                      <td className="py-2.5 text-center tabular-nums">{c.paidUses}</td>
-                      <td className="py-2.5 text-right tabular-nums text-fg">{formatMoney(c.revenue)}</td>
-                      <td className="py-2.5 text-right tabular-nums text-fg-muted">
-                        − {formatMoney(c.discountGiven)}
-                      </td>
-                      <td className="py-2.5 text-right font-medium tabular-nums text-fg">
-                        {formatMoney(c.netRevenue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table
+              className="-mx-5"
+              tableClassName="min-w-[640px]"
+              rows={items}
+              rowKey={(c) => c.code}
+              columns={[
+                { key: 'code', header: 'Código', className: 'font-mono' },
+                { key: 'uses', header: 'Usos', align: 'center', className: 'tabular-nums' },
+                { key: 'paidUses', header: 'Pagados', align: 'center', className: 'tabular-nums' },
+                {
+                  key: 'revenue',
+                  header: 'Venta',
+                  align: 'right',
+                  className: 'tabular-nums',
+                  cell: (c) => formatMoney(c.revenue),
+                },
+                {
+                  key: 'discount',
+                  header: 'Descuento',
+                  align: 'right',
+                  cell: (c) => (
+                    <span className="tabular-nums text-fg-muted">− {formatMoney(c.discountGiven)}</span>
+                  ),
+                },
+                {
+                  key: 'net',
+                  header: 'Neto',
+                  align: 'right',
+                  className: 'font-medium tabular-nums',
+                  cell: (c) => formatMoney(c.netRevenue),
+                },
+              ]}
+            />
             <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
           </>
         )}

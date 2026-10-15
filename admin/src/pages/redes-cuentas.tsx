@@ -1,5 +1,5 @@
 import { useState, useId } from 'react';
-import { Loader2, Plug, Users } from 'lucide-react';
+import { Plug, Users } from 'lucide-react';
 import { Badge, Button, EmptyList, Input, Modal, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
@@ -80,11 +80,7 @@ export function CuentasTab({
                 disabled={connecting !== null}
                 onClick={() => (c.key === 'telegram' ? setTelegramOpen(true) : connect(c.key))}
               >
-                {connecting === c.key ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plug className="h-4 w-4" />
-                )}
+                {connecting === c.key ? <Spinner inline /> : <Plug className="h-4 w-4" />}
                 Conectar
               </Button>
             ) : (
@@ -193,7 +189,7 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving || !botToken.trim() || !chatId.trim()}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Conectar
+            {saving && <Spinner inline />} Conectar
           </Button>
         </>
       }

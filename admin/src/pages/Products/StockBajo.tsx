@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BellOff, Loader2, PackageCheck, Plus, Settings2 } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast } from '@tiendafy/ui';
+import { BellOff, PackageCheck, Plus, Settings2 } from 'lucide-react';
+import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast, Spinner, PageHeader } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -126,20 +126,18 @@ export function StockBajoPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Stock bajo</h1>
-          <p className="mt-1 max-w-2xl text-sm text-fg-muted">
-            Lo que se agota antes de que llegue la próxima compra (con lo vendido en 60 días, en la tienda y
-            en Mercado Libre) y lo que bajó de su mínimo.
-          </p>
-        </div>
-        {canBuy && items.length > 0 && (
-          <Button onClick={buildOrder}>
-            <Plus className="h-4 w-4" /> Armar orden de compra ({forOrder.length})
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Stock bajo"
+        subtitle="Lo que se agota antes de que llegue la próxima compra (con lo vendido en 60 días, en la tienda y en Mercado Libre) y lo que bajó de su mínimo."
+        actions={
+          canBuy &&
+          items.length > 0 && (
+            <Button onClick={buildOrder}>
+              <Plus className="h-4 w-4" /> Armar orden de compra ({forOrder.length})
+            </Button>
+          )
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm">
         <span className="text-fg-muted">
@@ -171,7 +169,7 @@ export function StockBajoPage() {
       <div className={TABLE_CARD}>
         {isLoading ? (
           <p className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Calculando…
+            <Spinner inline /> Calculando…
           </p>
         ) : error && !data ? (
           <LoadError
@@ -191,13 +189,21 @@ export function StockBajoPage() {
             <table className="w-full text-sm">
               <thead className={TABLE_HEAD_STICKY_SUBTLE}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-                  {canBuy && <th className="w-10 px-3 py-2.5" />}
+                  {canBuy && (
+                    <th className="w-10 px-3 py-2.5">
+                      <span className="sr-only">Elegir</span>
+                    </th>
+                  )}
                   <th className="px-3 py-2.5 font-medium">Producto</th>
                   <th className="px-3 py-2.5 text-right font-medium">Stock</th>
                   <th className="px-3 py-2.5 font-medium">Por qué</th>
                   <th className="px-3 py-2.5 text-right font-medium">Pedir</th>
                   <th className="px-3 py-2.5 font-medium">Desde</th>
-                  {canEdit && <th className="px-3 py-2.5" />}
+                  {canEdit && (
+                    <th className="px-3 py-2.5">
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>

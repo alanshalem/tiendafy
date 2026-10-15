@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
-import { Button, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, useConfirm, useToast, PageHeader } from '@tiendafy/ui';
 import { HelpLink } from '../components/HelpLink';
 import { useStore } from '../context/StoreContext';
 import { type ThemeConfig } from '@tiendafy/types';
@@ -125,21 +125,18 @@ export function ThemeGalleryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">Diseños para tu tienda</h1>
-          <p className="mt-0.5 max-w-xl text-sm text-fg-muted">
-            Elegí un punto de partida y ajustalo en el editor: colores, secciones y textos quedan a tu nombre.
-            El diseño se aplica al borrador — tu tienda no cambia hasta que publiques.
-          </p>
-        </div>
-        <Link
-          to="/canales/tienda-online"
-          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          <ChevronLeft className="h-4 w-4" /> Volver al editor
-        </Link>
-      </div>
+      <PageHeader
+        back={
+          <Link
+            to="/canales/tienda-online"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <ChevronLeft className="h-4 w-4" /> Volver al editor
+          </Link>
+        }
+        title="Diseños para tu tienda"
+        subtitle="Elegí un punto de partida y ajustalo en el editor: colores, secciones y textos quedan a tu nombre. El diseño se aplica al borrador — tu tienda no cambia hasta que publiques."
+      />
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {themePresets.map((preset) => (

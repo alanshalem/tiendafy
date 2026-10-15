@@ -16,7 +16,7 @@ import { useNavCounts, type NavBadge } from '../lib/useNavCounts';
 
 function SoonBadge() {
   return (
-    <span className="ml-auto rounded-full bg-fg/10 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider opacity-70">
+    <span className="ml-auto rounded-full bg-fg/10 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider opacity-70">
       Pronto
     </span>
   );
@@ -31,7 +31,7 @@ function CountBadge({ count, label }: { count: number; label: string }) {
   return (
     <span
       aria-label={`${count} ${label}`}
-      className="ml-auto min-w-5 rounded-full bg-primary px-1.5 py-px text-center text-[0.68rem] font-bold tabular-nums text-primary-fg"
+      className="ml-auto min-w-5 rounded-full bg-primary px-1.5 py-px text-center text-2xs font-bold tabular-nums text-primary-fg"
     >
       {count > 99 ? '99+' : count}
     </span>
@@ -142,11 +142,12 @@ export function AdminLayout() {
         <span className="text-lg font-bold">tiendafy</span>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      {/* Con nombre: con el paginador eran dos "navegación" iguales para un lector de pantalla. */}
+      <nav aria-label="Menú principal" className="flex-1 space-y-5 overflow-y-auto p-3">
         {visibleSections.map((section) => (
           <div key={section.heading ?? 'top'}>
             {section.heading && (
-              <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
+              <div className="px-3 pb-1.5 text-3xs font-bold uppercase tracking-widest text-accent-fg/65">
                 {section.heading}
               </div>
             )}

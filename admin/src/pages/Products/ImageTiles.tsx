@@ -77,13 +77,13 @@ export function PhotoTile({
         />
         {children}
         {removed ? (
-          <span className="absolute inset-x-1 bottom-1 rounded bg-surface/90 px-1 py-0.5 text-center text-[10px] font-medium text-danger">
+          <span className="absolute inset-x-1 bottom-1 rounded bg-surface/90 px-1 py-0.5 text-center text-3xs font-medium text-danger">
             Se quita al guardar
           </span>
         ) : (
           <>
             {cover && (
-              <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-3xs font-semibold text-white">
                 Portada
               </span>
             )}
@@ -151,7 +151,7 @@ export function UploadingThumb({
       {src && <img src={src} alt="" className="h-full w-full object-cover opacity-60" />}
       <span aria-hidden className="upload-shimmer" />
       <div className="absolute inset-x-0 bottom-0 bg-surface/90 px-1.5 py-1">
-        <div className="text-center text-[10px] font-medium tabular-nums text-fg-muted">
+        <div className="text-center text-3xs font-medium tabular-nums text-fg-muted">
           {!started ? 'En espera' : progress >= 1 ? 'Guardando…' : `${Math.round(progress * 100)} %`}
         </div>
         <ProgressTrack fraction={started ? progress : 0} label={`Subiendo ${name}`} className="mt-0.5 h-1" />
@@ -193,8 +193,8 @@ export function AddImagesTile({
         )}
       >
         <ImagePlus className="h-5 w-5" aria-hidden />
-        <span className="text-[0.7rem] font-semibold">Agregar</span>
-        <span className="text-[0.6rem] text-fg-subtle">o arrastrá</span>
+        <span className="text-2xs font-semibold">Agregar</span>
+        <span className="text-3xs text-fg-subtle">o arrastrá</span>
       </button>
     </>
   );

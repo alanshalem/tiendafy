@@ -477,7 +477,7 @@ export function HelpArticlePage() {
                   <ol className="mt-3 space-y-2.5">
                     {s.steps.map((step, j) => (
                       <li key={j} className="flex gap-3 leading-relaxed text-fg-muted">
-                        <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                        <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xs font-bold text-primary">
                           {j + 1}
                         </span>
                         <span className="min-w-0">{step}</span>
@@ -501,7 +501,7 @@ export function HelpArticlePage() {
               >
                 <ArrowLeft className="h-4 w-4 shrink-0 text-fg-subtle group-hover:text-primary" />
                 <span className="min-w-0">
-                  <span className="block text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
+                  <span className="block text-2xs font-medium uppercase tracking-wider text-fg-subtle">
                     Anterior
                   </span>
                   <span className="block truncate text-sm font-medium text-fg">
@@ -518,7 +518,7 @@ export function HelpArticlePage() {
                 className="group flex items-center justify-end gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 text-right transition-colors hover:border-primary/40"
               >
                 <span className="min-w-0">
-                  <span className="block text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
+                  <span className="block text-2xs font-medium uppercase tracking-wider text-fg-subtle">
                     Siguiente
                   </span>
                   <span className="block truncate text-sm font-medium text-fg">

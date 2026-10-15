@@ -56,6 +56,25 @@ export function ScreenSkeleton({ label = 'Cargando…' }: { label?: string }) {
   );
 }
 
+/**
+ * Tarjetas de números mientras llegan, en la misma grilla que las de verdad
+ * (de a dos en el teléfono). Tres pantallas de Estadísticas tenían su propia
+ * copia: cajas que latían sin anunciarse a los lectores de pantalla.
+ */
+export function CardsSkeleton({ count = 4, label = 'Cargando…' }: { count?: number; label?: string }) {
+  return (
+    <div role="status" aria-label={label} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="space-y-3 rounded-lg border border-border bg-surface p-5">
+          <Bone className="h-3 w-24 max-w-full" />
+          <Bone className="h-7 w-32 max-w-full" />
+          <Bone className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Un dato chico dentro de un texto (un número de una tarjeta) mientras llega. */
 export function InlineSkeleton({ className, label = 'Cargando…' }: { className?: string; label?: string }) {
   return (

@@ -64,9 +64,19 @@ export interface TableProps<T> {
   rowKey: (row: T) => string | number;
   /** Click en fila (navegar a detalle). */
   onRowClick?: (row: T) => void;
+  /**
+   * Con `false`, la fila responde al mouse pero no entra en el orden de Tab:
+   * para cuando la primera celda ya es un link a lo mismo (ver clickableRowProps).
+   */
+  rowFocusable?: boolean;
   /** Mostrado cuando rows está vacío. */
   emptyState?: ReactNode;
+  /** Clases del contenedor (márgenes, ancho). */
   className?: string;
+  /** Clases del `<table>`: un ancho mínimo para que en el teléfono corra de costado. */
+  tableClassName?: string;
+  /** Clases por fila: atenuar una inactiva, resaltar una con problemas. */
+  rowClassName?: (row: T) => string | undefined;
 }
 
 const alignClasses = {
@@ -75,8 +85,27 @@ const alignClasses = {
   right: 'text-right',
 };
 
+/**
+ * Las clases del encabezado de toda tabla del panel, también de las que se
+ * arman a mano (las que tienen filas desplegables o celdas editables y no
+ * entran en <Table>). Había encabezados en MAYÚSCULAS y otros no según la
+ * pantalla; quedan en minúscula con la primera en mayúscula, que se lee mejor
+ * en columnas angostas.
+ */
+export const TABLE_TH = 'bg-bg-subtle px-4 py-2.5 text-xs font-medium text-fg-muted';
+
 /** Tabla tipada para listados de admin (productos, pedidos, clientes). */
-export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, className }: TableProps<T>) {
+export function Table<T>({
+  columns,
+  rows,
+  rowKey,
+  onRowClick,
+  rowFocusable = true,
+  emptyState,
+  className,
+  tableClassName,
+  rowClassName,
+}: TableProps<T>) {
   if (rows.length === 0 && emptyState) {
     return <div className="px-4 py-12 text-center text-sm text-fg-muted">{emptyState}</div>;
   }
@@ -87,7 +116,7 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
     // scroll, el `sticky` del encabezado se ancla a él —que no scrollea— en vez
     // de a la página, así que dejar de serlo es la condición para que funcione.
     <div className={cn('overflow-x-auto lg:overflow-x-visible', className)}>
-      <table className="w-full border-collapse text-sm">
+      <table className={cn('w-full border-collapse text-sm', tableClassName)}>
         {/* El fondo va en cada `th` y no en el `tr`: el elemento fijo pinta su
             propio fondo y el de la fila queda debajo, así que las filas se le
             verían a través. El borde inferior va como sombra porque con bordes
@@ -102,7 +131,7 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
                 key={col.key}
                 scope="col"
                 className={cn(
-                  'bg-bg-subtle px-4 py-2.5 font-medium text-fg-muted',
+                  TABLE_TH,
                   'shadow-[inset_0_-1px_0_rgb(var(--color-border))]',
                   alignClasses[col.align ?? 'left'],
                   col.className,
@@ -115,7 +144,9 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
         </thead>
         <tbody>
           {rows.map((row) => {
-            const clickable = onRowClick ? clickableRowProps(() => onRowClick(row)) : null;
+            const clickable = onRowClick
+              ? clickableRowProps(() => onRowClick(row), { focusable: rowFocusable })
+              : null;
             return (
               <tr
                 key={rowKey(row)}
@@ -124,6 +155,7 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
                   'border-b border-border last:border-b-0',
                   clickable && 'hover:bg-bg-subtle',
                   clickable?.className,
+                  rowClassName?.(row),
                 )}
               >
                 {columns.map((col) => (

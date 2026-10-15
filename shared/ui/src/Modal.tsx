@@ -14,6 +14,12 @@ export interface ModalProps {
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /**
+   * `right`: panel lateral a toda la altura (filtros, detalles). Es el mismo
+   * <dialog> —foco atrapado, Escape, fondo— en vez de un cajón armado a mano
+   * con un div fijo que no hacía ninguna de esas tres cosas.
+   */
+  placement?: 'center' | 'right';
+  /**
    * Hay cambios sin guardar: cerrar con la X, con Escape o con un click afuera
    * pregunta "¿Descartar los cambios?" antes. Lo que cierra el propio form (al
    * guardar, su botón Cancelar) no pasa por acá.
@@ -33,7 +39,16 @@ const sizeClasses = {
  * Modal controlado sobre <dialog> nativo: Escape, focus trap y top-layer
  * los da el browser. Click en el fondo cierra.
  */
-export function Modal({ open, onClose, title, footer, size = 'md', dirty = false, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  footer,
+  size = 'md',
+  placement = 'center',
+  dirty = false,
+  children,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // El título nombra al diálogo: sin esto un lector de pantalla anuncia
   // "diálogo" a secas, sin decir cuál.
@@ -136,14 +151,19 @@ export function Modal({ open, onClose, title, footer, size = 'md', dirty = false
         // <dialog>, que en tema oscuro es negro. Sin esto, todo lo que hereda
         // el color —los <input>, por el preflight de Tailwind— sale ilegible.
         'w-full overflow-hidden rounded-lg bg-surface p-0 text-fg shadow-overlay backdrop:bg-black/50',
-        'm-auto', // centrado
         sizeClasses[size],
+        placement === 'right'
+          ? 'my-0 ml-auto mr-0 h-dvh max-h-dvh max-w-[min(24rem,90vw)] rounded-none'
+          : 'm-auto', // centrado
       )}
     >
       {/* El alto lo pone este div y no el <dialog>, así el cuerpo es lo único
           que scrollea. min-h-0 es lo que deja al cuerpo achicarse: sin eso un
           hijo de flex nunca baja de su alto de contenido y no scrollea nada. */}
-      <div className="flex max-h-[85dvh] flex-col" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={cn('flex flex-col', placement === 'right' ? 'h-full' : 'max-h-[85dvh]')}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
             <h2 id={titleId} className="text-base font-semibold text-fg">

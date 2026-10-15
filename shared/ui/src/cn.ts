@@ -38,6 +38,7 @@ const twMerge = extendTailwindMerge({
       shadow: ['card', 'overlay'],
       radius: ['sm', 'md', 'lg'],
       font: ['sans', 'heading', 'mono'],
+      text: ['2xs', '3xs'],
     },
     classGroups: {
       'max-w': [{ 'max-w': ['container'] }],

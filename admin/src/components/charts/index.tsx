@@ -80,10 +80,11 @@ export function ChartCard({
   return (
     <div className={cn(SETTINGS_CARD, className)}>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+        {/* h2: va directo debajo del h1 de la página; con h3 se salteaba un nivel. */}
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
           {title}
           {info && <InfoDot info={info} />}
-        </h3>
+        </h2>
         {action}
       </div>
       {children}
@@ -97,7 +98,7 @@ export function InfoDot({ info }: { info: string }) {
     <Tooltip label={info} side="top" delayMs={150} className="inline-flex">
       <span
         tabIndex={0}
-        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle"
+        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-3xs font-bold text-fg-subtle"
       >
         i
       </span>

@@ -1,11 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KPI_GRID,
+  KpiCard,
+  StatsPageHeader,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
 import { formatDayShort, formatNumber, formatPercent } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { CardsSkeleton } from '../../components/Skeleton';
 
 interface Visits {
   totalViews: number;
@@ -37,14 +44,10 @@ export function StatsVisitsPage() {
       />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
-          ))}
-        </div>
+        <CardsSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={KPI_GRID}>
             <KpiCard
               title="Visitas"
               hint="Páginas vistas totales del período."

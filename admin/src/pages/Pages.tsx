@@ -107,7 +107,7 @@ export function PagesPage() {
     },
     {
       key: 'createdAtUtc',
-      header: '',
+      header: <span className="sr-only">Acciones</span>,
       cell: (p) => (
         <div className="flex justify-end">
           <Dropdown>

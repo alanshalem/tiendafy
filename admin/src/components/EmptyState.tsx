@@ -10,6 +10,12 @@ interface EmptyStateProps {
   action?: { label: string; onClick: () => void };
   /** Ilustración custom; default: sello de paquete. */
   illustration?: ReactNode;
+  /**
+   * h1 solo cuando es toda la pantalla (404, "primero cargá productos"). Dentro
+   * de una página que ya tiene su encabezado va h2: eran dos h1 en la misma
+   * pantalla.
+   */
+  as?: 'h1' | 'h2';
 }
 
 /** Ilustración default: paquete con sello bermellón, trazo de tinta. */
@@ -63,13 +69,20 @@ function PackageIllustration() {
   );
 }
 
-export function EmptyState({ kicker, title, body, action, illustration }: EmptyStateProps) {
+export function EmptyState({
+  kicker,
+  title,
+  body,
+  action,
+  illustration,
+  as: Heading = 'h2',
+}: EmptyStateProps) {
   return (
     <div className="mx-auto grid max-w-3xl items-center gap-10 py-16 md:grid-cols-[auto_1fr]">
       <div className="justify-self-center">{illustration ?? <PackageIllustration />}</div>
       <div>
         <div className="text-xs font-bold uppercase tracking-widest text-primary">{kicker}</div>
-        <h1 className="mt-2 text-2xl font-bold text-fg">{title}</h1>
+        <Heading className="mt-2 text-2xl font-bold text-fg">{title}</Heading>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-fg-muted">{body}</p>
         {action ? (
           <Button className="mt-6" onClick={action.onClick}>
