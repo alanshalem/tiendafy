@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { MessageCircle, Mail } from 'lucide-react';
-import { productGridClass } from '@/lib/theme';
+import { productGridClass } from '@/lib/theme-style';
 import { categoryHref } from '@/lib/category-url';
 import { fetchPopularProductsClient, fetchPopularSearchesClient } from '@/lib/catalog-client';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { useCategoryTree } from './CategoryMenu';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { useProductListConfig } from './ProductListContext';

@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useContext } from 'react';
 import { usePreviewHref } from '../preview';
 import { ImageCarousel } from '../ImageCarousel';
-import { ImagePlaceholder, usePreviewPlaceholders } from '../section-primitives';
-import { LeadSectionContext } from '../section-context';
+import { ImagePlaceholder } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 
-export function CarouselSection({ data, storeName }: SectionRenderProps<'carousel'>) {
-  const lead = useContext(LeadSectionContext);
-  const placeholders = usePreviewPlaceholders();
+export function CarouselSection({
+  data,
+  storeName,
+  lead,
+  preview: placeholders,
+}: SectionRenderProps<'carousel'>) {
   const href = usePreviewHref();
   // En la tienda, una diapositiva sin foto no se muestra; en el editor se ve
   // su lugar (y sus textos), así se entiende qué falta.

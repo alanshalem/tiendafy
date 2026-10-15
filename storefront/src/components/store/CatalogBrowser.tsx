@@ -14,16 +14,17 @@ import {
   X,
 } from 'lucide-react';
 import { buildPageWindow, cn } from '@tiendafy/ui';
-import { productGridClass, type ProductListConfig } from '@/lib/theme';
+import type { ProductListConfig } from '@/lib/theme';
+import { productGridClass } from '@/lib/theme-style';
 import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
 import { categoryParam, readableQuery } from '@/lib/category-url';
 import { facetLabel, formatPesos } from '@/lib/facet-label';
 import { logSearchClient } from '@/lib/catalog-client';
-import { ProductCard, type StoreProduct } from './sections';
+import { ProductCard, type StoreProduct } from './ProductCard';
 import { PreviewContext, useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
-import { INPUT_LIGHT_10 } from './styles';
-import { useCart } from './cart';
+import { INPUT_10 } from './styles';
+import { useCart } from './cart-context';
 import { useFocusTrap } from './useFocusTrap';
 import { useMediaQuery } from './use-media';
 import { PredictiveSearch } from './PredictiveSearch';
@@ -311,7 +312,7 @@ export function CatalogBrowser({
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Buscar productos"
                       aria-label="Buscar"
-                      className={INPUT_LIGHT_10}
+                      className={INPUT_10}
                     />
                     <button
                       type="submit"
@@ -604,7 +605,7 @@ function PriceInput({
     <span className="relative block w-full min-w-0">
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-black/50"
+        className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-fg-muted"
       >
         $
       </span>
@@ -614,7 +615,7 @@ function PriceInput({
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
         placeholder={placeholder}
         aria-label={label}
-        className="h-10 w-full min-w-0 rounded-md border border-black/15 bg-white pl-5 pr-2 text-sm text-black lg:h-9"
+        className="h-10 w-full min-w-0 rounded-md border border-fg/20 bg-fg/[0.03] pl-5 pr-2 text-sm text-fg placeholder:text-fg-muted lg:h-9"
       />
     </span>
   );
@@ -649,7 +650,7 @@ function ToggleFilter({
       >
         <span
           aria-hidden="true"
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${on ? 'border-primary bg-primary text-primary-fg' : 'border-black/25'}`}
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${on ? 'border-primary bg-primary text-primary-fg' : 'border-fg/25'}`}
         >
           {on && <Check className="h-3.5 w-3.5" />}
         </span>
@@ -693,7 +694,7 @@ function FacetSearch({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={label}
-      className="mb-2 h-10 w-full rounded-md border border-black/15 bg-white px-2 text-xs text-black lg:h-8"
+      className="mb-2 h-10 w-full rounded-md border border-fg/20 bg-fg/[0.03] px-2 text-xs text-fg placeholder:text-fg-muted lg:h-8"
     />
   );
 }

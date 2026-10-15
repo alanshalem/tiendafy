@@ -38,7 +38,7 @@ import { finishPurchase, readBuyer, writeBuyer } from '@/lib/cart-storage';
 import { readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
-import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
+import { INPUT_10, INPUT_11 } from './styles';
 import { CheckoutSkeleton } from './CheckoutSkeleton';
 import { useAuth } from './auth';
 import type { StoreOffers } from '@/lib/store-offers';
@@ -898,7 +898,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
     );
   }
 
-  const inputCls = `${INPUT_LIGHT_11} focus:outline-none focus:ring-2 focus:ring-primary/40`;
+  const inputCls = `${INPUT_11} focus:outline-none focus:ring-2 focus:ring-primary/40`;
 
   /**
    * Un campo del comprador con su etiqueta visible (el placeholder no es una
@@ -1330,7 +1330,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                         rows={2}
                         placeholder={settings.customerNoteLabel}
                         aria-label={settings.customerNoteLabel}
-                        className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black"
+                        className="flex-1 rounded-md border border-fg/20 bg-fg/[0.03] p-2 text-sm text-fg placeholder:text-fg-muted"
                       />
                     ) : (
                       <>
@@ -1551,7 +1551,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                   onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                   placeholder="Cupón de descuento"
                   aria-label="Cupón de descuento"
-                  className={INPUT_LIGHT_10}
+                  className={INPUT_10}
                 />
                 <button
                   onClick={() => applyCoupon()}

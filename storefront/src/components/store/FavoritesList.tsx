@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import type { ProductListConfig } from '@/lib/theme';
 
-import { ProductCard, type StoreProduct } from './sections';
+import { ProductCard, type StoreProduct } from './ProductCard';
 import { useFavorites } from './favorites';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { EmptyState } from './EmptyState';
 import { ProductCardSkeleton } from './Skeletons';
 

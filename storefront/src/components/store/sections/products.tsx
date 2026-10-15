@@ -1,7 +1,8 @@
 'use client';
 
 import { productSourceListingHref, sectionProductPlan, type ProductSource } from '@tiendafy/types';
-import { pickProducts, ProductGrid, usePreviewPlaceholders } from '../section-primitives';
+import { pickProducts } from '../section-primitives';
+import { ProductGrid } from '../product-grid';
 import type { StoreProduct } from '../ProductCard';
 import { useSectionProducts } from '../SectionProductsContext';
 import type { ProductsData, SectionRenderProps } from '../section-types';
@@ -54,9 +55,9 @@ export function ProductsSection({
   data,
   products,
   productList,
+  preview: placeholders,
 }: SectionRenderProps<'featured' | 'new-products' | 'sale-products'>) {
   const resolved = useSectionProducts(section.id);
-  const placeholders = usePreviewPlaceholders();
   const plan = sectionProductPlan(section)!;
   const list = resolved ?? fallbackProducts(section.type, plan.source, products, plan.limit);
 

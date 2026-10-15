@@ -1,13 +1,12 @@
 'use client';
 
-import type { ComponentType } from 'react';
-import { SECTION_REGISTRY, SECTION_TYPES, isSectionType, sectionData } from '@tiendafy/types';
+import { useContext } from 'react';
+import { SECTION_REGISTRY, SECTION_TYPES, isSectionType } from '@tiendafy/types';
 import type { ProductListConfig, SectionType, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
-import { defaultList } from './section-primitives';
-import { SectionFrame } from './SectionFrame';
-import { SECTION_RENDERERS } from './sections/registry';
-import type { SectionRenderProps } from './section-types';
+import { PreviewContext } from './preview';
+import { DarkPageContext, LeadSectionContext } from './section-context';
+import { SectionBody } from './section-body';
 // ProductCard vive en su propio archivo; re-exportamos para consumidores externos
 // (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
@@ -18,7 +17,9 @@ export { HomeSections } from './HomeSections';
 /*
  * Cada tipo de sección tiene su renderer en ./sections/<tipo>.tsx y su
  * definición (campos, nombre, límites…) en el registro compartido de
- * @tiendafy/types. Acá solo se arma la pieza que los une.
+ * @tiendafy/types. Lo que los une es SectionBody; esto es su versión para el
+ * navegador (la vista previa en vivo), que lee del contexto lo que el
+ * servidor le pasa por props.
  */
 
 /** Texto descriptivo para el botón "Editar {label}" del preview (educa al usuario). */
@@ -33,33 +34,15 @@ export function sectionPreviewLabel(section: Pick<ThemeSection, 'type' | 'name'>
   return isSectionType(section.type) ? SECTION_LABELS[section.type] : undefined;
 }
 
-/**
- * Dibuja una sección: normaliza su data (nunca llega un `null` donde se
- * esperaba una lista) y la envuelve en su marco (estilo, dispositivos y un
- * límite de errores propio: si una se rompe, el resto de la página sigue).
- */
-export function SectionRenderer({
-  section,
-  products,
-  storeName,
-  productList = defaultList,
-}: {
+/** Una sección en el navegador: SectionBody con lo que dicen los contextos de la tienda. */
+export function SectionRenderer(props: {
   section: ThemeSection;
   products: StoreProduct[];
   storeName: string;
   productList?: ProductListConfig;
 }) {
-  if (!section.visible || !isSectionType(section.type)) return null;
-  const Render = SECTION_RENDERERS[section.type] as ComponentType<SectionRenderProps>;
-  return (
-    <SectionFrame section={section}>
-      <Render
-        section={section}
-        data={sectionData(section)}
-        products={products}
-        storeName={storeName}
-        productList={productList}
-      />
-    </SectionFrame>
-  );
+  const lead = useContext(LeadSectionContext);
+  const preview = useContext(PreviewContext);
+  const darkPage = useContext(DarkPageContext);
+  return <SectionBody {...props} lead={lead} preview={preview} darkPage={darkPage} />;
 }

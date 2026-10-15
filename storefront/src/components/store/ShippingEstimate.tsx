@@ -6,8 +6,8 @@ import { formatMoney, type MoneyDto } from '@tiendafy/types';
 import { API_URL, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { isPostalCode, normalizePostalCode, readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { CARRIERS, enabledCarriers, type CarrierKey } from './checkout-carriers';
-import { useCart } from './cart';
-import { INPUT_LIGHT_10 } from './styles';
+import { useCart } from './cart-context';
+import { INPUT_10 } from './styles';
 
 /** Un medio propio de la tienda, como lo devuelve /shipping/methods. */
 interface OwnMethod {
@@ -222,7 +222,7 @@ export function ShippingEstimate({
                 }}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? `${inputId}-error` : undefined}
-                className={`${INPUT_LIGHT_10} w-36`}
+                className={`${INPUT_10} w-36`}
               />
               <button
                 type="submit"

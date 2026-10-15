@@ -1,7 +1,7 @@
 'use client';
 
 import { formatMoney } from '@tiendafy/types';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { priceWithoutTaxes, useStoreLegal } from '@/lib/store-legal';
 
 /**

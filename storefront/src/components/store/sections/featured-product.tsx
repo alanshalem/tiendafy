@@ -1,18 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useContext } from 'react';
 import { formatMoney } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
-import { useCart } from '../cart';
+import { cn } from '@tiendafy/ui/cn';
+import { useCart } from '../cart-context';
 import { InitialFallback } from '../InitialFallback';
 import type { StoreProduct } from '../ProductCard';
 import { usePreviewHref } from '../preview';
-import { ImagePlaceholder, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { ImagePlaceholder, SectionTitle } from '../section-primitives';
 import { useSectionProducts } from '../SectionProductsContext';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
-import { LeadSectionContext } from '../section-context';
 
 const BUTTON =
   'inline-flex min-h-12 items-center justify-center rounded-md px-6 text-sm font-semibold transition-opacity';
@@ -86,9 +84,9 @@ export function FeaturedProductSection({
   data,
   products,
   productList,
+  preview,
+  lead,
 }: SectionRenderProps<'featured-product'>) {
-  const preview = usePreviewPlaceholders();
-  const lead = useContext(LeadSectionContext);
   const resolved = useSectionProducts(section.id);
   const toHref = usePreviewHref();
   const product = resolved
@@ -151,13 +149,13 @@ export function FeaturedProductSection({
               {data.badge}
             </span>
           )}
-          <SectionTitle className="text-2xl font-bold sm:text-3xl">
+          <SectionTitle align={section.style?.align} className="text-2xl font-bold sm:text-3xl">
             <Link href={href} className="hover:underline">
               {product.name}
             </Link>
           </SectionTitle>
           <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className={cn('text-2xl font-semibold', onSale && 'text-red-600')}>
+            <span className={cn('text-2xl font-semibold', onSale && 'text-danger')}>
               {formatMoney(product.priceAmount, product.currency)}
             </span>
             {onSale && (

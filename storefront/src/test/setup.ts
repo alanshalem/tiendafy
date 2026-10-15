@@ -6,10 +6,11 @@
  */
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { createElement, type ReactNode } from 'react';
-import { afterEach, vi } from 'vitest';
+import { createElement, type ComponentType, type ReactNode } from 'react';
+import { afterEach, beforeAll, vi } from 'vitest';
 import { installDomPolyfills } from '../../../test-fixtures/dom-setup';
 import { nav } from './next';
+import { flushDynamic } from './dynamic';
 
 installDomPolyfills();
 
@@ -97,3 +98,30 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers({ ...nav.headers, host: nav.host }),
   cookies: async () => ({ get: () => undefined, getAll: () => [], has: () => false }),
 }));
+
+/*
+ * next/dynamic: lo que se carga aparte (el marco de la tienda, cada tipo de
+ * sección, el kit de íconos) se pide ni bien se declara, y antes del primer
+ * test se espera a que llegue todo. Así un test dibuja de una vez, como si
+ * el módulo hubiera estado siempre: lo que se prueba es la tienda, no cuándo
+ * baja cada pedazo (eso lo cubre el build).
+ */
+vi.mock('next/dynamic', async () => {
+  const { pendingDynamic } = await import('./dynamic');
+  return {
+    default: (loader: () => Promise<unknown>) => {
+      let Loaded: ComponentType<Record<string, unknown>> | null = null;
+      const ready = loader().then((m) => {
+        Loaded = ((m as { default?: unknown })?.default ?? m) as ComponentType<Record<string, unknown>>;
+      });
+      pendingDynamic.push(ready);
+      function Dynamic(props: Record<string, unknown>) {
+        if (!Loaded) throw ready; // Suspense, si un test dibuja antes de que llegue
+        return createElement(Loaded, props);
+      }
+      return Dynamic;
+    },
+  };
+});
+
+beforeAll(flushDynamic);

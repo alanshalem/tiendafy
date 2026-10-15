@@ -8,8 +8,8 @@ import {
   type PlayableVideo,
   type VideoData,
 } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
-import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { cn } from '@tiendafy/ui/cn';
+import { SectionTitle } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { SectionButton } from './section-button';
@@ -161,8 +161,7 @@ function FileVideo({
 }
 
 /** Video propio (no el de Instagram): YouTube/Vimeo con fachada o un MP4 subido. */
-export function VideoSection({ data }: SectionRenderProps<'video'>) {
-  const preview = usePreviewPlaceholders();
+export function VideoSection({ section, data, preview }: SectionRenderProps<'video'>) {
   const embed = data.source === 'link' ? parsePlayableVideo(data.url) : null;
   const file = data.source === 'file' ? data.file : '';
   const hasVideo = !!embed || !!file;
@@ -172,7 +171,11 @@ export function VideoSection({ data }: SectionRenderProps<'video'>) {
     <section className="mx-auto max-w-container px-4 py-12">
       {(data.title || data.text) && (
         <div className="mx-auto mb-6 max-w-2xl text-center">
-          {data.title && <SectionTitle className="text-2xl font-bold">{data.title}</SectionTitle>}
+          {data.title && (
+            <SectionTitle align={section.style?.align} className="text-2xl font-bold">
+              {data.title}
+            </SectionTitle>
+          )}
           {data.text && <p className="mt-2 whitespace-pre-line text-fg-muted">{data.text}</p>}
         </div>
       )}

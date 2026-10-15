@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
 import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
@@ -83,7 +83,7 @@ export function ResetPassword() {
         minLength={8}
         className={`mt-4 ${INPUT_THEMED_11}`}
       />
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
       <button type="submit" disabled={busy || password.length < 8} className={`mt-4 ${BTN_PRIMARY_BLOCK}`}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
       </button>

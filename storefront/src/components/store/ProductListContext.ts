@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { defaultTheme, type ProductListConfig } from '@/lib/theme';
+import { DEFAULT_PRODUCT_LIST } from '@tiendafy/types';
+import type { ProductListConfig } from '@/lib/theme';
 
 /**
  * Cómo se ven las cards de productos en esta tienda ("Listado de productos"
@@ -12,5 +13,5 @@ import { defaultTheme, type ProductListConfig } from '@/lib/theme';
 export const ProductListContext = createContext<ProductListConfig | null>(null);
 
 export function useProductListConfig(): ProductListConfig {
-  return useContext(ProductListContext) ?? defaultTheme.productList;
+  return useContext(ProductListContext) ?? DEFAULT_PRODUCT_LIST;
 }

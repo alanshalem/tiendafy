@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { createContext, useContext, useRef, useState, type MouseEvent, type TouchEvent } from 'react';
 import { formatMoney } from '@tiendafy/types';
 import { Icon } from './Icon';
-import { ratioClass, type ProductListConfig } from '@/lib/theme';
-import { useCart } from './cart';
+import type { ProductListConfig } from '@/lib/theme';
+import { ratioClass } from '@/lib/theme-style';
+import { useCart } from './cart-context';
 import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
@@ -112,7 +113,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           product.stock > 0 &&
           product.stock <= LOW_STOCK_THRESHOLD && (
             <span
-              className={`absolute left-2 z-10 rounded-md bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}
+              className={`absolute left-2 z-10 rounded-md bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-semibold text-amber-950 shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}
             >
               ¡Últimas {product.stock}!
             </span>
@@ -195,7 +196,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       <CardRating rating={product.rating} />
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
-          <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>
+          <span className={`font-semibold ${onSale ? 'text-danger' : ''}`}>
             {formatMoney(product.priceAmount, product.currency)}
           </span>
           {list.showCompareAt && product.compareAtAmount && (

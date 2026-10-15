@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { subscribeNewsletter, type NewsletterSource } from '@/lib/newsletter';
-import { useCart } from './cart';
-import { INPUT_LIGHT_10 } from './styles';
+import { useCart } from './cart-context';
+import { INPUT_10 } from './styles';
 
 type State = 'idle' | 'sending' | 'done' | 'error';
 
@@ -87,7 +87,7 @@ function Form({ tenantId, source, compact, align, successMessage }: FormOptions 
         placeholder="tu@email.com"
         aria-label="Email"
         autoComplete="email"
-        className={compact ? `${INPUT_LIGHT_10} min-w-0 flex-[1_1_10rem]` : INPUT_LIGHT_10}
+        className={compact ? `${INPUT_10} min-w-0 flex-[1_1_10rem]` : INPUT_10}
       />
       {/* Honeypot: invisible para una persona, irresistible para un bot. */}
       <input

@@ -1,10 +1,10 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
-import { cn } from '@tiendafy/ui';
+import { useEffect, useRef, useState } from 'react';
+import { cn } from '@tiendafy/ui/cn';
 import { MOBILE_MEDIA, StoreImage } from '../StoreImage';
+import { PlayPauseIcon } from '../PlayPauseIcon';
 import { StoreLink } from '../StoreLink';
-import { LeadSectionContext } from '../section-context';
 import type { SectionRenderProps } from '../section-types';
 import { useHydrated, useMediaQuery, usePrefersReducedMotion, useSaveData } from '../use-media';
 import { OVERLAY_BG, TEXT_SHADOW } from './image-overlay';
@@ -26,14 +26,6 @@ const H_ALIGN = {
 } as const;
 const V_ALIGN = { top: 'justify-start', center: 'justify-center', bottom: 'justify-end' } as const;
 
-function PlayPauseIcon({ playing }: { playing: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-      {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l10.5-6.5z" />}
-    </svg>
-  );
-}
-
 /**
  * Video de portada.
  *
@@ -48,8 +40,7 @@ function PlayPauseIcon({ playing }: { playing: boolean }) {
  * los dispositivos (ver isPageTitleSection en HomeSections); más abajo es
  * una sección más, con su h2.
  */
-export function HeroVideoSection({ section, data }: SectionRenderProps<'hero-video'>) {
-  const lead = useContext(LeadSectionContext);
+export function HeroVideoSection({ section, data, lead }: SectionRenderProps<'hero-video'>) {
   const hydrated = useHydrated();
   const reduced = usePrefersReducedMotion();
   const saveData = useSaveData();

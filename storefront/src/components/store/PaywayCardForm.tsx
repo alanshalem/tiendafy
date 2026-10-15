@@ -208,7 +208,7 @@ export function PaywayCardForm({
               required
             />
             {brand && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-neutral-500">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-fg-muted">
                 {BRAND_LABEL[brand]}
               </span>
             )}
@@ -333,7 +333,7 @@ export function PaywayCardForm({
           {busy ? 'Procesando…' : `Pagar ${amountLabel}`}
         </button>
 
-        <p className="text-center text-xs text-neutral-500">
+        <p className="text-center text-xs text-fg-muted">
           Los datos de tu tarjeta viajan directo a Payway. No los guardamos ni pasan por nuestros servidores.
         </p>
       </form>

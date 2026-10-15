@@ -4,8 +4,8 @@ import { useEffect, useId, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
-import { useCart } from './cart';
-import { INPUT_LIGHT_10 } from './styles';
+import { useCart } from './cart-context';
+import { INPUT_10 } from './styles';
 
 type State = 'idle' | 'sending' | 'done' | 'error';
 
@@ -81,7 +81,7 @@ export function BackInStock({ variantId, label }: { variantId: string; label?: s
           placeholder="tu@email.com"
           aria-label="Tu email para el aviso"
           autoComplete="email"
-          className={`${INPUT_LIGHT_10} min-w-0 flex-1`}
+          className={`${INPUT_10} min-w-0 flex-1`}
         />
         {/* Honeypot: invisible para una persona, irresistible para un bot. */}
         <input

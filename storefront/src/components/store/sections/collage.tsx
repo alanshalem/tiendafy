@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { formatMoney, safeHref, type CollageBlock } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { categoryHref } from '@/lib/category-url';
 import { findCategoryNode, useCategoryTree } from '../CategoryMenu';
 import type { StoreProduct } from '../ProductCard';
 import { usePreviewHref } from '../preview';
-import { ImagePlaceholder, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { ImagePlaceholder, SectionTitle } from '../section-primitives';
 import { useSectionProducts } from '../SectionProductsContext';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
@@ -79,8 +79,7 @@ function TileLink({ tile, className, children }: { tile: Tile; className: string
  * categoría— con el primero grande a un lado y los demás apilados al otro.
  * En celular van uno debajo del otro o deslizando.
  */
-export function CollageSection({ section, data, products }: SectionRenderProps<'collage'>) {
-  const preview = usePreviewPlaceholders();
+export function CollageSection({ section, data, products, preview }: SectionRenderProps<'collage'>) {
   const resolved = useSectionProducts(section.id);
   const tree = useCategoryTree();
 
@@ -138,7 +137,11 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
 
   return (
     <section className="mx-auto max-w-container px-4 py-12">
-      {data.title && <SectionTitle className="mb-6 text-2xl font-bold">{data.title}</SectionTitle>}
+      {data.title && (
+        <SectionTitle align={section.style?.align} className="mb-6 text-2xl font-bold">
+          {data.title}
+        </SectionTitle>
+      )}
       <ul
         className={cn(
           swipe

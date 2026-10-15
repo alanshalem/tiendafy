@@ -1,5 +1,3 @@
-'use client';
-
 import { Fragment, type ReactNode } from 'react';
 import type { RichBlock, RichDoc, RichInline } from '@tiendafy/types';
 import { StoreLink } from '../StoreLink';

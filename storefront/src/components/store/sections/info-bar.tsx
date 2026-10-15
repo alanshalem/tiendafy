@@ -1,7 +1,5 @@
-'use client';
-
 import { SECTION_REGISTRY } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { Icon } from '../Icon';
 import { INFO_ICON_MAP, LAZY } from '../section-primitives';
 import { StoreLink } from '../StoreLink';

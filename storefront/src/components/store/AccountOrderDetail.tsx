@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, MessageCircle, RotateCcw, ShoppingCart, Undo2 } from 'lucide-react';
 import { useAuth } from './auth';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { SupportChat } from './SupportChat';
 import { OrderSummary, OrderTimeline } from './OrderSummary';
@@ -174,7 +174,7 @@ export function AccountOrderDetail({ orderId }: { orderId: string }) {
         )}
       </div>
       {downloadError && (
-        <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-sm text-red-500">
+        <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-sm text-danger">
           <RotateCcw className="h-4 w-4" aria-hidden /> {downloadError}
         </p>
       )}

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { Pencil } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { Icon } from './Icon';
-import { PlayPauseIcon } from './ImageCarousel';
+import { PlayPauseIcon } from './PlayPauseIcon';
 import { MarqueeTrack } from './MarqueeTrack';
 import { ADMIN_ORIGIN } from './preview';
 import { StoreLink } from './StoreLink';

@@ -60,17 +60,8 @@ export type {
   DensityStyle,
   ThemeConfig,
 } from './theme';
-export {
-  DEFAULT_SECTIONS,
-  baseTheme,
-  normalizeTheme,
-  sanitizeCss,
-  PAYMENT_LOGOS,
-  PAYMENT_LOGO_SIZE,
-  paymentLogoSrc,
-  paymentLogoLabel,
-  heroUnderHeader,
-} from './theme';
+export { DEFAULT_SECTIONS, baseTheme, normalizeTheme } from './theme';
+export { PAYMENT_LOGOS, PAYMENT_LOGO_SIZE, paymentLogoSrc, paymentLogoLabel } from './payment-logos';
 export * from './sections';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
@@ -83,7 +74,15 @@ export type { ThemeMenuItemKind, FooterLink, ButtonStyle } from './theme';
 export { BUILTIN_MENU_IDS } from './theme';
 // Encabezado por tipo de página y barra de anuncio "uno por vez".
 export type { HeaderPageKind, HeaderPageColor, HeaderPageColors } from './theme';
-export { HEADER_PAGE_KINDS, ANNOUNCEMENT_INTERVAL, headerColorsFor } from './theme';
+export { HEADER_PAGE_KINDS, ANNOUNCEMENT_INTERVAL } from './theme';
+// Lo que la tienda usa en el navegador, sin el registro de secciones (ver theme-helpers).
+export {
+  DEFAULT_PRODUCT_LIST,
+  footerColumnTitle,
+  headerColorsFor,
+  heroUnderHeader,
+  sanitizeCss,
+} from './theme-helpers';
 // Columnas del pie: tipos, topes y cómo se arman las de un tema viejo.
 export type { FooterColumn, FooterColumnKind } from './theme';
 export {
@@ -95,7 +94,6 @@ export {
   FOOTER_SINGLE_KINDS,
   deriveFooterColumns,
   footerFlagsFromColumns,
-  footerColumnTitle,
 } from './theme';
 // Links que escribe el comercio: validación y destinos de la tienda.
 export {

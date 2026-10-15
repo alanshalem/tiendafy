@@ -10,6 +10,17 @@
 import type { ThemeSection } from './sections/envelope';
 import { normalizeSections } from './sections/registry';
 import { migrateTheme, THEME_SCHEMA_VERSION } from './sections/migrations';
+import { DEFAULT_PRODUCT_LIST } from './theme-helpers';
+import { PAYMENT_LOGO_SLUGS } from './payment-logos';
+
+// Viven en theme-helpers (sin dependencias, ver ahí); se re-exportan para quien los importaba de acá.
+export {
+  DEFAULT_PRODUCT_LIST,
+  footerColumnTitle,
+  headerColorsFor,
+  heroUnderHeader,
+  sanitizeCss,
+} from './theme-helpers';
 
 export interface ThemeColors {
   primary: string;
@@ -346,49 +357,15 @@ export interface FooterConfig {
   emails: string[];
 }
 
-/**
- * Catálogo de logos de medios de pago / bancos disponibles.
- * `slug` = nombre del archivo en /payment-logos/<slug>.webp (servido por
- * storefront y admin desde sus carpetas public). Fuente única para el
- * selector del admin y el render del footer.
- *
- * Son WebP de 240x120 (3x del tamaño al que se dibujan, ~28 px de alto):
- * los SVG originales venían de Canva con un PNG gigante embebido y pesaban
- * 16 MB entre todos. Un test de cada app falla si alguno pasa de 30 KB.
- */
-export interface PaymentLogo {
-  slug: string;
-  label: string;
-}
-export const PAYMENT_LOGOS: PaymentLogo[] = [
-  { slug: 'mercadopago', label: 'Mercado Pago' },
-  { slug: 'mercadocredito', label: 'Mercado Crédito' },
-  { slug: 'visa', label: 'Visa' },
-  { slug: 'mastercard', label: 'Mastercard' },
-  { slug: 'american-express', label: 'American Express' },
-  { slug: 'cabal', label: 'Cabal' },
-  { slug: 'naranja', label: 'Naranja' },
-  { slug: 'cordobesa', label: 'Cordobesa' },
-  { slug: 'pago-facil', label: 'Pago Fácil' },
-  { slug: 'santander', label: 'Santander' },
-  { slug: 'galicia', label: 'Galicia' },
-  { slug: 'bbva', label: 'BBVA' },
-  { slug: 'banco-nacion', label: 'Banco Nación' },
-  { slug: 'banco-hipotecario', label: 'Banco Hipotecario' },
-  { slug: 'icbc', label: 'ICBC' },
-  { slug: 'hsbc', label: 'HSBC' },
-  { slug: 'citi', label: 'Citi' },
-  { slug: 'cencosud', label: 'Cencosud' },
-];
-/** Slugs válidos (para filtrar selecciones viejas/erróneas). */
-export const PAYMENT_LOGO_SLUGS: string[] = PAYMENT_LOGOS.map((l) => l.slug);
-/** Tamaño intrínseco de los archivos: va en width/height del <img> para que
- *  el navegador reserve el lugar antes de bajarlos (sin saltos de layout). */
-export const PAYMENT_LOGO_SIZE = { width: 240, height: 120 } as const;
-export const paymentLogoSrc = (slug: string): string => `/payment-logos/${slug}.webp`;
-/** Nombre legible para el alt: el logo informa con qué se puede pagar. */
-export const paymentLogoLabel = (slug: string): string =>
-  PAYMENT_LOGOS.find((l) => l.slug === slug)?.label ?? slug;
+// Viven en payment-logos (sin dependencias); se re-exportan para quien los importaba de acá.
+export {
+  PAYMENT_LOGOS,
+  PAYMENT_LOGO_SIZE,
+  PAYMENT_LOGO_SLUGS,
+  paymentLogoLabel,
+  paymentLogoSrc,
+  type PaymentLogo,
+} from './payment-logos';
 
 /** Estilo de bordes global (cards, botones, imágenes, inputs). */
 export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';
@@ -510,24 +487,8 @@ export const baseTheme: ThemeConfig = {
     launchDate: '',
   },
   sections: [],
-  productList: {
-    columns: 4,
-    mobileColumns: 2,
-    showPrice: true,
-    showBuyButton: true,
-    showCompareAt: true,
-    filterCategories: true,
-    filterPrice: true,
-    filterBrand: true,
-    filterOptions: true,
-    showCashPrice: false,
-    installmentsCount: 0,
-    showStockBadge: false,
-    defaultSort: 'newest',
-    pageSize: 24,
-    imageRatio: 'square',
-    cardStyle: 'plain',
-  },
+  productList: DEFAULT_PRODUCT_LIST,
+
   productDetail: {
     installmentsCount: 0,
     showPaymentLogos: false,
@@ -590,36 +551,6 @@ const rgbOrEmpty = (v: unknown): string =>
   typeof v === 'string' && /^\s*\d{1,3}\s+\d{1,3}\s+\d{1,3}\s*$/.test(v) ? v.trim() : '';
 
 /**
- * ¿El inicio arranca con una foto o un video a todo el ancho? Es lo único sobre
- * lo que un encabezado transparente se lee: sobre el fondo liso de la tienda
- * (o sobre una grilla de productos) el menú blanco desaparecía. Una sección
- * escondida en un dispositivo no cuenta: en ese dispositivo arrancaría con otra.
- */
-export function heroUnderHeader(sections: ThemeSection[]): boolean {
-  const first = sections.find((s) => s.visible && s.type !== 'promo-popup');
-  if (!first || first.hideOn) return false;
-  if (first.type === 'hero-video') return true;
-  if (first.type !== 'carousel') return false;
-  const slides = (first.data as { slides?: { image?: unknown }[] }).slides;
-  return Array.isArray(slides) && slides.some((s) => typeof s?.image === 'string' && !!s.image);
-}
-
-/**
- * Saneo del CSS custom del merchant — espejo del SanitizeCss del backend.
- * El backend lo aplica al guardar/publicar; esto cubre el camino "live" del
- * preview (postMessage → <style> sin pasar por el backend). Quita lo que
- * permitiría romper el <style> e inyectar HTML/JS.
- */
-export function sanitizeCss(css: string): string {
-  if (!css) return css;
-  let cleaned = css.replace(/</g, '');
-  for (const bad of ['expression\\(', 'javascript:', 'behavior:', '-moz-binding', '@import']) {
-    cleaned = cleaned.replace(new RegExp(bad, 'gi'), '');
-  }
-  return cleaned;
-}
-
-/**
  * Barra de anuncio: arma items[] desde el formato nuevo o migra el legacy
  * { message, link } a un único item. Nunca devuelve items vacío con animación,
  * pero sí puede quedar [] (el storefront no renderiza nada si no hay texto).
@@ -677,20 +608,6 @@ function normalizeHeaderPageColors(raw: unknown): HeaderPageColors {
     if (bg) out[kind] = { bg, textColor: rgbOrEmpty(entry?.textColor) };
   }
   return out;
-}
-
-/**
- * El fondo y el texto del encabezado en un tipo de página: los propios de esa
- * página, o los generales. Con fondo propio y texto en automático, el texto es
- * el que se lee sobre ESE fondo (no el elegido para el general, que pudo
- * pensarse para otro color). `textColor` vacío = automático.
- */
-export function headerColorsFor(
-  header: Pick<ThemeHeader, 'bg' | 'textColor' | 'pageColors'>,
-  kind: HeaderPageKind | null,
-): HeaderPageColor {
-  const own = kind ? header.pageColors?.[kind] : undefined;
-  return own ? { bg: own.bg, textColor: own.textColor } : { bg: header.bg, textColor: header.textColor };
 }
 
 /** Ids de los ítems fijos del menú (existen siempre; se ocultan, no se borran). */
@@ -794,29 +711,6 @@ export function footerFlagsFromColumns(
     showPages: columns.some((c) => c.kind === 'pages' || (c.kind === 'links' && !!c.withPages)),
     showNewsletter: columns.some((c) => c.kind === 'newsletter'),
   };
-}
-
-/** El título que se ve de una columna: el propio, o el de siempre de su tipo (vacío = sin título). */
-export function footerColumnTitle(
-  column: FooterColumn,
-  footer: Pick<FooterConfig, 'newsletterTitle'>,
-): string {
-  const own = column.title?.trim();
-  if (own) return own;
-  switch (column.kind) {
-    case 'links':
-    case 'pages':
-      return 'Información';
-    case 'contact':
-      return 'Contacto';
-    case 'newsletter':
-      return footer.newsletterTitle?.trim() || 'Recibí novedades';
-    case 'social':
-      // Con la marca, el logo hace de título; sin ella, las redes solas lo necesitan.
-      return column.hideBrand ? 'Seguinos' : '';
-    case 'text':
-      return '';
-  }
 }
 
 /**

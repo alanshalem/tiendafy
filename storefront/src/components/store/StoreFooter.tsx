@@ -3,14 +3,14 @@
 import { useId, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
-import { type ThemeConfig } from '@/lib/theme';
+import type { ThemeConfig } from '@/lib/theme';
 import { usePublishedPages } from './PagesNav';
 import { usePreviewHref } from './preview';
 import { NewsletterForm } from './NewsletterForm';
 import { SellerIdentity } from './StoreLegalInfo';
 import { StoreLink } from './StoreLink';
 import { useMediaQuery } from './use-media';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import {
   contrastText,
   footerColumnTitle,
@@ -111,7 +111,7 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   };
   const columns = (footer.columns ?? []).filter((c) => hasContent(c, data, footer.layout));
   const style = footerColors(footer.bg);
-  const frame = `mt-8 ${style ? '' : 'border-t border-black/10'}`;
+  const frame = `mt-8 ${style ? '' : 'border-t border-fg/10'}`;
 
   if (footer.layout === 'columns') {
     // La marca un poco más ancha: lleva el logo y un párrafo; el resto, listas cortas.

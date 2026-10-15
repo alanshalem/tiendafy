@@ -1,12 +1,9 @@
-'use client';
-
-import { useContext, type CSSProperties, type ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { BannerRatio, Overlay, TextPosition } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { StoreImage } from '../StoreImage';
 import { StoreLink } from '../StoreLink';
-import { ImagePlaceholder, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
-import { LeadSectionContext } from '../section-context';
+import { ImagePlaceholder, SectionTitle } from '../section-primitives';
 import {
   POSITION_CLASS,
   RATIO_CLASS,
@@ -66,6 +63,9 @@ export function gridSizes(cols: GridColumns, fullWidth: boolean): string {
  */
 export function BannerGrid<B extends GridBanner>({
   title,
+  align,
+  lead,
+  preview: placeholders,
   banners,
   fullWidth,
   cols,
@@ -76,6 +76,12 @@ export function BannerGrid<B extends GridBanner>({
   caption,
 }: {
   title: string;
+  /** La alineación de la sección (para el título). */
+  align?: 'left' | 'center';
+  /** Abre la portada: la primera foto va con prioridad. */
+  lead: boolean;
+  /** Vista previa del editor: los banners sin foto se ven como hueco. */
+  preview: boolean;
   banners: B[];
   fullWidth: boolean;
   cols: GridColumns;
@@ -87,8 +93,6 @@ export function BannerGrid<B extends GridBanner>({
   /** El texto de cada banner (sin el contenedor): `null` si no tiene. */
   caption: (b: B) => ReactNode;
 }) {
-  const lead = useContext(LeadSectionContext);
-  const placeholders = usePreviewPlaceholders();
   // En la tienda, un banner sin foto no se muestra; en el editor se ve su
   // lugar, así una sección recién agregada no parece que no hizo nada.
   const shown = banners.filter((b) => b.image || placeholders);
@@ -101,6 +105,7 @@ export function BannerGrid<B extends GridBanner>({
     <section className={fullWidth ? 'w-full py-8' : 'mx-auto max-w-container px-4 py-8'}>
       {title && (
         <SectionTitle
+          align={align}
           className={cn(
             'mb-6 text-sm font-bold uppercase tracking-widest text-fg-muted',
             fullWidth && 'px-4 text-center',

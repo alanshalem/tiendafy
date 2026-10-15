@@ -10,6 +10,7 @@
 import { render } from '@testing-library/react';
 import { Children, cloneElement, isValidElement, Suspense, type ReactElement, type ReactNode } from 'react';
 import { nav } from './next';
+import { flushDynamic } from './dynamic';
 
 type Component = (props: unknown) => ReactNode | Promise<ReactNode>;
 
@@ -90,7 +91,10 @@ export async function renderPage<P extends object>(
   nav.at(url);
   const searchParams = Object.fromEntries(new URLSearchParams(nav.search));
   const props = { params: Promise.resolve(params), searchParams: Promise.resolve(searchParams) } as P;
-  const tree = await resolveServer(await page(props));
+  const element = await page(props);
+  // Los componentes dinámicos de lo que se importó recién (como el preload del servidor).
+  await flushDynamic();
+  const tree = await resolveServer(element);
   return render(<>{tree}</>);
 }
 
@@ -106,6 +110,9 @@ export async function renderPending<P extends object>(
   nav.at(url);
   const searchParams = Object.fromEntries(new URLSearchParams(nav.search));
   const props = { params: Promise.resolve(params), searchParams: Promise.resolve(searchParams) } as P;
-  const tree = await resolveServer(await page(props), true);
+  const element = await page(props);
+  // Los componentes dinámicos de lo que se importó recién (como el preload del servidor).
+  await flushDynamic();
+  const tree = await resolveServer(element, true);
   return render(<>{tree}</>);
 }

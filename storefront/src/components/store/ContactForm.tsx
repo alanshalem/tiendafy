@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { Captcha } from './Captcha';
 
 import { submitContact } from '@/lib/contact';
-import { BTN_SUBMIT_PUBLIC, INPUT_LIGHT_11, TEXTAREA_LIGHT } from './styles';
+import { BTN_SUBMIT_PUBLIC, INPUT_11, TEXTAREA } from './styles';
 
 export function ContactForm() {
   const { tenantId } = useCart();
@@ -20,7 +20,7 @@ export function ContactForm() {
 
   if (sent) {
     return (
-      <div className="mt-6 rounded-md border border-black/10 bg-black/[0.03] p-5 text-sm">
+      <div className="mt-6 rounded-md border border-fg/10 bg-fg/[0.03] p-5 text-sm">
         ¡Gracias! Recibimos tu mensaje y te respondemos pronto.
       </div>
     );
@@ -44,7 +44,7 @@ export function ContactForm() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Tu nombre"
         aria-label="Tu nombre"
-        className={INPUT_LIGHT_11}
+        className={INPUT_11}
       />
       <input
         required
@@ -53,7 +53,7 @@ export function ContactForm() {
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Tu email"
         aria-label="Tu email"
-        className={INPUT_LIGHT_11}
+        className={INPUT_11}
       />
       <textarea
         required
@@ -62,12 +62,12 @@ export function ContactForm() {
         placeholder="Tu mensaje"
         aria-label="Tu mensaje"
         rows={5}
-        className={TEXTAREA_LIGHT}
+        className={TEXTAREA}
       />
 
       <Captcha onToken={setCaptcha} />
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <button type="submit" disabled={busy || captcha === null} className={BTN_SUBMIT_PUBLIC}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

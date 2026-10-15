@@ -4,12 +4,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Camera, CheckCircle2, Loader2, Star, X } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { Stars } from './ReviewStars';
-import { BTN_PRIMARY_BLOCK, INPUT_LIGHT_11, TEXTAREA_LIGHT } from './styles';
+import { BTN_PRIMARY_BLOCK, INPUT_11, TEXTAREA } from './styles';
 
 /** Una línea de la compra, como la devuelve /reviews/invite. */
 interface InviteItem {
@@ -289,7 +289,7 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
         value={title}
         onChange={(e) => setTitle(e.target.value.slice(0, 120))}
         placeholder="En pocas palabras"
-        className={`${INPUT_LIGHT_11} mt-1`}
+        className={`${INPUT_11} mt-1`}
       />
 
       <label htmlFor={`${id}-body`} className="mt-4 block text-sm font-medium">
@@ -301,7 +301,7 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
         onChange={(e) => setBody(e.target.value.slice(0, 4000))}
         rows={5}
         placeholder="¿Cómo te resultó? ¿La calidad, el talle, el uso?"
-        className={`${TEXTAREA_LIGHT} mt-1`}
+        className={`${TEXTAREA} mt-1`}
       />
 
       <div className="mt-4">

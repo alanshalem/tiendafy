@@ -1,5 +1,6 @@
 import { safeHref } from '@tiendafy/types';
-import { primaryInk, themeToStyle, type ThemeConfig } from '@/lib/theme';
+import type { ThemeConfig } from '@/lib/theme';
+import { primaryInk, themeToStyle } from '@/lib/theme-style';
 import { NewsletterForm } from './NewsletterForm';
 
 /** "2026-11-15" → "15 de noviembre". Sin año: una apertura nunca es a un año vista. */

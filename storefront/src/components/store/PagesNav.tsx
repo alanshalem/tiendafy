@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import type { PublishedPage } from './header-menu';
 
 import { clientJsonTenant } from '@/lib/api-client';

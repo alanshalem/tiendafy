@@ -1,13 +1,11 @@
-'use client';
-
 import { getImageProps } from 'next/image';
 import { contrastText, type ImageTextData } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { MOBILE_MEDIA, StoreImage } from '../StoreImage';
 import { StoreLink } from '../StoreLink';
-import { ImagePlaceholder, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
-import { useDarkPage, useSectionStyle } from '../section-context';
+import { ImagePlaceholder, SectionTitle } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
+import type { SectionStyle } from '@/lib/theme';
 import { RATIO_CLASS } from './image-overlay';
 
 const V_ALIGN = { top: 'items-start', center: 'items-center', bottom: 'items-end' } as const;
@@ -81,9 +79,7 @@ function SectionImage({ data, sizes }: { data: ImageTextData; sizes: string }) {
  * "Claro" dejaba el texto blanco sobre blanco. Si la sección no tiene un
  * fondo propio oscuro, el texto claro va sobre un recuadro oscuro.
  */
-function useNeedsDarkPanel(data: ImageTextData): boolean {
-  const style = useSectionStyle();
-  const darkPage = useDarkPage();
+function needsDarkPanel(data: ImageTextData, style: SectionStyle | undefined, darkPage: boolean): boolean {
   if (data.textColor !== 'light' || data.textBackground === 'dark') return false;
   // Sobre una tienda oscura el texto claro ya se lee: va el fondo elegido.
   // (Con fondo propio claro en la sección, sí hace falta el recuadro.)
@@ -95,9 +91,13 @@ function useNeedsDarkPanel(data: ImageTextData): boolean {
   return !darkSection;
 }
 
-export function ImageTextSection({ data }: SectionRenderProps<'image-text'>) {
-  const forceDark = useNeedsDarkPanel(data);
-  const placeholders = usePreviewPlaceholders();
+export function ImageTextSection({
+  section,
+  data,
+  preview: placeholders,
+  darkPage,
+}: SectionRenderProps<'image-text'>) {
+  const forceDark = needsDarkPanel(data, section.style, darkPage);
   if (!data.image && !data.title) return null;
 
   const hasText = !!(data.title || data.description || (data.buttonText && data.link));
@@ -127,7 +127,11 @@ export function ImageTextSection({ data }: SectionRenderProps<'image-text'>) {
         slot && (data.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'),
       )}
     >
-      {data.title && <SectionTitle className="text-2xl font-bold sm:text-3xl">{data.title}</SectionTitle>}
+      {data.title && (
+        <SectionTitle align={section.style?.align} className="text-2xl font-bold sm:text-3xl">
+          {data.title}
+        </SectionTitle>
+      )}
       {data.description && (
         <p className={cn('mt-3 whitespace-pre-line', light ? 'opacity-90' : 'opacity-75')}>
           {data.description}

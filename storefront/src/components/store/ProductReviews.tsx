@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { BadgeCheck, ChevronLeft, ChevronRight, Flag, MessageSquareReply, ThumbsUp, X } from 'lucide-react';
 import { formatDate } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { API_URL, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 import { reviewsPath, type PublicReview, type ReviewSort, type ReviewsPage } from '@/lib/reviews';
 import { Stars, formatRating } from './ReviewStars';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { useFocusTrap } from './useFocusTrap';
 
 /** Las reseñas que esta persona ya marcó como útiles (en este navegador). */

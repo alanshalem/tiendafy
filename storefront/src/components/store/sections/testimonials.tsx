@@ -1,8 +1,9 @@
 'use client';
 
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { Icon } from '../Icon';
-import { RailArrows, SectionTitle, useRail } from '../section-primitives';
+import { SectionTitle } from '../section-primitives';
+import { RailArrows, useRail } from '../product-grid';
 import { StoreImage } from '../StoreImage';
 import type { SectionRenderProps, TestimonialItem } from '../section-types';
 
@@ -74,7 +75,7 @@ function Card({ t, index }: { t: TestimonialItem; index: number }) {
  * grilla, la última fila incompleta queda centrada (antes quedaba colgando a
  * la izquierda); en carrusel, se deslizan.
  */
-export function TestimonialsSection({ data }: SectionRenderProps<'testimonials'>) {
+export function TestimonialsSection({ section, data }: SectionRenderProps<'testimonials'>) {
   const items = data.items.filter((t) => t.quote.trim());
   const carousel = data.layout === 'carousel' && items.length > 1;
   const { ref: railRef, edge, measure, page } = useRail<HTMLDivElement>([items.length, carousel]);
@@ -82,7 +83,10 @@ export function TestimonialsSection({ data }: SectionRenderProps<'testimonials'>
   return (
     <section className="store-section mx-auto max-w-container px-6 py-14 sm:px-4">
       {data.title && (
-        <SectionTitle className="mb-8 text-center text-2xl font-bold wrap-anywhere">
+        <SectionTitle
+          align={section.style?.align}
+          className="mb-8 text-center text-2xl font-bold wrap-anywhere"
+        >
           {data.title}
         </SectionTitle>
       )}

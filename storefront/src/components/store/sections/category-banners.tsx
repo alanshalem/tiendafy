@@ -1,15 +1,21 @@
-'use client';
-
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import type { SectionRenderProps } from '../section-types';
 import { BannerGrid } from './banner-grid';
 
-export function CategoryBannersSection({ data }: SectionRenderProps<'category-banners'>) {
+export function CategoryBannersSection({
+  section,
+  data,
+  lead,
+  preview,
+}: SectionRenderProps<'category-banners'>) {
   const desktop = Number(data.columns);
   const banners = data.banners.filter((b) => b.show).map((b) => ({ ...b, name: b.title }));
   return (
     <BannerGrid
       title={data.title}
+      align={section.style?.align}
+      lead={lead}
+      preview={preview}
       banners={banners}
       fullWidth={data.fullWidth}
       cols={{ mobile: Number(data.columnsMobile), tablet: Math.min(desktop, 3), desktop }}

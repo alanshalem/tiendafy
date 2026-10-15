@@ -154,15 +154,15 @@ export function SupportChat({
       onClick={onClose}
     >
       <div
-        className="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white text-gray-900 shadow-xl sm:h-[600px] sm:max-w-lg sm:rounded-2xl"
+        className="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-bg text-fg shadow-xl sm:h-[600px] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-fg/10 px-4 py-3">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
             <span className="font-semibold">Consulta sobre tu pedido</span>
           </div>
-          <button onClick={onClose} aria-label="Cerrar chat" className="rounded-md p-1 hover:bg-black/5">
+          <button onClick={onClose} aria-label="Cerrar chat" className="rounded-md p-1 hover:bg-fg/5">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -177,7 +177,7 @@ export function SupportChat({
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.isFromStaff ? 'justify-start' : 'justify-end'}`}>
               <div
-                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${m.isFromStaff ? 'bg-gray-100' : 'bg-gray-900 text-white'}`}
+                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${m.isFromStaff ? 'bg-fg/[0.06]' : 'bg-fg text-bg'}`}
               >
                 {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                 {m.attachment &&
@@ -196,7 +196,7 @@ export function SupportChat({
                       href={m.attachment.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`mt-1 flex items-center gap-1.5 text-xs underline ${m.isFromStaff ? '' : 'text-white'}`}
+                      className={`mt-1 flex items-center gap-1.5 text-xs underline ${m.isFromStaff ? '' : 'text-bg'}`}
                     >
                       <Paperclip className="h-3.5 w-3.5" /> {m.attachment.name}
                     </a>
@@ -210,9 +210,9 @@ export function SupportChat({
           <div ref={bottomRef} />
         </div>
 
-        {error && <p className="px-4 pb-1 text-xs text-red-600">{error}</p>}
+        {error && <p className="px-4 pb-1 text-xs text-danger">{error}</p>}
 
-        <div className="flex items-center gap-2 border-t border-black/10 px-3 py-2.5">
+        <div className="flex items-center gap-2 border-t border-fg/10 px-3 py-2.5">
           <input
             ref={fileRef}
             type="file"
@@ -227,7 +227,7 @@ export function SupportChat({
             onClick={() => fileRef.current?.click()}
             disabled={!conv || sending}
             aria-label="Adjuntar archivo"
-            className="rounded-md p-2 hover:bg-black/5 disabled:opacity-40"
+            className="rounded-md p-2 hover:bg-fg/5 disabled:opacity-40"
           >
             <Paperclip className="h-5 w-5" />
           </button>
@@ -244,13 +244,13 @@ export function SupportChat({
               }
             }}
             placeholder="Escribí tu mensaje…"
-            className="h-10 flex-1 rounded-full border border-black/15 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-black/30"
+            className="h-10 flex-1 rounded-full border border-fg/20 bg-fg/[0.03] px-4 text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-fg/30"
           />
           <button
             onClick={send}
             disabled={!conv || !text.trim() || sending}
             aria-label="Enviar"
-            className="rounded-full bg-gray-900 p-2.5 text-white hover:opacity-90 disabled:opacity-40"
+            className="rounded-full bg-fg p-2.5 text-bg hover:opacity-90 disabled:opacity-40"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
