@@ -156,7 +156,8 @@ describe('clientes', () => {
     await waitFor(() => expect(api.calls.some((c) => c.path.includes('q=julieta'))).toBe(true));
   });
 
-  it('agregar, editar y eliminar un cliente', async () => {
+  // Escribe en cinco campos y abre tres diálogos: con la máquina cargada pasa los 15 s.
+  it('agregar, editar y eliminar un cliente', { timeout: 30_000 }, async () => {
     const { api, user } = await open('/clientes', 'Clientes', (a) => {
       a.on('POST', '/api/v1/customers', { detail: 'Ya hay un cliente con ese email.' }, 409);
       a.on('PUT', `/api/v1/customers/${customer.id}`, {});
