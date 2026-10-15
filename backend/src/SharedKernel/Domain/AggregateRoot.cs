@@ -4,8 +4,8 @@ namespace SharedKernel.Domain;
 
 /// <summary>
 /// Raíz de agregado multi-tenant. Toda raíz lleva TenantId (regla: ninguna
-/// tabla nace sin tenant_id). Acumula domain events que el interceptor de
-/// EF Core drena hacia el Outbox en SaveChanges.
+/// tabla nace sin tenant_id). Acumula domain events, que hoy no se despachan
+/// (ver <see cref="DomainEvent"/> y el ADR 0005).
 /// </summary>
 public abstract class AggregateRoot : Entity
 {

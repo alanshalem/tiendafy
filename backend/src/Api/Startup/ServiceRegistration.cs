@@ -56,7 +56,7 @@ public static class ServiceRegistration
         return builder;
     }
 
-    /// <summary>Los 19 módulos del monolito.</summary>
+    /// <summary>Los módulos del monolito.</summary>
     public static IServiceCollection AddAllModules(
         this IServiceCollection services, IConfiguration configuration, bool isProduction = false)
     {

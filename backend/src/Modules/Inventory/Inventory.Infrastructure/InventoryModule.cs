@@ -55,8 +55,8 @@ public sealed class InventoryService(IStockRepository repository) : IInventorySe
 }
 
 /// <summary>
-/// Libera reservas vencidas. Vive en el host Api hasta que exista el Worker
-/// (anotado en checklist) — el patrón final es consumer en el host Worker.
+/// Libera reservas vencidas. Corre dentro de la API como el resto de los
+/// workers (no hay un host aparte: ADR 0005).
 /// </summary>
 public sealed class ExpiredReservationsJob(IServiceScopeFactory scopeFactory, ILogger<ExpiredReservationsJob> logger)
     : BackgroundService
