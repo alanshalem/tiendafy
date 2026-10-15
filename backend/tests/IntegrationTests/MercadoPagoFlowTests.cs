@@ -139,8 +139,11 @@ public sealed class MercadoPagoFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post,
             $"/api/v1/checkout/{checkoutId}/pay-onsite", new { token = "", paymentMethodId = "visa" })).StatusCode);
 
+        // Id de pago nuevo en cada corrida: la base de tests persiste y el inbox
+        // descarta un aviso repetido del mismo pago.
+        var cardPayment = Random.Shared.NextInt64(100_000_000, 999_999_999);
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
-            new { id = 555_000_111L, status = "approved", status_detail = "accredited" });
+            new { id = cardPayment, status = "approved", status_detail = "accredited" });
         var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-onsite", new
         {
             token = "card-token",
@@ -160,9 +163,9 @@ public sealed class MercadoPagoFlowTests
         // webhook del mismo pago, cuando la orden ya está pagada. Se guarda
         // igual (Rentabilidad la necesita) sin volver a dar la venta por pagada.
         var paidOrderId = paid.GetProperty("orderId").GetGuid();
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/555000111", new
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{cardPayment}", new
         {
-            id = 555_000_111L,
+            id = cardPayment,
             status = "approved",
             status_detail = "accredited",
             external_reference = paidOrderId.ToString(),
@@ -170,7 +173,7 @@ public sealed class MercadoPagoFlowTests
             transaction_amount_refunded = 0m,
             transaction_details = new { net_received_amount = 28_200m },
         });
-        await WebhookAsync("555000111", mpUserId);
+        await WebhookAsync(cardPayment.ToString(), mpUserId);
         await DrainWebhooksAsync();
         Assert.Equal("PAID", await StatusAsync(shopper, paidOrderId));
         using (var scope = _factory.Services.CreateScope())
