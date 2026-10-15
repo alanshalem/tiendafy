@@ -221,6 +221,43 @@ public sealed class MercadoPagoFlowTests
         }
     }
 
+    [Fact]
+    public async Task Con_la_plantilla_apagada_el_reembolso_igual_avisa_con_el_aviso_generico()
+    {
+        // La plantilla "cancelacion-compra" viene apagada de fábrica. Antes, el
+        // reembolso por webhook avisaba igual y el del panel no avisaba nada; un
+        // reembolso de plata no puede pasar sin que el comprador se entere.
+        var merchant = await Merchant.CreateAsync(_factory, "mpg");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra genérica", priceMinor: 15_000_00);
+        var shopper = new Shopper(merchant);
+
+        var (panelOrder, panelPayment, panelBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments/{panelPayment}/refunds",
+            new { id = Random.Shared.Next(), amount = 15_000m });
+        await merchant.PostAsync($"/api/v1/orders/{panelOrder}/refund", new { reason = "Devolución" });
+
+        var (mpOrder, mpPayment, mpBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{mpPayment}", new
+        {
+            id = mpPayment,
+            status = "refunded",
+            status_detail = "refunded",
+            external_reference = mpOrder.ToString(),
+            transaction_amount = 15_000m,
+            transaction_amount_refunded = 15_000m,
+        });
+        await WebhookAsync(mpPayment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+
+        foreach (var buyer in new[] { panelBuyer, mpBuyer })
+        {
+            var mail = Assert.Single(_factory.ExternalHttp.EmailsTo(buyer), m => m.Subject == "Tu compra fue reembolsada");
+            Assert.Contains("ARS 15.000", mail.Html);
+        }
+    }
+
     /// <summary>Un comprador propio paga con tarjeta en la tienda; devuelve la orden, el pago y su email.</summary>
     private async Task<(Guid Order, long Payment, string Buyer)> PaidOnsiteAsync(Shopper shopper, Guid variantId)
     {

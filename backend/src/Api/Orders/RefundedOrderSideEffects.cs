@@ -19,6 +19,7 @@ namespace Api.Orders;
 /// </summary>
 public sealed class RefundedOrderSideEffects(
     OrderNotifier notifier,
+    BrandedEmailSender email,
     WhatsAppNotifier whatsapp,
     IFiscalEmissionQueue fiscal,
     ILogger<RefundedOrderSideEffects> logger)
@@ -27,7 +28,15 @@ public sealed class RefundedOrderSideEffects(
 
     public async Task RunAsync(Order order, CancellationToken ct = default)
     {
-        await StepAsync("email de reembolso", order, () => notifier.NotifyAsync(order, Template, ct));
+        await StepAsync("email de reembolso", order, async () =>
+        {
+            // La plantilla de la tienda si la prendió; si no, el aviso genérico
+            // de siempre. Un reembolso nunca pasa sin avisarle al comprador (el
+            // del webhook ya avisaba así), salvo en una venta de mostrador sin email.
+            if (await notifier.NotifyAsync(order, Template, ct)) return;
+            if (order.BuyerEmail.EndsWith("@sin-email.local", StringComparison.OrdinalIgnoreCase)) return;
+            await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
+        });
         await StepAsync("WhatsApp de reembolso", order, () => whatsapp.NotifyAsync(order, Template, ct));
         // Nota de crédito automática si la orden estaba facturada.
         await StepAsync("nota de crédito", order, () => fiscal.EnqueueCreditNoteAsync(

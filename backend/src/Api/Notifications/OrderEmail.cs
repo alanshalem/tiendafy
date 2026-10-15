@@ -86,4 +86,13 @@ public static class OrderEmail
             ["email"] = Enc(o.BuyerEmail),
             ["tracking_link"] = Enc(trackingLink ?? "#"),
         };
+
+    /// <summary>
+    /// Aviso de reembolso cuando la tienda no prendió su plantilla
+    /// "cancelacion-compra": la plata volvió y el comprador tiene que enterarse.
+    /// </summary>
+    public static string Refund(Order o) =>
+        $@"<h2 style='margin:0 0 12px;font-size:20px'>Tu compra fue reembolsada</h2>
+<p>Procesamos el reembolso de tu pedido por {MoneyFormat.ForNotification(o.Total)}.</p>
+<p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Pedido {Enc(o.Label)}</p>";
 }

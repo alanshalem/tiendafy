@@ -14,11 +14,12 @@ public sealed class OrderNotifier(
     IEmailTemplates templates, BrandedEmailSender email, OrderItemImages images, StoreLinks links,
     IDataProtectionProvider dp)
 {
-    public Task NotifyAsync(Order order, string templateKey, CancellationToken ct = default) =>
+    /// <returns>Si salió el email: false si la plantilla está apagada.</returns>
+    public Task<bool> NotifyAsync(Order order, string templateKey, CancellationToken ct = default) =>
         NotifyAsync(order, templateKey, null, ct);
 
     /// <param name="extraVars">Variables propias de una plantilla (ej. los datos de la transferencia), ya en HTML seguro.</param>
-    public async Task NotifyAsync(
+    public async Task<bool> NotifyAsync(
         Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
     {
         var store = await links.ForTenantAsync(order.TenantId.Value, "https", ct);
@@ -35,7 +36,8 @@ public sealed class OrderNotifier(
             vars = vars.Concat(extraVars).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Last().Value);
         var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
 
-        if (rendered is { Enabled: true })
-            await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct);
+        if (rendered is not { Enabled: true }) return false;
+        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct);
+        return true;
     }
 }
