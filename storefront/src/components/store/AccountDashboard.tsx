@@ -11,6 +11,7 @@ import { SupportChat } from './SupportChat';
 import { AuthModal } from './AuthModal';
 import { SavedAddresses } from './SavedAddresses';
 import { TrackingLink } from './OrderSummary';
+import { useHydrated } from './use-media';
 
 import { clientJsonTenant } from '@/lib/api-client';
 import { orderStatusLabel, type CarrierTracking } from '@/lib/orders';
@@ -44,7 +45,15 @@ const BTN_OUTLINE =
   'inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--color-fg)/0.15)] px-3.5 py-1.5 text-xs font-medium hover:bg-[rgb(var(--color-fg)/0.05)]';
 
 export function AccountDashboard() {
-  const { user, token, ready, logout } = useAuth();
+  const session = useAuth();
+  const { token, logout } = session;
+  // La sesión vive en el navegador: el servidor dibuja "cargando". El contenido
+  // de la página hidrata en su propio Suspense, después de que la sesión ya se
+  // leyó; sin esperar a hidratar, el primer render no coincidía con el HTML y
+  // React tiraba la página y la volvía a dibujar entera.
+  const hydrated = useHydrated();
+  const user = hydrated ? session.user : null;
+  const ready = hydrated && session.ready;
   const href = usePreviewHref();
   const { tenantId } = useCart();
   // null = cargando; 'error' = no se pudo traer (no es lo mismo que no tener pedidos).
