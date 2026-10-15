@@ -2,12 +2,8 @@
 
 import { useCallback, useRef, useState, type FormEvent } from 'react';
 import Script from 'next/script';
-
-/**
- * El SDK de Payway se sirve desde su host productivo aunque se esté apuntando
- * al sandbox: la URL del ambiente se le pasa al constructor, no al script.
- */
-const SDK_URL = 'https://ventasonline.payway.com.ar/static/v2.6.4/decidir.js';
+// La misma constante que permite el CSP: cambiar la versión acá la cambia allá.
+import { PAYWAY_SDK_URL } from '@/lib/csp';
 
 interface DecidirSdk {
   setPublishableKey: (key: string) => void;
@@ -185,7 +181,7 @@ export function PaywayCardForm({
   return (
     <>
       <Script
-        src={SDK_URL}
+        src={PAYWAY_SDK_URL}
         strategy="afterInteractive"
         onReady={initSdk}
         onError={() => setError('No se pudo cargar el formulario de pago. Recargá la página.')}

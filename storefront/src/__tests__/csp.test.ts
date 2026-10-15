@@ -11,7 +11,7 @@
 import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import nextConfig from '../../next.config';
-import { apiOrigin, buildCsp } from '../lib/csp';
+import { apiOrigin, buildCsp, PAYWAY_SDK_URL } from '../lib/csp';
 import { proxy } from '../proxy';
 
 const directive = (csp: string, name: string) =>
@@ -54,6 +54,24 @@ describe('CSP de la tienda', () => {
     const keys = rules.flatMap((r) => r.headers.map((h) => h.key.toLowerCase()));
     expect(keys).not.toContain('content-security-policy');
     expect(keys).toContain('x-content-type-options');
+  });
+
+  it('deja cargar el SDK de Payway y tokenizar contra sus hosts, y nada más de Payway', () => {
+    const csp = buildCsp('https://api.x.com');
+    const scripts = directive(csp, 'script-src');
+    // El archivo exacto que carga el formulario de tarjeta, no el host entero.
+    expect(scripts).toContain(PAYWAY_SDK_URL);
+    expect(scripts.split(' ')).not.toContain('https://ventasonline.payway.com.ar');
+    expect(PAYWAY_SDK_URL).toBe('https://ventasonline.payway.com.ar/static/v2.6.4/decidir.js');
+
+    const connect = directive(csp, 'connect-src').split(' ');
+    // Sandbox, el productivo del backend y el productivo alternativo.
+    expect(connect).toContain('https://developers.decidir.com');
+    expect(connect).toContain('https://live.decidir.com');
+    expect(connect).toContain('https://ventasonline.payway.com.ar');
+    // Sin comodines ni la huella de Cybersource (antifraude no implementado).
+    expect(connect.filter((s) => /decidir|payway/.test(s) && s.includes('*'))).toEqual([]);
+    expect(csp).not.toContain('online-metrix');
   });
 
   it('deja lo que usa la sección Video: el reproductor sin cookies de YouTube, Vimeo, sus miniaturas y los MP4', () => {

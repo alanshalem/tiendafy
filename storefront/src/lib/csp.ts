@@ -9,7 +9,7 @@
  * API y el navegador bloqueaba el login, el menú, el checkout y la medición.
  *
  * Defensa en profundidad: permite los terceros que la tienda sí usa (SDK de
- * Mercado Pago, Turnstile, Google Fonts, la medición que el panel deja
+ * Mercado Pago, SDK de Payway, Turnstile, Google Fonts, la medición que el panel deja
  * prender) y nada más. No es hermético —las imágenes de cada tienda vienen de
  * hosts arbitrarios— pero bloquea <script> externos no autorizados, el vector
  * principal de XSS y exfiltración.
@@ -40,6 +40,32 @@ const TRACKING_CONNECT = [
   'https://*.clarity.ms',
 ].join(' ');
 
+/**
+ * SDK de Payway (`decidir.js`). Se sirve siempre desde el host productivo,
+ * aunque la tienda cobre en sandbox: el ambiente se le pasa al constructor,
+ * no al script. Va la URL exacta del archivo, no el host entero; el formulario
+ * de tarjeta importa esta misma constante para que no se desfasen.
+ */
+export const PAYWAY_SDK_URL = 'https://ventasonline.payway.com.ar/static/v2.6.4/decidir.js';
+
+/**
+ * Hosts de la API de Payway contra los que `decidir.js` tokeniza la tarjeta
+ * (y consulta `/frauddetectionconf`): el de sandbox, el productivo que usa el
+ * backend (`PaywayConnection.ProductionBaseUrl`) y el productivo alternativo
+ * que usan los SDK de Node y Java, que es el que se cargaría como host
+ * alternativo si Payway confirma ese. Un host alternativo distinto de estos
+ * tres necesita sumarse acá.
+ *
+ * El script de huella de dispositivo de Cybersource (`h.online-metrix.net`) que
+ * el SDK inyecta si el comercio tiene antifraude NO se permite: el antifraude
+ * no está implementado a propósito y la tokenización no depende de él.
+ */
+const PAYWAY_CONNECT = [
+  'https://developers.decidir.com',
+  'https://live.decidir.com',
+  'https://ventasonline.payway.com.ar',
+].join(' ');
+
 /** El origen (esquema + host + puerto) de la URL de la API; null si no es una URL. */
 export function apiOrigin(apiUrl: string): string | null {
   try {
@@ -55,7 +81,7 @@ export function buildCsp(apiUrl: string): string {
   return [
     "default-src 'self'",
     // 'unsafe-inline'/'unsafe-eval' los necesita Next (bootstrap inline + webpack).
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com https://challenges.cloudflare.com ${TRACKING_SCRIPT}`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com https://challenges.cloudflare.com ${PAYWAY_SDK_URL} ${TRACKING_SCRIPT}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: http:",
     // Videos de hero (webm/mp4): vienen del bucket de media (MinIO http en dev,
@@ -68,6 +94,7 @@ export function buildCsp(apiUrl: string): string {
       "'self'",
       api,
       'https://*.mercadopago.com https://api.mercadopago.com https://challenges.cloudflare.com',
+      PAYWAY_CONNECT,
       TRACKING_CONNECT,
     ]
       .filter(Boolean)
