@@ -16,7 +16,7 @@
 #   4. restaura, recalcula estadísticas y compara los conteos.
 #
 # No borra nada. Si falla, dice cómo volver atrás.
-set -euo pipefail
+set -Eeuo pipefail
 
 ENVIRONMENT="${1:-}"
 case "$ENVIRONMENT" in

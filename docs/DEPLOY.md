@@ -212,7 +212,7 @@ Notas de build (ya resueltas en los Dockerfiles):
 
 ```
 edge               caddy (80/443, red del servidor)   ← el único que da la cara
-├── tiendafy-prod      api 127.0.0.1:5080, storefront :3000, admin :8090 (+ postgres, pg-backup)
+├── tiendafy-prod      api 127.0.0.1:5080, storefront :3000, admin :8090 (+ postgres, pg-backup, backup-offsite)
 ├── tiendafy-staging   lo mismo en :5081, :3002, :8091 (opcional)
 └── otros sistemas     lo que escuche en 127.0.0.1 (ver infra/edge/sites/)
 ```
@@ -222,11 +222,12 @@ de cada visitante y llegar a todo lo que escucha en `127.0.0.1`, esté o no en
 Docker. Los límites de memoria de cada `.env` evitan que staging deje sin RAM
 a producción.
 
-CI publica las imágenes en GHCR y dispara los deploys
-(`.github/workflows/docker-release.yml`): staging automático en cada push a
-`main` (solo si el repo tiene la variable `STAGING_DOMAIN`), producción **con
-aprobación manual** (GitHub → Settings → Environments → production → Required
-reviewers).
+CI publica las imágenes en GHCR en cada push a `main`
+(`.github/workflows/docker-release.yml`). Los deploys automáticos están
+apagados mientras el repo no tenga las variables `STAGING_DOMAIN` /
+`PLATFORM_DOMAIN` (hoy no las tiene: producción se despliega a mano). Con
+ellas: staging automático y producción **con aprobación manual** (GitHub →
+Settings → Environments → production → Required reviewers).
 
 **Deploy a mano** (las migraciones son un paso explícito, NO corren al boot):
 
@@ -235,19 +236,87 @@ reviewers).
 curl -s https://api.TU_DOMINIO/version   # ¿corre el sha que esperabas?
 ```
 
-**Volver atrás**: desplegar el tag anterior. Las imágenes viejas siguen en GHCR.
+En producción el tag es obligatorio y no puede ser `latest`. El script trae
+solo las imágenes de la app, copia la base (`backups/prod/tiendafy-predeploy-*.dump`)
+justo antes de migrar, espera a que la API, la tienda y el panel respondan, e
+imprime el comando para volver a lo que corría antes.
+
+**Volver atrás**: desplegar el tag anterior (el script lo imprime al terminar
+y si algo falla). Las imágenes viejas siguen en GHCR.
 
 ```bash
 ./infra/deploy.sh prod sha-EL_ANTERIOR
 ```
 
 Ojo: eso vuelve el código, no la base. Una migración que borra datos no se
-deshace con un rollback de imagen — para eso está el backup.
+deshace con un rollback de imagen: para eso está la copia `tiendafy-predeploy-*`
+de ese deploy (restaurarla como se explica abajo).
+
+**Actualizar Postgres dentro de la misma major** (18.6 → 18.7, parches de
+seguridad): el deploy no lo hace solo, a propósito, porque reinicia la base.
+En un horario tranquilo:
+
+```bash
+cd infra/docker
+docker compose -f docker-compose.stack.yml --env-file .env.prod pull postgres pg-backup
+docker compose -f docker-compose.stack.yml --env-file .env.prod up -d postgres pg-backup
+```
+
+### Backups
+
+Todos los días, `pg-backup` (ver `infra/docker/backup.sh`) deja en
+`infra/docker/backups/<ambiente>/`, con 14 días de retención:
+
+- `tiendafy-AAAAMMDD-HHMM.dump`: la base (formato custom de pg_dump). Se escribe
+  a un temporal y solo toma ese nombre si se puede leer entero.
+- `dpkeys-AAAAMMDD-HHMM.tgz`: el keyring de DataProtection. Sin él, los
+  secretos que la base guarda cifrados (tokens de MP, certificados de ARCA)
+  no se pueden leer: **un dump sin su keyring restaura una base a medias**.
+
+**Control semanal** de que el último backup se puede restaurar (en una base
+aparte, sin tocar la real) y de que el keyring se abre. Una vez, en el crontab
+del usuario `deploy` (`crontab -e`):
+
+```
+0 7 * * 1  /srv/tiendafy/infra/check-backup.sh prod >> /srv/tiendafy/infra/docker/backups/check.log 2>&1
+```
+
+A mano: `./infra/check-backup.sh prod` (termina en `OK` o en `FALLA: …`).
+
+#### Copia fuera del servidor
+
+Los backups de al lado de la base se pierden con el disco. El servicio
+`backup-offsite` sube cada 6 h lo nuevo a un bucket S3 (R2), cifrado antes de
+salir con rclone crypt, y poda lo de más de 60 días. Viene apagado. Para
+prenderlo, una vez:
+
+1. Cloudflare → R2 → crear el bucket `tiendafy-backups` (privado, sin dominio).
+2. R2 → Manage API tokens → token con **Object Read & Write solo sobre ese
+   bucket**. Anotar Access Key ID y Secret.
+3. Inventar una frase larga y guardarla en el gestor de contraseñas: **sin
+   ella la copia no se puede abrir**. En el servidor:
+   `docker run --rm rclone/rclone:1.75 obscure 'la frase'` → copiar la salida.
+4. En `.env.prod`: `OFFSITE_REPLICAS=1`, `OFFSITE_ENDPOINT` (el mismo de
+   `MEDIA_ENDPOINT`), `OFFSITE_ACCESS_KEY`, `OFFSITE_SECRET_KEY` y
+   `OFFSITE_CRYPT_PASSWORD` (la salida del paso 3).
+5. `./infra/deploy.sh prod sha-…` (o `docker compose … up -d backup-offsite`) y
+   a las horas, `docker compose … logs backup-offsite` no muestra errores.
+
+Para traer la copia de vuelta (servidor nuevo), con las mismas variables:
+
+```bash
+docker run --rm -v "$PWD/restaurado:/out" \
+  -e RCLONE_CONFIG_DESTINO_TYPE=s3 -e RCLONE_CONFIG_DESTINO_PROVIDER=Cloudflare \
+  -e RCLONE_CONFIG_DESTINO_ENDPOINT=… -e RCLONE_CONFIG_DESTINO_ACCESS_KEY_ID=… \
+  -e RCLONE_CONFIG_DESTINO_SECRET_ACCESS_KEY=… \
+  -e RCLONE_CONFIG_CIFRADO_TYPE=crypt -e RCLONE_CONFIG_CIFRADO_REMOTE=destino:tiendafy-backups/prod \
+  -e RCLONE_CONFIG_CIFRADO_PASSWORD=… \
+  rclone/rclone:1.75 copy cifrado: /out
+```
 
 ### Restaurar un backup (ensayado — no improvisar en la emergencia)
 
-Los dumps diarios quedan en `infra/docker/backups/<ambiente>/` (formato custom de pg_dump,
-retención 14 días). Restaurar:
+Restaurar la base:
 
 ```bash
 # 1. Copiar el dump adentro del contenedor de postgres
@@ -260,8 +329,15 @@ docker exec tiendafy-prod-postgres-1 psql -U tiendafy -d tiendafy_restore -c "SE
 # 4. Si está OK y hay que promoverla: renombrar DBs (con la API apagada)
 ```
 
-Recordá: el volumen `dpkeys` (keyring de DataProtection) se backupea aparte —
-sin él, los tokens MP y certificados ARCA cifrados son irrecuperables.
+Si además se perdió el volumen `dpkeys` (servidor nuevo), restaurar el keyring
+del MISMO día que el dump, con la API frenada:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod stop api
+docker run --rm -v tiendafy-prod_dpkeys:/keys -v "$PWD/backups/prod:/b:ro" alpine \
+  sh -c 'tar xzf /b/dpkeys-AAAAMMDD-HHMM.tgz -C /keys && chown -R 1654:1654 /keys'
+docker compose -f docker-compose.stack.yml --env-file .env.prod start api
+```
 
 ### Cambiar de major de Postgres (16 → 18)
 

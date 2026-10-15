@@ -16,10 +16,13 @@ jobs:
     # crashea) y sus commits no traen secretos. Se escanean igual al mergear.
     if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # historial completo: escanea también commits viejos
-      - uses: gitleaks/gitleaks-action@v3
+      # Fijada por commit: es de terceros y recibe el GITHUB_TOKEN. Dependabot
+      # actualiza el hash igual que un tag.
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

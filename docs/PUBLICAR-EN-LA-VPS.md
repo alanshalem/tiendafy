@@ -525,11 +525,14 @@ docker-compose.stack.yml --env-file .env.prod logs -f api`.
 
   Se resuelve sirviendo la API desde el mismo dominio de cada tienda. Hay que
   hacerlo **antes de conectar el primer dominio propio**.
-- **Copia fuera del servidor**: los backups diarios de la base quedan en
-  `/srv/tiendafy/infra/docker/backups/prod`. Sumalos al mismo flujo de rclone a
-  Backblaze B2 que ya usa cking, **junto con el volumen `tiendafy-prod_dpkeys`**:
-  sin él, los tokens de Mercado Pago y los certificados de ARCA guardados no se
-  pueden descifrar.
+- **Copia fuera del servidor**: los backups diarios (la base **y** el keyring
+  `dpkeys`, sin el cual los tokens de Mercado Pago y los certificados de ARCA no
+  se pueden descifrar) quedan en `/srv/tiendafy/infra/docker/backups/prod`. El
+  servicio `backup-offsite` los sube cifrados a un bucket S3: un bucket nuevo de
+  R2, o el mismo Backblaze B2 que usa cking por su API S3
+  (`OFFSITE_PROVIDER=Other`, `OFFSITE_ENDPOINT=https://s3.<región>.backblazeb2.com`).
+  Pasos en `docs/DEPLOY.md` → "Copia fuera del servidor". Y el control semanal
+  de que se pueden restaurar: `infra/check-backup.sh` en el cron.
 - **Staging** (`stg.puenteoriente.com.ar`): cuando haga falta. Los puertos ya
   están separados en `.env.staging.example`.
 - Certificado de **ARCA** (facturación), **Sentry**, apps de **Meta / X /

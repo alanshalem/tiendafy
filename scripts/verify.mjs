@@ -104,7 +104,7 @@ if (front) {
     ['lint-panel', 'npx eslint src', 'admin'],
     ['lint-tienda', 'npx eslint src', 'storefront'],
     ['tipos-panel', 'npx tsc --noEmit -p tsconfig.json', 'admin'],
-    ['tipos-tienda', 'npx tsc --noEmit -p .', 'storefront'],
+    ['tipos-tienda', 'npx next typegen && npx tsc --noEmit -p .', 'storefront'],
     ['tipos-types', 'npx tsc --noEmit -p .', 'shared/types'],
     ['tipos-ui', 'npx tsc --noEmit -p .', 'shared/ui'],
     ['tipos-e2e', 'npx tsc --noEmit -p .', 'e2e'],

@@ -19,13 +19,24 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# Solo el build publica imágenes: los deploys por SSH no necesitan escribir
+# en el registro.
 permissions:
   contents: read
-  packages: write
+
+# Nunca dos releases del mismo ref a la vez (un :latest viejo pisando al nuevo,
+# dos deploy.sh contra el servidor) y nunca cancelar uno a mitad de camino.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -77,12 +88,14 @@ jobs:
     needs: build-push
     if: github.ref == 'refs/heads/main' && vars.STAGING_DOMAIN != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: staging
       url: https://${{ vars.STAGING_DOMAIN }}
     steps:
       - name: Deploy por SSH
-        uses: appleboy/ssh-action@v1
+        # Fijada por commit: es de terceros y recibe la clave SSH del servidor.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -98,6 +111,7 @@ jobs:
   smoke-staging:
     needs: deploy-staging
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: La API responde
         run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://api.${{ vars.STAGING_DOMAIN }}/health
@@ -117,12 +131,14 @@ jobs:
       (needs.smoke-staging.result == 'success' ||
        (needs.deploy-staging.result == 'skipped' && needs.smoke-staging.result == 'skipped'))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: production
       url: https://${{ vars.PLATFORM_DOMAIN }}
     steps:
       - name: Deploy por SSH
-        uses: appleboy/ssh-action@v1
+        # Fijada por commit: es de terceros y recibe la clave SSH del servidor.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

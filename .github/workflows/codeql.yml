@@ -14,12 +14,19 @@ permissions:
   security-events: write
   actions: read # repos privados: analyze consulta el workflow run al subir el SARIF
 
+# Un push nuevo al mismo PR deja sin sentido la corrida anterior. En main cada
+# commit tiene su propio grupo (el sha): ninguno se cancela ni queda en espera.
+concurrency:
+  group: codeql-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     # Dependabot corre con token read-only: no puede subir resultados de
     # seguridad. Sus PRs se saltean (el análisis real corre al mergear a main).
     if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

@@ -8,6 +8,8 @@ on:
       - 'admin/**'
       - 'shared/**'
       - 'e2e/**'
+      - 'test-fixtures/**'
+      - '.node-version'
       - 'package.json'
       - '.prettierrc'
       - '.prettierignore'
@@ -20,6 +22,8 @@ on:
       - 'admin/**'
       - 'shared/**'
       - 'e2e/**'
+      - 'test-fixtures/**'
+      - '.node-version'
       - 'package.json'
       - '.prettierrc'
       - '.prettierignore'
@@ -33,9 +37,16 @@ on:
 permissions:
   contents: read
 
+# Un push nuevo al mismo PR deja sin sentido la corrida anterior. En main cada
+# commit tiene su propio grupo (el sha): ninguno se cancela ni queda en espera.
+concurrency:
+  group: frontend-ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v7

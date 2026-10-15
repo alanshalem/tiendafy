@@ -53,8 +53,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backup diario (pg_dump comprimido, retención 14 días). En staging se puede
-  # apagar con BACKUP_REPLICAS=0: sus datos son descartables por definición.
+  # Backup diario de la base Y del keyring de DataProtection (retención 14
+  # días; ver backup.sh). En staging se puede apagar con BACKUP_REPLICAS=0: sus
+  # datos son descartables por definición.
   pg-backup:
     image: *pgimage
     restart: unless-stopped
@@ -68,11 +69,44 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./backups/${APP_ENV:?definir APP_ENV}:/backups
+      - ./backup.sh:/usr/local/bin/tiendafy-backup.sh:ro
+      # Solo lectura: el backup nunca escribe en el keyring.
+      - dpkeys:/keys:ro
+    entrypoint: ['sh', '/usr/local/bin/tiendafy-backup.sh']
+
+  # Copia de los backups FUERA del servidor: si se pierde el disco de la VPS,
+  # los backups de al lado se pierden con él. Va cifrada antes de salir
+  # (rclone crypt): el dump y el keyring juntos abren todos los secretos, así
+  # que nunca viajan ni quedan en claro. Apagado hasta configurarlo
+  # (OFFSITE_REPLICAS=1 y las variables OFFSITE_*; ver docs/DEPLOY.md).
+  backup-offsite:
+    image: rclone/rclone:1.75
+    restart: unless-stopped
+    <<: *logging
+    deploy:
+      replicas: ${OFFSITE_REPLICAS:-0}
+    mem_limit: 128m
+    environment:
+      RCLONE_CONFIG_DESTINO_TYPE: s3
+      RCLONE_CONFIG_DESTINO_PROVIDER: ${OFFSITE_PROVIDER:-Cloudflare}
+      RCLONE_CONFIG_DESTINO_ENDPOINT: ${OFFSITE_ENDPOINT:-}
+      RCLONE_CONFIG_DESTINO_ACCESS_KEY_ID: ${OFFSITE_ACCESS_KEY:-}
+      RCLONE_CONFIG_DESTINO_SECRET_ACCESS_KEY: ${OFFSITE_SECRET_KEY:-}
+      RCLONE_CONFIG_DESTINO_NO_CHECK_BUCKET: 'true'
+      RCLONE_CONFIG_CIFRADO_TYPE: crypt
+      RCLONE_CONFIG_CIFRADO_REMOTE: destino:${OFFSITE_BUCKET:-tiendafy-backups}/${APP_ENV}
+      # La salida de `rclone obscure`, no la frase en claro. Perder la frase =
+      # perder la copia: va al gestor de contraseñas, no solo a este archivo.
+      RCLONE_CONFIG_CIFRADO_PASSWORD: ${OFFSITE_CRYPT_PASSWORD:-}
+    volumes:
+      - ./backups/${APP_ENV}:/backups:ro
+    # Cada 6 h sube lo nuevo (copy: nunca borra allá lo que se borró acá) y
+    # poda lo de más de 60 días.
     entrypoint: >
       sh -c 'while true; do
-        pg_dump -h postgres -U tiendafy -d tiendafy -Fc -f "/backups/tiendafy-$$(date +%Y%m%d-%H%M).dump" &&
-        find /backups -name "tiendafy-*.dump" -mtime +14 -delete;
-        sleep 86400;
+        rclone copy /backups cifrado: --include "tiendafy-*.dump" --include "dpkeys-*.tgz" --log-level NOTICE;
+        rclone delete cifrado: --min-age 60d --log-level NOTICE;
+        sleep 21600;
       done'
 
   api:
