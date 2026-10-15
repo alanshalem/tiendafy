@@ -1,0 +1,58 @@
+using Catalog.Core.Domain;
+using MercadoLibre.Infrastructure;
+
+namespace Api.Meli;
+
+/// <summary>
+/// El cuerpo del POST /items con el que se publica un producto del catálogo en
+/// Mercado Libre. Función pura, aparte del endpoint, porque lleva plata
+/// adentro: el precio sale con el mismo recargo del canal que después empuja
+/// <see cref="MeliStockSyncWorker"/>. Antes se publicaba al precio de la
+/// tienda y la publicación nacía vendiendo en ML sin el recargo.
+/// </summary>
+public static class MeliListingPayload
+{
+    /// <summary>El payload y el precio publicado (centavos, ya con el recargo).</summary>
+    public sealed record Listing(Dictionary<string, object?> Payload, long PriceMinor);
+
+    /// <param name="available">Disponible local de la variante (ya validado &gt; 0).</param>
+    /// <param name="specAttributeIds">Definición de ficha técnica → atributo de ML, solo las mapeadas.</param>
+    public static Listing Build(
+        Product product, Variant variant, MeliConnection connection,
+        string categoryId, string? listingTypeId, int available,
+        IReadOnlyDictionary<Guid, string> specAttributeIds)
+    {
+        // Precio local en centavos → el del canal → ML espera decimal en la moneda del site.
+        var priceMinor = MeliPricing.ForChannel(variant.Price.AmountInMinorUnits, connection.PriceMarkupPct);
+        var payload = new Dictionary<string, object?>
+        {
+            ["title"] = product.Name.Length > 60 ? product.Name[..60] : product.Name,
+            ["category_id"] = categoryId,
+            ["price"] = MeliPricing.ToApiAmount(priceMinor),
+            ["currency_id"] = variant.Price.Currency,
+            ["available_quantity"] = Math.Max(1, available - connection.StockBufferUnits),
+            ["condition"] = "new",
+            ["listing_type_id"] = string.IsNullOrWhiteSpace(listingTypeId) ? "gold_special" : listingTypeId,
+            ["pictures"] = product.Images.OrderBy(i => i.Position).Take(6)
+                .Select(i => new { source = i.Url }).ToArray(),
+        };
+        var attributes = new List<object>();
+        if (!string.IsNullOrWhiteSpace(product.Brand))
+            attributes.Add(new { id = "BRAND", value_name = product.Brand });
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+            attributes.Add(new { id = "SELLER_SKU", value_name = variant.Sku });
+
+        // Ficha técnica: los campos que tienen equivalente declarado en
+        // Mercado Libre viajan como atributos. Una publicación con la ficha
+        // completa posiciona mejor y puede entrar al catálogo; hasta ahora
+        // mandábamos dos atributos de veinte.
+        foreach (var spec in product.Specs)
+        {
+            if (specAttributeIds.TryGetValue(spec.DefinitionId, out var meliId))
+                attributes.Add(new { id = meliId, value_name = spec.Value });
+        }
+
+        if (attributes.Count > 0) payload["attributes"] = attributes;
+        return new Listing(payload, priceMinor);
+    }
+}

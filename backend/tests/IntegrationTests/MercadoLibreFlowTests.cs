@@ -258,14 +258,20 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post,
             $"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "" })).StatusCode);
 
+        // Con recargo para ML: la publicación nace con el precio del canal, el
+        // mismo que después empuja la sincronización (antes salía al de la tienda).
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, priceSyncEnabled = true, priceMarkupPct = 10m });
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/items", new { id = "MLA555", permalink = "https://articulo.mercadolibre.com.ar/MLA-555" });
         var published = await merchant.PostAsync($"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "MLA109027" });
         Assert.Equal("MLA555", published.GetProperty("itemId").GetString());
         var item = _factory.ExternalHttp.SentTo($"{Api}/items").Last(r => r.Uri.AbsolutePath == "/items");
-        Assert.Contains("\"price\":9900", item.Body);
+        Assert.Contains("\"price\":10890", item.Body); // 9.900 + 10 %
         Assert.Contains("SELLER_SKU", item.Body);
-        // La publicación nace vinculada.
+        // La publicación nace vinculada y con el precio ya empujado: la
+        // sincronización no la vuelve a PUTear.
         Assert.Equal(1, (await merchant.GetAsync("/api/v1/admin/meli/connection")).GetProperty("linkedItems").GetInt32());
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        Assert.DoesNotContain(_factory.ExternalHttp.SentTo($"{Api}/items/MLA555"), r => r.Method == HttpMethod.Put);
 
         // Errores de ML llegan traducidos.
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/answers", new { message = "question already answered" }, HttpStatusCode.BadRequest);

@@ -147,16 +147,7 @@ public static class MeliDemoFeed
                 thumbnail = (string?)null,
                 price = i.Price,
                 availableQuantity = i.Quantity,
-                link = link is null ? null : new
-                {
-                    link.ProductId,
-                    link.VariantId,
-                    link.MeliVariationId,
-                    link.SyncStock,
-                    link.LastPushedQty,
-                    link.SyncPrice,
-                    lastPushedPrice = link.LastPushedPriceMinor is { } m ? m / 100m : (decimal?)null,
-                },
+                link = link is null ? null : MeliItemLinkDto.From(link),
             };
         }).ToArray(),
     };

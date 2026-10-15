@@ -664,16 +664,7 @@ public static class MeliEndpoints
                             thumbnail = JsonRead.GetString(item, "thumbnail"),
                             price = JsonRead.GetDecimal(item, "price"),
                             availableQuantity = JsonRead.GetInt32(item, "available_quantity"),
-                            link = link is null ? null : new
-                            {
-                                link.ProductId,
-                                link.VariantId,
-                                link.MeliVariationId,
-                                link.SyncStock,
-                                link.LastPushedQty,
-                                link.SyncPrice,
-                                lastPushedPrice = link.LastPushedPriceMinor is { } m ? m / 100m : (decimal?)null,
-                            },
+                            link = link is null ? null : MeliItemLinkDto.From(link),
                         });
                     }
                 }
@@ -786,48 +777,19 @@ public static class MeliEndpoints
                 return Error.Validation("Meli.NoStock",
                     "La variante no tiene stock disponible: Mercado Libre exige publicar con stock.").ToProblem();
 
-            // Precio local en centavos → ML espera decimal en la moneda del site.
-            var payload = new Dictionary<string, object?>
-            {
-                ["title"] = product.Name.Length > 60 ? product.Name[..60] : product.Name,
-                ["category_id"] = request.CategoryId,
-                ["price"] = variant.Price.AmountInMinorUnits / 100m,
-                ["currency_id"] = variant.Price.Currency,
-                ["available_quantity"] = Math.Max(1, available - c.StockBufferUnits),
-                ["condition"] = "new",
-                ["listing_type_id"] = string.IsNullOrWhiteSpace(request.ListingTypeId) ? "gold_special" : request.ListingTypeId,
-                ["pictures"] = product.Images.OrderBy(i => i.Position).Take(6)
-                    .Select(i => new { source = i.Url }).ToArray(),
-            };
-            var attributes = new List<object>();
-            if (!string.IsNullOrWhiteSpace(product.Brand))
-                attributes.Add(new { id = "BRAND", value_name = product.Brand });
-            if (!string.IsNullOrWhiteSpace(variant.Sku))
-                attributes.Add(new { id = "SELLER_SKU", value_name = variant.Sku });
-
-            // Ficha técnica: los campos que tienen equivalente declarado en
-            // Mercado Libre viajan como atributos. Una publicación con la ficha
-            // completa posiciona mejor y puede entrar al catálogo; hasta ahora
-            // mandábamos dos atributos de veinte.
-            if (product.Specs.Count > 0)
-            {
-                var mapped = await catalogDb.SpecDefinitions.AsNoTracking()
+            // Atributos de ML declarados en la ficha técnica (solo si el producto tiene ficha).
+            var specAttributeIds = product.Specs.Count > 0
+                ? await catalogDb.SpecDefinitions.AsNoTracking()
                     .Where(d => d.TenantId == product.TenantId && d.MeliAttributeId != null)
                     .Select(d => new { d.Id, d.MeliAttributeId })
-                    .ToDictionaryAsync(d => d.Id, d => d.MeliAttributeId!, ct);
-
-                foreach (var spec in product.Specs)
-                {
-                    if (mapped.TryGetValue(spec.DefinitionId, out var meliId))
-                        attributes.Add(new { id = meliId, value_name = spec.Value });
-                }
-            }
-
-            if (attributes.Count > 0) payload["attributes"] = attributes;
+                    .ToDictionaryAsync(d => d.Id, d => d.MeliAttributeId!, ct)
+                : [];
+            var listing = MeliListingPayload.Build(
+                product, variant, c, request.CategoryId, request.ListingTypeId, available, specAttributeIds);
 
             try
             {
-                using var doc = await client.PostAsync(token, "/items", payload, ct);
+                using var doc = await client.PostAsync(token, "/items", listing.Payload, ct);
                 var itemId = JsonRead.GetString(doc.RootElement, "id") ?? "";
                 var permalink = JsonRead.GetString(doc.RootElement, "permalink");
 
@@ -848,6 +810,8 @@ public static class MeliEndpoints
                 if (link.IsSuccess)
                 {
                     link.Value.MarkPushed(available);
+                    // Ya salió con el precio del canal: el worker no lo vuelve a empujar.
+                    link.Value.MarkPricePushed(listing.PriceMinor);
                     db.ItemLinks.Add(link.Value);
                     await db.SaveChangesAsync(ct);
                 }
