@@ -4,7 +4,7 @@ import { cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { base64ToBlob, type LabelBatch } from '../lib/fulfillment';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { useFiscalReady } from '../lib/useFiscalReady';
 import { SetupInvoicingLink } from '../components/SetupInvoicingLink';
 import type { Order } from './Orders';
@@ -178,7 +178,9 @@ export function OrdersBulkBar({
     const items: BulkReport['items'] = [];
     try {
       for (const [index, o] of selected.entries()) {
-        const number = orderNumber(o.id);
+        // Como la nombra el listado (#1042): con el id corto, el resumen hablaba
+        // de ventas que no se podían ubicar en la tabla.
+        const number = orderLabel(o);
         if (o.status !== 'PAID' && o.status !== 'FULFILLED') {
           items.push({ id: o.id, number, result: 'skipped', reason: 'No está cobrada.' });
           continue;

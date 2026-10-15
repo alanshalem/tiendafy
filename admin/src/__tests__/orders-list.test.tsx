@@ -1,6 +1,6 @@
 /**
- * El listado de Ventas: el número corto de cada venta (y abrirla con el
- * teclado), búsqueda, estado y página en la URL, error con "Reintentar"
+ * El listado de Ventas: el número de cada venta en la tienda (y abrirla con
+ * el teclado), búsqueda, estado y página en la URL, error con "Reintentar"
  * distinto de "no hay ventas" y de "no coincide nada", la venta de un link
  * aunque no esté en la página, el contador "Por despachar" para quien no ve
  * estadísticas, exportar con los filtros puestos y marcar varias como
@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle, watchCrashes } from '../test/explore';
+import { orderLabel } from '../lib/orderNumber';
 
 const download = vi.hoisted(() => vi.fn());
 vi.mock('../lib/download', () => ({ downloadBlob: download }));
@@ -21,11 +22,13 @@ interface Order {
   status: string;
   buyerEmail: string;
   paymentId: string | null;
+  number: number | null;
 }
+// Cómo se nombra cada venta (orderLabel: su número en la tienda) sale de la
+// venta exportada, nunca escrito a mano: cambia al regenerar las fixtures.
 const orders = fixture<{ items: Order[]; total: number }>('/api/v1/orders');
 const paid = orders.items.find((o) => o.status === 'PAID')!;
 const other = orders.items.find((o) => o.id !== paid.id)!;
-const short = (id: string) => `#${id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 
 let crashes: () => unknown[][];
 beforeEach(() => {
@@ -50,19 +53,20 @@ const listCalls = (api: MockApi) =>
   );
 
 describe('ventas: listado', () => {
-  it('muestra el número corto de cada venta y la abre con el teclado', async () => {
+  it('muestra el número de cada venta en la tienda y la abre con el teclado', async () => {
     const { user } = await openOrders('/ventas', (a) =>
       a.on('GET', '/api/v1/orders', { items: [paid], total: 1 }),
     );
-    const number = screen.getByRole('button', { name: `Venta ${short(paid.id)}: ver detalle` });
-    expect(number).toHaveTextContent(short(paid.id));
+    // El correlativo de la tienda (#1042), no el principio del id.
+    expect(orderLabel(paid)).toBe(`#${paid.number}`);
+    const number = screen.getByRole('button', { name: `Venta ${orderLabel(paid)}: ver detalle` });
+    expect(number).toHaveTextContent(orderLabel(paid));
     number.focus();
     await user.keyboard('{Enter}');
-    expect(screen.getByRole('button', { name: `Venta ${short(paid.id)}: ocultar detalle` })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(screen.getByText(`Venta ${short(paid.id)}`)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: `Venta ${orderLabel(paid)}: ocultar detalle` }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(`Venta ${orderLabel(paid)}`)).toBeInTheDocument();
   });
 
   it('búsqueda, estado y página salen de la URL y van al servidor', async () => {
@@ -114,7 +118,7 @@ describe('ventas: link a una venta (?order=)', () => {
       a.on('GET', '/api/v1/orders', { items: [paid], total: 1 }),
     );
     expect(
-      screen.getByRole('button', { name: `Venta ${short(paid.id)}: ocultar detalle` }),
+      screen.getByRole('button', { name: `Venta ${orderLabel(paid)}: ocultar detalle` }),
     ).toBeInTheDocument();
   });
 
@@ -123,7 +127,7 @@ describe('ventas: link a una venta (?order=)', () => {
       a.on('GET', '/api/v1/orders', { items: [other], total: 80 });
       a.on('GET', `/api/v1/orders/${paid.id}`, paid);
     });
-    const card = await screen.findByRole('region', { name: `Venta ${short(paid.id)}` });
+    const card = await screen.findByRole('region', { name: `Venta ${orderLabel(paid)}` });
     expect(within(card).getByText(/no está en esta página/)).toBeInTheDocument();
     expect(api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}`)).toBe(true);
   });
@@ -184,8 +188,8 @@ describe('ventas: marcar enviadas en lote', () => {
         skipped: 0,
         failed: 1,
         results: [
-          { id: paid.id, number: short(paid.id), result: 'fulfilled', reason: null },
-          { id: other.id, number: short(other.id), result: 'failed', reason: 'Todavía no está cobrada.' },
+          { id: paid.id, number: orderLabel(paid), result: 'fulfilled', reason: null },
+          { id: other.id, number: orderLabel(other), result: 'failed', reason: 'Todavía no está cobrada.' },
         ],
       });
     });
@@ -202,10 +206,10 @@ describe('ventas: marcar enviadas en lote', () => {
       .getAllByRole('status')
       .find((s) => s.textContent?.includes('marcada como enviada'))!;
     expect(summary).toHaveTextContent('1 marcada como enviada · 1 no se pudo marcar');
-    expect(summary).toHaveTextContent(`${short(other.id)}: Todavía no está cobrada.`);
+    expect(summary).toHaveTextContent(`${orderLabel(other)}: Todavía no está cobrada.`);
     // La que salió deja de estar elegida; la que falló queda.
     expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: `Seleccionar la venta ${short(other.id)}` })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: `Seleccionar la venta ${orderLabel(other)}` })).toBeChecked();
 
     await user.click(within(summary).getByRole('button', { name: 'Cerrar el resumen' }));
     expect(screen.queryByRole('button', { name: 'Cerrar el resumen' })).toBeNull();
@@ -216,7 +220,7 @@ describe('ventas: marcar enviadas en lote', () => {
       a.on('GET', '/api/v1/orders', { items: [paid], total: 1 });
       a.on('POST', '/api/v1/orders/bulk/fulfill', { title: 'x', detail: 'Se cayó.' }, 500);
     });
-    await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${short(paid.id)}` }));
+    await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${orderLabel(paid)}` }));
     await user.click(screen.getByRole('button', { name: /Marcar como enviadas/ }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
     expect(api.calls.some((c) => c.path === '/api/v1/orders/bulk/fulfill')).toBe(false);
@@ -239,7 +243,7 @@ describe('ventas: marcar enviadas en lote', () => {
         permissions: perms.permissions.filter((p) => p !== 'orders.fulfill'),
       });
     });
-    await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${short(paid.id)}` }));
+    await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${orderLabel(paid)}` }));
     expect(screen.queryByRole('button', { name: /Marcar como enviadas/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Etiquetas/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Remitos/ })).toBeNull();
@@ -295,27 +299,33 @@ describe('ventas: más acciones en lote', () => {
 
   it('factura de a una las cobradas y cuenta qué pasó con cada una', async () => {
     const { api, user } = await selectBoth((a) => {
+      // Las dos cobradas: una sale y ARCA rechaza la otra.
+      a.on('GET', '/api/v1/orders', { items: [paid, { ...other, status: 'PAID' }], total: 2 });
       a.on('GET', '/api/v1/fiscal/readiness', { ready: true });
       a.on('POST', `/api/v1/orders/${paid.id}/invoice`, { authorized: true, cae: '1' });
+      a.on('POST', `/api/v1/orders/${other.id}/invoice`, {
+        authorized: false,
+        cae: null,
+        errors: [{ code: '10015', message: 'Doc inválido' }],
+      });
     });
     await user.click(screen.getByRole('button', { name: /^Facturar$/ }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Facturar' }));
     await settle(3);
     const posts = api.calls.filter((c) => c.method === 'POST' && c.path.endsWith('/invoice'));
-    expect(posts.map((p) => p.path)).toEqual(
-      [paid, other]
-        .filter((o) => o.status === 'PAID' || o.status === 'FULFILLED')
-        .map((o) => `/api/v1/orders/${o.id}/invoice`),
-    );
-    expect(screen.getAllByRole('status').some((s) => /facturada/.test(s.textContent ?? ''))).toBe(true);
+    expect(posts.map((p) => p.path)).toEqual([paid, other].map((o) => `/api/v1/orders/${o.id}/invoice`));
+    const report = screen.getAllByRole('status').find((s) => /facturada/.test(s.textContent ?? ''))!;
+    expect(report).toHaveTextContent('1 facturada');
+    // Nombrada como en la tabla (#1042), no con el id corto.
+    expect(report).toHaveTextContent(`${orderLabel(other)}: ARCA la rechazó: Doc inválido`);
   });
 
   it('etiquetas: un solo PDF de Despacho, y avisa cuáles no tienen envío', async () => {
     const { api, user } = await selectBoth((a) =>
       a.on('POST', '/api/v1/fulfillment/labels', {
         results: [
-          { orderId: paid.id, number: short(paid.id), carrier: 'zipnova', status: 'ok', reason: null },
-          { orderId: other.id, number: short(other.id), carrier: null, status: 'sin-envio', reason: null },
+          { orderId: paid.id, number: orderLabel(paid), carrier: 'zipnova', status: 'ok', reason: null },
+          { orderId: other.id, number: orderLabel(other), carrier: null, status: 'sin-envio', reason: null },
         ],
         ok: 1,
         missing: 1,
@@ -330,7 +340,7 @@ describe('ventas: más acciones en lote', () => {
     });
     expect(download).toHaveBeenCalledTimes(1);
     const report = screen.getAllByRole('status').find((s) => s.textContent?.includes('etiqueta'))!;
-    expect(report).toHaveTextContent(`${short(other.id)}: No tiene un envío generado`);
+    expect(report).toHaveTextContent(`${orderLabel(other)}: No tiene un envío generado`);
   });
 
   it('remitos: el PDF de Despacho con las elegidas', async () => {
@@ -367,7 +377,7 @@ describe('ventas: en el celular', () => {
     );
     await openOrders('/ventas', (a) => a.on('GET', '/api/v1/orders', { items: [paid], total: 1 }));
     expect(screen.queryByRole('table')).toBeNull();
-    const card = screen.getByRole('article', { name: `Venta ${short(paid.id)}` });
+    const card = screen.getByRole('article', { name: `Venta ${orderLabel(paid)}` });
     expect(within(card).getByText('Pagada')).toBeInTheDocument();
     expect(
       within(card).getByRole('button', { name: /Marcar enviada|Lista para retirar/ }),
