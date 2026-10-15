@@ -51,7 +51,7 @@ export const qk = {
   ordersList: (store: StoreId, params: string) => ['orders', store, 'list', params] as const,
   ordersPendingFulfillment: (store: StoreId) => ['orders', store, 'pending-fulfillment'] as const,
   order: (store: StoreId, id: string | null) => ['orders', store, 'one', id] as const,
-  /** Sin tienda: invalida la cola de todas (el escáner no sabe de cuál vino). */
+  /** Sin argumentos: la cola de todas las tiendas (la que invalida el escáner de despacho). */
   fulfillmentQueue: (...filters: [] | [store: StoreId, carrier: string, from: string, to: string]) =>
     ['fulfillment-queue', ...filters] as const,
 
