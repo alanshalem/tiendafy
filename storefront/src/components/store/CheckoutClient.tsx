@@ -44,6 +44,7 @@ import { useAuth } from './auth';
 import type { StoreOffers } from '@/lib/store-offers';
 import { defaultAddress, fetchSavedAddresses } from '@/lib/addresses';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
+import { checkoutTotals, freeByAmount, methodPrice } from '@/lib/checkout-totals';
 
 interface ShippingOption {
   id: string;
@@ -388,21 +389,13 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0), [lines]);
   const currency = lines[0]?.currency ?? 'ARS';
-  const discount = coupon?.discount ?? 0;
   const selected = shippingOptions?.find((o) => o.id === shippingId) ?? null;
   // Opciones cotizadas, con id "<correo>-<i>" para el radio.
   const quoteOptions = CARRIER_KEYS.flatMap((k) =>
     (quotes[k] ?? []).map((option, i) => ({ id: `${k}-${i}`, option })),
   );
   const selectedQuote = quoteOptions.find((q) => q.id === shippingId)?.option ?? null;
-  // "Gratis desde $X" de un medio propio: lo aplica el servidor con el
-  // subtotal de productos (antes de cupones), y acá se muestra lo mismo.
-  const freeByAmount = (o: ShippingOption) => Boolean(o.freeAbove && subtotal >= o.freeAbove.amount);
-  const methodPrice = (o: ShippingOption) => (freeByAmount(o) ? 0 : o.price.amount);
-  const quotedShipping = selectedQuote?.price.amount ?? (selected ? methodPrice(selected) : 0); // centavos (ApiJson.MoneyJson)
-  // Cupón de envío gratis: el servidor pone el envío en cero al crear la orden,
-  // así que lo que se muestra acá tiene que decir lo mismo.
-  const shipCost = coupon?.freeShipping ? 0 : quotedShipping;
+  const quotedShipping = selectedQuote?.price.amount ?? (selected ? methodPrice(selected, subtotal) : 0); // centavos (ApiJson.MoneyJson)
 
   // Medios de pago de esta compra. El efectivo, solo retirando en el local.
   const pickupSelected = selected?.kind === 'PICKUP';
@@ -418,12 +411,14 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   // se haya elegido retirar: es elegir el retiro y listo.
   const canPay = connected || Boolean(payway) || Boolean(offers?.canCheckout);
 
-  // El mismo orden que el servidor (Order.UseOfflinePayment): cupón sobre el
-  // subtotal, el % de la transferencia sobre lo que queda, y el envío entero.
-  const afterCoupon = Math.max(0, subtotal - discount);
-  const offlinePct = offline ? (offers?.transfer.discountPercent ?? 0) : 0;
-  const offlineDiscount = Math.round((afterCoupon * offlinePct) / 100);
-  const total = afterCoupon - offlineDiscount + shipCost;
+  // Cupón, % por pagar a mano y envío: las mismas cuentas que el servidor.
+  const { discount, offlinePct, offlineDiscount, shipCost, total } = checkoutTotals({
+    subtotal,
+    coupon,
+    shipping: quotedShipping,
+    offline,
+    offlinePercent: offers?.transfer.discountPercent,
+  });
   // Retiro en el local o en una sucursal del correo: sin dirección.
   const needsAddress = selected?.kind === 'DELIVERY' || (selectedQuote !== null && !selectedQuote.pickup);
   const shippingLabel = selectedQuote?.name ?? selected?.name ?? null;
@@ -1045,14 +1040,16 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                             )}
                             {o.freeAbove && (
                               <span className="mt-0.5 block text-xs text-success">
-                                {freeByAmount(o)
+                                {freeByAmount(o, subtotal)
                                   ? `Sin cargo: tu compra supera ${formatMoney(o.freeAbove.amount, o.freeAbove.currency)}`
                                   : `Sin cargo desde ${formatMoney(o.freeAbove.amount, o.freeAbove.currency)}`}
                               </span>
                             )}
                           </span>
                           <span className="font-semibold">
-                            {methodPrice(o) === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
+                            {methodPrice(o, subtotal) === 0
+                              ? 'Gratis'
+                              : formatMoney(o.price.amount, o.price.currency)}
                           </span>
                         </label>
                       ))}
@@ -1527,7 +1524,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                 <span className="opacity-70">
                   Costo de envío
                   {coupon?.freeShipping && quotedShipping > 0 ? ` (gratis con ${coupon.code})` : ''}
-                  {!coupon?.freeShipping && selected && !selectedQuote && freeByAmount(selected)
+                  {!coupon?.freeShipping && selected && !selectedQuote && freeByAmount(selected, subtotal)
                     ? ' (sin cargo por el monto)'
                     : ''}
                 </span>
