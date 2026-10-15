@@ -267,7 +267,7 @@ describe('Mercado Libre: publicaciones', () => {
   it('apaga y prende la sincronización de una publicación vinculada', async () => {
     const synced = items.find((i) => i.link?.syncStock && i.link.syncPrice)!;
     const { api, user } = await open('publicaciones', (a) =>
-      a.on('PUT', `/api/v1/admin/meli/items/${synced.id}/sync`, (body) => ({
+      a.on('PUT', `/api/v1/admin/meli/items/${synced.id}/sync`, (body: unknown) => ({
         ...synced.link,
         syncStock: (body as { syncStock?: boolean }).syncStock ?? true,
         syncPrice: (body as { syncPrice?: boolean }).syncPrice ?? true,
