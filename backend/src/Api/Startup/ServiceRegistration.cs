@@ -133,7 +133,8 @@ public static class ServiceRegistration
 
         // Meta Ads: gasto de pauta por campaña para el ROAS real de Rentabilidad.
         services.Configure<Api.MetaAds.MetaAdsOptions>(configuration.GetSection(Api.MetaAds.MetaAdsOptions.SectionName));
-        services.AddHttpClient<Api.MetaAds.MetaAdsClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        // Meta lleva access_token y client_secret en la query: sin URL en los logs.
+        services.AddHttpClient<Api.MetaAds.MetaAdsClient>(c => c.Timeout = TimeSpan.FromSeconds(20)).WithoutUrlInLogs();
         services.AddScoped<Api.MetaAds.MetaAdsTokenService>();
         services.AddScoped<Api.Orders.KitStockService>();
         services.AddScoped<Api.Crm.CustomerDirectory>();
@@ -158,16 +159,18 @@ public static class ServiceRegistration
 
         // Redes sociales: OAuth por tienda (Meta, X) + Telegram por bot; posts
         // multi-red programados. Tokens cifrados; el worker publica cada minuto.
+        // Meta (token en la query) y Telegram (token del bot en el path) no
+        // dejan la URL en los logs: ver SecretUrlHttpLogging.
         services.Configure<Api.Social.SocialOptions>(configuration.GetSection(Api.Social.SocialOptions.SectionName));
         services.AddScoped<Api.Social.SocialTokenService>();
         services.AddScoped<Api.Social.SocialAccountTokens>();
-        services.AddHttpClient<Api.Social.MetaSocialConnector>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHttpClient<Api.Social.MetaSocialConnector>(c => c.Timeout = TimeSpan.FromSeconds(20)).WithoutUrlInLogs();
         services.AddScoped<ISocialConnector>(sp => sp.GetRequiredService<Api.Social.MetaSocialConnector>());
-        services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
-        services.AddHttpClient<Api.Social.MetaInstagramChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30)).WithoutUrlInLogs();
+        services.AddHttpClient<Api.Social.MetaInstagramChannel>(c => c.Timeout = TimeSpan.FromSeconds(30)).WithoutUrlInLogs();
         services.AddHttpClient<Api.Social.XSocialChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<ISocialConnector>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
-        services.AddHttpClient<Api.Social.TelegramChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHttpClient<Api.Social.TelegramChannel>(c => c.Timeout = TimeSpan.FromSeconds(20)).WithoutUrlInLogs();
         services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaFacebookChannel>());
         services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaInstagramChannel>());
         services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
