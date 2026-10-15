@@ -1,69 +1,90 @@
 # DESIGN.md — Tiendafy
 
-Ground truth de diseño. Leer ANTES de construir cualquier componente o página.
-Dos modos, reglas distintas (una landing no vive bajo las mismas leyes que un panel admin).
+Las reglas de diseño. Leelas antes de armar un componente o una pantalla.
 
-## Modo BRAND (landing, marketing, emails comerciales)
+Hay tres superficies y cada una tiene dueño distinto:
 
-**Dirección v2 (2026-06): "obsidiana y papel"** — evolución de "editorial de
-mercado" tras benchmark contra Empretienda/Tiendanube/Jumpseller. Qué tomamos:
-producto-adelante en hero oscuro (el admin ES el hero), collage masonry de
-tiendas con identidad. Qué conservamos: tipografía, bermellón (ownable — todo
-el mercado es azul/verde/rosa), sellos, grano, ticker. Una sola dirección,
-ejecutada completa.
+| Superficie | Quién decide cómo se ve | Fuente de verdad |
+| --- | --- | --- |
+| Panel (admin) | La plataforma | `admin/src/index.css` + `@tiendafy/ui` |
+| Tienda (storefront) | Cada tienda, desde el editor de diseño | El tema publicado (tokens + secciones) sobre `shared/design-system/styles/tokens.css` |
+| Emails | Cada tienda (logo y color) | `BrandedEmailSender` en la API |
 
-- **Paleta**: obsidiana `#14100b` (zonas dark: hero, stats, CTA final, footer —
-  con glow bermellón radial sutil) · papel `#faf5ed` (secciones editoriales) ·
-  tinta `#1b1510` · bermellón `#e8501e` (ÚNICO acento fuerte) · tan `#e9dcc9` ·
-  verde billete `#1e5b3f` (solo cues de plata). Ritmo de página:
-  dark → papel → papel → dark → tan → papel → dark (bookends oscuros).
-- **Tipografía**: Fraunces (display, `opsz` alto) + Archivo (texto/UI; grotesca
-  argentina de Omnibus-Type — es parte de la historia del producto). Itálica
-  SOLO como acento puntual (una palabra), nunca el h1 completo en itálica —
-  el "italic-serif display hero" completo es fingerprint catalogado de
-  marketing generado por IA (2025).
-- **Firma visual**: grano de papel SVG, botones-sello con sombra dura
-  `5px 5px 0 tinta` que se hunden al click, bordes de tinta 1.5–2px, stickers
-  rotados, reglas tipográficas estilo periódico.
-- **Presupuesto de motion**: DOS momentos — (1) carga del hero escalonada,
-  (2) scroll reveals una sola vez por sección. Loops permitidos solo si son
-  contenido (ticker, toasts de venta del mock). Todo lo demás estático.
-  `prefers-reduced-motion` SIEMPRE respetado.
+Esta instalación no tiene landing de plataforma: el dominio raíz es la tienda
+principal de la importadora (`PRIMARY_STORE_SUBDOMAIN`). La dirección de marca
+"obsidiana y papel" de junio de 2026 (Fraunces + Archivo, bermellón, sellos)
+ya no tiene superficie propia; de ella quedan los valores por defecto de
+`tokens.css` (abajo).
 
-## Modo PRODUCT (admin, storefronts default de tenants)
+## Panel: herramienta de trabajo
 
-**Dirección: utilitario cálido.** El admin es una herramienta de trabajo:
-densidad de información, jerarquía clara, cero decoración que compita con los
-datos del merchant.
+**Dirección: estilo macOS.** Densidad de información, jerarquía clara y nada
+de decoración que compita con los datos.
 
-- **Fuente de verdad**: tokens de `shared/design-system/styles/tokens.css` vía
-  preset Tailwind (`bg-primary`, `text-fg`, `border-border`...). NUNCA colores
-  hex hardcodeados en componentes de producto. Rebrand v2: `--color-primary` =
-  bermellón, `--color-accent` = obsidiana (sidebar del admin la usa).
-- **Logo**: sello bermellón rotado -4° con "t" serif itálica (SVG en
-  `storefront/src/app/icon.svg`, copia en `admin/public/favicon.svg`,
-  componente `LogoMark` inline donde haga falta).
-- **Componentes**: siempre `@tiendafy/ui` (Button, Table, Modal, FormField...).
-  Si falta un componente, se agrega a la librería — no se improvisa inline.
-- **Theming por tenant**: los merchants personalizan SOLO vía override de CSS
-  vars en `:root` (ThemeTokens). El storefront default debe verse digno sin
-  personalización.
-- **Motion**: transiciones de 150–200ms en hover/focus y nada más. Sin reveals,
-  sin parallax — es una herramienta, no una demo.
+- **Tokens**: el panel pisa todos los de `tokens.css` en `admin/src/index.css`.
+  Primario azul `#0066CC`; `accent` es el material de la barra lateral
+  (`#F5F5F7` en claro, `#1C1C1E` en oscuro). Nunca un hex suelto en un
+  componente: siempre las clases del preset (`bg-primary`, `text-fg`,
+  `border-border`…).
+- **Claro y oscuro**: `[data-theme='dark']` en `<html>`. Arranca con la
+  preferencia del sistema, se cambia con `ThemeModeToggle` y se recuerda en
+  `localStorage` (`admin/src/lib/themeMode.ts`). Todo componente nuevo se mira
+  en los dos modos.
+- **Tipografía**: la del sistema (`-apple-system`, SF Pro, Segoe UI…).
+- **Contraste**: WCAG AA (4,5:1) en todo texto, también sobre los rellenos de
+  estado en oscuro. Lo revisan `e2e/tests/accesibilidad.spec.ts` y axe en los
+  tests de componentes de cada pantalla y cada diálogo.
+- **Componentes**: siempre `@tiendafy/ui` (`Button`, `Input`, `Select`,
+  `Table`, `Modal`, `Tabs`, `Toast`, `Confirm`, `PageHeader`, `EmptyList`,
+  `StatCard`…). Si falta uno, se agrega a la librería; no se improvisa en la
+  pantalla. Clases de layout repetidas van en `admin/src/lib/styles.ts`.
+- **Logo**: `LogoMark`, un cuadrado redondeado con el color primario y la
+  inicial de la marca de la instalación (`VITE_BRAND_NAME`, por defecto
+  "Tiendafy"). Favicon: `admin/public/favicon.svg`.
+- **Motion**: transiciones cortas en hover y foco; el cambio de modo usa un
+  reveal circular (View Transitions) que se apaga con
+  `prefers-reduced-motion`. Sin reveals al hacer scroll ni parallax.
 
-## Anti-slop (ambos modos)
+## Tienda: la marca es de cada tienda
 
-Prohibido: Inter/Roboto/Arial/system-ui como elección (no como fallback) ·
-Space Grotesk (el "siguiente default") · gradientes violeta-rosa sobre blanco ·
-glassmorphism · cards flotantes genéricas con sombras blandas · emojis como
-sistema de iconos en UI de producto · hero h1 enteramente en itálica serif.
+**El default tiene que verse digno sin tocar nada; todo lo demás lo decide la
+tienda.**
 
-## Workflow
+- **Tokens por defecto** (`tokens.css`): primario bermellón, `accent`
+  obsidiana, fondo blanco y la fuente del sistema. Son lo que ve una tienda
+  recién creada.
+- **Personalización**: la tienda pisa esas variables en `:root` con los tokens
+  de su tema publicado. Nada de estilos por tienda fuera de eso: si una tienda
+  necesita algo que los tokens no expresan, se agrega un token o un campo de
+  sección para todas.
+- **Secciones**: 23 tipos, definidos una vez en
+  `shared/types/src/sections/registry.ts` (campos, ejemplo, límites); de ahí
+  salen el editor, la validación de la API y el renderer de la tienda. Ver el
+  README de esa carpeta para agregar uno.
+- **Fuentes**: 19 opciones (`FONT_OPTIONS` en `@tiendafy/types`), servidas
+  desde la propia tienda (`storefront/src/app/fonts`, woff2 generados por
+  `storefront/scripts/fetch-store-fonts.mjs`); ninguna se precarga, el navegador baja solo
+  la que aplica el tema.
+- **Diseños listos** (`admin/src/lib/themePresets.ts`): paletas por rubro y las
+  "Marcas del grupo" (Puente Oriente, SmartFox, Volxen, Canicari), armadas
+  desde las guías de marca de `docs/marca/`.
+- **Contraste**: el color del texto sobre el primario se elige por contraste
+  real, no por una regla fija; el primario usado como texto tiene su propia
+  variante (`--color-primary-ink`) para llegar a 4,5:1.
+- **Motion**: entradas escalonadas en grillas y nada más; siempre respetando
+  `prefers-reduced-motion`.
 
-1. Componente nuevo de marketing → modo BRAND. Esta instalación ya no tiene
-   landing de plataforma (el dominio raíz es la tienda de la importadora),
-   así que el modo BRAND hoy aplica a emails comerciales y a las secciones
-   de marca del editor de diseño, no a `landing.css`, que se borró.
-2. Componente nuevo de producto → modo PRODUCT, `@tiendafy/ui` + tokens.
-3. Ante la duda de intensidad: **restrained**. Distintivo = intencional, no raro.
-4. Auditoría al cerrar una página: ¿qué sigue siendo genérico? ¿qué rompe este archivo?
+## Emails
+
+El layout lo pone `BrandedEmailSender`: una franja con el color primario de
+la tienda, su logo (o el nombre si no tiene), cuerpo blanco con la fuente del
+sistema y un pie con el nombre de la tienda. Las plantillas solo escriben el
+contenido; no llevan estilos propios más allá de títulos y links.
+
+## Antes de dar por terminada una pantalla
+
+1. ¿Usa componentes de `@tiendafy/ui` y clases del preset, sin hex sueltos?
+2. ¿Se ve bien en claro y en oscuro (panel) o con un tema que no es el default
+   (tienda)?
+3. ¿Pasa axe y tiene nombres accesibles en botones e inputs?
+4. ¿Qué sigue siendo genérico, y qué de este archivo rompe?
