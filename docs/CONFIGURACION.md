@@ -1,125 +1,195 @@
-# Configuración completa — credenciales, API keys y variables
+# Configuración: credenciales y variables de entorno
 
-Todo lo que hay que **conseguir** y **configurar** para levantar Tiendafy, en dev y en producción. Una sola página: si algo pide una clave y no está acá, es un bug de esta doc.
+Qué hay que conseguir, cómo se llama cada variable y dónde va, en desarrollo y
+en producción. Si algo pide una clave y no está acá, es un bug de esta página.
 
-Hay dos niveles, no mezclarlos:
+Dos niveles que no se mezclan:
 
-- **Nivel PLATAFORMA** — credenciales de Tiendafy como producto. Van en variables de entorno / user-secrets / `.env.prod`. **Jamás se commitean.**
-- **Nivel TIENDA** — credenciales de cada merchant (su Mercado Pago, su WhatsApp, su certificado ARCA…). **No van en ningún env**: se cargan desde el panel admin y se guardan cifradas (DataProtection) en la base.
+- **Plataforma**: credenciales de la instalación (apps de Mercado Pago y Mercado
+  Libre, Resend, storage…). Van en variables de entorno. Nunca se commitean.
+- **Tienda**: credenciales de cada tienda (su cuenta de Mercado Pago, Payway,
+  WhatsApp, certificado ARCA, carriers). No van en ningún entorno: se cargan
+  desde el panel y la API las guarda cifradas con DataProtection.
 
----
+## 1. Qué conseguir y dónde
 
-## 1. Resumen: qué conseguir y dónde
+| Servicio | Qué conseguir | Dónde | Nivel | ¿Hace falta? |
+| --- | --- | --- | --- | --- |
+| PostgreSQL | Una clave fuerte | vos | Plataforma | Sí |
+| Storage (Cloudflare R2, S3 o MinIO) | Access key + secret + dominio público | R2: dos buckets (`tiendafy-media` con dominio propio, `tiendafy-private` sin) y un API token acotado a esos dos. En dev, el MinIO del compose | Plataforma | Sí |
+| Mercado Pago | App marketplace: Client ID, Client Secret, Webhook Secret | [Panel de desarrolladores](https://www.mercadopago.com.ar/developers). Redirect: `https://api.TUDOMINIO/api/v1/payments/mercadopago/callback` | Plataforma | Para cobrar con MP |
+| Resend | API key + dominio verificado (SPF/DKIM) | [resend.com](https://resend.com) | Plataforma | Sí en prod (sin key, los mails van al log) |
+| Webhook de Resend | Signing secret (`whsec_…`) | Resend → Webhooks, eventos `email.bounced` y `email.complained` → `https://api.TUDOMINIO/api/v1/webhooks/resend` | Plataforma | Recomendado (suprime rebotes) |
+| Cloudflare Turnstile | Site key + secret | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (captcha en contacto y login) |
+| Google OAuth | Client ID + secret | [Google Cloud Console](https://console.cloud.google.com/apis/credentials), cliente web. Redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores) |
+| Sentry | Un DSN por app (API, tienda, panel) | [sentry.io](https://sentry.io) | Plataforma | Opcional |
+| Mercado Libre | App: Client ID + secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar). Redirect: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Para el canal ML |
+| Meta Ads | App ID + secret (Marketing API, permiso `ads_read`) | [developers.facebook.com](https://developers.facebook.com). Redirect: `https://api.TUDOMINIO/api/v1/meta-ads/oauth/callback` | Plataforma | Opcional (gasto publicitario en Rentabilidad) |
+| Redes: Meta | App ID + secret (puede ser la de Meta Ads) con `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `instagram_basic`, `instagram_content_publish` | developers.facebook.com. Redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/meta` | Plataforma | Opcional |
+| Redes: X | Client ID (+ secret si la app es confidencial), OAuth 2.0 con `tweet.read tweet.write users.read offline.access` | [developer.x.com](https://developer.x.com). Redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/x` | Plataforma | Opcional |
+| IA (Claude) | API key | [console.anthropic.com](https://console.anthropic.com) | Plataforma | Opcional (sugerencias de textos) |
+| Mercado Pago de la tienda | Nada: un click | Panel → Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
+| Payway | site_id + clave pública + clave privada (distintas en sandbox y producción) | Alta comercial con Payway. Se cargan en Configuración → Medios de pago → Payway | Tienda | Opcional |
+| Mercado Libre de la tienda | Nada: un click | Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
+| WhatsApp Cloud API | Phone Number ID + token permanente + plantillas aprobadas | developers.facebook.com, producto WhatsApp; token de system user en Meta Business | Tienda | Opcional |
+| Telegram | Bot token + canal | El comercio crea el bot con @BotFather, lo hace admin del canal y lo carga en Redes → Cuentas | Tienda | Opcional |
+| ARCA | CUIT + certificado (el panel arma el CSR) + punto de venta | ARCA con clave fiscal; el asistente de Configuración → Facturación guía | Tienda | Para facturar |
+| Correo Argentino (MiCorreo) | userToken + passwordToken (TEST y PROD separados) + customerId | Cuenta en [MiCorreo](https://www.correoargentino.com.ar/MiCorreo/public/) y credenciales por su formulario de contacto | Tienda | Opcional |
+| Andreani | Usuario y clave de la API, número de cliente, contratos (domicilio y/o sucursal), sucursal de origen | Alta comercial con Andreani | Tienda | Opcional |
+| Zipnova | API token + secret + account ID | Panel de Zipnova → Configuración → Integraciones. Para probar, pedile a soporte el modo "testing": fuera de él, cada envío consume saldo real | Tienda | Opcional |
 
-| Servicio | Qué conseguir | Dónde se consigue | Nivel | ¿Obligatorio? |
-|---|---|---|---|---|
-| **PostgreSQL** | Password fuerte | vos | Plataforma | Sí |
-| **Mercado Pago** | App marketplace: Client ID + Client Secret + Webhook Secret | [Panel de desarrolladores MP](https://www.mercadopago.com.ar/developers) → crear aplicación (modelo marketplace, OAuth) | Plataforma | Sí (cobros) |
-| **Resend** | API key + dominio verificado | [resend.com](https://resend.com) → API Keys; Domains → verificar tu dominio (SPF/DKIM) | Plataforma | Sí en prod (emails) |
-| **Resend webhook** | Signing secret (`whsec_…`) | Panel Resend → Webhooks → eventos `email.bounced` + `email.complained` → `https://api.TUDOMINIO/api/v1/webhooks/resend` | Plataforma | Recomendado (supresión de rebotes) |
-| **Cloudflare Turnstile** | Site key + Secret key | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (anti-bots en formularios públicos) |
-| **Google OAuth** | Client ID + Client Secret | [console.cloud.google.com](https://console.cloud.google.com) → Credentials → OAuth client (web); redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores con Google) |
-| **Sentry** | 3 DSNs (backend, storefront, admin) | [sentry.io](https://sentry.io) → un proyecto por app | Plataforma | Opcional (errores en prod) |
-| **Meta Ads** | App ID + App Secret | [developers.facebook.com](https://developers.facebook.com) → crear app con Marketing API (permiso `ads_read`); redirect: `https://api.TUDOMINIO/api/v1/meta-ads/oauth/callback` | Plataforma | Opcional (ROAS real en Rentabilidad) |
-| **Redes sociales — Meta** | App ID + App Secret (puede ser la misma app de Meta Ads) | [developers.facebook.com](https://developers.facebook.com) → app con permisos `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `instagram_basic`, `instagram_content_publish`; redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/meta` | Plataforma | Opcional (posts en Facebook/Instagram) |
-| **Redes sociales — X** | Client ID (+ Client Secret si la app es confidencial) | [developer.x.com](https://developer.x.com) → app OAuth 2.0 con scopes `tweet.read tweet.write users.read offline.access`; redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/x` | Plataforma | Opcional (posts en X) |
-| **Telegram del merchant** | Bot token + canal | El merchant crea un bot con @BotFather, lo hace admin de su canal y lo carga en Redes sociales → Cuentas | Tienda | Opcional |
-| **IA (Claude)** | API key | [console.anthropic.com](https://console.anthropic.com) → API Keys | Plataforma | Opcional (sugerencias: respuestas ML, posts, descripciones) |
-| **Cloudflare R2** (o S3/MinIO) | Access key + Secret key + dominio propio | R2: panel → R2 → dos buckets + dominio propio en el de media + API token acotado a esos buckets. En dev, el MinIO del compose | Plataforma | Sí (imágenes/videos) |
-| **Mercado Libre** | App: Client ID + Client Secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar) → crear aplicación. Redirect URI: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Opcional (canal ML) |
-| **Mercado Pago del merchant** | — (un click) | El merchant conecta su cuenta desde Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
-| **Payway (ex Decidir)** | site_id + public key + private key (sandbox y producción son distintos) | Alta comercial con Payway → te dan las credenciales por ambiente. El comercio las carga en Configuración → Medios de pago → Payway | Tienda | Opcional (tarjeta sin salir del checkout) |
-| **Mercado Libre del merchant** | — (un click) | El merchant conecta su cuenta de vendedor desde Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
-| **WhatsApp Cloud API** | Phone Number ID + access token permanente + plantillas aprobadas | [developers.facebook.com](https://developers.facebook.com) → app con producto WhatsApp; token de system user en Meta Business | Tienda | Opcional |
-| **ARCA (facturación)** | CUIT + certificado digital (vía CSR) + punto de venta | ARCA con clave fiscal: Administración de Certificados Digitales + Puntos de venta (Web Services) — el wizard del admin te guía | Tienda | Para facturar |
-| **Correo Argentino (MiCorreo)** | userToken + passwordToken (TEST y PROD separados) + customerId | Cuenta en [MiCorreo](https://www.correoargentino.com.ar/MiCorreo/public/) + credenciales por su formulario de contacto | Tienda | Opcional |
-| **Zipnova** | API Token + API Secret + account ID | Panel Zipnova → Configuración → Integraciones → Gestionar credenciales. Para probar: registrarse y pedir a soporte que habilite la modalidad "testing" en la cuenta (se desactiva al operar en serio). ⚠️ Fuera de testing, crear envíos consume saldo real | Tienda | Opcional |
-| **Andreani** | Usuario + contraseña de la API + número de cliente + contratos (domicilio y/o sucursal) + sucursal de origen | Alta comercial con Andreani → te habilitan el acceso a la API y te dan los contratos. El comercio los carga en Configuración → Medios de envío → Andreani | Tienda | Opcional |
+## 2. Variables de la API
 
----
+La API lee `backend/src/Api/appsettings.json`, encima
+`appsettings.Development.json` en desarrollo, y encima las variables de
+entorno. Una clave `Seccion:Clave` se pasa como variable `Seccion__Clave`
+(doble guion bajo; los arrays, `Seccion__Clave__0`).
 
-## 2. Nivel plataforma — variables del backend (API)
+**En desarrollo**, los defaults de `appsettings*.json` alcanzan para correr
+todo. Para probar una integración, exportá la variable en la consola antes de
+`.\dev-up.ps1` (la API hereda el entorno):
 
-En **dev**: `dotnet user-secrets` (proyecto `backend/src/Api`) o `appsettings.Development.json` para lo no-secreto.
-En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
+```powershell
+$env:MercadoLibre__ClientId = '...'; $env:MercadoLibre__ClientSecret = '...'
+.\dev-up.ps1
+```
 
-| Clave .NET | Qué es | Dev | Prod |
-|---|---|---|---|
-| `ConnectionStrings:Default` | Postgres | la levanta el compose de dev | armada por el compose con `POSTGRES_PASSWORD` |
-| `MercadoPago:ClientId` / `MercadoPago:ClientSecret` | App marketplace de MP | user-secrets | `.env.prod` |
-| `MercadoPago:RedirectUri` | Callback OAuth público | URL del túnel (cloudflared/ngrok) | `https://api.TUDOMINIO/api/v1/payments/mercadopago/callback` |
-| `MercadoPago:WebhookSecret` | Firma de webhooks de pagos | user-secrets | `.env.prod` |
-| `MercadoLibre:ClientId` / `MercadoLibre:ClientSecret` | App de plataforma en ML (canal Mercado Libre) | user-secrets (vacío = integración apagada) | `.env.prod` |
-| `MercadoLibre:RedirectUri` | Callback OAuth registrado en la app de ML | URL del túnel + `/api/v1/meli/oauth/callback` | `https://api.TUDOMINIO/api/v1/meli/oauth/callback` |
-| `MercadoLibre:AdminReturnUrl` | A dónde vuelve el navegador tras autorizar | `http://localhost:5173/configuracion/mercadolibre` | `https://admin.TUDOMINIO/configuracion/mercadolibre` |
-| `Email:ResendApiKey` | API key de Resend | vacío = modo dev (loguea, no envía) | `.env.prod` |
-| `Email:From` | Remitente | `Tiendafy <onboarding@resend.dev>` | `Tiendafy <no-responder@TUDOMINIO>` (dominio verificado) |
-| `Email:WebhookSecret` | Firma svix del webhook de Resend | vacío = endpoint apagado | `.env.prod` |
-| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | vacío = captcha apagado | `.env.prod` |
-| `Authentication:Google:ClientId` / `:ClientSecret` | Login Google de compradores | opcional | opcional |
-| `Sentry:Dsn` | Errores del backend | vacío = apagado | `.env.prod` |
-| `Media:Endpoint` / `Media:AccessKey` / `Media:SecretKey` / `Media:PublicBaseUrl` | R2/S3/MinIO | defaults del compose de dev | `.env.prod` (la API no arranca en Producción con los de dev) |
-| `Media:Region` | Región de firma (`auto` en R2) | vacío | `auto` |
-| `Media:BucketInPublicUrl` | La URL pública lleva el bucket | `true` | `false` con dominio propio de R2 |
-| `Media:EnsureBucketOnStartup` | Crear bucket al arrancar | `true` | `false` en R2 (no soporta `PutBucketPolicy`; los buckets se crean a mano) |
-| `PublicApiBaseUrl` | URL pública de la API — **la usan los links de baja y tracking de los emails** | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `Tenancy:PlatformBaseDomain` | Dominio base (subdominios de tiendas) | `localhost` | `TUDOMINIO` |
-| `Cors:AllowedOrigins` | Orígenes permitidos | localhost | tus dominios de admin/storefront |
-| `DataProtection:KeyPath` | Claves de cifrado (¡todos los secretos de tiendas dependen de esto!) | default local | volumen `dpkeys` del compose — **backupear siempre** |
-| `Database:MigrateOnStartup` | Migrar al arrancar | `true` | `false` (se migra con `dotnet Api.dll migrate`) |
-| `Workers:Enabled` | Workers de fondo (carritos, campañas) | `true` | `true` solo en la instancia principal |
-| `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso al storefront para que un diseño publicado o un cambio de catálogo se vea al toque | `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | `http://storefront:3000/internal/revalidate` (red interna) / el mismo valor que `REVALIDATE_SECRET` del storefront. Vacío = apagado (la tienda vence su caché sola en 30-60 s) |
-| `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas del panel de costos | defaults 0.40 / 0.034 | ajustar a tu plan real |
-| `Fiscal:Endpoints:*` | URLs de WSAA/WSFE de ARCA | defaults de homologación | defaults de producción (built-in) |
+> `dotnet user-secrets` no funciona tal como está: `Api.csproj` no tiene
+> `UserSecretsId`.
 
-## 3. Nivel plataforma — variables de los frontends
+**En producción**, el servicio `api` de `infra/docker/docker-compose.stack.yml`
+arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 
-**Storefront** (`storefront/.env.local` en dev; env del contenedor en prod):
+### Base, red y arranque
 
-| Variable | Dev | Prod |
-|---|---|---|
-| `API_URL` (SSR) | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `NEXT_PUBLIC_API_URL` (browser) | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:5173` | **REQUERIDA**: `https://admin.TUDOMINIO` (link al panel + seguridad del editor de temas) |
-| `PLATFORM_BASE_DOMAIN` (server-side) | `localhost` | `TUDOMINIO` |
-| `PRIMARY_STORE_SUBDOMAIN` (server-side) | `puenteoriente` | el subdominio de la tienda que atiende `TUDOMINIO` pelado |
-| `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront (en el contenedor: `PUBLIC_SENTRY_DSN`) |
-| `REVALIDATE_SECRET` (server-side) | sin setear = `dev-revalidate-secret` | el mismo que `Storefront:RevalidateSecret` de la API; vacío = la ruta de revalidación queda apagada |
+| Clave | Para qué | Default / dev | En `.env.prod` |
+| --- | --- | --- | --- |
+| `ConnectionStrings:Default` | Postgres | `Host=127.0.0.1;Port=5432;Database=tiendafy;Username=tiendafy;Password=tiendafy` | Armada con `POSTGRES_PASSWORD` y `DB_MIN_POOL_SIZE` (default 5) |
+| `Database:MigrateOnStartup` | Migrar al arrancar | `true` | Fija en `false`: `deploy.sh` corre `dotnet Api.dll migrate` antes del `up` |
+| `DataProtection:KeyPath` | Keyring que cifra todos los secretos de las tiendas | Vacío = `%LOCALAPPDATA%`. En Production es obligatoria (sin ella la API no arranca) | Fija en `/keys` (volumen `dpkeys`) |
+| `Tenancy:PlatformBaseDomain` | Dominio base: las tiendas son `<sub>.<dominio>` | `localhost` | `STACK_DOMAIN` |
+| `Cors:AllowedOrigins` | Orígenes extra. El dominio base y sus subdominios ya se aceptan; `localhost` y `*.localhost`, solo en Development | `[]` | No se mapea (ver Pendientes) |
+| `ForwardedHeaders:KnownNetworks` | CIDRs de los proxies en los que se confía para `X-Forwarded-For`; también marcan el tráfico interno del storefront, que no tiene techo global | `[]` | `TRUSTED_PROXY_CIDR_0..2` (default: los tres rangos privados) |
+| `RateLimiting:GlobalPermitLimit` | Pedidos por minuto por IP | `300` (dev: `5000`, en `appsettings.Development.json`) | No se mapea (usa 300) |
+| `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta (login/registro/contacto; pagos) | `10` / `15` | No se mapea |
+| `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
+| `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 
-**Admin** (`admin/.env.local` en dev; build arg en prod):
+### Links públicos
 
-| Variable | Dev | Prod |
-|---|---|---|
-| `VITE_API_URL` | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `VITE_SENTRY_DSN` | vacío | DSN del admin |
+| Clave | Para qué | Default / dev | En `.env.prod` |
+| --- | --- | --- | --- |
+| `PublicApiBaseUrl` | Base de los links de baja y de seguimiento de los emails | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
+| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo | Vacío = el mail va sin link | No se mapea (ver Pendientes) |
+| `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso a la tienda para que un diseño publicado o un cambio de catálogo se vea al toque. Vacío = apagado: la tienda vence su caché sola en 30 a 60 s | Dev: `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | URL fija `http://storefront:3000/internal/revalidate`; secreto `REVALIDATE_SECRET` (el mismo que usa la tienda) |
 
-## 4. Producción: `.env.prod`
+### Email y notificaciones
 
-Hay **tres** plantillas, una por pieza (copiarlas sin el `.example` y completarlas; nunca commitearlas):
+| Clave | Para qué | Default / dev | En `.env.prod` |
+| --- | --- | --- | --- |
+| `Email:ResendApiKey` | API key de Resend | Vacío = los mails se escriben en el log | `RESEND_API_KEY` |
+| `Email:From` | Remitente (dominio verificado en Resend) | `Tiendafy <onboarding@resend.dev>` | `EMAIL_FROM` |
+| `Email:WebhookSecret` | Firma (svix) del webhook de Resend | Vacío = el webhook responde 404 | `EMAIL_WEBHOOK_SECRET` |
+| `Email:MaxRetries` | Reintentos de envío | `2` | No se mapea |
+| `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas para el costo estimado del panel | `0.40` / `0.034` | No se mapea |
+| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha | No se mapea (ver Pendientes) |
 
-- **`infra/edge/.env.example`** → el Caddy del borde, uno para todo el servidor: `TIENDAFY_DOMAIN`, `ACME_EMAIL`, `CLOUDFLARE_API_TOKEN` (certificados comodín por DNS-01).
-- **`infra/docker/.env.prod.example`** → el stack de producción (incluye `PRIMARY_STORE_SUBDOMAIN` y los puertos internos).
-- **`infra/docker/.env.staging.example`** → el mismo stack, con credenciales de prueba, otros puertos y sin backup.
+### Medios de pago y canales
 
-Los dos stacks usan el MISMO `docker-compose.stack.yml`: lo único distinto es el archivo de variables. Claves de cada stack: `COMPOSE_PROJECT_NAME`, `APP_ENV`, `STACK_DOMAIN`, `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_*`, `MEDIA_*` (storage), `SENTRY_DSN_*`, `BRAND_NAME` (la marca del panel; vacío = Tiendafy), `WORKERS_ENABLED` y los techos de memoria `*_MEM_LIMIT`. El resto (Mercado Libre, Captcha, Google, CORS) va como variables de entorno manuales del servicio `api`.
+| Clave | Para qué | Default / dev | En `.env.prod` |
+| --- | --- | --- | --- |
+| `MercadoPago:ClientId` / `:ClientSecret` | App marketplace | Vacío | `MP_CLIENT_ID` / `MP_CLIENT_SECRET` |
+| `MercadoPago:WebhookSecret` | Firma de los webhooks de pagos | Vacío | `MP_WEBHOOK_SECRET` |
+| `MercadoPago:RedirectUri` | Callback del OAuth | Vacío. Con `dev-up.ps1 -Tunnel`, `<túnel>/api/v1/payments/mercadopago/callback` | `https://api.<STACK_DOMAIN>/api/v1/payments/mercadopago/callback` |
+| `MercadoPago:PublicApiBaseUrl` | Base del `notification_url` de los pagos. Vacío = MP no avisa y la venta no se concilia sola | Vacío. Con `-Tunnel`, la URL del túnel | `https://api.<STACK_DOMAIN>` |
+| `MercadoPago:AdminReturnUrl` | Adónde vuelve el navegador tras conectar | `http://localhost:5173/configuracion/medios-de-pago` | `https://admin.<STACK_DOMAIN>/configuracion/medios-de-pago` |
+| `MercadoLibre:ClientId` / `:ClientSecret` | App de ML. Vacío = canal apagado | Vacío | No se mapea (ver Pendientes) |
+| `MercadoLibre:RedirectUri` | Callback del OAuth | Vacío | No se mapea |
+| `MercadoLibre:AdminReturnUrl` | Vuelta al panel | `http://localhost:5173/configuracion/mercadolibre` | No se mapea |
+| `Authentication:Google:ClientId` / `:ClientSecret` | Login de compradores con Google. Vacío = botón oculto | Vacío | No se mapea (ver Pendientes) |
+| `MetaAds:AppId` / `:AppSecret` | Meta Ads. Vacío = apagado | Vacío | `META_APP_ID` / `META_APP_SECRET` |
+| `MetaAds:RedirectUri` / `:AdminReturnUrl` | OAuth y vuelta | Vacío / `http://localhost:5173/estadisticas/rentabilidad` | Derivadas de `STACK_DOMAIN` |
+| `Social:Meta:AppId` / `:AppSecret` | Facebook e Instagram. Vacío = conector apagado | Vacío | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET` |
+| `Social:X:ClientId` / `:ClientSecret` | X | Vacío | `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` |
+| `Social:Meta:RedirectUri`, `Social:X:RedirectUri`, `Social:AdminReturnUrl` | OAuth y vuelta | Vacío / vacío / `http://localhost:5173/redes` | Derivadas de `STACK_DOMAIN` |
+| `Ai:ApiKey` / `Ai:Model` | Sugerencias con Claude. Sin key, apagado | Vacío / `claude-sonnet-5` | `AI_API_KEY` / `AI_MODEL` |
+| `Fiscal:Endpoints:*` | URLs de WSAA, WSFEv1 y padrón A5 de ARCA, en homologación y producción (cada tienda elige su ambiente) | Las oficiales, en el código | No hace falta tocarlas |
 
-> **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, credenciales de Payway, WhatsApp, MiCorreo, Zipnova, Andreani, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
+### Imágenes (storage S3)
 
-## 5. Checklist de lanzamiento (orden sugerido)
+| Clave | Para qué | Default / dev | En `.env.prod` |
+| --- | --- | --- | --- |
+| `Media:Endpoint` | API S3 | `http://localhost:9000` (MinIO) | `MEDIA_ENDPOINT` |
+| `Media:PublicBaseUrl` | Base pública de las imágenes | `http://localhost:9000` | `MEDIA_PUBLIC_BASE_URL` |
+| `Media:AccessKey` / `:SecretKey` | Credenciales | `minioadmin` / `minioadmin` | `MEDIA_ACCESS_KEY` / `MEDIA_SECRET_KEY` |
+| `Media:Bucket` / `:PrivateBucket` | Bucket público y privado (adjuntos del chat, documentos) | `tiendafy-media` / `tiendafy-private` | `MEDIA_BUCKET` / `MEDIA_PRIVATE_BUCKET` |
+| `Media:Region` | Región de firma (`auto` en R2) | Sin setear | `MEDIA_REGION` (default `auto`) |
+| `Media:BucketInPublicUrl` | La URL pública incluye el bucket (MinIO, S3 path-style) | `true` | `MEDIA_BUCKET_IN_PUBLIC_URL` (default `false`, R2 con dominio propio) |
+| `Media:EnsureBucketOnStartup` | Crear el bucket al arrancar | `true` | `MEDIA_ENSURE_BUCKET` (default `false`: R2 no soporta `PutBucketPolicy`, los buckets se crean a mano) |
 
-1. VPS + DNS: `TUDOMINIO`, `*.TUDOMINIO`, `api.`, `admin.` → Caddy hace el TLS solo (on-demand para dominios propios de tiendas).
-2. `infra/edge/.env` + `.env.prod` completos → `./infra/deploy.sh prod` y después el borde: `docker compose -f infra/edge/docker-compose.yml up -d` (paso a paso, con un servidor que ya tiene otros sistemas: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md)).
-3. Migrar: `docker compose … run --rm api dotnet Api.dll migrate`.
-4. Resend: dominio verificado + `EMAIL_FROM` + webhook de bounces (§1).
-5. Mercado Pago: app en modo productivo, redirect URI real, webhook de pagos apuntando a `https://api.TUDOMINIO/api/v1/payments/webhooks/mercadopago`.
-6. Turnstile con el dominio real.
-7. Sentry DSNs.
-8. Probar compra punta a punta con una tienda de prueba (tarjetas de test de MP).
-9. Backups: verificar que el sidecar de Postgres escriba y que `dpkeys` esté en el respaldo.
-10. Cada tienda conecta lo suyo desde el admin: MP (un click), Payway, WhatsApp, ARCA, MiCorreo, Zipnova, Andreani.
+En Production la API no arranca si `Media:Endpoint` o `Media:PublicBaseUrl`
+apuntan a localhost o si las credenciales son `minioadmin`.
 
-## 6. Credenciales de desarrollo (solo local)
+## 3. Variables de los frontends
 
-- Admin del panel: `admin@tiendafy.local` / `password123`
-- Compradores de prueba: `ana@test.com` / `password123`
-- Levantar todo: `./dev-up.ps1` (Postgres+MinIO en Docker, API, ambos fronts)
+**Tienda** (`storefront/.env.local` en dev, ver `storefront/.env.example`; en
+prod, el entorno del contenedor). Las `PUBLIC_*` se leen al arrancar y se
+inyectan en el HTML (`storefront/src/lib/runtime.ts`): la misma imagen sirve
+para cualquier ambiente. Las `NEXT_PUBLIC_*` quedan como respaldo de
+desarrollo porque Next las hornea al compilar.
+
+| Variable | Para qué | Dev | Prod (`docker-compose.stack.yml`) |
+| --- | --- | --- | --- |
+| `API_URL` | API para el render del servidor | `http://localhost:5080` | `http://api:5080` (red interna) |
+| `PUBLIC_API_URL` (o `NEXT_PUBLIC_API_URL`) | API para el navegador | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
+| `PUBLIC_ADMIN_ORIGIN` (o `NEXT_PUBLIC_ADMIN_ORIGIN`) | Link al panel y origen exacto que acepta la vista previa del editor | `http://localhost:5173` | `https://admin.<STACK_DOMAIN>` |
+| `PUBLIC_SENTRY_DSN` (o `NEXT_PUBLIC_SENTRY_DSN`) | Errores de la tienda | Vacío | `SENTRY_DSN_STOREFRONT` |
+| `APP_ENV` | Ambiente en Sentry | `NODE_ENV` | `APP_ENV` |
+| `PLATFORM_BASE_DOMAIN` | Dominio base para resolver la tienda por host | `localhost` | `STACK_DOMAIN` |
+| `PRIMARY_STORE_SUBDOMAIN` | Qué tienda atiende el dominio pelado | Sin setear = "tienda no encontrada" en `localhost:3000` (`.env.example` trae `puenteoriente`) | `PRIMARY_STORE_SUBDOMAIN` |
+| `REVALIDATE_SECRET` | Secreto de `/internal/revalidate` (el mismo que `Storefront:RevalidateSecret` de la API) | Sin setear = `dev-revalidate-secret` | `REVALIDATE_SECRET`; vacío = ruta apagada |
+
+**Panel** (`admin/.env.local` en dev, ver `admin/.env.example`; en prod, el
+contenedor escribe `/config.js` al arrancar con `admin/docker-config.sh`, así
+que no hace falta recompilar):
+
+| Variable | Para qué | Dev | Prod (`docker-compose.stack.yml`) |
+| --- | --- | --- | --- |
+| `VITE_API_URL` | API | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
+| `VITE_STOREFRONT_ORIGIN` | Plantilla de la URL de cada tienda (`{sub}` = subdominio) | `http://{sub}.localhost:3000` (`dev-up.ps1` la ajusta si cambia el puerto) | `https://{sub}.<STACK_DOMAIN>` |
+| `VITE_PRIMARY_STORE_SUBDOMAIN` | La tienda que vive en el dominio pelado | Vacío | `PRIMARY_STORE_SUBDOMAIN` |
+| `VITE_SENTRY_DSN` | Errores del panel | Vacío | `SENTRY_DSN_ADMIN` |
+| `VITE_BRAND_NAME` | Marca que muestra el panel | `Tiendafy` | `BRAND_NAME` (vacío = Tiendafy) |
+
+## 4. Producción: los archivos `.env`
+
+Tres plantillas; se copian sin el `.example`, se completan y nunca se commitean:
+
+| Plantilla | Qué configura |
+| --- | --- |
+| `infra/edge/.env.example` → `infra/edge/.env` | El Caddy del borde, uno por servidor: `ACME_EMAIL`, `TIENDAFY_DOMAIN`, `CLOUDFLARE_API_TOKEN` (certificados comodín por DNS-01) |
+| `infra/docker/.env.prod.example` → `.env.prod` | El stack de producción |
+| `infra/docker/.env.staging.example` → `.env.staging` | El mismo stack con credenciales de prueba, otros puertos y sin backup |
+
+Los dos stacks usan el mismo `infra/docker/docker-compose.stack.yml`. Además de
+lo que figura en las tablas de arriba, el `.env` de cada stack define
+`COMPOSE_PROJECT_NAME`, `APP_ENV`, `REGISTRY` y `TAG` (imágenes de GHCR; en prod
+`deploy.sh` exige un tag concreto), los puertos `API_PORT`, `WEB_PORT` y
+`ADMIN_PORT` (tienen que coincidir con `infra/edge/sites/tiendafy.caddy`), los
+techos `*_MEM_LIMIT`, `BACKUP_REPLICAS` y la copia fuera del servidor
+(`OFFSITE_*`, ver [DEPLOY.md](./DEPLOY.md#copia-fuera-del-servidor)).
+
+> El volumen `dpkeys` guarda las claves con las que están cifrados todos los
+> secretos de las tiendas (Mercado Pago, Payway, WhatsApp, carriers,
+> certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. El
+> backup diario (`pg-backup`) lo incluye.
+
+Paso a paso para levantar el servidor: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
+Usuarios de desarrollo: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
+
+## Pendientes
+
+- Pendiente: `docker-compose.stack.yml` no pasa al servicio `api` las claves de
+  Mercado Libre, Turnstile, Google, `Cors:AllowedOrigins` ni `Admin:BaseUrl`, y
+  `deploy.sh` solo usa ese archivo. Para activarlas en producción hay que
+  sumarlas al `environment` del servicio `api`.

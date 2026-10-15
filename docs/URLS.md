@@ -1,85 +1,93 @@
-# URLs del sistema
+# URLs y puertos
 
-Mapa completo de dónde vive cada pieza, en desarrollo y en producción.
+Dónde vive cada pieza en desarrollo, en el modo todo-en-Docker y en producción.
 
-## Desarrollo (los puertos "de diseño")
+## Desarrollo (`.\dev-up.ps1`)
 
-| URL                                    | Qué es                                                                                                                 |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| http://localhost:3000                  | **Storefront** (Next.js): landing de la plataforma cuando entrás por `localhost`.                              |
-| http://`<subdominio>`.localhost:3000 | **Tienda de un merchant** (ej. `volxen.localhost:3000`). `*.localhost` resuelve solo, sin tocar hosts.        |
-| http://localhost:5173                  | **Admin** (Vite/React): panel del merchant. Puerto fijo (`strictPort` en `vite.config.ts`). Login con los usuarios de `docs/usuarios-de-prueba.md`.             |
-| http://localhost:5080                  | **API** (.NET). Todo el backend, admin y storefront le pegan acá.                                                |
-| http://localhost:5080/scalar           | **Documentación interactiva de la API** (Scalar UI).                                                             |
-| http://localhost:5080/openapi/v1.json  | Spec OpenAPI cruda.                                                                                                     |
-| http://localhost:5080/health           | Health check (DB incluida).                                                                                             |
-| localhost:5432                         | **Postgres** (docker `tiendafy-postgres`). User/pass/db: `tiendafy`/`tiendafy`/`tiendafy`. Solo loopback. |
-| http://localhost:9000                  | **MinIO S3 API** (imágenes de productos y assets).                                                               |
-| http://localhost:9001                  | **MinIO Console** (browser de buckets). Login: `minioadmin`/`minioadmin`.                                     |
-| http://localhost:8081                  | **pgAdmin**: gestor visual de la base. Sin login y con el servidor ya conectado (ver `infra/docker/pgadmin/`). |
+| URL                                   | Qué es                                                                                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `http://<subdominio>.localhost:3000`  | Una tienda (Next.js). `*.localhost` resuelve solo, sin tocar el archivo hosts.                                                         |
+| http://localhost:3000                 | La tienda de `PRIMARY_STORE_SUBDOMAIN` si está definida en `storefront/.env.local`; si no, "tienda no encontrada".                      |
+| http://localhost:5173                 | Panel (Vite). Puerto fijo: `strictPort` en `admin/vite.config.ts`.                                                                     |
+| http://localhost:5080                 | API (.NET, perfil `http` de `launchSettings.json`). La usan el panel, la tienda y el e2e.                                               |
+| http://localhost:5080/scalar          | Documentación navegable de la API (Scalar). Solo en Development.                                                                       |
+| http://localhost:5080/openapi/v1.json | Spec OpenAPI. Solo en Development.                                                                                                     |
+| http://localhost:5080/health          | Health check (incluye la base).                                                                                                        |
+| http://localhost:5080/version         | Sha del build y entorno.                                                                                                               |
+| localhost:5432                        | Postgres 18 (contenedor `tiendafy-postgres`). Usuario, clave y base: `tiendafy`. Solo loopback.                                        |
+| http://localhost:9000                 | MinIO, API S3 (imágenes y adjuntos).                                                                                                   |
+| http://localhost:9001                 | Consola de MinIO. Login `minioadmin` / `minioadmin`.                                                                                   |
+| http://localhost:8081                 | pgAdmin, sin login y con la base ya conectada (`infra/docker/pgadmin/`).                                                               |
 
-Rutas importantes dentro del admin (SPA, todas cuelgan de la URL del admin):
+Credenciales del panel y de los compradores: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
 
-| Ruta                                | Qué es                                                                      |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
-| `/`                               | Dashboard con métricas de la tienda.                                        |
-| `/ventas`                         | Pedidos, facturación ARCA y reembolsos (`/ventas/carritos`: abandonados). |
-| `/productos`                      | Catálogo (`/categorias`, `/inventario`, `/costos`, `/kits`, `/escaner`, `/exportar-importar`). |
-| `/estadisticas`                   | Ventas, productos, visitas, tiempo real, cupones, rentabilidad.              |
-| `/canales/tienda-online/disenios` | Editor de tema (preview en vivo de la tienda vía iframe).                   |
-| `/marketing`                      | Campañas de email y segmentos;`/descuentos`: cupones.                     |
-| `/mercadolibre`                   | Ventas, preguntas, mensajes y publicaciones de ML.                           |
-| `/redes`                          | Redes sociales: calendario, posts multi-red y cuentas conectadas.            |
-| `/compras`                        | Órdenes de compra, ciclo de importación, landed cost y reposición.           |
-| `/configuracion/medios-de-pago`   | Conexión Mercado Pago (acá vuelve el OAuth).                               |
-| `/configuracion/mercadolibre`     | Conexión Mercado Libre (acá vuelve el OAuth).                              |
-| `/configuracion/medios-de-envio`  | Correo Argentino (MiCorreo) y Zipnova.                                       |
-| `/configuracion/facturacion`      | ARCA/AFIP (certificado, punto de venta).                                     |
-| `/tenants`                        | Alta y gestión de tiendas (multi-tenant).                                   |
-| `/ayuda`                          | Manuales internos por tema (se abre en pestaña nueva).                      |
+### Rutas principales del panel
 
-## Convivir con otro proyecto en la misma máquina
+| Ruta                              | Qué es                                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `/`                               | Inicio de la tienda activa.                                                                               |
+| `/ventas`                         | Ventas, facturación y devoluciones (`/ventas/carritos`: abandonados; `/ventas/despacho`: armado y envío). |
+| `/productos`                      | Catálogo (`/productos/categorias`, `/inventario`, `/costos`, `/kits`, `/escaner`, `/exportar-importar`, `/listas-de-precios`, `/stock-bajo`). |
+| `/presupuestos`                   | Presupuestos.                                                                                             |
+| `/clientes`                       | Clientes y su ficha.                                                                                      |
+| `/bandeja`                        | Contacto, chat posventa y preguntas y mensajes de Mercado Libre en una sola lista.                        |
+| `/estadisticas`                   | Ventas, productos, visitas, tiempo real, cupones y rentabilidad.                                          |
+| `/canales/tienda-online/disenios` | Editor de diseño (vista previa de la tienda en un iframe).                                                |
+| `/marketing`, `/descuentos`       | Campañas de email y cupones.                                                                              |
+| `/mercadolibre`                   | Ventas, preguntas, mensajes y publicaciones de Mercado Libre.                                             |
+| `/redes`                          | Redes sociales: calendario, posts y cuentas conectadas.                                                   |
+| `/compras`, `/proveedores`        | Órdenes de compra, importación y costo puesto; proveedores.                                               |
+| `/tesoreria`, `/cuentas-corrientes` | Cajas y bancos; cuentas corrientes de clientes y proveedores.                                           |
+| `/configuracion/medios-de-pago`   | Mercado Pago (acá vuelve su OAuth) y Payway.                                                              |
+| `/configuracion/mercadolibre`     | Conexión con Mercado Libre (acá vuelve su OAuth).                                                         |
+| `/configuracion/medios-de-envio`  | Envíos propios, Correo Argentino, Andreani y Zipnova.                                                     |
+| `/configuracion/facturacion`      | ARCA: certificado, CUIT y punto de venta.                                                                 |
+| `/configuracion/usuarios`, `/configuracion/roles` | Equipo y permisos por rol.                                                                |
+| `/tenants`                        | Mis tiendas: alta y edición.                                                                              |
+| `/ayuda`                          | Centro de ayuda.                                                                                          |
 
-El admin está fijo en **5173** (`strictPort` en `vite.config.ts`) justamente para
-no pelearse con Next: cuando el 3000 está ocupado, Next escala solo al 3001 y si
-el admin viviera ahí los dos servidores se pisarían.
+## Cuando el 3000 está ocupado
 
-El storefront sí puede chocar: si otra app (acá `camg-api`) ya tiene el **3000**,
-levantalo en otro puerto y avisale al admin dónde quedó.
+El panel está fijo en 5173 para no pelearse con Next, que si encuentra el 3000
+tomado se muda solo al siguiente puerto libre. Si otra app de la máquina ya
+usa el 3000, movés la tienda:
 
 ```powershell
 .\dev-up.ps1 -StorefrontPort 3001
 ```
 
-```bash
-# admin/.env.local
-VITE_STOREFRONT_ORIGIN=http://{sub}.localhost:3001
-```
+`dev-up.ps1` escribe `VITE_STOREFRONT_ORIGIN=http://{sub}.localhost:3001` en
+`admin/.env.local` (salvo que ya apunte a otro lado a propósito, como un
+túnel). Sin eso, "Ver mi tienda" y la vista previa del editor apuntan al 3000,
+donde responde la otra app.
 
-Sin ese `VITE_STOREFRONT_ORIGIN`, el botón "Ver mi tienda" y el preview del editor
-de diseño apuntan a `*.localhost:3000` — donde responde la otra app — y parecen
-rotos sin serlo.
+## Todo en Docker (`.\dev-up.ps1 -Docker`)
 
-## Stack local dockerizado (`infra/docker/docker-compose.app.yml`)
+`infra/docker/docker-compose.dev.yml` + `docker-compose.app.yml`, para demo o
+smoke (sin hot-reload):
 
-Simula prod en local: storefront en `127.0.0.1:3000`, admin en `127.0.0.1:3001`
-(nginx interno en 8080), API en `127.0.0.1:5080`.
+| Pieza  | Dirección             |
+| ------ | --------------------- |
+| Tienda | `127.0.0.1:3000`      |
+| Panel  | `127.0.0.1:3001` (ojo: no es el 5173) |
+| API    | `127.0.0.1:5080`      |
 
-## Producción (Caddy enruta por host, TLS automático)
+Postgres, MinIO y pgAdmin, igual que en desarrollo.
 
-`PLATFORM_DOMAIN` se define en `.env.prod`. Ejemplo con `tiendafy.com.ar`:
+## Producción
 
-| URL                                      | Qué es                                                                                                       |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| https://tiendafy.com.ar                  | Landing de la plataforma (storefront).                                                                        |
-| https://`<subdominio>`.tiendafy.com.ar | Tienda de cada merchant.                                                                                      |
-| https://admin.tiendafy.com.ar            | Panel admin.                                                                                                  |
-| https://api.tiendafy.com.ar              | API pública (webhooks de MP/ML/Resend pegan acá).                                                           |
-| https://`<dominio-propio>`             | Dominio propio de un merchant (ej. cking.com.ar): Caddy emite el certificado on-demand y sirve el storefront. |
+El Caddy del borde (`infra/edge/`, puertos 80/443) enruta por dominio a los
+servicios del stack, que escuchan solo en `127.0.0.1` (puertos en
+`infra/docker/.env.prod`). Dominio de la plataforma: `puenteoriente.com.ar`
+(`TIENDAFY_DOMAIN` en `infra/edge/.env`, `STACK_DOMAIN` en `.env.prod`).
 
-## Referencias
+| URL                                | Qué es                                                                                     | Interno          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ | ---------------- |
+| https://puenteoriente.com.ar       | La tienda principal (`PRIMARY_STORE_SUBDOMAIN`). `www.` redirige acá.                      | `127.0.0.1:3000` |
+| `https://<subdominio>.puenteoriente.com.ar` | Cada tienda.                                                                      | `127.0.0.1:3000` |
+| https://admin.puenteoriente.com.ar | Panel.                                                                                     | `127.0.0.1:8090` |
+| https://api.puenteoriente.com.ar   | API; acá llegan los webhooks de Mercado Pago, Mercado Libre y Resend.                      | `127.0.0.1:5080` |
+| `https://<dominio-propio>`         | Dominio propio de una tienda: Caddy saca el certificado en la primera visita, si la API confirma que el dominio es de una tienda. | `127.0.0.1:3000` |
 
-- Usuarios y tiendas de prueba: `docs/usuarios-de-prueba.md`
-- Cómo levantar todo: `docs/START_HERE.md`
-- Variables de entorno: `docs/CONFIGURACION.md`
-- Deploy: `docs/DEPLOY.md`
+Paso a paso del servidor: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
+Deploy y variables: [DEPLOY.md](./DEPLOY.md) y [CONFIGURACION.md](./CONFIGURACION.md).
