@@ -4,6 +4,30 @@
 **Status**: Accepted
 **Decision Makers**: Alan Shalem
 
+## Estado (15-oct-2026)
+
+**Vigente e implementado**: un solo proceso ASP.NET Core sobre .NET 10 con EF
+Core y Npgsql, en producción desde el 13-oct-2026. Lo que el texto de abajo
+dice y hoy no es así:
+
+- **Contexto de negocio**: no es un SaaS para merchants de LATAM. Es la
+  plataforma de una importadora (cking.com.ar) con varias tiendas propias; la
+  plataforma y los comercios son la misma empresa. Las metas de escala
+  (100k tiendas) y las etapas de la "Migration Path" no son el horizonte.
+- **Módulos**: son 21 (Analytics, Catalog, Checkout, Content, Customers,
+  Discounts, Finance, Fiscal, Identity, Inventory, Media, MercadoLibre,
+  Notifications, Orders, Payments, Purchasing, Reviews, Social, Support,
+  Tenancy, Themes). No existe Billing; la facturación electrónica es Fiscal.
+- **Sin host Worker, sin RabbitMQ, sin Hangfire**: el trabajo en segundo plano
+  corre como hosted services dentro de la misma API, con polling a Postgres
+  (ver [ADR 0005](./0005-segundo-plano-con-polling-a-postgres.md)).
+- **Contracts/Core/Infrastructure es opcional**: siete módulos tienen `.Core`
+  y seis tienen `.Contracts`; el resto es solo `.Infrastructure`. Lo que
+  orquesta varios módulos vive en `backend/src/Api/`.
+- **Las fronteras sí tienen enforcement automático** desde el 11-oct:
+  `ModuleBoundariesTests` falla si un módulo referencia algo que no sea el
+  `.Contracts` de otro, o si un módulo referencia a la Api.
+
 ## Context
 
 Tiendafy es una plataforma SaaS de e-commerce para merchants LATAM. Necesita:
@@ -101,6 +125,6 @@ Cada módulo:
 Si en año 3 necesitamos extraer un módulo, la frontera ya existe + tiene Contracts. Cambio mecánico.
 
 ## Related ADRs
-- [[0002-next-vs-vite]] — Frontend stack
-- [[0003-postgres-rls]] — Multi-tenancy
-- [[0005-outbox-inbox]] — Consistencia async
+- [0002](./0002-next-and-vite.md) — Frontend stack
+- [0003](./0003-postgres-rls.md) — Multi-tenancy
+- [0005](./0005-segundo-plano-con-polling-a-postgres.md) — Segundo plano y consistencia async

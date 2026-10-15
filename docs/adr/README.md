@@ -1,97 +1,59 @@
 # Architecture Decision Records (ADRs)
 
-Registro de decisiones arquitectónicas significativas de Tiendafy. Cada ADR captura:
-- **Qué**: La decisión tomada
-- **Por qué**: El contexto, alternativas evaluadas, y justificación
-- **Cuándo cambia**: Cómo evolucionamos de esta decisión
+Las decisiones de arquitectura de Tiendafy que no son obvias leyendo el código:
+qué se decidió, por qué, qué alternativas se descartaron y qué se pierde.
 
-## Propósito
+Un ADR registra una decisión en su momento: **el texto de la decisión no se
+reescribe**. Cuando la realidad se aparta de lo escrito, se agrega o actualiza
+la sección **Estado** con la fecha y lo que pasó; si la decisión se abandona,
+se marca como reemplazada y se escribe un ADR nuevo.
 
-1. **Documentación**: Por qué elegimos .NET en vez de Node
-2. **Onboarding**: Nuevo dev entiende la arquitectura sin preguntar
-3. **Justificación**: Si alguien pregunta "¿por qué RLS?", respuesta está documentada
-4. **Historicidad**: En 5 años, sé qué problemas enfrentamos en año 1
+## Lista
 
-## Cómo Leer un ADR
+| # | Título | Estado al 15-oct-2026 |
+| --- | --- | --- |
+| [0001](./0001-dotnet-monolith.md) | Monolito modular en .NET | Vigente. 21 módulos; sin host Worker ni broker (ver 0005); fronteras verificadas por tests |
+| [0002](./0002-next-and-vite.md) | Storefront en Next.js + panel en Vite | Vigente. Next 16 con App Router y Data Cache, no SSG/ISR por build ni CDN |
+| [0003](./0003-postgres-rls.md) | Multi-tenancy con base compartida y RLS | Parcial: base compartida con `tenant_id` sí; RLS no. Aislamiento por query filters de EF + test que los exige |
+| [0004](./0004-una-imagen-y-un-compose.md) | Una imagen para todos los ambientes y un solo compose | Vigente e implementado. Staging pendiente |
+| [0005](./0005-segundo-plano-con-polling-a-postgres.md) | Segundo plano con polling a Postgres dentro de la API | Vigente e implementado |
 
-Formato simple:
-- **Context**: Problema y alternativas
-- **Decision**: Qué elegimos
-- **Justification**: Por qué (razones técnicas y de negocio)
-- **Consequences**: Tradeoffs (qué ganamos, qué perdemos)
-- **Related ADRs**: Enlaces a decisiones relacionadas
+## Cuándo escribir uno
 
-## Cómo Escribir un ADR
+- La decisión afecta a varios módulos o a la infraestructura.
+- Los trade-offs no son obvios y alguien la va a cuestionar.
+- Querés evitar el mismo debate dentro de un año.
+
+No hace falta para decisiones tácticas (van en el mensaje del commit) ni para
+lo que ya cubre un ADR existente.
+
+## Formato
+
+Los ADR 0001 a 0003 están escritos con títulos en inglés; los nuevos, en
+castellano. Lo mínimo:
 
 ```markdown
-# ADR NNNN: [Título]
+# ADR NNNN: Título concreto
 
-**Date**: 2026-06-11
-**Status**: Accepted | Rejected | Superseded by [[0005]]
-**Decision Makers**: Alan Shalem (o tu nombre)
+**Date**: AAAA-MM-DD
+**Status**: Accepted | Rejected | Reemplazado por [NNNN](./NNNN-....md)
+**Decision Makers**: ...
 
-## Context
-Problema que enfrentamos. Alternativas consideradas.
+## Contexto
+El problema y las alternativas consideradas.
 
-## Decision
-Qué decidimos.
+## Decisión
+Qué se eligió.
 
-## Justification
-Por qué. Por favor sé honesto: qué ganamos y qué perdemos.
+## Consecuencias
+Qué se gana y qué se pierde, sin maquillar.
 
-## Consequences
-Implicaciones concretas.
-
-## Migration Path (opcional)
-Si la decisión puede cambiar, cómo evolucionamos.
+## Estado (fecha)
+Qué pasó después. Se actualiza; el resto no.
 
 ## Related ADRs
-[[0001]], [[0003]]
+[NNNN](./NNNN-....md)
 ```
 
-### Tips
-
-1. **Sé específico**: "Monolito en .NET" es vago. "Monolito modular (.NET) en lugar de microservicios (Node)" es claro.
-2. **Enumera alternativas**: Aún si las rechazas, deja constancia.
-3. **Sé honesto con tradeoffs**: "Ruby es más rápido para MVP pero refactor a 5 años es doloroso" > "Ruby es malo"
-4. **Linkea relacionadas**: Usa `[[0001]]` para cross-reference.
-5. **Números secuenciales**: 0001, 0002, ... (no re-numerices si reordenas)
-6. **Status es importante**: Si una decisión es superseded, documenta por qué.
-
-## Lista de ADRs
-
-| # | Título | Status | Resumen |
-|---|--------|--------|---------|
-| [[0001-dotnet-monolith\|0001]] | Monolito Modular .NET | Accepted | Por qué .NET + monolito |
-| [[0002-next-and-vite\|0002]] | Storefront (Next.js) + Admin (Vite) | Accepted | Por qué dos frameworks |
-| [[0003-postgres-rls\|0003]] | Multi-tenancy con PostgreSQL RLS | Accepted | Por qué shared DB + RLS |
-
-## Próximos ADRs a Escribir
-
-- 0004: CQRS Liviano (commands y queries separadas)
-- 0005: Outbox/Inbox Pattern (consistencia async)
-- 0006: Mercado Pago Integration (marketplace model)
-- 0007: Checkout Saga (orquestación de estados)
-- 0008: API Public v1 (rate limiting, OAuth, webhooks)
-- 0009: Search Strategy (Postgres FTS vs Meilisearch)
-- 0010: Cell-Based Architecture (cuando escalamos a 10k+)
-
-## Cuándo Escribir un ADR
-
-Escribe un ADR cuando:
-- Decisión afecta a múltiples módulos
-- Trade-offs no son obvios
-- La decisión se puede cuestionar en el futuro
-- Quieres evitar el mismo debate en un año
-
-No escribas ADR para:
-- "Usamos React en el storefront" (está en 0002)
-- "Nombre de una variable"
-- Decisiones tácticas diarias (esas van en commit messages)
-
-## Revisión
-
-Antes de mergear un ADR:
-1. Review técnico: ¿la justificación es sólida?
-2. Review de impacto: ¿toca a otros equipos? ¿están de acuerdo?
-3. Review de claridad: ¿nuevo dev entiende sin preguntar?
+Números secuenciales (0001, 0002…) que no se renumeran. Los links, como
+links de Markdown relativos: GitHub no entiende `[[wikilinks]]`.

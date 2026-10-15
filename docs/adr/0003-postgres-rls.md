@@ -1,24 +1,40 @@
 # ADR 0003: Multi-Tenancy con PostgreSQL RLS
 
 **Date**: 2026-06-11
-**Status**: Parcialmente implementado — ver nota (2026-07-23)
+**Status**: Parcialmente implementado — base compartida con `tenant_id` sí; RLS no (ver Estado)
 **Decision Makers**: Alan Shalem
 
-> **Nota de estado (2026-07-23).** El RLS a nivel motor (policies + `SET LOCAL
-> app.tenant_id` por transacción) que este ADR propone **NO está implementado**.
-> El aislamiento multi-tenant hoy se apoya en dos capas de aplicación:
-> 1. Filtro `WHERE tenant_id = …` explícito en cada repositorio (siempre estuvo).
-> 2. **Global query filters de EF Core** (`HasQueryFilter`) en todos los
->    DbContexts tenant-scoped, atados a `ITenantContext`: acotan cada query del
->    path de request al tenant actual aunque falte el `.Where`, y se desactivan
->    solo cuando no hay tenant en scope (workers, migraciones). Ver los
->    `*DbContext` de cada módulo.
->
-> Esto cubre la fuga por "`.Where` olvidado" pero **no** protege contra SQL
-> crudo (hoy inexistente en el código). El RLS a nivel motor sigue siendo el
-> objetivo para defensa-en-profundidad real; requiere PgBouncer en modo
-> `session` o el `SET LOCAL` por transacción compatible con `transaction`
-> pooling. Pendiente.
+## Estado (15-oct-2026)
+
+**Implementado**: una base, un esquema, `tenant_id` en cada fila de cada tabla
+de tienda.
+
+**No implementado**: el RLS a nivel motor (policies + `SET LOCAL app.tenant_id`
+por transacción). Tampoco hay PgBouncer: se sacó del compose de desarrollo
+el 17-ago-2026 porque nadie lo usaba, y producción se conecta directo con el pool de Npgsql.
+Las secciones "Implementation" y "Connection Pooling" de abajo describen la
+propuesta, no el sistema.
+
+El aislamiento hoy son tres capas de aplicación:
+
+1. **Filtro explícito** por `tenant_id` en repositorios y endpoints, con el
+   tenant que resuelve el header `X-Tenant-Id` (`ITenantContext`).
+2. **Query filters globales de EF Core** (`HasQueryFilter`) en todos los
+   `DbContext` con tablas de tienda: acotan cada consulta del request al
+   tenant actual aunque falte el `.Where`. Se apagan solo cuando no hay tenant
+   en scope (workers que recorren todas las tiendas, migraciones).
+3. **`TenantQueryFilterTests`** (desde el 11-oct): recorre el modelo de EF de
+   todos los contextos y falla si una entidad con `TenantId` no tiene filtro.
+   Las excepciones están escritas con su motivo: `Tenant` (es la tienda
+   misma), `TenantMembership`, `RolePermissionOverride` y `AuditEvent` (se
+   consultan siempre con el tenant explícito). Cuando se agregó, encontró ocho
+   entidades sin filtro.
+
+Lo que estas capas no cubren es el SQL crudo. Hoy hay siete lugares (upserts
+de contadores y búsquedas, locks de asesoría de ARCA, un filtro de texto de
+Mercado Libre que EF compone con el filtro de tienda); cada uno lleva el tenant
+explícito o actúa sobre una fila ya cargada con filtro. Pendiente: RLS sigue
+siendo la defensa en profundidad que falta, y no hay fecha para hacerlo.
 
 ## Context
 
@@ -183,5 +199,5 @@ Por qué transaction mode:
 4. **Logging**: Audit log de todas las operaciones (quién, qué, cuándo, de qué tenant)
 
 ## Related ADRs
-- [[0001-dotnet-monolith]] — Backend
-- [[0005-outbox-inbox]] — Cómo manejar eventos entre tenants
+- [0001](./0001-dotnet-monolith.md) — Backend
+- [0005](./0005-segundo-plano-con-polling-a-postgres.md) — Workers que recorren todas las tiendas

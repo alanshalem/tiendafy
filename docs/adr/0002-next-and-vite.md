@@ -4,6 +4,34 @@
 **Status**: Accepted
 **Decision Makers**: Alan Shalem
 
+## Estado (15-oct-2026)
+
+**Vigente**: dos apps separadas, tienda en Next.js y panel en Vite + React. Lo
+que cambió respecto del detalle de abajo:
+
+- **Versiones**: Next.js 16 con App Router (no 14, no `getStaticProps` ni
+  `getServerSideProps`), React 19 en las dos apps, Vite 8, Tailwind 4,
+  TypeScript 6.
+- **Caché de la tienda**: no hay SSG en el build ni CDN adelante. Las páginas se
+  renderizan en el servidor con la Data Cache de Next (catálogo y diseño 30 s,
+  categorías y tienda 60 s, sitemap 1 h; ver `storefront/src/lib/cache.ts`) y
+  la API avisa por `/internal/revalidate` para vencer etiquetas al publicar un
+  diseño o cambiar el catálogo.
+- **Deploy**: ni Vercel ni Cloud Run. Contenedores en una VPS detrás de Caddy
+  (`infra/edge`); el panel es una SPA estática servida por nginx. La misma
+  imagen sirve para cualquier ambiente (ver
+  [ADR 0004](./0004-una-imagen-y-un-compose.md)).
+- **Dominios**: las tiendas atienden el dominio pelado, sus subdominios y
+  dominios propios; el panel vive en `admin.<dominio>`.
+- **Panel**: React Router 7 y TanStack Query; sin Zustand ni SWR. Sin service
+  worker.
+- **Compartido**: monorepo pnpm con `@tiendafy/ui` (componentes),
+  `@tiendafy/types` (tipos y lógica pura compartida) y
+  `@tiendafy/design-system` (tokens CSS + preset de Tailwind). Los tipos se
+  escriben a mano (el script `generate` de OpenAPI existe pero no se usa); lo
+  que los mantiene honestos son los tests de componentes que corren contra
+  respuestas reales de la API exportadas a `test-fixtures/api.json`.
+
 ## Context
 
 Frontend split en dos aplicaciones distintas:
@@ -134,5 +162,6 @@ Types:
 - Sincronización manual de types/components
 
 ## Related ADRs
-- [[0001-dotnet-monolith]] — Backend stack
-- [[0003-postgres-rls]] — Multi-tenancy patterns
+- [0001](./0001-dotnet-monolith.md) — Backend stack
+- [0003](./0003-postgres-rls.md) — Multi-tenancy patterns
+- [0004](./0004-una-imagen-y-un-compose.md) — Una imagen para todos los ambientes
