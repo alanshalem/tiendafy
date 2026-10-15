@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, Store, Truck } from 'lucide-react';
 import { formatMoney, type MoneyDto } from '@tiendafy/types';
-import { apiUrl, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 import { isPostalCode, normalizePostalCode, readPostalCode, savePostalCode } from '@/lib/postal-code';
-import { CARRIERS, enabledCarriers, type CarrierKey } from './checkout-carriers';
+import { CARRIERS, enabledCarriers, requestCarrierQuote, type CarrierKey } from './checkout-carriers';
 import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
 
@@ -117,16 +117,8 @@ export function ShippingEstimate({
         ready.map(async (k): Promise<EstimateOption[] | null> => {
           const carrier = CARRIERS[k];
           try {
-            const res = await fetch(`${apiUrl()}${carrier.path}`, {
-              method: 'POST',
-              headers: tenantHeaders(tenantId, true),
-              body: JSON.stringify(carrier.body(input)),
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-            if (!res.ok) return null;
-            const data = (await res.json().catch(() => null)) as {
-              options?: Record<string, unknown>[];
-            } | null;
+            const { ok, data } = await requestCarrierQuote(k, tenantId, input, FETCH_TIMEOUT_MS);
+            if (!ok) return null;
             return (data?.options ?? []).map((raw, i) => {
               const o = carrier.toOption(raw);
               return { key: `${k}-${i}`, name: o.name, price: o.price, detail: o.detail };

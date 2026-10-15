@@ -1,4 +1,5 @@
 import { formatDate, type MoneyDto } from '@tiendafy/types';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 
 /**
  * Los correos que cotizan en vivo en el checkout, descritos en un solo lugar.
@@ -169,6 +170,38 @@ export function quoteHint(keys: CarrierKey[]): string {
   const names = keys.map((k) => CARRIERS[k].label);
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names.at(-1)}` : (names[0] ?? '');
   return `${list} ${names.length > 1 ? 'cotizan' : 'cotiza'} al instante para tu dirección.`;
+}
+
+/** Lo que contesta un correo al cotizar (opciones crudas, o el motivo si no pudo). */
+export interface CarrierQuoteResponse {
+  options?: Record<string, unknown>[];
+  /** Un aviso con 200: el correo contestó pero no cotizó (ej. "CP inexistente"). */
+  error?: string;
+  /** El ProblemDetails de un error de la API. */
+  detail?: string;
+}
+
+/**
+ * El pedido de cotización a un correo, el mismo desde el checkout y desde la
+ * ficha (ShippingEstimate). Devuelve si salió bien y el cuerpo (null si no
+ * era JSON); tira sin red o si no contesta en `timeoutMs`. Qué se le dice al
+ * comprador en cada caso lo decide cada pantalla.
+ */
+export async function requestCarrierQuote(
+  carrier: CarrierKey,
+  tenantId: string,
+  input: QuoteInput,
+  timeoutMs: number,
+): Promise<{ ok: boolean; data: CarrierQuoteResponse | null }> {
+  const c = CARRIERS[carrier];
+  const res = await fetch(`${apiUrl()}${c.path}`, {
+    method: 'POST',
+    headers: tenantHeaders(tenantId, true),
+    body: JSON.stringify(c.body(input)),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const data = (await res.json().catch(() => null)) as CarrierQuoteResponse | null;
+  return { ok: res.ok, data };
 }
 
 export type { QuoteInput };

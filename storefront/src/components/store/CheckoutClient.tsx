@@ -24,6 +24,7 @@ import {
   CARRIERS,
   enabledCarriers,
   quoteHint,
+  requestCarrierQuote,
   type CarrierKey,
   type QuotedOption,
 } from './checkout-carriers';
@@ -456,24 +457,17 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
       items: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
       declaredValue: subtotal / 100,
     };
-    const headers = tenantHeaders(tenantId, true);
 
     await Promise.all(
       ready.map(async (k) => {
         const carrier = CARRIERS[k];
         let message: string | null = null;
         try {
-          const res = await fetch(`${apiUrl()}${carrier.path}`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(carrier.body(input)),
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-          });
-          const data = await res.json().catch(() => null);
-          if (!res.ok) {
+          const { ok, data } = await requestCarrierQuote(k, tenantId, input, FETCH_TIMEOUT_MS);
+          if (!ok) {
             message = data?.detail ?? 'No se pudo cotizar.';
           } else {
-            const options = ((data?.options ?? []) as Record<string, unknown>[]).map(carrier.toOption);
+            const options = (data?.options ?? []).map(carrier.toOption);
             setQuotes((q) => ({ ...q, [k]: options }));
             message = data?.error ?? (options.length === 0 ? carrier.noRates : null);
           }
