@@ -118,7 +118,7 @@ jobs:
         run: nohup dotnet run --configuration Release --no-build --no-launch-profile > "$RUNNER_TEMP/api.log" 2>&1 &
 
       # ---------------------------------------------------------- Frontends
-      - uses: pnpm/action-setup@v6.0.9
+      - uses: pnpm/action-setup@v6.1.0
 
       - uses: actions/setup-node@v7
         with:
@@ -207,7 +207,7 @@ jobs:
 
       - name: Subir reporte, trazas y capturas
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-report
           path: |
