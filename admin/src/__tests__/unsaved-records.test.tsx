@@ -42,7 +42,7 @@ async function setup(param?: string) {
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderWithProviders(<Harness param={param} />, '/compras');
   await user.click(await screen.findByRole('button', { name: 'Abrir' }));
-  expect(screen.getByText('ficha: 1')).toBeInTheDocument();
+  expect(await screen.findByText('ficha: 1')).toBeInTheDocument();
   return user;
 }
 
@@ -52,7 +52,7 @@ describe('cambios sin guardar en un registro abierto por la URL', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar ficha' }));
     expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
-    expect(screen.getByText('ficha: 1')).toBeInTheDocument();
+    expect(await screen.findByText('ficha: 1')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Cerrar ficha' }));
     await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
@@ -64,7 +64,7 @@ describe('cambios sin guardar en un registro abierto por la URL', () => {
     await user.click(screen.getByRole('button', { name: 'Atrás' }));
     expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
-    expect(screen.getByText('ficha: 1')).toBeInTheDocument();
+    expect(await screen.findByText('ficha: 1')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Otra ficha' }));
     expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
