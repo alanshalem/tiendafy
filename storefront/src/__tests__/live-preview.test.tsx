@@ -12,7 +12,7 @@ import { EDITOR_MSG, sectionProductPlan } from '@tiendafy/types';
 import { planKey } from '../lib/section-products';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StorefrontView } from '../components/store/StorefrontView';
-import { ADMIN_ORIGIN } from '../components/store/preview';
+import { adminOrigin } from '../lib/admin';
 import { mergeTheme, type ThemeConfig } from '../lib/theme';
 import { toStoreProducts, type ProductDto } from '../lib/catalog';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
@@ -48,7 +48,7 @@ function view(props: Partial<Parameters<typeof StorefrontView>[0]> = {}) {
   );
 }
 
-async function fromEditor(data: object, origin = ADMIN_ORIGIN) {
+async function fromEditor(data: object, origin = adminOrigin()) {
   await act(async () => {
     window.dispatchEvent(new MessageEvent('message', { data, origin }));
   });
@@ -247,7 +247,7 @@ describe('vista previa del editor', () => {
     try {
       view({ live: true });
       await settle(1);
-      expect(parent.postMessage).toHaveBeenCalledWith({ type: EDITOR_MSG.previewReady }, ADMIN_ORIGIN);
+      expect(parent.postMessage).toHaveBeenCalledWith({ type: EDITOR_MSG.previewReady }, adminOrigin());
     } finally {
       Object.defineProperty(window, 'parent', original);
     }

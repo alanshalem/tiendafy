@@ -15,7 +15,8 @@ import { AuthProvider } from './auth';
 import { CashDiscountContext, type StoreProduct } from './ProductCard';
 import { EditableRegion } from './EditableRegion';
 import { Analytics } from './Analytics';
-import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
+import { PreviewContext, LiveThemeContext } from './preview';
+import { isFromEditor } from '@/lib/editor-bridge';
 import { StoreOffersContext } from './store-offers-context';
 import { SectionProductsContext } from './SectionProductsContext';
 import { DarkPageContext } from './section-context';
@@ -45,7 +46,7 @@ function PreviewCartSync() {
   useEffect(() => {
     if (!preview) return;
     const onMsg = (e: MessageEvent) => {
-      if (e.origin !== ADMIN_ORIGIN) return; // solo mensajes del editor
+      if (!isFromEditor(e)) return; // solo mensajes del editor
       if (e.data?.type === EDITOR_MSG.previewCart) setOpen(e.data.open !== false);
     };
     window.addEventListener('message', onMsg);

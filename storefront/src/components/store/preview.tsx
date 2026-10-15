@@ -7,14 +7,6 @@ import type { ThemeConfig } from '@/lib/theme';
 /** En modo preview (editor), los links mantienen ?preview=1 para conservar el draft. */
 export const PreviewContext = createContext(false);
 
-/**
- * Origin del panel admin (el único par legítimo del postMessage del editor).
- * Se usa como targetOrigin al emitir y para validar e.origin al recibir —
- * nunca '*': un sitio malicioso que embeba el preview no debe poder inyectar
- * un theme ni recibir mensajes.
- */
-export { ADMIN_ORIGIN } from '@/lib/admin';
-
 export function usePreviewHref() {
   const preview = useContext(PreviewContext);
   // useSearchParams (y no window.location): da el MISMO valor en el SSR y en la

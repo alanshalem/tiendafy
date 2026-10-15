@@ -15,7 +15,8 @@ import { usePublishedPagesState } from './PagesNav';
 import { HeaderNav } from './HeaderNav';
 import { buildHeaderMenu, type NavItem } from './header-menu';
 import { StoreLink } from './StoreLink';
-import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
+import { PreviewContext, usePreviewHref } from './preview';
+import { postToEditor } from '@/lib/editor-bridge';
 import type { ThemeConfig } from '@/lib/theme';
 import { headerPageKind } from '@/lib/header-page';
 import { AnnouncementBar } from './AnnouncementBar';
@@ -382,7 +383,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN);
+                postToEditor({ type: EDITOR_MSG.editSection, target: 'header' });
               }}
               // data-tf-plain: es un control del editor, no un botón de la tienda (no sigue el estilo de botones).
               data-tf-plain

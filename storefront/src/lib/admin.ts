@@ -8,5 +8,12 @@ import { runtimeValue } from './runtime';
  * Antes eran dos variables distintas para el mismo dato — y la del link ni
  * siquiera se seteaba en producción, así que el botón principal de la portada
  * mandaba al visitante a su propia máquina (localhost).
+ *
+ * Se lee en CADA llamada, no al cargar el módulo (lo mismo que apiUrl en
+ * lib/api-client): era una constante y, si un chunk se evaluaba antes que el
+ * <script> que inyecta la config, quedaba fijo el default de desarrollo y la
+ * vista previa dejaba de hablar con el editor.
  */
-export const ADMIN_ORIGIN = runtimeValue('adminOrigin');
+export function adminOrigin(): string {
+  return runtimeValue('adminOrigin');
+}

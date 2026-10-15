@@ -6,7 +6,7 @@ import { EDITOR_MSG, type PromoPopupData } from '@tiendafy/types';
 import { useCart } from '../cart-context';
 import { Icon } from '../Icon';
 import { NewsletterForm } from '../NewsletterForm';
-import { ADMIN_ORIGIN } from '../preview';
+import { isFromEditor } from '@/lib/editor-bridge';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { useFocusTrap } from '../useFocusTrap';
@@ -216,7 +216,7 @@ export function PromoPopupSection({ section, data, preview }: SectionRenderProps
   useEffect(() => {
     if (!preview) return;
     const onMsg = (e: MessageEvent) => {
-      if (e.origin !== ADMIN_ORIGIN || e.data?.type !== EDITOR_MSG.focusSection) return;
+      if (!isFromEditor(e) || e.data?.type !== EDITOR_MSG.focusSection) return;
       if (e.data.sectionId === section.id) show(true);
       else close();
     };

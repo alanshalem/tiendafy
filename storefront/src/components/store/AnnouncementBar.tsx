@@ -7,7 +7,7 @@ import { cn } from '@tiendafy/ui/cn';
 import { Icon } from './Icon';
 import { PlayPauseIcon } from './PlayPauseIcon';
 import { MarqueeTrack } from './MarqueeTrack';
-import { ADMIN_ORIGIN } from './preview';
+import { postToEditor } from '@/lib/editor-bridge';
 import { StoreLink } from './StoreLink';
 import { usePrefersReducedMotion } from './use-media';
 import type { ThemeConfig } from '@/lib/theme';
@@ -198,10 +198,7 @@ export function AnnouncementBar({ ann, preview }: { ann: Announcement; preview: 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              window.parent?.postMessage(
-                { type: EDITOR_MSG.editSection, target: 'announcement' },
-                ADMIN_ORIGIN,
-              );
+              postToEditor({ type: EDITOR_MSG.editSection, target: 'announcement' });
             }}
             // Fija, a la derecha (no tapa nada). Con flechas y pausa, a la
             // izquierda: a la derecha tapaba la pausa justo al querer probarla.

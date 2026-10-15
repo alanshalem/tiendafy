@@ -3,7 +3,8 @@
 import { useContext, useState, type ReactNode } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { Pencil, Trash2 } from 'lucide-react';
-import { ADMIN_ORIGIN, PreviewContext } from './preview';
+import { PreviewContext } from './preview';
+import { postToEditor } from '@/lib/editor-bridge';
 
 /**
  * En el preview del editor, resalta la región al pasar el mouse y muestra
@@ -25,10 +26,8 @@ export function EditableRegion({
   const [hover, setHover] = useState(false);
   if (!preview) return <>{children}</>;
 
-  const open = () =>
-    window.parent?.postMessage({ type: EDITOR_MSG.editSection, target, sectionId: id }, ADMIN_ORIGIN);
-  const del = () =>
-    window.parent?.postMessage({ type: EDITOR_MSG.deleteSection, sectionId: id }, ADMIN_ORIGIN);
+  const open = () => postToEditor({ type: EDITOR_MSG.editSection, target, sectionId: id });
+  const del = () => postToEditor({ type: EDITOR_MSG.deleteSection, sectionId: id });
   const canDelete = target === 'section' && Boolean(id);
 
   return (

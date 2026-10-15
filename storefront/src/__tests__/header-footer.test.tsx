@@ -11,7 +11,8 @@ import { EDITOR_MSG } from '@tiendafy/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Header } from '../components/store/StoreHeader';
 import { Footer } from '../components/store/StoreFooter';
-import { ADMIN_ORIGIN, PreviewContext } from '../components/store/preview';
+import { PreviewContext } from '../components/store/preview';
+import { adminOrigin } from '../lib/admin';
 import { mergeTheme, type ThemeConfig } from '../lib/theme';
 import { fixture, fixtureTenantId, mockApi } from '../test/api';
 import { nav } from '../test/next';
@@ -378,7 +379,7 @@ describe('dentro del editor', () => {
       await user.click(screen.getByRole('button', { name: /Editar barra de anuncio/ }));
       expect(parent.postMessage).toHaveBeenCalledWith(
         { type: EDITOR_MSG.editSection, target: 'announcement' },
-        ADMIN_ORIGIN,
+        adminOrigin(),
       );
       fireEvent.mouseLeave(document.querySelector('[data-tf-focus="announcement"]')!);
 
@@ -386,7 +387,7 @@ describe('dentro del editor', () => {
       await user.click(screen.getByRole('button', { name: /Editar encabezado/ }));
       expect(parent.postMessage).toHaveBeenCalledWith(
         { type: EDITOR_MSG.editSection, target: 'header' },
-        ADMIN_ORIGIN,
+        adminOrigin(),
       );
       fireEvent.mouseLeave(screen.getByRole('banner'));
       expect(screen.queryByRole('button', { name: /Editar encabezado/ })).not.toBeInTheDocument();

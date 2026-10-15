@@ -18,7 +18,7 @@ import type { StoreProduct } from '../components/store/ProductCard';
 import { toStoreProducts, type ProductDto } from '../lib/catalog';
 import { excerptOf } from '../lib/catalog-map';
 import { popupSeen } from '../components/store/sections/promo-popup';
-import { ADMIN_ORIGIN } from '../components/store/preview';
+import { adminOrigin } from '../lib/admin';
 import { nav } from '../test/next';
 import { StoreCategoriesProvider } from '../components/store/CategoryMenu';
 import { EDITOR_MSG, parsePlayableVideo, videoAutoplaySrc } from '@tiendafy/types';
@@ -360,7 +360,7 @@ describe('pop-up promocional', () => {
       act(async () => {
         window.dispatchEvent(
           new MessageEvent('message', {
-            origin: ADMIN_ORIGIN,
+            origin: adminOrigin(),
             data: { type: EDITOR_MSG.focusSection, target: 'section', sectionId },
           }),
         );

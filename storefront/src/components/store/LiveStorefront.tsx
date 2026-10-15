@@ -14,7 +14,7 @@ import {
 import type { StoreProduct } from './ProductCard';
 import { HomeSections } from './HomeSections';
 import { ComingSoon } from './ComingSoon';
-import { ADMIN_ORIGIN } from './preview';
+import { isFromEditor, postToEditor } from '@/lib/editor-bridge';
 import { StoreChrome } from './StoreChrome';
 import { StoreRoot } from './StoreRoot';
 import { StoreWhatsApp } from './StoreWhatsApp';
@@ -58,7 +58,7 @@ export function LiveStorefront({
     const handler = (e: MessageEvent) => {
       // Solo mensajes del panel admin: un tercero que embeba el preview no
       // debe poder inyectar un theme (llegaría con customCss sin sanear).
-      if (e.origin !== ADMIN_ORIGIN) return;
+      if (!isFromEditor(e)) return;
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
       // Las ofertas de la tienda (descuento, cuotas, envío gratis) no son del
       // diseño: se vuelven a aplicar sobre lo que manda el editor.
@@ -83,7 +83,7 @@ export function LiveStorefront({
     };
     window.addEventListener('message', handler);
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: EDITOR_MSG.previewReady }, ADMIN_ORIGIN);
+      postToEditor({ type: EDITOR_MSG.previewReady });
     }
     return () => window.removeEventListener('message', handler);
   }, [initialTheme]);
