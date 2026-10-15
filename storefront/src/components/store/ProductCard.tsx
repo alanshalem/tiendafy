@@ -6,6 +6,7 @@ import { formatMoney } from '@tiendafy/types';
 import { Icon } from './Icon';
 import type { ProductListConfig } from '@/lib/theme';
 import { ratioClass } from '@/lib/theme-style';
+import { priceWithOfflineDiscount } from '@/lib/checkout-totals';
 import { useCart } from './cart-context';
 import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
@@ -209,7 +210,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       {list.showPrice && <PriceWithoutTaxes amount={product.priceAmount} currency={product.currency} />}
       {list.showPrice && list.showCashPrice && cashPct > 0 && (
         <div className="text-xs font-semibold text-success">
-          {formatMoney(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con
+          {formatMoney(priceWithOfflineDiscount(product.priceAmount, cashPct), product.currency)} con
           transferencia
         </div>
       )}

@@ -250,6 +250,14 @@ describe('ficha de producto: lo que muestra', () => {
     expect(container.querySelectorAll('img[src^="/payment-logos/"]')).toHaveLength(2);
   });
 
+  it('el precio con transferencia es el que cobra el checkout (el descuento se redondea, no el precio)', async () => {
+    // $10,55 al 10%: descuento 1,055 → 1,06, se cobran $9,49 ("$9"); antes anunciaba "$10".
+    await show({ variants: [variant('v-unica', 'U', ['Rojo', 'S'], 1055)] });
+    expect(screen.getByText('10% de descuento', { exact: false }).parentElement).toHaveTextContent(
+      /^\$\s?9\s?con/,
+    );
+  });
+
   it('el comercio puede apagar cada dato', async () => {
     await show({
       variants: VARIANTS.map((v) => ({ ...v, available: 40 })),

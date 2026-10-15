@@ -6,7 +6,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProductCard, type StoreProduct } from '../components/store/ProductCard';
+import { CashDiscountContext, ProductCard, type StoreProduct } from '../components/store/ProductCard';
 import { cartStorageKey } from '../components/store/cart';
 import { defaultTheme } from '../lib/theme';
 import { fixtureTenantId, mockApi } from '../test/api';
@@ -92,5 +92,18 @@ describe('card de producto: forma', () => {
 
     renderInStore(<ProductCard product={{ ...PRODUCT, variantCount: 2 }} list={list} />);
     expect(classes(screen.getByRole('link', { name: 'Elegir opciones' }))).toContain('min-h-10');
+  });
+});
+
+describe('card de producto: precio con transferencia', () => {
+  it('anuncia lo mismo que cobra el checkout (el descuento se redondea, no el precio)', () => {
+    // $10,55 al 10%: el descuento es 1,055 → 1,06 y se cobran $9,49 ("$9").
+    // La cuenta vieja, round(1055·0,9) = 950, anunciaba "$10".
+    renderInStore(
+      <CashDiscountContext.Provider value={10}>
+        <ProductCard product={{ ...PRODUCT, priceAmount: 1055 }} list={{ ...list, showCashPrice: true }} />
+      </CashDiscountContext.Provider>,
+    );
+    expect(screen.getByText(/con\s+transferencia/)).toHaveTextContent(/^\$\s?9 con\s+transferencia$/);
   });
 });

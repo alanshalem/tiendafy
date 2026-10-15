@@ -25,6 +25,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { INPUT_10 } from './styles';
 import { useStoreOffers } from './store-offers-context';
 import { offlineDiscountLabel } from '@/lib/store-offers';
+import { priceWithOfflineDiscount } from '@/lib/checkout-totals';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
 // Reseñas, envío y aviso de stock: cada uno en su componente (montajes chicos acá).
 import { RatingSummaryLink, type ProductRating } from './ReviewStars';
@@ -170,7 +171,7 @@ export function ProductDetail({
   const label = shown.optionValues.length > 0 ? shown.optionValues.join(' / ') : 'Única';
 
   const cashPct = cfg.cashDiscountPercent ?? 0;
-  const cashPrice = cashPct > 0 ? Math.round(shown.price.amount * (1 - cashPct / 100)) : null;
+  const cashPrice = cashPct > 0 ? priceWithOfflineDiscount(shown.price.amount, cashPct) : null;
 
   /** Agrega la variante elegida; false si no se puede comprar (nunca agrega otra). */
   const addToCart = () => {

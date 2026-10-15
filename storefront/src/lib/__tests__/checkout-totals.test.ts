@@ -6,7 +6,13 @@
  * Todo en centavos.
  */
 import { describe, expect, it } from 'vitest';
-import { checkoutTotals, freeByAmount, methodPrice } from '../checkout-totals';
+import {
+  checkoutTotals,
+  freeByAmount,
+  methodPrice,
+  offlineDiscountOf,
+  priceWithOfflineDiscount,
+} from '../checkout-totals';
 
 const ARS = (amount: number) => ({ amount, currency: 'ARS' });
 
@@ -138,5 +144,23 @@ describe('checkoutTotals', () => {
     expect(
       checkoutTotals({ subtotal: 0, coupon: null, shipping: 300_00, offline: true, offlinePercent: 10 }),
     ).toEqual({ discount: 0, offlinePct: 10, offlineDiscount: 0, shipCost: 300_00, total: 300_00 });
+  });
+});
+
+describe('precio con transferencia o efectivo (ficha y tarjetas)', () => {
+  it('es lo mismo que cobra el checkout, también en el medio centavo', () => {
+    // 10% de 123,45 = 12,345 → 12,35 de descuento → 111,10. La cuenta vieja de
+    // la ficha, round(12345·0,9), daba 111,11: un centavo más que lo cobrado.
+    expect(offlineDiscountOf(12345, 10)).toBe(1235);
+    expect(priceWithOfflineDiscount(12345, 10)).toBe(11110);
+    expect(Math.round(12345 * (1 - 10 / 100))).toBe(11111);
+    expect(priceWithOfflineDiscount(12345, 10)).toBe(
+      checkoutTotals({ subtotal: 12345, coupon: null, shipping: 0, offline: true, offlinePercent: 10 }).total,
+    );
+  });
+
+  it('sin % no cambia el precio, y con 100% queda en 0', () => {
+    expect(priceWithOfflineDiscount(99_99, 0)).toBe(99_99);
+    expect(priceWithOfflineDiscount(99_99, 100)).toBe(0);
   });
 });

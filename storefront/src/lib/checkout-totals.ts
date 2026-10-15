@@ -24,6 +24,23 @@ export const freeByAmount = (o: PricedMethod, subtotal: number): boolean =>
 export const methodPrice = (o: PricedMethod, subtotal: number): number =>
   freeByAmount(o, subtotal) ? 0 : o.price.amount;
 
+/**
+ * El descuento por pagar a mano sobre un monto, en centavos: se redondea el
+ * descuento y no el precio final, igual que el servidor (`Order.PercentOf`,
+ * medio centavo hacia arriba).
+ */
+export const offlineDiscountOf = (amount: number, percent: number): number =>
+  Math.round((amount * percent) / 100);
+
+/**
+ * El precio pagando con transferencia o efectivo: `a - round(a·%)`. Es la
+ * cuenta que hace el checkout y la que cobra el servidor; la ficha y las
+ * tarjetas lo anuncian con esto mismo. `round(a·(1-%))` en un medio centavo
+ * exacto da un centavo más que lo que se cobra (12345 al 10%: 11111 contra 11110).
+ */
+export const priceWithOfflineDiscount = (amount: number, percent: number): number =>
+  amount - offlineDiscountOf(amount, percent);
+
 export interface CheckoutTotalsInput {
   /** Productos a precio de lista. */
   subtotal: number;
@@ -53,8 +70,7 @@ export interface CheckoutTotals {
  * subtotal, el % de la transferencia sobre lo que queda, y el envío entero.
  *
  * El descuento se redondea y después se resta (`a - round(a·%)`), como el
- * servidor. Ojo: la ficha y las tarjetas anuncian `round(a·(1-%))`, que en un
- * medio centavo exacto da un centavo más que lo que se cobra acá.
+ * servidor y como lo anuncian la ficha y las tarjetas (priceWithOfflineDiscount).
  */
 export function checkoutTotals({
   subtotal,
@@ -69,7 +85,7 @@ export function checkoutTotals({
   const shipCost = coupon?.freeShipping ? 0 : shipping;
   const afterCoupon = Math.max(0, subtotal - discount);
   const offlinePct = offline ? (offlinePercent ?? 0) : 0;
-  const offlineDiscount = Math.round((afterCoupon * offlinePct) / 100);
+  const offlineDiscount = offlineDiscountOf(afterCoupon, offlinePct);
   const total = afterCoupon - offlineDiscount + shipCost;
   return { discount, offlinePct, offlineDiscount, shipCost, total };
 }
