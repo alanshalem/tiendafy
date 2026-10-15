@@ -143,25 +143,34 @@ public static class SupportEndpoints
 
         // Bandeja: las conversaciones del tenant, no leídas primero, de a una
         // página. Antes eran las 200 primeras y la 201 no aparecía nunca.
+        // `filter` recorta a las que esperan respuesta (waiting) o siguen
+        // abiertas (open); las cifras de arriba cuentan siempre todas.
         admin.MapGet("/conversations", async (
             ITenantContext tenant, SupportDbContext db, global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
-            CancellationToken ct, int? offset = null, int? limit = null) =>
+            CancellationToken ct, string? filter = null, int? offset = null, int? limit = null) =>
         {
-            var (items, total) = await db.Conversations.AsNoTracking()
-                .Where(c => c.TenantId == tenant.TenantId.Value)
+            var all = db.Conversations.AsNoTracking().Where(c => c.TenantId == tenant.TenantId.Value);
+            var query = filter?.ToLowerInvariant() switch
+            {
+                "waiting" => all.Where(c => c.UnreadForStaff > 0),
+                "open" => all.Where(c => c.Status == ConversationStatus.Open),
+                _ => all,
+            };
+            var (items, total) = await query
                 .OrderByDescending(c => c.UnreadForStaff > 0)
                 .ThenByDescending(c => c.LastMessageAtUtc)
                 .ThenBy(c => c.Id)
                 .PageAsync(offset, limit, ct, defaultLimit: 25);
-            var unreadTotal = await db.Conversations.AsNoTracking()
-                .Where(c => c.TenantId == tenant.TenantId.Value)
-                .SumAsync(c => c.UnreadForStaff, ct);
+            var unreadTotal = await all.SumAsync(c => c.UnreadForStaff, ct);
             var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, items.Select(c => c.OrderId), ct);
             return Results.Ok(new
             {
                 items = items.Select(c => WithNumber(c, numbers.GetValueOrDefault(c.OrderId))),
                 total,
                 unreadTotal,
+                waitingCount = await all.CountAsync(c => c.UnreadForStaff > 0, ct),
+                openCount = await all.CountAsync(c => c.Status == ConversationStatus.Open, ct),
+                allCount = await all.CountAsync(ct),
             });
         });
 

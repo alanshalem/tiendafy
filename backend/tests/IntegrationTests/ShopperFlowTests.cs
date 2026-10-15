@@ -200,7 +200,14 @@ public sealed partial class ShopperFlowTests
             $"/api/v1/support/conversations/{conversationId}/messages?limit=3&before={latestItems[0].GetProperty("id").GetGuid()}");
         Assert.Equal("¿Cuándo llega?", Assert.Single(older.GetProperty("items").EnumerateArray()).GetProperty("body").GetString());
         Assert.False(older.GetProperty("hasMore").GetBoolean());
-        Assert.Equal(1, (await merchant.GetAsync("/api/v1/support/conversations?limit=1")).GetProperty("total").GetInt32());
+        var inboxPage = await merchant.GetAsync("/api/v1/support/conversations?limit=1");
+        Assert.Equal(1, inboxPage.GetProperty("total").GetInt32());
+        Assert.Equal(1, inboxPage.GetProperty("openCount").GetInt32());
+        // Ya leída por la tienda: no espera respuesta, y el filtro lo respeta
+        // (las cifras siguen contando todas).
+        var waiting = await merchant.GetAsync("/api/v1/support/conversations?filter=waiting");
+        Assert.Equal(0, waiting.GetProperty("total").GetInt32());
+        Assert.Equal(1, waiting.GetProperty("allCount").GetInt32());
         Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
 
         var closed = await merchant.PostAsync($"/api/v1/support/conversations/{conversationId}/close", new { });

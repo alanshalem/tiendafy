@@ -26,9 +26,12 @@ public static partial class ProductEndpoints
             ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct,
-            string? q = null, int? offset = null, int? limit = null) =>
+            string? q = null, Guid? kitVariantId = null, int? offset = null, int? limit = null) =>
         {
             var kitRows = catalogDb.KitComponents.AsNoTracking();
+            // Uno solo: el panel pregunta si la variante que eligió ya es un kit
+            // (con la lista paginada, puede no estar en la página a la vista).
+            if (kitVariantId is { } only) kitRows = kitRows.Where(c => c.KitVariantId == only);
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var matching = Catalog.Infrastructure.Persistence.ProductTextSearch

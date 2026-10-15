@@ -143,7 +143,13 @@ public sealed class ListPagingTests(ApiFactory factory)
         // Buscar por un componente trae los kits que lo usan.
         var withBar = await merchant.GetAsync("/api/v1/products/kits?q=barra");
         Assert.Equal(1, Total(withBar));
-        Assert.StartsWith("Kit pro", Assert.Single(Items(withBar)).GetProperty("kitLabel").GetString());
+        var kitPro = Assert.Single(Items(withBar));
+        Assert.StartsWith("Kit pro", kitPro.GetProperty("kitLabel").GetString());
+
+        // Uno solo, por la variante: para saber si lo que se eligió ya es un kit.
+        var byId = await merchant.GetAsync($"/api/v1/products/kits?kitVariantId={kitPro.GetProperty("kitVariantId").GetGuid()}");
+        Assert.Equal(1, Total(byId));
+        Assert.Equal(0, Total(await merchant.GetAsync($"/api/v1/products/kits?kitVariantId={disc}")));
     }
 
     [Fact]
