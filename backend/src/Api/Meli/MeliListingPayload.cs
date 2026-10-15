@@ -6,9 +6,10 @@ namespace Api.Meli;
 /// <summary>
 /// El cuerpo del POST /items con el que se publica un producto del catálogo en
 /// Mercado Libre. Función pura, aparte del endpoint, porque lleva plata
-/// adentro: el precio sale con el mismo recargo del canal que después empuja
-/// <see cref="MeliStockSyncWorker"/>. Antes se publicaba al precio de la
-/// tienda y la publicación nacía vendiendo en ML sin el recargo.
+/// adentro: con la sincronización de precios prendida, el precio sale con el
+/// mismo recargo del canal que después empuja <see cref="MeliStockSyncWorker"/>.
+/// Antes se publicaba al precio de la tienda y la publicación nacía vendiendo
+/// en ML sin el recargo hasta la siguiente pasada del worker.
 /// </summary>
 public static class MeliListingPayload
 {
@@ -23,7 +24,11 @@ public static class MeliListingPayload
         IReadOnlyDictionary<Guid, string> specAttributeIds)
     {
         // Precio local en centavos → el del canal → ML espera decimal en la moneda del site.
-        var priceMinor = MeliPricing.ForChannel(variant.Price.AmountInMinorUnits, connection.PriceMarkupPct);
+        // El recargo es parte de la sincronización de precios (el panel lo muestra
+        // solo con ella prendida): sin sincronización, un recargo guardado de
+        // antes no se aplica a escondidas y se publica al precio de la tienda.
+        var markup = connection.PriceSyncEnabled ? connection.PriceMarkupPct : 0m;
+        var priceMinor = MeliPricing.ForChannel(variant.Price.AmountInMinorUnits, markup);
         var payload = new Dictionary<string, object?>
         {
             ["title"] = product.Name.Length > 60 ? product.Name[..60] : product.Name,

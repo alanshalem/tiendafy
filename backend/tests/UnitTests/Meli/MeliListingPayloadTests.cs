@@ -12,10 +12,10 @@ namespace UnitTests.Meli;
 /// </summary>
 public class MeliListingPayloadTests
 {
-    private static MeliConnection Connection(decimal markupPct, int buffer = 0)
+    private static MeliConnection Connection(decimal markupPct, int buffer = 0, bool priceSync = true)
     {
         var c = MeliConnection.Create(Guid.NewGuid(), 1, "tienda", "MLA", "enc", "enc", DateTime.UtcNow.AddHours(6)).Value;
-        c.SetPriceSync(false, markupPct);
+        c.SetPriceSync(priceSync, markupPct);
         c.SetStockSync(false, buffer);
         return c;
     }
@@ -39,6 +39,19 @@ public class MeliListingPayloadTests
         Assert.Equal(11_500m, listing.Payload["price"]);
         // El mismo número que empuja la sincronización de precios.
         Assert.Equal(MeliPricing.ToApiAmount(MeliPricing.ForChannel(10_000_00, 15m)), listing.Payload["price"]);
+    }
+
+    [Fact]
+    public void Sin_sincronizacion_de_precios_un_recargo_guardado_no_se_aplica()
+    {
+        // El panel muestra el recargo solo con la sincronización prendida: uno
+        // que quedó guardado de antes no puede subir el precio a escondidas.
+        var (product, variant) = Remera(10_000_00);
+
+        var listing = MeliListingPayload.Build(product, variant, Connection(15m, priceSync: false), "MLA1", null, 5, new Dictionary<Guid, string>());
+
+        Assert.Equal(10_000_00, listing.PriceMinor);
+        Assert.Equal(10_000m, listing.Payload["price"]);
     }
 
     [Fact]
