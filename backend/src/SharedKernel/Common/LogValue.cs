@@ -6,6 +6,8 @@ namespace SharedKernel.Common;
 ///   puede fabricar líneas de log falsas) y limita el largo.
 /// - MaskEmail: "juan.perez@gmail.com" → "j***@gmail.com" — el log conserva
 ///   valor de debugging sin volcar PII completa.
+/// - MaskPhone: "5491123456789" → "***6789" — alcanza para ubicar un envío
+///   junto con la orden, sin el teléfono del comprador entero.
 /// </summary>
 public static class LogValue
 {
@@ -22,5 +24,11 @@ public static class LogValue
         var at = safe.IndexOf('@');
         if (at <= 0) return "***";
         return $"{safe[0]}***{safe[at..]}";
+    }
+
+    public static string MaskPhone(string? phone)
+    {
+        var digits = new string([.. (phone ?? string.Empty).Where(char.IsAsciiDigit)]);
+        return digits.Length <= 6 ? "***" : $"***{digits[^4..]}";
     }
 }

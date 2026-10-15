@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.DataProtection;
+using SharedKernel.Common;
 
 namespace Api.Notifications;
 
@@ -50,6 +51,8 @@ public sealed class WhatsAppSender(HttpClient http, ILogger<WhatsAppSender> logg
             },
         };
 
+        // El teléfono del comprador no va entero a los logs (como el email).
+        var toLog = LogValue.MaskPhone(toE164);
         for (var attempt = 0; ; attempt++)
         {
             try
@@ -66,7 +69,7 @@ public sealed class WhatsAppSender(HttpClient http, ILogger<WhatsAppSender> logg
                 using var resp = await http.SendAsync(req, ct);
                 if (resp.IsSuccessStatusCode)
                 {
-                    logger.LogInformation("WhatsApp enviado → {To} · {Template}", toE164, templateName);
+                    logger.LogInformation("WhatsApp enviado → {To} · {Template}", toLog, templateName);
                     return true;
                 }
 
@@ -77,20 +80,20 @@ public sealed class WhatsAppSender(HttpClient http, ILogger<WhatsAppSender> logg
                     // 4xx definitivo: plantilla inexistente/no aprobada, token vencido,
                     // número no habilitado… reintentar no ayuda.
                     logger.LogError("WhatsApp Cloud API {Status} → {To} · {Template}: {Body}",
-                        (int)resp.StatusCode, toE164, templateName, body);
+                        (int)resp.StatusCode, toLog, templateName, body.Replace(toE164, toLog, StringComparison.Ordinal));
                     return false;
                 }
                 logger.LogWarning("WhatsApp {Status} transitorio, reintento {Attempt} → {To}",
-                    (int)resp.StatusCode, attempt + 1, toE164);
+                    (int)resp.StatusCode, attempt + 1, toLog);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 if (attempt >= Backoff.Length)
                 {
-                    logger.LogError(ex, "WhatsApp falló al enviar a {To} tras {Attempts} intentos.", toE164, attempt + 1);
+                    logger.LogError(ex, "WhatsApp falló al enviar a {To} tras {Attempts} intentos.", toLog, attempt + 1);
                     return false;
                 }
-                logger.LogWarning(ex, "Error de red con WhatsApp, reintento {Attempt} → {To}", attempt + 1, toE164);
+                logger.LogWarning(ex, "Error de red con WhatsApp, reintento {Attempt} → {To}", attempt + 1, toLog);
             }
 
             await Task.Delay(Backoff[attempt], ct);
