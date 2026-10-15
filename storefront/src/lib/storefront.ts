@@ -25,7 +25,18 @@ export interface StorefrontData {
 export async function loadStorefront({ products: withProducts = true } = {}): Promise<StorefrontData | null> {
   const tenant = await resolveTenant();
   if (!tenant) return null;
+  return storefrontOf(tenant, { products: withProducts });
+}
 
+/**
+ * Lo de loadStorefront con la tienda ya resuelta: así quien además necesita el
+ * tema (resolveStorefrontPage) pide los productos y el diseño a la par en vez
+ * de uno detrás del otro.
+ */
+export async function storefrontOf(
+  tenant: Tenant,
+  { products: withProducts = true } = {},
+): Promise<StorefrontData> {
   // Tienda no activa (suspendida/cancelada): no tiene sentido traer productos;
   // la página decide qué fallback mostrar según el status.
   if (tenant.status !== 'ACTIVE' || !withProducts) return { tenant, products: [] };

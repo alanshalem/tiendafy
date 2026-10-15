@@ -147,19 +147,33 @@ async function ProductContent({
   // Data cache 30s keyed por tenant (_mt): TTFB decente sin SSR+DB en cada hit.
   const product = await fetchProduct(slug, data.tenant.id);
 
-  // "También te puede gustar": productos de la MISMA categoría del que se está
-  // viendo (antes eran siempre los primeros 4 del catálogo). Si la categoría no
-  // llega a 4, rellenamos con el resto del catálogo para no dejar huecos.
-  const related = await buildRelated(data.tenant.id, slug, product?.categoryIds ?? [], data.products);
+  // Todo lo que sigue depende solo del producto y cada pedido ya se traga su
+  // propio error, así que van a la par (antes, uno detrás del otro).
+  const [related, specRows, trail, base, reviews] = await Promise.all([
+    // "También te puede gustar": productos de la MISMA categoría del que se está
+    // viendo (antes eran siempre los primeros 4 del catálogo). Si la categoría no
+    // llega a 4, rellenamos con el resto del catálogo para no dejar huecos.
+    buildRelated(data.tenant.id, slug, product?.categoryIds ?? [], data.products),
+    // La ficha técnica se arma acá y no en el componente: los valores vienen con
+    // el producto y los nombres con las definiciones de la tienda, y unirlos en
+    // el servidor evita un pedido más desde el navegador.
+    buildSpecRows(data.tenant.id, product?.specs ?? []),
+    // Miga: Inicio › (cadena de categorías) › Producto — navegación + BreadcrumbList
+    // para que Google muestre migas en el resultado en vez de la URL.
+    product ? buildCategoryTrail(data.tenant.id, product.categoryIds) : [],
+    siteBase(),
+    // La primera página de opiniones: la sección la muestra sin esperar al
+    // navegador y el JSON-LD lleva las mismas que se ven. Si falla, la ficha
+    // sale igual (la sección las pide sola).
+    product
+      ? apiGetTenant<ReviewsPage>(
+          reviewsPath(product.id),
+          data.tenant.id,
+          cacheFor('catalog', data.tenant.id),
+        ).catch(() => null)
+      : null,
+  ]);
 
-  // La ficha técnica se arma acá y no en el componente: los valores vienen con
-  // el producto y los nombres con las definiciones de la tienda, y unirlos en
-  // el servidor evita un pedido más desde el navegador.
-  const specRows = await buildSpecRows(data.tenant.id, product?.specs ?? []);
-
-  // Miga: Inicio › (cadena de categorías) › Producto — navegación + BreadcrumbList
-  // para que Google muestre migas en el resultado en vez de la URL.
-  const trail = product ? await buildCategoryTrail(data.tenant.id, product.categoryIds) : [];
   const crumbs = product
     ? [
         { label: 'Inicio', href: '/' },
@@ -168,7 +182,6 @@ async function ProductContent({
         { label: product.name },
       ]
     : [];
-  const base = await siteBase();
   const breadcrumbJsonLd =
     product && base
       ? {
@@ -182,17 +195,6 @@ async function ProductContent({
           })),
         }
       : null;
-
-  // La primera página de opiniones: la sección la muestra sin esperar al
-  // navegador y el JSON-LD lleva las mismas que se ven. Si falla, la ficha
-  // sale igual (la sección las pide sola).
-  const reviews = product
-    ? await apiGetTenant<ReviewsPage>(
-        reviewsPath(product.id),
-        data.tenant.id,
-        cacheFor('catalog', data.tenant.id),
-      ).catch(() => null)
-    : null;
 
   // Rich results de producto en Google: precio, moneda y disponibilidad (y las
   // estrellas, aparte: ver reviewsJsonLd).

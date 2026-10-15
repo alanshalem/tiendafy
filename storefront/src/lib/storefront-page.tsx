@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from 'react';
-import { loadStorefront, type StorefrontData } from './storefront';
+import { storefrontOf, type StorefrontData } from './storefront';
+import { resolveTenant } from './tenancy';
 import { resolvePageTheme, type ThemeConfig } from './theme';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { StorefrontView } from '@/components/store/StorefrontView';
@@ -20,10 +21,15 @@ export async function resolveStorefrontPage(
   searchParams: Promise<{ preview?: string; pt?: string }>,
   { products = true }: { products?: boolean } = {},
 ): Promise<StorefrontPage> {
-  const data = await loadStorefront({ products });
-  if (!data) return { ok: false, fallback: <div className="p-10 text-center">Tienda no encontrada.</div> };
+  const tenant = await resolveTenant();
+  if (!tenant) return { ok: false, fallback: <div className="p-10 text-center">Tienda no encontrada.</div> };
 
-  const { theme, preview } = await resolvePageTheme(data.tenant.id, await searchParams);
+  // Con la tienda resuelta, el catálogo y el diseño no dependen uno del otro:
+  // se piden a la par (antes el tema esperaba a que llegaran los productos).
+  const [data, { theme, preview }] = await Promise.all([
+    storefrontOf(tenant, { products }),
+    searchParams.then((sp) => resolvePageTheme(tenant.id, sp)),
+  ]);
 
   if (!preview && theme.comingSoon.enabled) {
     return {
