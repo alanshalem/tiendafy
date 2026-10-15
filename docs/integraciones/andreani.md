@@ -35,10 +35,11 @@ vars de plataforma para Andreani.
 | Etiquetas en lote | `backend/src/Api/Fulfillment/CarrierLabels.cs` |
 | Cifrado de la contraseña | `backend/src/Modules/Checkout/Checkout.Infrastructure/Carriers/ShippingSecretProtector.cs` |
 | Persistencia | `backend/src/Modules/Checkout/Checkout.Infrastructure/Persistence/AndreaniRepository.cs`, migración `20260821124030_AddAndreaniShipping` |
+| Reserva previa a crear el envío (común a los tres carriers) | `backend/src/Api/Shipping/ShipmentWriteAhead.cs`, `Checkout.Core/Domain/ShipmentClaim.cs`, migración `20261015161205_AddShipmentClaimsAndCorreoShipments` |
 | Panel: configuración | `admin/src/pages/Settings/Andreani.tsx` (tarjeta dentro de Medios de envío) |
 | Panel: crear envío | `admin/src/components/AndreaniShipment.tsx` |
 | Tienda: cotización en el checkout | `storefront/src/components/store/checkout-carriers.ts` |
-| Tests | `backend/tests/UnitTests/Checkout/AndreaniTests.cs` |
+| Tests | `backend/tests/UnitTests/Checkout/AndreaniTests.cs`, `backend/tests/IntegrationTests/AndreaniFlowTests.cs` (incluye dos pedidos simultáneos) |
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 40 s; el cliente
 además corta la cotización a los **6 s** y el resto de las llamadas a los 20 s.
@@ -102,11 +103,25 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
 ### Envío desde una venta
 
 1. El operador abre "Crear envío en Andreani" en la venta, revisa destinatario
-   y dirección (o marca retiro en sucursal con el id de sucursal).
+   y dirección (o marca retiro en sucursal con el id de sucursal). Retiro en
+   sucursal exige el id de sucursal; a domicilio, calle, número, localidad y
+   CP de 4 dígitos (si falta, 400 sin llamar a Andreani).
 2. **Guard de idempotencia**: si la venta ya tiene envío, se devuelve el que
    hay. Andreani no deduplica ni tiene cancelación, así que un segundo envío no
-   se puede anular y se factura igual. La tabla tiene una fila por venta con
-   índice único.
+   se puede anular y se factura igual. Como la fila de `andreani_shipments` se
+   graba recién cuando Andreani contestó, dos pedidos simultáneos (doble clic,
+   dos operadores) los frena una **reserva previa** en `shipment_claims`
+   (índice único por tienda, venta y carrier), grabada ANTES de llamar: el
+   segundo recibe 409 "Ya hay un envío en curso para esta venta" sin llamar a
+   Andreani. Ver `backend/src/Api/Shipping/ShipmentWriteAhead.cs`:
+   - Andreani rechaza (error con respuesta): la reserva se suelta y se puede
+     reintentar.
+   - Andreani no responde (timeout, red): 502 avisando que el envío pudo
+     haberse creado y que hay que mirarlo en su panel antes de reintentar; la
+     reserva se suelta.
+   - Andreani lo creó pero no se pudo guardar: la reserva queda `needs_review`
+     (log crítico con el número) y la venta no deja crear otro.
+   - El proceso murió a mitad de camino: la reserva vence a los 5 minutos.
 3. Login (`POST /login`, Basic) → token en el header de respuesta
    `x-authorization-token`, que se reenvía en ese mismo header (no Bearer).
 4. `POST /ordenes-de-envio`, **sin reintentos**. Un bulto por unidad vendida;
@@ -183,7 +198,9 @@ habilitar la IP del servidor").
   restricción por IP y horario de 08 a 20 h; no lo confirmamos para la API
   nacional.
 - **Tests**: `dotnet test` en `backend/tests/UnitTests` cubre el cliente, el
-  aforo, el mapeo de estados y los endpoints (`Checkout/AndreaniTests.cs`).
+  aforo y el mapeo de estados (`Checkout/AndreaniTests.cs`); el flujo por HTTP,
+  con dos pedidos simultáneos y Andreani sin responder, está en
+  `IntegrationTests/AndreaniFlowTests.cs`.
 - **Ojo en producción**: crear una orden de envío genera un envío real que no
   se puede anular por API.
 
@@ -199,6 +216,11 @@ de QA y después las de producción.
   TTL del token, la restricción por IP y el catálogo de estados.
 - El comprador no elige la sucursal en el checkout: si cotizó retiro en
   sucursal, el operador carga el id de sucursal al despachar.
-- No hay seguimiento automático ni avisos al comprador por cambio de estado:
-  `AndreaniStatusMap.BuyerMessage` e `IsFinal` existen pero nadie los llama.
+- No hay seguimiento automático ni avisos al comprador por cambio de estado
+  (el seguimiento se consulta a pedido desde el panel).
+- Una reserva `needs_review` (Andreani creó el envío y no se guardó) se
+  destraba a mano en la base, después de cargar el envío que ya existe. Si el
+  proceso muere justo después de que Andreani creó el envío, la reserva vence
+  a los 5 minutos y un reintento podría duplicarlo: sin idempotencia del lado
+  de Andreani no hay forma de saberlo.
 - Cancelaciones: se gestionan por fuera, con el ejecutivo de Andreani.

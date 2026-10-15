@@ -38,7 +38,8 @@ Todo es **por tienda**. No hay env vars de plataforma para Correo Argentino.
 | Panel: configuración | `admin/src/pages/Settings/CorreoArgentino.tsx` |
 | Panel: alta de envío | `admin/src/components/CorreoShipment.tsx` |
 | Tienda: cotización | `storefront/src/components/store/checkout-carriers.ts` |
-| Tests | `backend/tests/UnitTests/Checkout/CorreoArgentinoTests.cs` |
+| Persistencia del alta | `CorreoShipment` en `CorreoArgentinoConfig.cs`, `CorreoArgentinoConfigRepository.cs`, migración `20261015161205_AddShipmentClaimsAndCorreoShipments` |
+| Tests | `backend/tests/UnitTests/Checkout/CorreoArgentinoTests.cs`, `backend/tests/IntegrationTests/CorreoArgentinoFlowTests.cs` |
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 15 s.
 
@@ -50,8 +51,9 @@ Todo es **por tienda**. No hay env vars de plataforma para Correo Argentino.
 | `POST /admin/shipping/correo/test` | `shipping.config` | Cotización real de prueba (CP destino opcional, por defecto 1425) |
 | `POST /shipping/correo/quote` | público (tenant) | Cotización del checkout |
 | `GET /shipping/correo/agencies?province=X` | público (tenant) | Sucursales que reciben paquetes, por código de provincia de una letra |
-| `POST /admin/orders/{id}/correo-shipment` | `orders.fulfill` | Alta del envío en MiCorreo |
-| `GET /admin/shipping/correo/tracking?shippingId=` | `orders.read` | Eventos de seguimiento |
+| `POST /admin/orders/{id}/correo-shipment` | `orders.fulfill` | Alta del envío en MiCorreo (una sola vez por venta) |
+| `GET /admin/orders/{id}/correo-shipment` | `orders.read` | El alta de esa venta, si se hizo desde el panel |
+| `GET /admin/shipping/correo/tracking?shippingId=` | `orders.read` | Eventos de seguimiento, del más nuevo al más viejo |
 
 ## Configuración
 
@@ -85,8 +87,10 @@ Se carga en **Configuración → Medios de envío → Correo Argentino**:
    `Tiendafy.Shipping.CorreoQuote.v1`, 30 minutos, atado al tenant, la cantidad
    de unidades y la huella del carrito). El precio sale del token al confirmar;
    si el carrito cambió, se pide recotizar.
-6. Si MiCorreo falla, la cotización devuelve sin opciones y con un mensaje: el
-   checkout sigue con los medios manuales.
+6. Si MiCorreo falla (error, timeout o red caída), la cotización devuelve sin
+   opciones y con un mensaje: el checkout sigue con los medios manuales. El
+   timeout y la red caída quedan logueados como warning. Las sucursales se
+   degradan igual (lista vacía).
 
 ### Retiro en sucursal
 
@@ -103,6 +107,22 @@ número visible. El paquete se calcula con lo vendido (mismo cálculo que la
 cotización); lo que se cargue a mano manda. El número de seguimiento lo carga
 el comercio en la venta, y el comprador recibe el link del formulario público
 de Correo Argentino.
+
+El alta queda registrada en `correo_shipments` (una fila por venta, índice
+único): no se sabe si MiCorreo deduplica por `extOrderId`, así que un segundo
+pedido devuelve el alta que hay sin llamar. Dos pedidos simultáneos los frena
+la reserva previa en `shipment_claims` (409 "Ya hay un envío en curso para
+esta venta"); el mecanismo es el mismo que el de Andreani y Zipnova
+(`backend/src/Api/Shipping/ShipmentWriteAhead.cs`, ver [andreani.md](andreani.md)).
+
+### Seguimiento en el panel
+
+Con el alta hecha, el botón de Correo de la venta (también ya despachada)
+muestra "alta en MiCorreo" y, si la venta tiene número de seguimiento cargado,
+un botón **Seguimiento** que consulta `GET /admin/shipping/correo/tracking` y
+muestra el último evento. Sin número, dice que hay que cargarlo en la venta.
+Las altas hechas antes de que se registraran (o directo en la web de MiCorreo)
+no muestran el seguimiento desde el panel.
 
 ### Autenticación
 
@@ -134,15 +154,18 @@ confirmarlo con una cuenta real.
    defecto.
 3. En la tienda, cotizá con un CP real y elegí domicilio y sucursal.
 4. Desde una venta, dá de alta el envío en TEST.
-5. Tests: `backend/tests/UnitTests/Checkout/CorreoArgentinoTests.cs` (cliente
-   con HTTP simulado, armado del paquete, endpoints).
+5. Tests: `backend/tests/UnitTests/Checkout/CorreoArgentinoTests.cs` (armado
+   del paquete, config, tokens) e `IntegrationTests/CorreoArgentinoFlowTests.cs`
+   (flujo por HTTP con MiCorreo simulado: alta única, dos altas simultáneas,
+   cotización con timeout y red caída).
 
 ## Pendiente
 
 - **Probar con credenciales reales** (TEST y después PROD): auth, rates,
   agencies, import y tracking.
-- El alta del envío **no deja registro** en Tiendafy: no hay guard contra
-  darlo de alta dos veces (el botón solo se bloquea mientras la pantalla está
-  abierta) y no se sabe si MiCorreo deduplica por `extOrderId`.
-- El endpoint de tracking existe pero el panel no lo usa todavía.
+- Confirmar si MiCorreo deduplica por `extOrderId` (hoy no importa: el guard
+  es nuestro) y el formato real de la fecha de los eventos de tracking (se
+  lee `dd-mm-aaaa hh:mm`, ISO o `aaaa-mm-dd`).
+- El alta registrada no entra en Despacho ni en la impresión en lote (no hay
+  etiqueta por API).
 - Etiquetas: no hay API; seguir imprimiéndolas desde MiCorreo.

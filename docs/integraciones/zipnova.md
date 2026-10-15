@@ -34,7 +34,7 @@ Todo es **por tienda**. No hay env vars de plataforma para Zipnova.
 | Panel: configuración | `admin/src/pages/Settings/Zipnova.tsx` |
 | Panel: crear envío | `admin/src/components/ZipnovaShipment.tsx` |
 | Tienda: cotización | `storefront/src/components/store/checkout-carriers.ts` |
-| Tests | `backend/tests/UnitTests/Checkout/ZipnovaTests.cs` |
+| Tests | `backend/tests/UnitTests/Checkout/ZipnovaTests.cs`, `backend/tests/IntegrationTests/ZipnovaFlowTests.cs` |
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 20 s y **sin
 reintentos** (la creación no es idempotente).
@@ -93,6 +93,13 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
 
 1. **Guard de idempotencia**: si la venta ya tiene envío en
    `zipnova_shipments` (índice único por tienda y venta), se devuelve ese.
+   Esa fila se graba después de crear el envío, así que dos pedidos
+   simultáneos los frena una **reserva previa** en `shipment_claims`, grabada
+   antes de llamar a Zipnova: el segundo recibe 409 "Ya hay un envío en curso
+   para esta venta" sin llamar. Si Zipnova rechaza, la reserva se suelta; si
+   no responde, 502 avisando que hay que revisar su panel antes de reintentar.
+   El detalle está en [andreani.md](andreani.md) (mismo mecanismo,
+   `backend/src/Api/Shipping/ShipmentWriteAhead.cs`).
 2. Se exigen nombre, documento, email, teléfono y dirección completa.
 3. `POST /shipments` con `external_id` = `TF-` + 16 hex de la venta (Zipnova
    acepta hasta 30 caracteres alfanuméricos y guiones), `service_type`
@@ -107,8 +114,10 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
   que la etiqueta todavía no está lista: se le pide al operador que pruebe en
   unos minutos.
 - `GET /shipments/{id}/tracking`, a pedido desde el panel (no hay polling ni
-  webhook). El estado del primer evento queda guardado; si es `delivered`, la
-  vista de seguimiento del comprador marca el pedido como entregado.
+  webhook). La especificación no dice en qué orden vienen los eventos: se
+  ordenan por fecha (`TrackingEvents.NewestFirst`), y se guarda el estado del
+  más nuevo; si es `delivered`, la vista de seguimiento del comprador marca el
+  pedido como entregado.
 
 ## Lo que aprendimos de la API real
 
@@ -144,7 +153,9 @@ De la especificación, y manejado a la defensiva:
    cotización real que no consume saldo.
 3. En la tienda, cotizá con CP, ciudad y provincia.
 4. Con testing activo, creá un envío desde una venta y bajá la etiqueta.
-5. Tests: `backend/tests/UnitTests/Checkout/ZipnovaTests.cs`.
+5. Tests: `backend/tests/UnitTests/Checkout/ZipnovaTests.cs` y
+   `backend/tests/IntegrationTests/ZipnovaFlowTests.cs` (incluye dos pedidos
+   simultáneos y el orden del tracking).
 
 ## Pendiente
 
@@ -152,5 +163,5 @@ De la especificación, y manejado a la defensiva:
   puntos en el checkout. Hoy esas opciones se descartan.
 - No hay cancelación desde el panel ni seguimiento automático: el estado se
   actualiza solo cuando alguien abre el seguimiento de la venta.
-- Confirmar en producción el orden de los eventos de tracking: se toma el
-  primero como el último estado.
+- Confirmar en producción el formato de `created_at` del tracking: se ordena
+  por esa fecha; un evento sin fecha legible queda al final.
