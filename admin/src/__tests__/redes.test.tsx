@@ -225,7 +225,7 @@ describe('redes: cuentas', () => {
 
 describe('redes: publicaciones', () => {
   it('muestra próximos e historial, con cupón, ventas y errores por red', async () => {
-    const { user } = await openRedes();
+    const { api, user } = await openRedes();
     await user.click(tab('Publicaciones'));
     expect(screen.getByRole('heading', { name: 'Próximos' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Historial' })).toBeInTheDocument();
@@ -235,12 +235,17 @@ describe('redes: publicaciones', () => {
     expect(screen.getByText('Token vencido')).toBeInTheDocument();
     expect(screen.getByTitle('Ver en Facebook')).toHaveAttribute('href', 'https://facebook.com/p/1');
 
-    // Filtrar por estado.
+    // Filtrar por estado: lo resuelve el servidor (la bandeja va de a una página).
+    api.on('GET', POSTS, { posts: POSTS_DATA.filter((p) => p.status === 'Failed'), total: 1 });
     await user.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Failed');
-    expect(screen.queryByText('Borrador de otoño')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Borrador de otoño')).not.toBeInTheDocument());
     expect(screen.getByText('Falló en X')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path.startsWith(`${POSTS}?`) && c.path.includes('status=Failed'))).toBe(
+      true,
+    );
+    api.on('GET', POSTS, { posts: POSTS_DATA.filter((p) => p.status === 'Draft'), total: 1 });
     await user.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Draft');
-    expect(screen.queryByText('Falló en X')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Falló en X')).not.toBeInTheDocument());
   });
 
   it('desprogramar y eliminar (con sus errores)', async () => {

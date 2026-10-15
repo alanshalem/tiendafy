@@ -8,6 +8,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 /**
  * Redirecciones 301: URL vieja → URL nueva.
@@ -36,6 +37,8 @@ export function RedirectsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
+  // Una redirección a medio cargar (el form de alta arranca vacío).
+  useUnsavedInScope(from.trim() !== '' || to.trim() !== '');
 
   const { reload: load } = useServerLoad(
     store?.id ?? null,

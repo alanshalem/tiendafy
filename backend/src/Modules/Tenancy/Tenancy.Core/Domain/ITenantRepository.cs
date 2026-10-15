@@ -19,4 +19,11 @@ public interface ITenantRepository
 
     Task AddAsync(Tenant tenant, CancellationToken ct = default);
     Task<IReadOnlyList<Tenant>> ListAsync(int limit, Guid? afterId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Una página de las tiendas pedidas (las de un usuario), por nombre, con
+    /// búsqueda opcional por nombre, y cuántas hay en total.
+    /// </summary>
+    Task<(IReadOnlyList<Tenant> Items, int Total)> PageByIdsAsync(
+        IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default);
 }

@@ -68,4 +68,18 @@ public sealed class TenantRepository(TenancyDbContext context) : ITenantReposito
 
         return await query.Take(limit).ToListAsync(ct);
     }
+
+    public async Task<(IReadOnlyList<Tenant> Items, int Total)> PageByIdsAsync(
+        IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        var query = context.Tenants.AsNoTracking().Where(t => ids.Contains(t.Id));
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(t => t.Name.ToLower().Contains(term));
+        }
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderBy(t => t.Name).ThenBy(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
 }

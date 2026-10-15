@@ -62,4 +62,11 @@ public sealed class TenancyService(ITenantRepository repository, TenancyOptions 
         var tenant = await repository.GetByIdAsync(tenantId, ct);
         return tenant?.ToDto();
     }
+
+    public async Task<(IReadOnlyList<TenantDto> Items, int Total)> PageByIdsAsync(
+        IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        var (items, total) = await repository.PageByIdsAsync(ids, search, skip, take, ct);
+        return ([.. items.Select(t => t.ToDto())], total);
+    }
 }

@@ -10,6 +10,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import { TableSkeleton } from '../../components/Skeleton';
 
 interface Tracking {
@@ -47,22 +48,27 @@ export function TrackingPage() {
 
   const [value, setValue] = useState<Tracking>(DEFAULTS);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState<Tracking>(DEFAULTS);
   const [saving, setSaving] = useState(false);
+  // Contra lo último guardado, no "se tocó algo": volver un campo a como
+  // estaba no deja la barra de guardar ni el aviso al salir.
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved);
+  useUnsavedInScope(dirty);
 
   const { loading, reload: load } = useServerLoad(
     store?.id ?? null,
     () => api.get<Tracking>('/api/v1/admin/tracking/'),
     (d) => {
-      setValue({
+      const form: Tracking = {
         ...DEFAULTS,
         ...d,
         ga4Id: d.ga4Id ?? '',
         googleAdsId: d.googleAdsId ?? '',
         metaPixelId: d.metaPixelId ?? '',
         clarityId: d.clarityId ?? '',
-      });
-      setDirty(false);
+      };
+      setValue(form);
+      setSaved(form);
       setLoadError(null);
     },
     (err) => setLoadError(errMsg(err, 'No se pudo cargar la configuración de medición.')),
@@ -70,7 +76,6 @@ export function TrackingPage() {
 
   const update = (patch: Partial<Tracking>) => {
     setValue((v) => ({ ...v, ...patch }));
-    setDirty(true);
   };
 
   const save = async () => {

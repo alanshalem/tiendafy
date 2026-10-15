@@ -9,6 +9,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { MediaUpload } from '../../components/upload/MediaUpload';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import { TableSkeleton } from '../../components/Skeleton';
 
 type Condition = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO';
@@ -60,13 +61,17 @@ export function LegalInfoPage() {
   const [value, setValue] = useState<LegalInfo>(DEFAULTS);
   const [fromInvoicing, setFromInvoicing] = useState<LegalResponse['fromInvoicing']>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState<LegalInfo>(DEFAULTS);
   const [saving, setSaving] = useState(false);
+  // Contra lo último guardado, no "se tocó algo": volver un campo a como
+  // estaba no deja la barra de guardar ni el aviso al salir.
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved);
+  useUnsavedInScope(dirty);
 
   const apply = (d: LegalResponse) => {
     const inv = d.fromInvoicing;
     // Sin nada guardado todavía, se sugiere lo que ya está en Facturación.
-    setValue({
+    const form: LegalInfo = {
       legalName: d.legalName ?? inv?.legalName ?? '',
       cuit: d.cuit ?? inv?.cuit ?? '',
       address: d.address ?? '',
@@ -76,9 +81,12 @@ export function LegalInfoPage() {
       showPriceWithoutTaxes: d.showPriceWithoutTaxes ?? true,
       dataFiscalUrl: d.dataFiscalUrl ?? '',
       dataFiscalImageUrl: d.dataFiscalImageUrl ?? '',
-    });
+    };
+    setValue(form);
+    // Lo sugerido desde Facturación cuenta como el punto de partida, igual que
+    // antes: nadie lo escribió, no es un cambio que se pierda al salir.
+    setSaved(form);
     setFromInvoicing(inv);
-    setDirty(false);
     setLoadError(null);
   };
 
@@ -91,7 +99,6 @@ export function LegalInfoPage() {
 
   const update = (patch: Partial<LegalInfo>) => {
     setValue((v) => ({ ...v, ...patch }));
-    setDirty(true);
   };
 
   const save = async () => {

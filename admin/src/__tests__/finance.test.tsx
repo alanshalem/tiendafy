@@ -149,7 +149,9 @@ describe('cuentas corrientes', () => {
     await user.click(dialog.getByRole('button', { name: 'Imputar lo más viejo primero' }));
     const first = dialog.getAllByLabelText(/Monto a imputar a/)[0]!;
     expect((first as HTMLInputElement).value).not.toMatch(/\.\d{2}$/); // ni "500.00"
+    // Con el importe cargado, cancelar pregunta antes de tirarlo.
     await user.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }));
 
     api.on('GET', '/api/v1/finance/accounts', { items: [], totals: [] });
     await user.click(await screen.findByRole('button', { name: /Registrar cobro/ }));
@@ -189,7 +191,10 @@ describe('cuentas corrientes', () => {
     const { api, user } = await open('/cuentas-corrientes');
     await user.click(screen.getByRole('button', { name: 'Proveedores' }));
     await settle(2);
-    expect(api.calls.some((c) => c.path === '/api/v1/finance/balances?partyKind=supplier')).toBe(true);
+    // Los saldos van de a una página.
+    expect(
+      api.calls.some((c) => c.path === '/api/v1/finance/balances?partyKind=supplier&limit=25&offset=0'),
+    ).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /Ajuste/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Ajuste de cuenta corriente' }));

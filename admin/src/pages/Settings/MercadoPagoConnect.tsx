@@ -10,6 +10,7 @@ import { Helper } from './Helper';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 import { BRAND } from '../../lib/runtime';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -49,6 +50,8 @@ export function MercadoPagoConnect() {
     },
     () => setConn(null),
   );
+  // El nombre del resumen se guarda con su botón: escrito y sin guardar, avisa.
+  useUnsavedInScope(!!conn && descriptor !== (conn.statementDescriptor ?? ''));
 
   // Volvemos del OAuth con ?mp=connected|error → avisar y limpiar la URL.
   useEffect(() => {

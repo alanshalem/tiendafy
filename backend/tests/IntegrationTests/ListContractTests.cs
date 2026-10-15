@@ -30,6 +30,11 @@ public sealed class ListContractTests
         "/api/v1/purchasing/purchase-orders",
         "/api/v1/finance/movements",
         "/api/v1/finance/receipts",
+        "/api/v1/finance/balances",
+        "/api/v1/pages",
+        "/api/v1/products/kits",
+        "/api/v1/theme/history",
+        "/api/v1/support/conversations",
     ];
 
     public static TheoryData<string> Listados() => new(Paths);

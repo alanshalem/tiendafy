@@ -9,6 +9,7 @@ import { usePermissions } from '../context/PermissionsContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { orderLabel } from '../lib/orderNumber';
+import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { ListStats } from '../components/stats/ListStats';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -93,7 +94,9 @@ export function CustomerProfilePage() {
   const canFinance = can('finance.manage');
   const ledger = useQuery({
     queryKey: ['finance-ledger', store?.id, 'customer', id],
-    queryFn: () => api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=customer&partyId=${id}`),
+    // Solo los últimos movimientos (vienen del más nuevo al más viejo): el
+    // estado de cuenta entero vive en Cuentas corrientes.
+    queryFn: () => api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=customer&partyId=${id}&limit=5`),
     enabled: !!store && !!id && canFinance,
   });
 
@@ -370,6 +373,9 @@ function NotesAndTags({
     .map((t) => t.tag)
     .filter((t) => !customer.tags.some((x) => x.toLowerCase() === t.toLowerCase()));
   const notesChanged = notes.trim() !== (customer.notes ?? '').trim();
+  // Las notas se guardan con su botón: escritas y sin guardar, salir de la
+  // ficha pregunta. Al guardar se recarga el cliente y dejan de ser cambio.
+  useUnsavedChanges(canEdit && notesChanged);
 
   return (
     <Card>
@@ -463,7 +469,7 @@ function CurrentAccount({
   customerId: string;
 }) {
   const balance = ledger?.balanceMinor ?? 0;
-  const last = (ledger?.items ?? []).slice(-5).reverse();
+  const last = (ledger?.items ?? []).slice(0, 5);
   return (
     <Card>
       <h2 className="text-base font-semibold text-fg">Cuenta corriente</h2>

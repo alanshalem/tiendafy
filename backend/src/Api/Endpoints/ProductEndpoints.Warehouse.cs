@@ -19,12 +19,32 @@ public static partial class ProductEndpoints
     {
 
         // ---- Kits (BOM liviano): componentes que se descuentan al vender ----
+        // Los kits de a una página, con búsqueda por nombre o SKU del kit o de
+        // cualquiera de sus componentes (en la base: antes llegaban todos y el
+        // panel filtraba lo que tenía).
         products.MapGet("/kits", async (
             ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
-            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct) =>
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct,
+            string? q = null, Guid? kitVariantId = null, int? offset = null, int? limit = null) =>
         {
-            var components = await catalogDb.KitComponents.AsNoTracking().ToListAsync(ct);
+            var kitRows = catalogDb.KitComponents.AsNoTracking();
+            // Uno solo: el panel pregunta si la variante que eligió ya es un kit
+            // (con la lista paginada, puede no estar en la página a la vista).
+            if (kitVariantId is { } only) kitRows = kitRows.Where(c => c.KitVariantId == only);
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var matching = Catalog.Infrastructure.Persistence.ProductTextSearch
+                    .Matching(catalogDb.Products.AsNoTracking(), q, includeSku: true)
+                    .SelectMany(p => p.Variants.Select(v => v.Id));
+                kitRows = kitRows.Where(c => matching.Contains(c.KitVariantId) || matching.Contains(c.ComponentVariantId));
+            }
+            var (kitIds, total) = await kitRows
+                .Select(c => c.KitVariantId).Distinct().OrderBy(id => id)
+                .PageAsync(offset, limit, ct);
+            var components = await catalogDb.KitComponents.AsNoTracking()
+                .Where(c => kitIds.Contains(c.KitVariantId))
+                .ToListAsync(ct);
             var allIds = components.SelectMany(c => new[] { c.KitVariantId, c.ComponentVariantId }).Distinct().ToList();
             var names = allIds.Count == 0
                 ? []
@@ -36,7 +56,8 @@ public static partial class ProductEndpoints
 
             return Results.Ok(new
             {
-                items = components.GroupBy(c => c.KitVariantId).Select(g => new
+                total,
+                items = components.GroupBy(c => c.KitVariantId).OrderBy(g => kitIds.IndexOf(g.Key)).Select(g => new
                 {
                     kitVariantId = g.Key,
                     kitLabel = Label(g.Key),

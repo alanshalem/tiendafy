@@ -4,6 +4,7 @@ import { Button, Checkbox, cn, Modal, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { togglePermission, type Perm } from '../../lib/access';
 import { usePermissions } from '../../context/PermissionsContext';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 import { SensitiveBadge } from './Roles';
 import { canChange, OWNER, type AccessMatrix } from './team-access';
 
@@ -39,6 +40,8 @@ export function MemberPermissionsModal({
   const fromRole = new Set<string>(role?.permissions ?? []);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(member.permissions));
   const who = member.name ?? member.email ?? 'esta persona';
+  // Ordenado: tildar y destildar en otro orden deja el mismo conjunto.
+  const { dirty, close } = useModalFormGuard([...selected].sort(), onClose);
 
   const done = (message: string) => {
     toast(message, { variant: 'success' });
@@ -69,6 +72,7 @@ export function MemberPermissionsModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title={`Permisos de ${who}`}
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
@@ -80,7 +84,7 @@ export function MemberPermissionsModal({
             <span />
           )}
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={close}>
               Cancelar
             </Button>
             <Button onClick={() => save.mutate()} loading={save.isPending} disabled={busy}>

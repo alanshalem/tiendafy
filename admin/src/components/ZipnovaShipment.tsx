@@ -3,6 +3,7 @@ import { Download, Loader2, Zap } from 'lucide-react';
 import { Input, Modal, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
   parseAddress,
@@ -142,6 +143,10 @@ function ShipmentModal({
   const [zipcode, setZipcode] = useState(parsed.cp);
   const [declared, setDeclared] = useState(declaredValueFromOrder(order));
   const [busy, setBusy] = useState(false);
+  const { dirty, close } = useModalFormGuard(
+    { name, document, email, phone, street, number, extras, city, stateName, zipcode, declared },
+    onClose,
+  );
 
   const submit = async () => {
     setBusy(true);
@@ -175,8 +180,9 @@ function ShipmentModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Crear envío en Zipnova"
-      footer={<ShipmentFooter busy={busy} onClose={onClose} onSubmit={submit} />}
+      footer={<ShipmentFooter busy={busy} onClose={close} onSubmit={submit} />}
     >
       <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
         <p className="text-xs text-fg-muted">

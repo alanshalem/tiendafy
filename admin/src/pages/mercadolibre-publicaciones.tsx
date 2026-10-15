@@ -18,6 +18,9 @@ import { useProductSearch } from '../lib/useProductSearch';
 import { moneyMajor } from './mercadolibre-shared';
 import type { MoneyDto } from '@tiendafy/types';
 import { useServerLoad } from '../lib/useServerLoad';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
+import { useListParams } from '../lib/useListParams';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -63,22 +66,39 @@ const ITEM_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
 
 // ---- Publicaciones -----------------------------------------------------------
 
+const PAGE_SIZE = 25;
+// La página tiene su propio parámetro: la pantalla de Mercado Libre tiene
+// otras pestañas paginadas (ventas, reclamos) y no se pisan.
+const LIST_DEFAULTS = { 'pagina-publicaciones': 1 };
+
 export function PublicacionesTab() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const [items, setItems] = useState<MeliItem[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [linking, setLinking] = useState<MeliItem | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const list = useListParams(LIST_DEFAULTS, { pageKey: 'pagina-publicaciones' });
+  const page = list.values['pagina-publicaciones'];
 
+  // De a una página: antes se pedían las 50 primeras y la 51 no se podía
+  // vincular ni ver.
   const { loading, reload: load } = useServerLoad(
-    'publicaciones',
-    () => api.get<{ items: MeliItem[] }>('/api/v1/admin/meli/items'),
-    (r) => setItems(r.items),
+    `publicaciones:${page}`,
+    () =>
+      api.get<{ items: MeliItem[]; total?: number }>(
+        `/api/v1/admin/meli/items?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
+    (r) => {
+      setItems(r.items);
+      setTotal(r.total ?? r.items.length);
+    },
     (err) => {
       toast(errMsg(err, 'No se pudieron cargar las publicaciones.'), { variant: 'error' });
       setItems([]);
     },
   );
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const unlink = async (item: MeliItem) => {
     const ok = await confirm({
@@ -101,7 +121,12 @@ export function PublicacionesTab() {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        {total > 0 && (
+          <span className="text-xs text-fg-subtle">
+            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'publicación' : 'publicaciones')}
+          </span>
+        )}
         <Button onClick={() => setPublishing(true)}>
           <Upload className="h-4 w-4" /> Publicar un producto en ML
         </Button>
@@ -179,6 +204,11 @@ export function PublicacionesTab() {
           })}
         </div>
       )}
+      <Pagination
+        page={Math.min(page, totalPages)}
+        totalPages={totalPages}
+        onPage={(p) => list.set({ 'pagina-publicaciones': p })}
+      />
 
       {linking && <LinkModal item={linking} onClose={() => setLinking(null)} onLinked={load} />}
       {publishing && <PublishModal onClose={() => setPublishing(false)} onPublished={load} />}
@@ -200,6 +230,8 @@ function LinkModal({
   const [productId, setProductId] = useState('');
   const [variantId, setVariantId] = useState('');
   const [saving, setSaving] = useState(false);
+  // Lo que se escribe en el buscador no cuenta: lo que se pierde es lo elegido.
+  const { dirty, close } = useModalFormGuard({ productId, variantId }, onClose);
 
   const { data: found } = useProductSearch<ProductDto>(search);
   const products = found?.items ?? [];
@@ -236,11 +268,12 @@ function LinkModal({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Vincular con tu catálogo"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving || !productId || !variantId}>
@@ -288,6 +321,7 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   >(null);
   const [categoryId, setCategoryId] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const { dirty, close } = useModalFormGuard({ productId, categoryId }, onClose);
 
   const { data: found } = useProductSearch<ProductDto>(search, { activeOnly: true });
   const products = found?.items ?? [];
@@ -337,11 +371,12 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Publicar en Mercado Libre"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={publish} disabled={publishing || !product || !categoryId}>

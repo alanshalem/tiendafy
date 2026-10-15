@@ -9,6 +9,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { Helper } from './Helper';
 import { TableSkeleton } from '../../components/Skeleton';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 /** Lo que guarda y devuelve /admin/payments/options. */
 interface PaymentOptions {
@@ -70,12 +71,15 @@ export function PaymentOptionsCard() {
   const { toast } = useToast();
 
   const [value, setValue] = useState<PaymentOptions>(EMPTY);
+  // Lo último que vino del servidor: contra eso se mide si hay cambios.
+  const [saved, setSaved] = useState<PaymentOptions>(EMPTY);
   const [meta, setMeta] = useState<PaymentOptionsDto | null>(null);
   const [saving, setSaving] = useState(false);
+  useUnsavedInScope(!readOnly && JSON.stringify(value) !== JSON.stringify(saved));
 
   const apply = (d: PaymentOptionsDto) => {
     setMeta(d);
-    setValue({
+    const form: PaymentOptions = {
       ...EMPTY,
       ...d,
       bankName: d.bankName ?? '',
@@ -85,7 +89,9 @@ export function PaymentOptionsCard() {
       alias: d.alias ?? '',
       instructions: d.instructions ?? '',
       installmentsNote: d.installmentsNote ?? '',
-    });
+    };
+    setValue(form);
+    setSaved(form);
   };
 
   const { loading } = useServerLoad(

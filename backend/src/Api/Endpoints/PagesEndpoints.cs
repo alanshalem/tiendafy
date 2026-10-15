@@ -21,13 +21,24 @@ public static class PagesEndpoints
 
         var pages = group.MapGroup("/pages").RequireTenant().RequirePermissionForWrites(Permission.ContentWrite);
 
-        // Admin: todas las páginas del tenant.
-        pages.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        // Admin: las páginas del tenant (con borradores), de a una página y con
+        // búsqueda por título o dirección. Cada una trae su cuerpo entero: antes
+        // venían todas juntas.
+        pages.MapGet("/", async (
+            ITenantContext tenant, ContentDbContext db, CancellationToken ct,
+            string? q = null, int? offset = null, int? limit = null) =>
         {
             var tid = tenant.TenantId.Value;
-            var items = await db.Pages.AsNoTracking().Where(p => p.TenantId == tid)
-                .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
-            return Results.Ok(new { items = items.Select(ToDto) });
+            var query = db.Pages.AsNoTracking().Where(p => p.TenantId == tid);
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = $"%{q.Trim()}%";
+                query = query.Where(p => EF.Functions.ILike(p.Title, term) || EF.Functions.ILike(p.Slug, term));
+            }
+            var (items, total) = await query
+                .OrderByDescending(p => p.UpdatedAtUtc).ThenBy(p => p.Id)
+                .PageAsync(offset, limit, ct);
+            return Results.Ok(new { items = items.Select(ToDto), total });
         }).RequirePermission(Permission.ContentWrite); // incluye borradores
 
         // Storefront: lista liviana de páginas PUBLICADAS (para el navbar). Sin body ni borradores.

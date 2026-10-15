@@ -34,7 +34,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['tenants'],
-    queryFn: () => api.get<{ items: Tenant[] }>('/api/v1/tenants?limit=50'),
+    // El selector las quiere todas: 200 es el techo de la API (antes se pedían
+    // 50 y el servidor igual mandaba todas).
+    queryFn: () => api.get<{ items: Tenant[] }>('/api/v1/tenants?limit=200'),
     meta: { errorShown: true },
   });
 

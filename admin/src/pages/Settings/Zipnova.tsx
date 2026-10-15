@@ -4,6 +4,7 @@ import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tien
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatAmount } from '../../lib/format';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 interface ZipnovaConfig {
   configured: boolean;
@@ -95,6 +96,11 @@ function ConfigModal({
   const [width, setWidth] = useState(String(config.defaultWidthCm ?? 20));
   const [height, setHeight] = useState(String(config.defaultHeightCm ?? 10));
   const [active, setActive] = useState(config.active ?? true);
+  // Las credenciales nunca vuelven del servidor: escribir una ya es un cambio.
+  const { dirty, close } = useModalFormGuard(
+    { apiToken, apiSecret, country, accountId, originId, weight, length, width, height, active },
+    onClose,
+  );
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testCity, setTestCity] = useState('Rosario');
@@ -150,10 +156,11 @@ function ConfigModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Zipnova"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving}>

@@ -14,4 +14,11 @@ public interface ITenancyService
     Task<TenantDto?> ResolveByHostAsync(string host, CancellationToken ct = default);
 
     Task<TenantDto?> GetByIdAsync(Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Una página de las tiendas pedidas por id (las de un usuario), ordenadas
+    /// por nombre y filtradas por nombre si viene <paramref name="search"/>.
+    /// </summary>
+    Task<(IReadOnlyList<TenantDto> Items, int Total)> PageByIdsAsync(
+        IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default);
 }

@@ -7,6 +7,7 @@ import { NotificationUsage } from '../../components/NotificationUsage';
 import { LazyRichTextEditor as RichTextEditor } from '../../components/LazyRichTextEditor';
 import { EmailPreviewPanel } from '../../components/EmailPreview';
 import { api } from '../../lib/api';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 import { useStore } from '../../context/StoreContext';
 import { TemplateGrid } from './TemplateGrid';
 
@@ -127,6 +128,7 @@ function EditModal({
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.bodyHtml);
   const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
+  const { dirty, close } = useModalFormGuard({ subject, body }, onClose);
 
   // Preview EXACTO: lo renderiza el backend con el mismo layout brandeado
   // (logo + color de la tienda) que usa al enviar. Debounce para no spamear.
@@ -148,10 +150,11 @@ function EditModal({
       open
       size="xl"
       onClose={onClose}
+      dirty={dirty}
       title={`Editar: ${template.label}`}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={() => onSave(subject, body)}>Guardar</Button>

@@ -11,6 +11,7 @@ import { ZipnovaCard } from './Zipnova';
 import { AndreaniCard } from './Andreani';
 import type { MoneyDto } from '@tiendafy/types';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 import { TableSkeleton } from '../../components/Skeleton';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
@@ -288,6 +289,10 @@ function MethodDialog({
   const [freeAbove, setFreeAbove] = useState(method?.freeAbove ? String(method.freeAbove.amount / 100) : '');
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
+  const { dirty, close } = useModalFormGuard(
+    { name, kind, price, description, pickupAddress, active, freeAbove },
+    onClose,
+  );
 
   const parsedPrice = price.trim() === '' ? 0 : Number(price.replace(',', '.'));
   const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 0;
@@ -329,10 +334,11 @@ function MethodDialog({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title={method ? 'Editar medio de envío' : 'Agregar medio de envío'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button variant="secondary" onClick={close} disabled={busy}>
             Cancelar
           </Button>
           <Button onClick={submit} disabled={busy}>

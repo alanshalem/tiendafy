@@ -86,9 +86,9 @@ public static class MeliDemoFeed
             };
     }
 
-    public static object Claims() => new
+    public static object Claims(int skip = 0, int take = int.MaxValue)
     {
-        claims = new object[]
+        var all = new object[]
         {
             new
             {
@@ -108,8 +108,9 @@ public static class MeliDemoFeed
                 resourceId = "2000009811223344",
                 dateCreated = Ago(-240),
             },
-        },
-    };
+        };
+        return new { claims = all.Skip(skip).Take(take).ToArray(), total = all.Length };
+    }
 
     /// <summary>Conversación de posventa de ejemplo, la misma para cualquier pack.</summary>
     public static object Messages() => new
@@ -131,9 +132,10 @@ public static class MeliDemoFeed
     /// Publicaciones + el vínculo real con el catálogo, que sí vive en la base:
     /// así "stock unificado" se ve funcionando de verdad sobre datos de ejemplo.
     /// </summary>
-    public static object ItemsWithLinks(IReadOnlyList<MeliItemLink> links) => new
+    public static object ItemsWithLinks(IReadOnlyList<MeliItemLink> links, int skip = 0, int take = int.MaxValue) => new
     {
-        items = Items.Select(i =>
+        total = Items.Length,
+        items = Items.Skip(skip).Take(take).Select(i =>
         {
             var link = links.FirstOrDefault(l => l.MeliItemId == i.Id);
             return (object)new

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
 import { useConfirm } from '@tiendafy/ui';
 
@@ -75,6 +75,45 @@ export function useGuardedClose(dirty: boolean, onClose: () => void): () => void
       if (discard) onClose();
     });
   };
+}
+
+/**
+ * Si el form cambió desde que se abrió: compara lo que tiene ahora con lo que
+ * tenía al montarse (o al cambiar `resetKey`, para un form que no se vuelve a
+ * montar en cada apertura). Comparar contra lo inicial y no "algún campo con
+ * algo" es lo que evita preguntar al cerrar una edición que no se tocó, o
+ * después de escribir y borrar.
+ *
+ * `values` tiene que ser serializable (lo que el form manda o sus campos).
+ */
+export function useFormDirty(values: unknown, resetKey?: unknown): boolean {
+  const json = JSON.stringify(values);
+  const [base, setBase] = useState({ key: resetKey, json });
+  // Se ajusta al dibujar, no en un efecto: en el mismo render en que cambia la
+  // clave, lo que hay es lo inicial de la nueva apertura.
+  if (base.key !== resetKey) {
+    setBase({ key: resetKey, json });
+    return false;
+  }
+  return json !== base.json;
+}
+
+/**
+ * Todo lo que necesita un form en modal para no perder lo cargado: `dirty`
+ * para la prop del Modal (la X, Escape y el fondo), `close` para su botón
+ * Cancelar (la misma pregunta) y el aviso del navegador al cerrar la pestaña.
+ * Guardar cierra con el `onClose` de siempre, sin preguntar.
+ */
+export function useModalFormGuard(
+  values: unknown,
+  onClose: () => void,
+  options: { resetKey?: unknown; enabled?: boolean } = {},
+): { dirty: boolean; close: () => void } {
+  const { resetKey, enabled = true } = options;
+  const dirty = useFormDirty(values, resetKey) && enabled;
+  useBeforeUnload(dirty);
+  const close = useGuardedClose(dirty, onClose);
+  return { dirty, close };
 }
 
 /** Cerrar o recargar la pestaña con cambios sin guardar pide la confirmación del navegador. */

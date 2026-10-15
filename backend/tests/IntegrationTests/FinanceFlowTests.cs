@@ -98,8 +98,9 @@ public sealed class FinanceFlowTests
         var ledger = await merchant.GetAsync($"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
         Assert.Equal(80_000, ledger.GetProperty("balanceMinor").GetInt64());
 
-        // El saldo acumulado del estado de cuenta tiene que cerrar con el total.
-        var ultimo = ledger.GetProperty("items").EnumerateArray().Last();
+        // El saldo acumulado del estado de cuenta tiene que cerrar con el total
+        // (el movimiento más nuevo viene primero).
+        var ultimo = ledger.GetProperty("items").EnumerateArray().First();
         Assert.Equal(80_000, ultimo.GetProperty("balanceMinor").GetInt64());
 
         // Y la factura quedó con 80.000 pendientes, no con 200.000.

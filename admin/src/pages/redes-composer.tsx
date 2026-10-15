@@ -13,12 +13,13 @@ import {
   X as XIcon,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
+import { Button, Input, Modal, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
 import { storePublicUrl } from '../lib/storefront';
 import { useProductSearch } from '../lib/useProductSearch';
+import { CouponPicker } from '../components/CouponPicker';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 import {
   localInputToUtcIso,
@@ -91,13 +92,14 @@ export function ComposerModal({
   const aiEnabled = useAiEnabled();
   const [improving, setImproving] = useState(false);
 
-  // Cupones activos para medir ventas del post (misma atribución que campañas).
-  const { data: couponsData } = useQuery({
-    queryKey: ['coupons', store?.id],
-    queryFn: () => api.get<{ items: { code: string; active: boolean }[] }>('/api/v1/coupons'),
+  // Cupón para medir ventas del post (misma atribución que campañas). Solo se
+  // pregunta si la tienda tiene alguno: el buscador pide el resto.
+  const { data: anyCoupon } = useQuery({
+    queryKey: ['coupons-any', store?.id],
+    queryFn: () => api.get<{ total: number }>('/api/v1/coupons?limit=1'),
     enabled: !!store,
   });
-  const activeCoupons = (couponsData?.items ?? []).filter((c) => c.active);
+  const hasCoupons = (anyCoupon?.total ?? 0) > 0;
   const [saving, setSaving] = useState<'draft' | 'schedule' | 'now' | null>(null);
 
   const limitsByKey = useMemo(
@@ -383,19 +385,15 @@ export function ComposerModal({
             />
 
             {/* Cupón: el post se mide como una campaña de email */}
-            {activeCoupons.length > 0 && (
+            {(hasCoupons || couponCode) && (
               <div>
                 <p className="mb-1.5 text-sm font-medium text-fg">Cupón para medir ventas (opcional)</p>
                 <div className="flex gap-2">
                   <div className="w-64">
-                    <Select
-                      aria-label="Cupón para medir ventas"
+                    <CouponPicker
+                      label="Cupón para medir ventas"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      options={[
-                        { value: '', label: 'Sin cupón' },
-                        ...activeCoupons.map((c) => ({ value: c.code, label: c.code })),
-                      ]}
+                      onChange={setCouponCode}
                     />
                   </div>
                   {couponCode && !content.includes(couponCode) && (

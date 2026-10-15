@@ -134,15 +134,18 @@ public static class ThemeEndpoints
 
         // Historial: qué se publicó y cuándo. Sin la config entera (son documentos
         // grandes y el listado solo necesita la fecha).
-        theme.MapGet("/history", async (ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
+        // De a una página: cada publicación suma una versión y la lista crece
+        // para siempre.
+        theme.MapGet("/history", async (
+            ITenantContext tenant, ThemesDbContext db, CancellationToken ct, int? offset = null, int? limit = null) =>
         {
             var tid = tenant.TenantId.Value;
-            var items = await db.ThemeVersions.AsNoTracking()
+            var (items, total) = await db.ThemeVersions.AsNoTracking()
                 .Where(v => v.TenantId == tid)
-                .OrderByDescending(v => v.PublishedAtUtc)
+                .OrderByDescending(v => v.PublishedAtUtc).ThenBy(v => v.Id)
                 .Select(v => new { id = v.Id, publishedAtUtc = v.PublishedAtUtc })
-                .ToListAsync(ct);
-            return Results.Ok(new { items });
+                .PageAsync(offset, limit, ct, defaultLimit: 20);
+            return Results.Ok(new { items, total });
         }).RequirePermission(Permission.ContentWrite);
 
         // Volver a una versión: se carga en el BORRADOR, no se publica sola. El

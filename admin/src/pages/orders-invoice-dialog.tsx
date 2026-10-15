@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { Button, FormField, Input, Modal, Select } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 /** Condición frente al IVA, como la entiende la API (ver IvaConditionWire). */
 export type IvaCondition = 'ResponsableInscripto' | 'Monotributo' | 'Exento' | 'ConsumidorFinal';
@@ -56,6 +57,7 @@ export function InvoiceDialog({
   const [padron, setPadron] = useState<Padron | null>(null);
   const [consultando, setConsultando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { dirty, close } = useModalFormGuard({ doc: doc.trim(), condicion }, onClose);
 
   const esCuit = soloDigitos(doc).length === 11;
 
@@ -85,10 +87,11 @@ export function InvoiceDialog({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title="Facturar la venta"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button variant="secondary" onClick={close} disabled={busy}>
             Cancelar
           </Button>
           <Button onClick={confirmar} disabled={busy}>

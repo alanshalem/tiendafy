@@ -9,6 +9,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 interface DomainStatus {
   subdomain: string;
@@ -324,6 +325,7 @@ function DomainModal({
 }) {
   const { toast } = useToast();
   const [domain, setDomain] = useState('');
+  const { dirty, close } = useModalFormGuard(domain.trim(), onClose);
 
   const save = useMutation({
     mutationFn: () =>
@@ -349,10 +351,11 @@ function DomainModal({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Conectar mi dominio"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={() => save.mutate()} disabled={!domain.trim()} loading={save.isPending}>

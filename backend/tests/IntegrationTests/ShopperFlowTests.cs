@@ -189,6 +189,25 @@ public sealed partial class ShopperFlowTests
 
         var customerView = await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/shop/support/conversations/{conversationId}/messages");
         Assert.Equal(4, customerView.GetProperty("items").GetArrayLength());
+
+        // El panel lee el hilo de a tandas: las últimas, y "Ver anteriores" con
+        // el id del más viejo que ya tiene.
+        var latest = await merchant.GetAsync($"/api/v1/support/conversations/{conversationId}/messages?limit=3");
+        var latestItems = latest.GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(3, latestItems.Count);
+        Assert.True(latest.GetProperty("hasMore").GetBoolean());
+        var older = await merchant.GetAsync(
+            $"/api/v1/support/conversations/{conversationId}/messages?limit=3&before={latestItems[0].GetProperty("id").GetGuid()}");
+        Assert.Equal("¿Cuándo llega?", Assert.Single(older.GetProperty("items").EnumerateArray()).GetProperty("body").GetString());
+        Assert.False(older.GetProperty("hasMore").GetBoolean());
+        var inboxPage = await merchant.GetAsync("/api/v1/support/conversations?limit=1");
+        Assert.Equal(1, inboxPage.GetProperty("total").GetInt32());
+        Assert.Equal(1, inboxPage.GetProperty("openCount").GetInt32());
+        // Ya leída por la tienda: no espera respuesta, y el filtro lo respeta
+        // (las cifras siguen contando todas).
+        var waiting = await merchant.GetAsync("/api/v1/support/conversations?filter=waiting");
+        Assert.Equal(0, waiting.GetProperty("total").GetInt32());
+        Assert.Equal(1, waiting.GetProperty("allCount").GetInt32());
         Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
 
         var closed = await merchant.PostAsync($"/api/v1/support/conversations/{conversationId}/close", new { });

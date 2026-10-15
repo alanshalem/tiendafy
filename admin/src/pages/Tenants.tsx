@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import {
   Badge,
@@ -19,12 +19,17 @@ import { MoreVertical, Pencil, Archive, ArchiveRestore, Plus, Trash2 } from 'luc
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { storefrontHost, storePublicHost, storePublicUrl } from '../lib/storefront';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
+import { useListParams, useListSearch } from '../lib/useListParams';
+import { useStore } from '../context/StoreContext';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
 import { Delta } from '../components/charts/viz';
 import { TableSkeleton } from '../components/Skeleton';
 
 interface TenantsResponse {
   items: Tenant[];
+  total?: number;
   nextCursor: string | null;
   hasMore: boolean;
   /** Abrir tiendas nuevas es de dueños (o la primera de quien no está en ninguna). */
@@ -51,6 +56,9 @@ interface OverviewResponse {
 
 /** Ventana del tablero, en días. */
 const WINDOW_DAYS = 30;
+
+const PAGE_SIZE = 25;
+const LIST_DEFAULTS = { q: '', pagina: 1 };
 
 /** "hace 3 días" — para ver de un vistazo qué tienda dejó de vender. */
 function sinceLabel(iso: string | null): string {
@@ -89,10 +97,29 @@ export function TenantsPage() {
     setConfirmText('');
   };
 
+  // De a una página y con búsqueda por nombre en el servidor: antes se pedían
+  // 50 sin forma de ver la 51. La clave empieza con 'tenants', así invalidar
+  // la lista del selector de tienda también refresca esta.
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const page = list.values.pagina;
+  const q = list.values.q.trim();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['tenants'],
-    queryFn: () => api.get<TenantsResponse>('/api/v1/tenants?limit=50'),
+    queryKey: ['tenants', 'pagina', page, q],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<TenantsResponse>(`/api/v1/tenants?${params}`);
+    },
+    placeholderData: keepPreviousData,
   });
+  const total = data?.total ?? data?.items.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Las activas se cuentan sobre todas (la lista del selector), no sobre la página.
+  const { stores } = useStore();
   const canCreate = data?.canCreate ?? false;
   const manageable = new Set(data?.manageable ?? []);
 
@@ -108,7 +135,7 @@ export function TenantsPage() {
   const revenue = all.reduce((sum, m) => sum + m.revenueMinor, 0);
   const previousRevenue = all.reduce((sum, m) => sum + m.previousRevenueMinor, 0);
   const currency = all.find((m) => m.revenueMinor > 0)?.currency ?? 'ARS';
-  const activeStores = (data?.items ?? []).filter((t) => t.status === 'ACTIVE').length;
+  const activeStores = stores.filter((t) => t.status === 'ACTIVE').length;
   const selling = all.filter((m) => m.orders > 0).length;
 
   const refresh = () => {
@@ -332,12 +359,36 @@ export function TenantsPage() {
           </p>
         )}
         {data && (
-          <Table
-            columns={columns}
-            rows={data.items}
-            rowKey={(t) => t.id}
-            emptyState="Todavía no hay tiendas. Creá la primera."
-          />
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-3">
+              <Input
+                type="search"
+                aria-label="Buscar tienda por nombre"
+                placeholder="Buscar tienda por nombre…"
+                className="max-w-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="text-xs text-fg-subtle">
+                {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'tienda' : 'tiendas')}
+              </span>
+            </div>
+            <Table
+              columns={columns}
+              rows={data.items}
+              rowKey={(t) => t.id}
+              emptyState={
+                list.filtered
+                  ? 'Ninguna tienda coincide con la búsqueda.'
+                  : 'Todavía no hay tiendas. Creá la primera.'
+              }
+            />
+            <Pagination
+              page={Math.min(page, totalPages)}
+              totalPages={totalPages}
+              onPage={(pagina) => list.set({ pagina })}
+            />
+          </>
         )}
       </Card>
 
@@ -451,6 +502,7 @@ function TenantFormModal({
   const [subdomain, setSubdomain] = useState(tenant?.subdomain ?? '');
   const [customDomain, setCustomDomain] = useState(tenant?.customDomain ?? '');
   const [error, setError] = useState<string>();
+  const { dirty, close } = useModalFormGuard({ name, subdomain, customDomain }, onClose);
 
   const check = useAvailability(name.trim(), subdomain.trim(), tenant?.id);
   const nameTaken = !!name.trim() && check?.nameAvailable === false;
@@ -485,10 +537,11 @@ function TenantFormModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={mode === 'create' ? 'Crear tienda' : 'Editar tienda'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button loading={save.isPending} disabled={blocked} onClick={() => save.mutate()}>

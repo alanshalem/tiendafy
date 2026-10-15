@@ -4,6 +4,7 @@ import { Button, Checkbox, Modal, cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { refundEffect } from '../lib/orderFacets';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { money, type Order, type RefundRecord } from './Orders';
 
 /** Modal de reembolso: total o parcial con monto y motivo, más historial. */
@@ -25,6 +26,7 @@ export function RefundDialog({
   const [reason, setReason] = useState('');
   const [restock, setRestock] = useState(true);
   const [history, setHistory] = useState<RefundRecord[] | null>(null);
+  const { dirty, close } = useModalFormGuard({ mode, amount, reason, restock }, onClose);
 
   useEffect(() => {
     let alive = true;
@@ -48,10 +50,11 @@ export function RefundDialog({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Reembolsar pedido"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button

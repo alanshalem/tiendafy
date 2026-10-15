@@ -23,6 +23,7 @@ import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { Helper } from './Helper';
 import { BRAND } from '../../lib/runtime';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -260,6 +261,13 @@ export function IssuerStep({
   const [condition, setCondition] = useState<FiscalCondition>(config?.condition ?? 'RESPONSABLEINSCRIPTO');
   const [environment, setEnvironment] = useState<FiscalEnvironment>(config?.environment ?? 'HOMOLOGACION');
   const [busy, setBusy] = useState(false);
+  // Contra la config guardada: al guardar se recarga y deja de haber cambios.
+  useUnsavedInScope(
+    cuit !== (config?.cuit ?? '') ||
+      businessName !== (config?.businessName ?? '') ||
+      condition !== (config?.condition ?? 'RESPONSABLEINSCRIPTO') ||
+      environment !== (config?.environment ?? 'HOMOLOGACION'),
+  );
 
   const save = async () => {
     if (busy) return;
@@ -392,6 +400,8 @@ export function CertificateStep({
 
   const [csr, setCsr] = useState<CsrResponse | null>(null);
   const [certPem, setCertPem] = useState('');
+  // El certificado pegado y sin activar: volver a bajarlo de ARCA cuesta.
+  useUnsavedInScope(certPem.trim() !== '');
   const [generating, setGenerating] = useState(false);
   const [activating, setActivating] = useState(false);
 
@@ -647,6 +657,7 @@ export function PointsOfSaleStep({
   const [label, setLabel] = useState('');
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  useUnsavedInScope(number.trim() !== '' || label.trim() !== '');
 
   const add = async () => {
     const n = Number(number.trim());
@@ -793,6 +804,11 @@ export function EmissionStep({
   const [trigger, setTrigger] = useState<InvoiceTrigger>(config?.trigger ?? 'ONPAYMENT');
   const [defaultPos, setDefaultPos] = useState(config?.defaultPointOfSaleId ?? '');
   const [busy, setBusy] = useState(false);
+  useUnsavedInScope(
+    autoInvoice !== (config?.autoInvoice ?? false) ||
+      trigger !== (config?.trigger ?? 'ONPAYMENT') ||
+      defaultPos !== (config?.defaultPointOfSaleId ?? ''),
+  );
 
   const configured = !!config?.configured;
 

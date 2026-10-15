@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Button, Tabs, useToast } from '@tiendafy/ui';
 import { api } from '../lib/api';
@@ -9,10 +10,22 @@ import { LoadError } from '../components/LoadError';
 import { ListStats } from '../components/stats/ListStats';
 import { formatMoney, formatNumber } from '../lib/format';
 import { CalendarioTab } from './redes-calendario';
-import { PublicacionesTab } from './redes-publicaciones';
+import { PublicacionesTab, SOCIAL_POSTS_KEY } from './redes-publicaciones';
 import { CuentasTab } from './redes-cuentas';
 import { ComposerModal } from './redes-composer';
-import type { SocialAccountDto, SocialChannelsDto, SocialPostDto } from './redes-shared';
+import { postDate, type SocialAccountDto, type SocialChannelsDto, type SocialPostDto } from './redes-shared';
+
+/**
+ * El rango que pide el calendario: el mes visible con margen para las semanas
+ * de los meses vecinos que entran en la grilla (6 semanas).
+ */
+function monthRange(month: Date): { from: Date; to: Date } {
+  const from = new Date(month.getFullYear(), month.getMonth(), 1);
+  from.setDate(from.getDate() - 7);
+  const to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+  to.setDate(to.getDate() + 14);
+  return { from, to };
+}
 
 type Tab = 'calendario' | 'publicaciones' | 'cuentas';
 
@@ -29,6 +42,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function RedesPage() {
   const { store } = useStore();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   // Al volver de conectar una cuenta (?social=…) se abre directo en Cuentas.
   const [tab, setTab] = useState<Tab>(() => (searchParams.get('social') ? 'cuentas' : 'calendario'));
@@ -52,29 +66,38 @@ export function RedesPage() {
       .catch((e: unknown) => setLoadError(e ?? true));
   }, []);
 
+  // Los del mes que se mira (calendario y cifras de arriba), no los de toda la
+  // historia: la bandeja pagina aparte (ver PublicacionesTab).
   const loadPosts = useCallback(() => {
+    const { from, to } = monthRange(month);
+    const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
     api
-      .get<{ posts: SocialPostDto[] }>('/api/v1/admin/social/posts')
+      .get<{ posts: SocialPostDto[] }>(`/api/v1/admin/social/posts?${params}`)
       .then((r) => setPosts(r.posts))
       .catch((e: unknown) => setLoadError(e ?? true));
-  }, []);
+  }, [month]);
 
-  const loadAll = useCallback(() => {
+  const loadSetup = useCallback(() => {
     api
       .get<SocialChannelsDto>('/api/v1/admin/social/channels')
       .then(setChannels)
       .catch((e: unknown) => setLoadError(e ?? true));
     loadAccounts();
-    loadPosts();
-  }, [loadAccounts, loadPosts]);
+  }, [loadAccounts]);
 
   useEffect(() => {
-    if (store) loadAll();
-  }, [store, loadAll]);
+    if (store) loadSetup();
+  }, [store, loadSetup]);
+
+  // Aparte: cambiar de mes pide solo los posts, no las cuentas.
+  useEffect(() => {
+    if (store) loadPosts();
+  }, [store, loadPosts]);
 
   const retry = () => {
     setLoadError(null);
-    loadAll();
+    loadSetup();
+    loadPosts();
   };
 
   // Vuelta del OAuth: ?social=connected|error (y la URL queda limpia).
@@ -92,11 +115,18 @@ export function RedesPage() {
 
   if (!store) return null;
 
-  const onSaved = () => loadPosts();
+  const onSaved = () => {
+    loadPosts();
+    void queryClient.invalidateQueries({ queryKey: [SOCIAL_POSTS_KEY, store.id] });
+  };
 
   // Del mes que se está mirando en el calendario, no de toda la historia: es
-  // el período que el resto de la pantalla ya muestra.
-  const monthPosts = posts ?? [];
+  // el período que el resto de la pantalla ya muestra (lo pedido trae unos
+  // días de los meses vecinos para la grilla).
+  const monthPosts = (posts ?? []).filter((p) => {
+    const at = postDate(p);
+    return at.getFullYear() === month.getFullYear() && at.getMonth() === month.getMonth();
+  });
   const scheduled = monthPosts.filter((p) => p.status === 'Scheduled').length;
   const published = monthPosts.filter((p) => p.status === 'Published').length;
   const failed = monthPosts.filter((p) => p.status === 'Failed').length;
@@ -191,11 +221,7 @@ export function RedesPage() {
         />
       )}
       {loadError === null && tab === 'publicaciones' && (
-        <PublicacionesTab
-          posts={posts}
-          onChanged={loadPosts}
-          onEdit={(post) => setComposer({ post, date: null })}
-        />
+        <PublicacionesTab onChanged={loadPosts} onEdit={(post) => setComposer({ post, date: null })} />
       )}
       {loadError === null && tab === 'cuentas' && (
         <CuentasTab channels={channels} accounts={accounts} onChanged={loadAccounts} />

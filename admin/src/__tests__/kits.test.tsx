@@ -129,18 +129,42 @@ describe('kits', () => {
   });
 
   it('volver sin guardar, y buscar en la lista por kit, SKU o componente', async () => {
-    const { user } = await openKits((a) => a.on('GET', '/api/v1/products/kits', { items: [kit] }));
+    const { api, user } = await openKits((a) =>
+      a.on('GET', '/api/v1/products/kits', { items: [kit], total: 1 }),
+    );
     await user.click(await screen.findByRole('button', { name: 'Editar' }));
     await user.click(screen.getByRole('button', { name: 'Volver' }));
 
+    // La búsqueda la resuelve el servidor (por kit, SKU o componente): la
+    // lista viene paginada y filtrar solo la página a la vista no alcanza.
     const search = screen.getByPlaceholderText(/Buscar kit por nombre, SKU o componente/);
-    for (const q of ['service', 'kit-srv', second.name.slice(0, 4).toLowerCase()]) {
-      await user.clear(search);
-      await user.type(search, q);
-      expect(screen.getByText(kit.kitLabel)).toBeInTheDocument();
-    }
+    await user.type(search, 'kit-srv');
+    await waitFor(() =>
+      expect(
+        api.calls.some((c) => c.path.startsWith('/api/v1/products/kits?') && c.path.includes('q=kit-srv')),
+      ).toBe(true),
+    );
+    expect(screen.getByText(kit.kitLabel)).toBeInTheDocument();
+
+    api.on('GET', '/api/v1/products/kits', { items: [], total: 0 });
     await user.clear(search);
     await user.type(search, 'zzz');
+    expect(await screen.findByText('Ningún kit coincide con la búsqueda.')).toBeInTheDocument();
     expect(screen.queryByText(kit.kitLabel)).not.toBeInTheDocument();
+  });
+
+  it('elegir una variante que ya es un kit (de otra página) la abre con sus componentes', async () => {
+    const existing = { ...kit, kitVariantId: first.variants[0]!.id };
+    const { api, user } = await openKits((a) =>
+      a.on('GET', '/api/v1/products/kits', { items: [], total: 0 }),
+    );
+    api.on('GET', '/api/v1/products/kits', { items: [existing], total: 1 });
+    await pick(user, /Buscar la variante que se vende como kit/, first.name.slice(0, 5));
+    await waitFor(() =>
+      expect(api.calls.some((c) => c.path.includes(`kitVariantId=${existing.kitVariantId}`))).toBe(true),
+    );
+    expect(await screen.findByText(/Componentes de:/)).toBeInTheDocument();
+    // Abrirla vacía y guardar le borraba la receta.
+    expect(screen.getAllByRole('spinbutton').length).toBe(existing.components.length);
   });
 });

@@ -9,6 +9,7 @@ import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 import { HelpLink } from '../../components/HelpLink';
 import { VariantPicker } from '../../components/VariantPicker';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import { SettingsHeader } from './SettingsLayout';
 import {
   itemLabel,
@@ -54,6 +55,7 @@ export function StockAlertsPage() {
   const currentMode = mode ?? settings?.mode ?? 'off';
   const currentHour = hour ?? settings?.digestHour ?? 9;
   const dirty = !!settings && (currentMode !== settings.mode || currentHour !== settings.digestHour);
+  useUnsavedInScope(dirty);
 
   const save = async () => {
     setSaving(true);

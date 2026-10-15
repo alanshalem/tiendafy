@@ -28,6 +28,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { TableSkeleton } from '../components/Skeleton';
 import { useListParams, useListSearch } from '../lib/useListParams';
 
@@ -315,6 +316,10 @@ function CouponModal({
   const [active, setActive] = useState(coupon?.active ?? true);
   const [error, setError] = useState<string>();
   const isEdit = !!coupon;
+  const { dirty, close } = useModalFormGuard(
+    { code, type, value, minPurchase, startsAt, endsAt, maxUses, active },
+    onClose,
+  );
 
   const save = useMutation({
     mutationFn: () => {
@@ -350,10 +355,11 @@ function CouponModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={isEdit ? 'Editar cupón' : 'Crear cupón'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button

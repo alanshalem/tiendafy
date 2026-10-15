@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -11,6 +11,11 @@ import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { VariantPicker } from '../../components/VariantPicker';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
+import { useListParams, useListSearch } from '../../lib/useListParams';
+import { Pagination, pageRangeLabel } from '../../components/Pagination';
+
+const PAGE_SIZE = 25;
+const LIST_DEFAULTS = { q: '', pagina: 1 };
 
 interface KitDto {
   kitVariantId: string;
@@ -38,7 +43,12 @@ export function KitsPage() {
 
   const [editingKit, setEditingKit] = useState<{ variantId: string; label: string } | null>(null);
   const [components, setComponents] = useState<DraftComponent[]>([]);
-  const [listSearch, setListSearch] = useState('');
+  // Búsqueda y página en la URL, resueltas por el servidor: antes llegaban
+  // todos los kits y se filtraba en el panel.
+  const list = useListParams(LIST_DEFAULTS);
+  const [listSearch, setListSearch] = useListSearch(list);
+  const page = list.values.pagina;
+  const q = list.values.q.trim();
 
   // Costo del kit = suma de sus componentes: sin esto era un número a mano.
   const { data: suggested } = useQuery({
@@ -53,12 +63,21 @@ export function KitsPage() {
   const suggestedByKit = new Map((suggested?.items ?? []).map((i) => [i.kitVariantId, i.suggestedCostMinor]));
 
   const { data: kits } = useQuery({
-    queryKey: ['kits', store?.id],
-    queryFn: () => api.get<{ items: KitDto[] }>('/api/v1/products/kits'),
+    queryKey: ['kits', store?.id, page, q],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: KitDto[]; total?: number }>(`/api/v1/products/kits?${params}`);
+    },
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
+  const total = kits?.total ?? kits?.items.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const existingKitIds = useMemo(() => new Set((kits?.items ?? []).map((k) => k.kitVariantId)), [kits]);
   const componentExcluded = useMemo(
     () =>
       new Set([
@@ -86,6 +105,18 @@ export function KitsPage() {
   });
 
   if (!store) return <NoStoreSelected />;
+
+  // La variante elegida puede ya ser un kit que no está en la página a la
+  // vista: se pregunta, y si lo es se abre con sus componentes (abrirla vacía
+  // y guardar le borraba la receta).
+  const pickKit = async (kit: { variantId: string; label: string }) => {
+    try {
+      const found = await api.get<{ items: KitDto[] }>(`/api/v1/products/kits?kitVariantId=${kit.variantId}`);
+      openEditor(kit, found.items.find((k) => k.kitVariantId === kit.variantId) ?? null);
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo abrir el kit'), { variant: 'error' });
+    }
+  };
 
   const openEditor = (kit: { variantId: string; label: string }, existing: KitDto | null) => {
     setEditingKit(kit);
@@ -115,19 +146,24 @@ export function KitsPage() {
             <div className="mt-2">
               <VariantPicker
                 placeholder="Buscar la variante que se vende como kit…"
-                exclude={existingKitIds}
-                onPick={(v) => openEditor({ variantId: v.variantId, label: v.label }, null)}
+                onPick={(v) => void pickKit({ variantId: v.variantId, label: v.label })}
               />
             </div>
           </Card>
 
-          <Input
-            type="search"
-            aria-label="Buscar kits"
-            placeholder="Buscar kit por nombre, SKU o componente…"
-            value={listSearch}
-            onChange={(e) => setListSearch(e.target.value)}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Input
+              type="search"
+              aria-label="Buscar kits"
+              placeholder="Buscar kit por nombre, SKU o componente…"
+              className="max-w-md"
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+            />
+            <span className="text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'kit' : 'kits')}
+            </span>
+          </div>
           <div className={TABLE_CARD}>
             <div className={TABLE_SCROLL_X}>
               <table className="w-full text-sm">
@@ -139,46 +175,38 @@ export function KitsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(kits?.items ?? [])
-                    .filter((k) => {
-                      const q = listSearch.trim().toLowerCase();
-                      return (
-                        q === '' ||
-                        k.kitLabel.toLowerCase().includes(q) ||
-                        k.kitSku.toLowerCase().includes(q) ||
-                        k.components.some((c) => c.label.toLowerCase().includes(q))
-                      );
-                    })
-                    .map((k) => (
-                      <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
-                        <td className="px-4 py-2.5 font-medium text-fg">
-                          {k.kitLabel}
-                          <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
-                        </td>
-                        <td className="px-4 py-2.5 text-fg-muted">
-                          {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
-                          {suggestedByKit.get(k.kitVariantId) != null && (
-                            <span className="ml-2 text-xs text-fg-subtle">
-                              · costo de componentes: {formatMoney(suggestedByKit.get(k.kitVariantId)!)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
-                          >
-                            Editar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                  {(kits?.items ?? []).map((k) => (
+                    <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
+                      <td className="px-4 py-2.5 font-medium text-fg">
+                        {k.kitLabel}
+                        <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-fg-muted">
+                        {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
+                        {suggestedByKit.get(k.kitVariantId) != null && (
+                          <span className="ml-2 text-xs text-fg-subtle">
+                            · costo de componentes: {formatMoney(suggestedByKit.get(k.kitVariantId)!)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
+                        >
+                          Editar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
                   {(kits?.items ?? []).length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-4 py-10 text-center text-sm text-fg-muted">
                         <Boxes className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                        Sin kits definidos. Buscá arriba el producto que vendés como combo.
+                        {list.filtered
+                          ? 'Ningún kit coincide con la búsqueda.'
+                          : 'Sin kits definidos. Buscá arriba el producto que vendés como combo.'}
                       </td>
                     </tr>
                   )}
@@ -186,6 +214,11 @@ export function KitsPage() {
               </table>
             </div>
           </div>
+          <Pagination
+            page={Math.min(page, totalPages)}
+            totalPages={totalPages}
+            onPage={(pagina) => list.set({ pagina })}
+          />
         </>
       ) : (
         <Card>
