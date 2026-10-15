@@ -46,6 +46,7 @@ public sealed partial class StockAlertFlowTests(ApiFactory factory)
         var mail = Assert.Single(Alerts(ana));
         Assert.Contains($"Campera {merchant.Subdomain}", mail.Html);
         Assert.Contains("/api/v1/back-in-stock/unsubscribe?token=", mail.Html);
+        Assert.Contains("ARS 1.000", mail.Html); // el precio como en el resto de los mails
         Assert.Single(Alerts(beto));
         Assert.Empty((await merchant.GetAsync("/api/v1/admin/back-in-stock")).GetProperty("items").EnumerateArray());
         Assert.Equal(2, (await merchant.GetAsync($"/api/v1/admin/back-in-stock/products/{productId}")).GetProperty("notified").GetInt32());

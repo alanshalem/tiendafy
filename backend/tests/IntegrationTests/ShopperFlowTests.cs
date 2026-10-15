@@ -119,6 +119,8 @@ public sealed partial class ShopperFlowTests
         Assert.Equal(2, alerts.Count);
         Assert.Contains(alerts, m => m.Html.Contains("Zapatilla"));
         Assert.Contains(alerts, m => m.Html.Contains("Campera"));
+        // El precio como en el resto de los mails, sin depender de la cultura del servidor.
+        Assert.Contains(alerts, m => m.Html.Contains("ARS 85.000"));
 
         // Al día siguiente no se repite.
         await Workers.RunOnceAsync<FavoriteAlertWorker>(_factory);

@@ -99,7 +99,7 @@ public sealed class FavoriteAlertWorker(
                     ["store"] = store.Name,
                     ["name"] = person.Name,
                     ["product"] = product.Name,
-                    ["price"] = new Money(product.PriceMinor, product.Currency).ToString(),
+                    ["price"] = MoneyFormat.ForNotification(new Money(product.PriceMinor, product.Currency)),
                     ["link"] = $"{store.Url}/productos/{product.Slug}",
                 };
 

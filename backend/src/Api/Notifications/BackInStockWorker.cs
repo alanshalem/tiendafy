@@ -131,7 +131,7 @@ public sealed class BackInStockWorker(
             {
                 ["store"] = WebUtility.HtmlEncode(store.Name),
                 ["product"] = WebUtility.HtmlEncode(label),
-                ["price"] = WebUtility.HtmlEncode(new Money(variant.Price.Amount, variant.Price.Currency).ToString()),
+                ["price"] = WebUtility.HtmlEncode(MoneyFormat.ForNotification(new Money(variant.Price.Amount, variant.Price.Currency))),
                 ["link"] = link,
             };
 
