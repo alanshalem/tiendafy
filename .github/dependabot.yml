@@ -46,6 +46,11 @@ updates:
       nuget-minor-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # Microsoft.AspNetCore.OpenApi 10 exige Microsoft.OpenApi < 3.0: el 3.x
+      # llega con .NET 11.
+      - dependency-name: Microsoft.OpenApi
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
