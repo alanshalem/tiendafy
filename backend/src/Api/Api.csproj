@@ -26,21 +26,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="QuestPDF" Version="2026.7.3" />
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="2.0.6" />
-    <PackageReference Include="AngleSharp" Version="1.7.1" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
-    <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
-    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="AngleSharp" Version="1.8.4" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.77.0" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.1039" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-    <PackageReference Include="Sentry.AspNetCore" Version="6.9.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+    <PackageReference Include="Sentry.AspNetCore" Version="6.12.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.16.20" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
   </ItemGroup>
 
   <PropertyGroup>
