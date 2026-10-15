@@ -17,6 +17,8 @@ interface Tpl {
   label: string;
   description: string;
   enabled: boolean;
+  /** Email de seguridad (verificar la cuenta, cambiar la contraseña): sale siempre, solo se edita el texto. */
+  alwaysOn?: boolean;
   subject: string;
   bodyHtml: string;
 }
@@ -80,13 +82,22 @@ export function AutoEmailsPage() {
           items={items}
           editLabel="Editar contenido"
           onEdit={setEditing}
-          renderToggle={(t) => (
-            <Switch
-              aria-label={`Activar «${t.label}»`}
-              checked={t.enabled}
-              onChange={(on) => toggle(t, on)}
-            />
-          )}
+          renderToggle={(t) =>
+            t.alwaysOn ? (
+              <span
+                className="shrink-0 whitespace-nowrap rounded-full bg-bg-muted px-2 py-0.5 text-xs font-medium text-fg-muted"
+                title="Es un email de seguridad: sin él, tus clientes no pueden entrar a su cuenta. Podés cambiarle el texto."
+              >
+                Siempre se envía
+              </span>
+            ) : (
+              <Switch
+                aria-label={`Activar «${t.label}»`}
+                checked={t.enabled}
+                onChange={(on) => toggle(t, on)}
+              />
+            )
+          }
         />
       </div>
 

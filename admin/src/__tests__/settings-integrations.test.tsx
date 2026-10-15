@@ -184,6 +184,32 @@ describe('e-mails automáticos', () => {
     });
   });
 
+  it('los emails de seguridad de la cuenta no tienen interruptor: salen siempre', async () => {
+    const tpl = (type: string, label: string, alwaysOn: boolean) => ({
+      type,
+      group: 'Cuenta de usuarios',
+      label,
+      description: 'x',
+      enabled: true,
+      alwaysOn,
+      subject: 'Asunto',
+      bodyHtml: '<p>x</p>',
+    });
+    await open(PATH, 'E-mails automáticos', (a) =>
+      a.on('GET', '/api/v1/email-templates', {
+        items: [
+          tpl('activacion-cuenta', 'Activación de cuenta', true),
+          { ...tpl('carritos-abandonados', 'Carritos abandonados', false), group: 'Promociones' },
+        ],
+      }),
+    );
+    expect(screen.queryByRole('switch', { name: 'Activar «Activación de cuenta»' })).not.toBeInTheDocument();
+    expect(screen.getByText('Siempre se envía')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Activar «Carritos abandonados»' })).toBeInTheDocument();
+    // El texto se edita igual.
+    expect(screen.getAllByRole('button', { name: /Editar contenido/ })).toHaveLength(2);
+  });
+
   it('si guardar falla, lo dice; si la vista previa falla, no rompe', async () => {
     const { user } = await open(PATH, 'E-mails automáticos', (a) => {
       a.on('PUT', `/api/v1/email-templates/${first.type}`, {}, 500);

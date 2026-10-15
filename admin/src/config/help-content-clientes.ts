@@ -160,9 +160,12 @@ export const CLIENTES = {
             rows: [
               [
                 'Ventas',
-                'Confirmación de compra, Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro), Confirmación de envío (con seguimiento), Cancelación de compra y Factura',
+                'Instrucciones de pago (transferencia o efectivo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro), Confirmación de envío (con seguimiento), Cancelación de compra y Factura',
               ],
-              ['Cuenta de usuarios', 'Activación de cuenta, Cambio de contraseña y Bienvenida'],
+              [
+                'Cuenta de usuarios',
+                'Activación de cuenta y Cambio de contraseña. Estos dos salen siempre: sin ellos tus clientes no pueden entrar a su cuenta. Podés cambiarles el texto.',
+              ],
               ['Promociones', 'Carritos abandonados, Bajó un favorito y Volvió un favorito'],
             ],
           },
@@ -170,7 +173,7 @@ export const CLIENTES = {
             type: 'demo',
             demo: 'switch',
             caption:
-              'Cada tipo de email tiene su interruptor — probalo. Apagado, ese email simplemente no se envía.',
+              'Cada tipo de email tiene su interruptor — probalo. Apagado, ese email simplemente no se envía (salvo los de la cuenta, que no se apagan).',
           },
         ],
       },
@@ -235,7 +238,7 @@ export const CLIENTES = {
       {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
-          'Arriba de esta pantalla, el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de compra, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
+          'Arriba de esta pantalla, el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de pago, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
         ],
       },
     ],

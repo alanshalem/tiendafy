@@ -1,7 +1,10 @@
+using System.Net;
+using System.Text;
 using Api.Workers;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Notifications.Infrastructure;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
 using Tenancy.Infrastructure.Persistence;
@@ -12,11 +15,20 @@ namespace Api.Notifications;
 /// Recuperación de carritos abandonados: cada cierto tiempo busca checkouts con
 /// email, no pagados, abandonados hace un rato, y manda UN email con link a la
 /// tienda. Marca el envío para no repetir.
+///
+/// <para>
+/// El email sale con la plantilla "carritos-abandonados" de la tienda (asunto,
+/// texto y si está prendida) y nunca a una dirección de la lista de supresión:
+/// es marketing, y quien se dio de baja, rebotó o marcó spam no lo recibe.
+/// Antes salía con un texto fijo, para todas las tiendas y sin mirar la lista.
+/// </para>
 /// </summary>
 public sealed class AbandonedCartWorker(
     IServiceScopeFactory scopeFactory,
     ILogger<AbandonedCartWorker> logger) : PollingWorker(TimeSpan.FromMinutes(15))
 {
+    public const string Template = "carritos-abandonados";
+
     private static readonly TimeSpan MinAge = TimeSpan.FromHours(1);  // esperar 1h tras abandono
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);   // no perseguir carritos viejos
 
@@ -31,6 +43,7 @@ public sealed class AbandonedCartWorker(
         var ordersDb = sp.GetRequiredService<OrdersDbContext>();
         var tenancy = sp.GetRequiredService<TenancyDbContext>();
         var email = sp.GetRequiredService<BrandedEmailSender>();
+        var templates = sp.GetRequiredService<IEmailTemplates>();
 
         var now = DateTime.UtcNow;
         var oldest = now - MaxAge;
@@ -64,35 +77,64 @@ public sealed class AbandonedCartWorker(
             t => (Name: t.Name, Subdomain: t.Subdomain.Value, CustomDomain: t.CustomDomain));
         var links = sp.GetRequiredService<StoreLinks>();
 
+        // Lista de supresión de cada tienda, solo para las direcciones de esta
+        // pasada (se guardan en minúsculas).
+        var addresses = candidates.Select(s => s.Email!.Trim().ToLowerInvariant()).Distinct().ToList();
+        var suppressed = (await sp.GetRequiredService<NotificationsDbContext>().EmailSuppressions
+                .IgnoreQueryFilters().AsNoTracking()
+                .Where(x => tenantGuids.Contains(x.TenantId) && addresses.Contains(x.Email))
+                .Select(x => new { x.TenantId, x.Email })
+                .ToListAsync(ct))
+            .Select(x => (x.TenantId, x.Email))
+            .ToHashSet();
+
         var sent = 0;
         foreach (var s in candidates)
         {
             if (paid.Contains(s.Id)) { s.MarkRecoveryEmailed(); continue; } // ya compró: no perseguir
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
 
-            var storeUrl = links.For(t.CustomDomain, t.Subdomain, "https");
-
-            await email.SendAsync(s.TenantId.Value, s.Email!, $"¿Te quedó algo en el carrito de {t.Name}?",
-                Body(t.Name, storeUrl, s.Items.Count), ct);
+            var to = s.Email!.Trim();
+            if (!suppressed.Contains((s.TenantId.Value, to.ToLowerInvariant())) && !BrandedEmailSender.IsPlaceholder(to))
+            {
+                var storeUrl = links.For(t.CustomDomain, t.Subdomain, "https");
+                var rendered = await templates.RenderAsync(s.TenantId.Value, Template, new Dictionary<string, string>
+                {
+                    ["store"] = WebUtility.HtmlEncode(t.Name),
+                    ["name"] = WebUtility.HtmlEncode(s.BuyerName ?? string.Empty),
+                    ["items"] = ItemsList(s),
+                    ["link"] = WebUtility.HtmlEncode(storeUrl),
+                }, ct);
+                // Apagada por la tienda: no sale el email (WhatsApp va por su lado).
+                if (rendered is { Enabled: true }
+                    && await email.SendAsync(s.TenantId.Value, to, rendered.Subject, rendered.Html, ct, Template))
+                    sent++;
+            }
             // WhatsApp solo si la sesión llegó a cargar teléfono (paso Entrega)
             // y la tienda tiene la plantilla de carrito abandonado activada.
             await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
                 s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
             s.MarkRecoveryEmailed();
-            sent++;
         }
 
         await checkoutDb.SaveChangesAsync(ct);
         if (sent > 0) logger.LogInformation("Recuperación de carritos: {Sent} emails enviados.", sent);
     }
 
-    private static string Body(string store, string url, int items) => $"""
-        <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="margin:0 0 8px">Te esperan {items} producto(s)</h2>
-          <p style="color:#444;line-height:1.5">Dejaste cosas en tu carrito de {store}. Todavía estás a tiempo de completar tu compra.</p>
-          <p style="margin:24px 0">
-            <a href="{url}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block">Volver a la tienda</a>
-          </p>
-        </div>
-        """;
+    /// <summary>{{items}}: lo que quedó en el carrito (nombre, variante, cantidad y precio).</summary>
+    private static string ItemsList(CheckoutSession s)
+    {
+        var sb = new StringBuilder("<table role='presentation' style='width:100%;border-collapse:collapse;font-size:14px;margin:12px 0'>");
+        foreach (var i in s.Items)
+        {
+            sb.Append("<tr style='border-bottom:1px solid #f0f0f0'><td style='padding:8px 0'>")
+              .Append(WebUtility.HtmlEncode(i.ProductName));
+            if (!string.IsNullOrWhiteSpace(i.VariantDescription) && i.VariantDescription != "Única")
+                sb.Append("<br/><span style='color:#8b8b8b;font-size:12px'>").Append(WebUtility.HtmlEncode(i.VariantDescription)).Append("</span>");
+            sb.Append("<br/><span style='color:#8b8b8b;font-size:12px'>x").Append(i.Quantity).Append("</span></td>")
+              .Append("<td style='padding:8px 0;text-align:right;white-space:nowrap;vertical-align:top'>")
+              .Append(WebUtility.HtmlEncode(MoneyFormat.ForNotification(i.UnitPrice * i.Quantity))).Append("</td></tr>");
+        }
+        return sb.Append("</table>").ToString();
+    }
 }

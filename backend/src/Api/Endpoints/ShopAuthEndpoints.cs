@@ -16,7 +16,7 @@ public static class ShopAuthEndpoints
     {
         var auth = group.MapGroup("/shop/auth");
 
-        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, BrandedEmailSender emailSender, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -37,15 +37,15 @@ public static class ShopAuthEndpoints
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, verifyTok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
             ShopAuth.SetSessionCookie(http, tid, token);
-            await emailSender.SendAsync(tid, customer.Email!, "Verificá tu email",
-                EmailBody("Verificá tu email", "Confirmá tu dirección para activar tu cuenta.",
-                    BuildLink(http, cfg, "/cuenta/verificar", verifyTok), "Verificar email"), ct);
+            // Con la plantilla "Activación de cuenta" de la tienda (sale siempre).
+            await emails.SendActivationAsync(tid, customer.Email!, customer.Name,
+                BuildLink(http, cfg, "/cuenta/verificar", verifyTok), ct);
             return Results.Ok(new { customer = ToDto(customer) });
         }).RequireRateLimiting("auth");
 
         // ¿Olvidaste tu contraseña? Manda email con link de reset. Respuesta uniforme
         // (204) exista o no el email → no permite enumerar cuentas.
-        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, BrandedEmailSender email, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
@@ -56,9 +56,9 @@ public static class ShopAuthEndpoints
                 var tok = ShopAuth.NewToken();
                 db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeReset, tok, TimeSpan.FromHours(1)));
                 await db.SaveChangesAsync(ct);
-                await email.SendAsync(tid, customer.Email!, "Restablecé tu contraseña",
-                    EmailBody("Restablecé tu contraseña", "Pediste cambiar tu contraseña. El link vence en 1 hora. Si no fuiste vos, ignorá este email.",
-                        BuildLink(http, cfg, "/cuenta/reset", tok), "Cambiar contraseña"), ct);
+                // Con la plantilla "Cambio de contraseña" de la tienda (sale siempre).
+                await emails.SendPasswordResetAsync(tid, customer.Email!, customer.Name,
+                    BuildLink(http, cfg, "/cuenta/reset", tok), ct);
             }
             return Results.NoContent();
         }).RequireRateLimiting("auth");
@@ -258,17 +258,6 @@ public static class ShopAuthEndpoints
         var baseUrl = IsSafeReturnUrl(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
         return $"{baseUrl}{path}?token={Uri.EscapeDataString(token)}";
     }
-
-    private static string EmailBody(string title, string text, string url, string cta) => $"""
-        <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="margin:0 0 8px">{title}</h2>
-          <p style="color:#444;line-height:1.5">{text}</p>
-          <p style="margin:24px 0">
-            <a href="{url}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block">{cta}</a>
-          </p>
-          <p style="color:#888;font-size:12px;word-break:break-all">O copiá este link: {url}</p>
-        </div>
-        """;
 
     internal static object ToDto(Customer c) => new { id = c.Id, name = c.Name, email = c.Email };
 }

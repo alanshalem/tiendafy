@@ -74,7 +74,9 @@ public static class EmailTemplateEndpoints
             });
         }).RequirePermission(Permission.NotificationsConfig);
 
-        // Lista combinada: defaults del catálogo + overrides del tenant.
+        // Lista combinada: defaults del catálogo + overrides del tenant. Sale
+        // del catálogo: una fila guardada de una clave que ya no existe
+        // (confirmacion-compra, bienvenida) simplemente no aparece.
         templates.MapGet("/", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>
         {
             var tid = tenant.TenantId.Value;
@@ -90,7 +92,9 @@ public static class EmailTemplateEndpoints
                     group = def.Group,
                     label = def.Label,
                     description = def.Description,
-                    enabled = o?.Enabled ?? def.DefaultEnabled,
+                    enabled = def.IsEnabled(o?.Enabled),
+                    // Los de seguridad no se apagan: el panel no les muestra el interruptor.
+                    alwaysOn = def.AlwaysOn,
                     subject = string.IsNullOrWhiteSpace(o?.Subject) ? def.DefaultSubject : o!.Subject,
                     bodyHtml = string.IsNullOrWhiteSpace(o?.BodyHtml) ? def.DefaultBody : o!.BodyHtml,
                 };
@@ -105,21 +109,22 @@ public static class EmailTemplateEndpoints
             if (def is null) return Results.NotFound();
 
             var tid = tenant.TenantId.Value;
+            var enabled = def.AlwaysOn || req.Enabled; // un email de seguridad no se apaga
             var subject = string.IsNullOrWhiteSpace(req.Subject) ? def.DefaultSubject : req.Subject!.Trim();
             var body = Sanitizer.Sanitize(string.IsNullOrWhiteSpace(req.BodyHtml) ? def.DefaultBody : req.BodyHtml!);
 
             var row = await db.EmailTemplates.FirstOrDefaultAsync(x => x.TenantId == tid && x.Type == type, ct);
             if (row is null)
             {
-                row = EmailTemplate.Create(tid, type, req.Enabled, subject, body);
+                row = EmailTemplate.Create(tid, type, enabled, subject, body);
                 db.EmailTemplates.Add(row);
             }
             else
             {
-                row.Update(req.Enabled, subject, body);
+                row.Update(enabled, subject, body);
             }
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { type, enabled = row.Enabled, subject = row.Subject, bodyHtml = row.BodyHtml });
+            return Results.Ok(new { type, enabled = row.Enabled, alwaysOn = def.AlwaysOn, subject = row.Subject, bodyHtml = row.BodyHtml });
         });
 
         // Vista previa EXACTA: mismo pipeline que el envío real (sanitizado +

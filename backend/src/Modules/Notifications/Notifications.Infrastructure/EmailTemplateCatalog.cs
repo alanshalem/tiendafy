@@ -1,15 +1,32 @@
 namespace Notifications.Infrastructure;
 
 /// <summary>Definición por defecto de una plantilla (metadata UI + contenido base).</summary>
+/// <param name="AlwaysOn">
+/// Email de seguridad (verificar la cuenta, cambiar la contraseña): sale
+/// siempre. La tienda solo puede cambiarle el texto; el panel no muestra el
+/// interruptor y un "apagado" guardado no cuenta.
+/// </param>
 public sealed record EmailTemplateDef(
     string Type, string Group, string Label, string Description,
-    bool DefaultEnabled, string DefaultSubject, string DefaultBody);
+    bool DefaultEnabled, string DefaultSubject, string DefaultBody, bool AlwaysOn = false)
+{
+    /// <summary>Si sale, según lo que guardó la tienda (null = nunca la tocó).</summary>
+    public bool IsEnabled(bool? saved) => AlwaysOn || (saved ?? DefaultEnabled);
+}
 
 /// <summary>
 /// Catálogo de emails automáticos. Es la fuente de defaults; el tenant solo
 /// guarda los que edita (overrides en la tabla email_templates).
 /// Variables disponibles: {{store}}, {{name}}, {{order_id}} (el número de pedido, sin #), {{total}}, {{items}}, {{tracking_link}} ("Seguí tu pedido"), {{link}}
 /// y, en las instrucciones de pago, {{payment_instructions}}.
+/// <para>
+/// Una plantilla está acá solo si algo la manda. "Confirmación de compra" y
+/// "Bienvenida" se sacaron (oct-2026): no había evento propio (la compra ya
+/// avisa con "Instrucciones de pago" o "Confirmación de pago"; el registro,
+/// con "Activación de cuenta") y prenderlas habría mandado un segundo email.
+/// Las filas que alguna tienda guardó de esas claves quedan en la tabla sin
+/// uso: el panel lista el catálogo, no la tabla.
+/// </para>
 /// </summary>
 public static class EmailTemplateCatalog
 {
@@ -21,10 +38,14 @@ public static class EmailTemplateCatalog
 
     public static readonly IReadOnlyList<EmailTemplateDef> All =
     [
+        // Encendida de fábrica: el worker la mandaba siempre (con un texto fijo)
+        // antes de que la plantilla existiera de verdad, y apagarla de golpe
+        // habría cortado un email que todas las tiendas ya mandaban.
+        // {{items}} es la lista de lo que quedó en el carrito.
         new("carritos-abandonados", "Promociones", "Carritos abandonados",
-            "Recordá una compra no finalizada a tus clientes.", false,
-            "¿Te olvidaste algo en {{store}}?",
-            Wrap("Tu carrito te espera", "<p>Hola, dejaste productos en tu carrito. ¡Terminá tu compra cuando quieras!</p><p><a href=\"{{link}}\">Volver al carrito</a></p>")),
+            "Recordá una compra no finalizada a tus clientes.", true,
+            "¿Te quedó algo en el carrito de {{store}}?",
+            Wrap("Tu carrito te espera", "<p>Dejaste cosas en tu carrito de {{store}}. Todavía estás a tiempo de completar tu compra.</p>{{items}}<p><a href=\"{{link}}\">Volver a la tienda</a></p>")),
 
         // Favoritos: el comprador ya dijo que lo quiere. Estos dos avisos son la
         // diferencia entre un corazón guardado en la base y una venta.
@@ -48,25 +69,21 @@ public static class EmailTemplateCatalog
             Wrap("¡Ya ingresó lo que esperabas! 🎉",
                 "<p>Hola, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p>Si todavía lo querés, ahora es el momento.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
 
+        // Emails de seguridad del login de la tienda: salen siempre (AlwaysOn).
+        // Sin el de activación nadie verifica su email; sin el de cambio de
+        // contraseña, quien la olvidó pierde la cuenta. {{link}} es el link
+        // con el token; si la tienda lo borra del texto, se agrega al final.
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
-            "Ayuda al cliente a confirmar su cuenta.", true,
-            "Confirmá tu cuenta en {{store}}",
-            Wrap("Confirmá tu cuenta", "<p>Hola {{name}}, confirmá tu email para activar tu cuenta:</p><p><a href=\"{{link}}\">Activar cuenta</a></p>")),
+            "Le pide al cliente que confirme su email al crear la cuenta. Sale siempre.", true,
+            "Verificá tu email",
+            Wrap("Verificá tu email", "<p>Hola {{name}}, confirmá tu dirección para activar tu cuenta.</p>" + Cta("Verificar email")),
+            AlwaysOn: true),
 
         new("cambio-contrasena", "Cuenta de usuarios", "Cambio de contraseña",
-            "Ayuda al usuario a recuperar su acceso.", true,
+            "Le manda el link para elegir una contraseña nueva a quien la olvidó. Sale siempre.", true,
             "Restablecé tu contraseña",
-            Wrap("Restablecer contraseña", "<p>Hola {{name}}, pediste cambiar tu contraseña. Si no fuiste vos, ignorá este email.</p><p><a href=\"{{link}}\">Cambiar contraseña</a></p>")),
-
-        new("bienvenida", "Cuenta de usuarios", "Bienvenida",
-            "Confirma que la cuenta fue creada con éxito.", true,
-            "¡Bienvenido a {{store}}!",
-            Wrap("¡Bienvenido!", "<p>Hola {{name}}, tu cuenta ya está lista. ¡Gracias por sumarte!</p>")),
-
-        new("confirmacion-compra", "Ventas", "Confirmación de compra",
-            "Confirma el pedido apenas se realiza la compra.", true,
-            "Recibimos tu pedido #{{order_id}}",
-            Wrap("¡Gracias por tu compra!", "<p>Tu pedido #{{order_id}} fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p><p><a href=\"{{tracking_link}}\">Seguí tu pedido</a></p>")),
+            Wrap("Restablecé tu contraseña", "<p>Hola {{name}}, pediste cambiar tu contraseña. El link vence en 1 hora. Si no fuiste vos, ignorá este email.</p>" + Cta("Cambiar contraseña")),
+            AlwaysOn: true),
 
         // Encendida por defecto: sin este email el que eligió transferencia no
         // tiene adónde mirar los datos de la cuenta si cierra la pestaña.
@@ -111,4 +128,9 @@ public static class EmailTemplateCatalog
     ];
 
     public static EmailTemplateDef? Find(string type) => All.FirstOrDefault(t => t.Type == type);
+
+    /// <summary>Botón al {{link}} y el link en texto, para quien no puede tocar el botón.</summary>
+    public static string Cta(string label) =>
+        $@"<p style=""margin:24px 0""><a href=""{{{{link}}}}"" style=""background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block"">{label}</a></p>
+<p style=""color:#888;font-size:12px;word-break:break-all"">O copiá este link: {{{{link}}}}</p>";
 }

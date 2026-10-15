@@ -107,6 +107,7 @@ public static class ServiceRegistration
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddHttpClient<IEmailSender, EmailSender>();
         services.AddScoped<OrderNotifier>();
+        services.AddScoped<ShopperAccountEmails>();
         services.AddScoped<StoreLinks>();
         services.AddScoped<BrandedEmailSender>();
         services.AddScoped<OrderItemImages>();

@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 
 namespace Notifications.Infrastructure;
@@ -20,11 +21,13 @@ public sealed class EmailTemplates(NotificationsDbContext db) : IEmailTemplates
         var ovr = await db.EmailTemplates.AsNoTracking()
             .FirstOrDefaultAsync(t => t.TenantId == tenantId && t.Type == type, ct);
 
-        var enabled = ovr?.Enabled ?? def.DefaultEnabled;
+        var enabled = def.IsEnabled(ovr?.Enabled);
         var subject = string.IsNullOrWhiteSpace(ovr?.Subject) ? def.DefaultSubject : ovr!.Subject;
         var body = string.IsNullOrWhiteSpace(ovr?.BodyHtml) ? def.DefaultBody : ovr!.BodyHtml;
 
-        return new RenderedEmail(enabled, Substitute(subject, vars), Substitute(body, vars));
+        // Las variables vienen HTML-encodeadas (van al cuerpo). El asunto es
+        // texto plano: sin decodificar, "Café" llegaba como "Caf&#233;".
+        return new RenderedEmail(enabled, WebUtility.HtmlDecode(Substitute(subject, vars)), Substitute(body, vars));
     }
 
     /// <summary>Reemplazo de placeholders {{var}}; compartido con el preview del editor.</summary>
