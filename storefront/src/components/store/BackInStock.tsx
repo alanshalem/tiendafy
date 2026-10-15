@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
-import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
@@ -37,7 +37,7 @@ export function BackInStock({ variantId, label }: { variantId: string; label?: s
     setState('sending');
     setMessage(null);
     try {
-      const res = await fetch(`${API_URL}/api/v1/back-in-stock`, {
+      const res = await fetch(`${apiUrl()}/api/v1/back-in-stock`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ variantId, email: email.trim(), website }),

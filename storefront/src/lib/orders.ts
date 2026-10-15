@@ -1,5 +1,5 @@
 import type { MoneyDto } from '@tiendafy/types';
-import { API_URL, problemMessage, tenantHeaders } from './api-client';
+import { apiUrl, problemMessage, tenantHeaders } from './api-client';
 
 /** Quién lleva el paquete y dónde mirarlo (ver CarrierTrackingLink en la API). */
 export interface CarrierTracking {
@@ -113,7 +113,7 @@ export async function trackOrder(
   query: { email?: string; number?: string; token?: string },
 ): Promise<TrackResult> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/shop/track-order`, {
+    const res = await fetch(`${apiUrl()}/api/v1/shop/track-order`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify(query),

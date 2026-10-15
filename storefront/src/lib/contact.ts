@@ -1,4 +1,4 @@
-import { API_URL, problemMessage, tenantHeaders } from './api-client';
+import { apiUrl, problemMessage, tenantHeaders } from './api-client';
 
 export type ContactSubmit = { ok: true; reference: string | null } | { ok: false; error: string };
 
@@ -12,7 +12,7 @@ export async function submitContact(
   payload: Record<string, unknown>,
 ): Promise<ContactSubmit> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/contact/submit`, {
+    const res = await fetch(`${apiUrl()}/api/v1/contact/submit`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify(payload),

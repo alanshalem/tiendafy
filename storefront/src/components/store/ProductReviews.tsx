@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { BadgeCheck, ChevronLeft, ChevronRight, Flag, MessageSquareReply, ThumbsUp, X } from 'lucide-react';
 import { formatDate } from '@tiendafy/types';
 import { cn } from '@tiendafy/ui/cn';
-import { API_URL, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 import { reviewsPath, type PublicReview, type ReviewSort, type ReviewsPage } from '@/lib/reviews';
 import { Stars, formatRating } from './ReviewStars';
@@ -84,7 +84,7 @@ export function ProductReviews({ productId, initial }: { productId: string; init
     setVoted(next);
     writeJson(votedKey(tenantId), next);
     try {
-      const res = await fetch(`${API_URL}/api/v1/reviews/${review.id}/helpful`, {
+      const res = await fetch(`${apiUrl()}/api/v1/reviews/${review.id}/helpful`, {
         method: 'POST',
         headers: tenantHeaders(tenantId),
       });
@@ -347,7 +347,7 @@ function ReportButton({ reviewId, tenantId }: { reviewId: string; tenantId: stri
   const send = async () => {
     setSent(true);
     try {
-      await fetch(`${API_URL}/api/v1/reviews/${reviewId}/report`, {
+      await fetch(`${apiUrl()}/api/v1/reviews/${reviewId}/report`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ reason }),

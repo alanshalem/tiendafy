@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, Store, Truck } from 'lucide-react';
 import { formatMoney, type MoneyDto } from '@tiendafy/types';
-import { API_URL, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { isPostalCode, normalizePostalCode, readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { CARRIERS, enabledCarriers, type CarrierKey } from './checkout-carriers';
 import { useCart } from './cart-context';
@@ -117,7 +117,7 @@ export function ShippingEstimate({
         ready.map(async (k): Promise<EstimateOption[] | null> => {
           const carrier = CARRIERS[k];
           try {
-            const res = await fetch(`${API_URL}${carrier.path}`, {
+            const res = await fetch(`${apiUrl()}${carrier.path}`, {
               method: 'POST',
               headers: tenantHeaders(tenantId, true),
               body: JSON.stringify(carrier.body(input)),

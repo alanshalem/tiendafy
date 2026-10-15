@@ -10,7 +10,7 @@ import { SupportChat } from './SupportChat';
 import { OrderSummary, OrderTimeline } from './OrderSummary';
 import { OrderPaymentInstructions } from './OrderPaymentInstructions';
 import { EmptyState } from './EmptyState';
-import { API_URL, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 import { repentHref, type OrderView } from '@/lib/orders';
 
 const BTN =
@@ -35,7 +35,7 @@ export function AccountOrderDetail({ orderId }: { orderId: string }) {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    fetch(`${API_URL}/api/v1/shop/orders/${orderId}`, {
+    fetch(`${apiUrl()}/api/v1/shop/orders/${orderId}`, {
       headers: tenantHeaders(tenantId),
       credentials: 'include',
     })
@@ -114,7 +114,7 @@ export function AccountOrderDetail({ orderId }: { orderId: string }) {
     setDownloading(true);
     setDownloadError(null);
     try {
-      const res = await fetch(`${API_URL}/api/v1/shop/orders/${order.id}/invoice.pdf`, {
+      const res = await fetch(`${apiUrl()}/api/v1/shop/orders/${order.id}/invoice.pdf`, {
         headers: tenantHeaders(tenantId),
         credentials: 'include',
       });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
-import { API_URL as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { finishPurchase } from '@/lib/cart-storage';
 import { trackingHref, type OrderView } from '@/lib/orders';
 import { OrderSummary } from './OrderSummary';

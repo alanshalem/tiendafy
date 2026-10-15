@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
 import { setTrackSink, valueOf, type FunnelEvent } from '@/lib/track';
 
 interface TrackingConfig {

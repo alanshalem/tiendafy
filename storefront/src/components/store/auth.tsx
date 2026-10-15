@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 
 interface ShopUser {

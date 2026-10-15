@@ -1,6 +1,6 @@
 import type { MoneyDto } from '@tiendafy/types';
 import type { CartLine } from '@/components/store/cart';
-import { API_URL, tenantHeaders } from './api-client';
+import { apiUrl, tenantHeaders } from './api-client';
 
 /**
  * El carrito guarda el precio del momento en que se agregó cada producto, y el
@@ -47,7 +47,7 @@ export async function fetchVariantSnapshots(
   if (ids.length === 0) return new Map();
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/products/variants?ids=${ids.map(encodeURIComponent).join(',')}`,
+      `${apiUrl()}/api/v1/products/variants?ids=${ids.map(encodeURIComponent).join(',')}`,
       // Con un tope: es una verificación, no puede dejar el carrito colgado.
       { headers: tenantHeaders(tenantId), signal: AbortSignal.timeout(8000) },
     );

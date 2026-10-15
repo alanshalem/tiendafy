@@ -1,4 +1,4 @@
-import { API_URL, tenantHeaders } from './api-client';
+import { apiUrl, tenantHeaders } from './api-client';
 
 export type NewsletterSource = 'home' | 'footer' | 'coming-soon';
 
@@ -15,7 +15,7 @@ export async function subscribeNewsletter(
   website = '',
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/newsletter`, {
+    const res = await fetch(`${apiUrl()}/api/v1/newsletter`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify({ email: email.trim(), source, website }),

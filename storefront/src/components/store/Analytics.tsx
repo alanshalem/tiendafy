@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
 
 function persistentId(key: string, storage: Storage): string {
   let value = storage.getItem(key);

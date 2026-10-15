@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound, permanentRedirect } from 'next/navigation';
 
-import { API_URL } from '@/lib/api-client';
+import { apiUrl } from '@/lib/api-client';
 import { API_TIMEOUT_MS } from '@/lib/api';
 import { resolveTenant } from '@/lib/tenancy';
 
@@ -27,7 +27,7 @@ export async function redirectTarget(): Promise<string | null> {
     const tenant = await resolveTenant();
     if (!tenant) return null;
 
-    const res = await fetch(`${API_URL}/api/v1/redirects/resolve?path=${encodeURIComponent(path)}`, {
+    const res = await fetch(`${apiUrl()}/api/v1/redirects/resolve?path=${encodeURIComponent(path)}`, {
       headers: { 'X-Tenant-Id': tenant.id },
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Camera, CheckCircle2, Loader2, Star, X } from 'lucide-react';
 import { cn } from '@tiendafy/ui/cn';
-import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { Stars } from './ReviewStars';
@@ -58,7 +58,7 @@ export function ReviewWriter({ token, orderId }: { token: string | null; orderId
       if (!t && orderId) {
         try {
           const res = await fetch(
-            `${API_URL}/api/v1/shop/orders/${encodeURIComponent(orderId)}/review-invite`,
+            `${apiUrl()}/api/v1/shop/orders/${encodeURIComponent(orderId)}/review-invite`,
             {
               headers: tenantHeaders(tenantId),
               credentials: 'include',
@@ -93,7 +93,7 @@ export function ReviewWriter({ token, orderId }: { token: string | null; orderId
         return;
       }
       try {
-        const res = await fetch(`${API_URL}/api/v1/reviews/invite?token=${encodeURIComponent(t)}`, {
+        const res = await fetch(`${apiUrl()}/api/v1/reviews/invite?token=${encodeURIComponent(t)}`, {
           headers: tenantHeaders(tenantId),
         });
         if (!res.ok) {
@@ -209,7 +209,7 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
       form.append('token', token);
       form.append('file', file);
       try {
-        const res = await fetch(`${API_URL}/api/v1/reviews/photos`, {
+        const res = await fetch(`${apiUrl()}/api/v1/reviews/photos`, {
           method: 'POST',
           headers: tenantHeaders(tenantId),
           body: form,
@@ -236,7 +236,7 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
     setError(null);
     setSending(true);
     try {
-      const res = await fetch(`${API_URL}/api/v1/reviews`, {
+      const res = await fetch(`${apiUrl()}/api/v1/reviews`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ token, orderItemId: item.orderItemId, rating, title, body, photos }),

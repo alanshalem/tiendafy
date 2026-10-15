@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
-import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 export function ResetPassword() {

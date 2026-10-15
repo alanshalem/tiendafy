@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react';
 import { Loader2, MapPin, Plus, Star } from 'lucide-react';
-import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { EMPTY_ADDRESS, formatAddress, type SavedAddress, type SavedAddressInput } from '@/lib/addresses';
 import { INPUT_THEMED_11 } from './styles';
 
@@ -24,7 +24,7 @@ export function SavedAddresses({ tenantId }: { tenantId: string }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`${API_URL}/api/v1/shop/addresses/`, { headers: tenantHeaders(tenantId), credentials: 'include' })
+    fetch(`${apiUrl()}/api/v1/shop/addresses/`, { headers: tenantHeaders(tenantId), credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { items: SavedAddress[] }) => active && setItems(d.items ?? []))
       .catch(() => active && setItems('error'));
@@ -38,7 +38,7 @@ export function SavedAddresses({ tenantId }: { tenantId: string }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/v1/shop/addresses${path}`, {
+      const res = await fetch(`${apiUrl()}/api/v1/shop/addresses${path}`, {
         method,
         headers: tenantHeaders(tenantId, body !== undefined),
         credentials: 'include',

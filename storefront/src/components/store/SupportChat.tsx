@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Paperclip, Send, X } from 'lucide-react';
 
-import { API_URL, clientJson, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, clientJson, tenantHeaders } from '@/lib/api-client';
 import { formatDateTime } from '@tiendafy/types';
 
 interface Attachment {
@@ -130,7 +130,7 @@ export function SupportChat({
     form.append('file', file);
     if (text.trim()) form.append('body', text.trim());
     try {
-      const res = await fetch(`${API_URL}/api/v1/shop/support/conversations/${conv.id}/attachments`, {
+      const res = await fetch(`${apiUrl()}/api/v1/shop/support/conversations/${conv.id}/attachments`, {
         method: 'POST',
         headers,
         credentials: 'include',

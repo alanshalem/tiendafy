@@ -30,7 +30,7 @@ import {
   type QuotedOption,
 } from './checkout-carriers';
 
-import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
 import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';

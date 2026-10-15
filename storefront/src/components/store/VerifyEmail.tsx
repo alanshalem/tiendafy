@@ -7,7 +7,7 @@ import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
-import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
 
 export function VerifyEmail() {
   const params = useSearchParams();

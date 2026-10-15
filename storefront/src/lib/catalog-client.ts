@@ -1,5 +1,5 @@
 import { PRODUCT_SOURCE_LIMIT, productSourceQuery, type ProductSource } from '@tiendafy/types';
-import { API_URL, clientJsonTenant, tenantHeaders } from './api-client';
+import { apiUrl, clientJsonTenant, tenantHeaders } from './api-client';
 import { toStoreProducts, type ProductDto } from './catalog-map';
 import type { StoreProduct } from '@/components/store/ProductCard';
 
@@ -119,7 +119,7 @@ export async function fetchPopularProductsClient(tenantId: string, limit = 4): P
  */
 export function logSearchClient(tenantId: string, q: string): void {
   try {
-    void fetch(`${API_URL}/api/v1/search/log`, {
+    void fetch(`${apiUrl()}/api/v1/search/log`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify({ q }),

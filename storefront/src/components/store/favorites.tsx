@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './auth';
 
-import { API_URL as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 
 /**

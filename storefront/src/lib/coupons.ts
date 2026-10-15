@@ -1,4 +1,4 @@
-import { API_URL, tenantHeaders } from './api-client';
+import { apiUrl, tenantHeaders } from './api-client';
 
 export type CouponValidation =
   { ok: true; code: string; discount: number; freeShipping: boolean } | { ok: false; error: string };
@@ -13,7 +13,7 @@ export async function validateCoupon(
   subtotal: number,
 ): Promise<CouponValidation> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/coupons/validate`, {
+    const res = await fetch(`${apiUrl()}/api/v1/coupons/validate`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify({ code, subtotal }),
