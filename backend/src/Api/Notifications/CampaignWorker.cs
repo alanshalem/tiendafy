@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using SharedKernel.Common;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Notifications;
 
@@ -18,7 +17,6 @@ namespace Api.Notifications;
 /// </summary>
 public sealed class CampaignWorker(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
     ILogger<CampaignWorker> logger) : PollingWorker(TimeSpan.FromSeconds(20))
 {
     private static readonly TimeSpan PerEmailDelay = TimeSpan.FromMilliseconds(600);
@@ -71,9 +69,8 @@ public sealed class CampaignWorker(
     {
         var email = sp.GetRequiredService<BrandedEmailSender>();
         var dp = sp.GetRequiredService<IDataProtectionProvider>();
-        var tenancy = sp.GetRequiredService<TenancyDbContext>();
-        var apiBase = configuration["PublicApiBaseUrl"] ?? "http://localhost:5080";
-        var platform = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost:3000").ToLowerInvariant();
+        var links = sp.GetRequiredService<StoreLinks>();
+        var apiBase = links.ApiBase;
 
         var campaign = await db.EmailCampaigns
             .Where(c => c.Status == "sending")
@@ -97,11 +94,7 @@ public sealed class CampaignWorker(
         }
 
         // URL pública de la tienda (para las cards de productos).
-        var tenant = await tenancy.Tenants.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == campaign.TenantId, ct);
-        var storeBase = tenant is null
-            ? $"http://{platform}"
-            : StoreUrls.For(tenant.CustomDomain, tenant.Subdomain.Value, platform);
+        var storeBase = await links.CampaignStoreBaseAsync(campaign.TenantId, ct);
         var products = CampaignEmailComposer.ParseProducts(campaign.ProductsJson);
 
         var sent = 0;

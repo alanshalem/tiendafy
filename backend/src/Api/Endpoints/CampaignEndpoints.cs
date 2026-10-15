@@ -8,7 +8,6 @@ using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Endpoints;
 
@@ -105,14 +104,10 @@ public static class CampaignEndpoints
         // tienda + productos + footer de baja), sin tracking.
         admin.MapPost("/preview", async (
             CampaignRequest req, ITenantContext tenant, BrandedEmailSender email,
-            TenancyDbContext tenancy, IConfiguration cfg, CancellationToken ct) =>
+            StoreLinks links, CancellationToken ct) =>
         {
             var branding = await email.ResolveBrandingAsync(tenant.TenantId.Value, ct);
-            var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost:3000").ToLowerInvariant();
-            var t = await tenancy.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenant.TenantId.Value, ct);
-            var storeBase = t is null
-                ? $"http://{platform}"
-                : StoreUrls.For(t.CustomDomain, t.Subdomain.Value, platform);
+            var storeBase = await links.CampaignStoreBaseAsync(tenant.TenantId.Value, ct);
             var products = CampaignEmailComposer.ParseProducts(ProductsJson(req));
             var body = CampaignEmailComposer.ComposeForPreview(req.BodyHtml ?? string.Empty, products, storeBase);
             return Results.Ok(new
@@ -190,8 +185,7 @@ public static class CampaignEndpoints
         // Envío de prueba (sin tracking, footer real de ejemplo).
         admin.MapPost("/{id:guid}/test", async (
             Guid id, CampaignTestRequest req, ITenantContext tenant, NotificationsDbContext db,
-            BrandedEmailSender email, IDataProtectionProvider dp, IConfiguration cfg,
-            TenancyDbContext tenancy, CancellationToken ct) =>
+            BrandedEmailSender email, IDataProtectionProvider dp, StoreLinks links, CancellationToken ct) =>
         {
             var campaign = await db.EmailCampaigns.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value && c.Id == id, ct);
@@ -200,12 +194,8 @@ public static class CampaignEndpoints
             if (string.IsNullOrEmpty(to) || !to.Contains('@'))
                 return Error.Validation("Campaign.InvalidEmail", "Ingresá un email válido para la prueba.").ToProblem();
 
-            var apiBase = cfg["PublicApiBaseUrl"] ?? "http://localhost:5080";
-            var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost:3000").ToLowerInvariant();
-            var t = await tenancy.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenant.TenantId.Value, ct);
-            var storeBase = t is null
-                ? $"http://{platform}"
-                : StoreUrls.For(t.CustomDomain, t.Subdomain.Value, platform);
+            var apiBase = links.ApiBase;
+            var storeBase = await links.CampaignStoreBaseAsync(tenant.TenantId.Value, ct);
             var token = UnsubscribeToken.Protect(dp, tenant.TenantId.Value, to);
             var products = CampaignEmailComposer.ParseProducts(campaign.ProductsJson);
             var body = CampaignEmailComposer.ComposeForPreview(campaign.BodyHtml, products, storeBase)

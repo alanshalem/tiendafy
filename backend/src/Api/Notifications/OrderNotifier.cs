@@ -1,9 +1,7 @@
 using Api.Orders;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Core.Domain;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Notifications;
 
@@ -13,8 +11,8 @@ namespace Api.Notifications;
 /// Sale envuelto en el layout brandeado de la tienda.
 /// </summary>
 public sealed class OrderNotifier(
-    IEmailTemplates templates, BrandedEmailSender email, OrderItemImages images, TenancyDbContext tenancy,
-    IDataProtectionProvider dp, IConfiguration configuration)
+    IEmailTemplates templates, BrandedEmailSender email, OrderItemImages images, StoreLinks links,
+    IDataProtectionProvider dp)
 {
     public Task NotifyAsync(Order order, string templateKey, CancellationToken ct = default) =>
         NotifyAsync(order, templateKey, null, ct);
@@ -23,18 +21,13 @@ public sealed class OrderNotifier(
     public async Task NotifyAsync(
         Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
     {
-        var store = await tenancy.Tenants.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == order.TenantId.Value, ct);
+        var store = await links.ForTenantAsync(order.TenantId.Value, "https", ct);
         var storeName = store?.Name ?? "tu tienda";
 
         // "Seguí tu pedido" con el link firmado: abre ese pedido sin pedir nada.
-        string? trackingLink = null;
-        if (store is not null)
-        {
-            var platform = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
-            var storeUrl = StoreUrls.For(store.CustomDomain, store.Subdomain.Value, platform, "https");
-            trackingLink = $"{storeUrl}/seguimiento?t={Uri.EscapeDataString(OrderTrackingToken.Protect(dp, order.TenantId.Value, order.Id))}";
-        }
+        var trackingLink = store is null
+            ? null
+            : $"{store.Url}/seguimiento?t={Uri.EscapeDataString(OrderTrackingToken.Protect(dp, order.TenantId.Value, order.Id))}";
 
         var imageMap = await images.ForOrderAsync(order, ct);
         var vars = OrderEmail.OrderVars(order, storeName, imageMap, trackingLink);

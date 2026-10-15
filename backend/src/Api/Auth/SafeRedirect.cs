@@ -14,7 +14,7 @@ public static class SafeRedirect
     {
         host = host.ToLowerInvariant();
         if (host == "localhost" || host.EndsWith(".localhost", StringComparison.Ordinal)) return true;
-        var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+        var platform = Api.Notifications.StoreLinks.PlatformDomainOf(cfg);
         return host == platform || host.EndsWith("." + platform, StringComparison.Ordinal);
     }
 

@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using SharedKernel.Common;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Notifications;
 
@@ -35,7 +34,6 @@ namespace Api.Notifications;
 /// </summary>
 public sealed class BackInStockWorker(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
     ILogger<BackInStockWorker> logger) : PollingWorker(TimeSpan.FromMinutes(5))
 {
     public const string Template = "aviso-stock";
@@ -100,13 +98,14 @@ public sealed class BackInStockWorker(
                 .GetVariantsAsync(tenantId, [.. ready.Select(s => s.VariantId).Distinct()], ct))
             .ToDictionary(v => v.VariantId);
         var slugs = await ProductSlugsAsync(sp, tenantId, [.. ready.Select(s => s.ProductId).Distinct()], ct);
-        var store = await StoreAsync(sp, tenantId, ct);
+        var links = sp.GetRequiredService<StoreLinks>();
+        var store = await links.ForTenantAsync(tenantId, "https", ct);
         if (store is null) return 0;
 
         var templates = sp.GetRequiredService<IEmailTemplates>();
         var sender = sp.GetRequiredService<BrandedEmailSender>();
         var dp = sp.GetRequiredService<IDataProtectionProvider>();
-        var apiBase = configuration["PublicApiBaseUrl"] ?? "http://localhost:5080";
+        var apiBase = links.ApiBase;
         var perEmail = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var sent = 0;
 
@@ -127,10 +126,10 @@ public sealed class BackInStockWorker(
             var label = string.IsNullOrWhiteSpace(variant.VariantDescription) || variant.VariantDescription == "Única"
                 ? variant.ProductName
                 : $"{variant.ProductName} ({variant.VariantDescription})";
-            var link = slugs.TryGetValue(sub.ProductId, out var slug) ? $"{store.Value.Url}/productos/{slug}" : store.Value.Url;
+            var link = slugs.TryGetValue(sub.ProductId, out var slug) ? $"{store.Url}/productos/{slug}" : store.Url;
             var vars = new Dictionary<string, string>
             {
-                ["store"] = WebUtility.HtmlEncode(store.Value.Name),
+                ["store"] = WebUtility.HtmlEncode(store.Name),
                 ["product"] = WebUtility.HtmlEncode(label),
                 ["price"] = WebUtility.HtmlEncode(new Money(variant.Price.Amount, variant.Price.Currency).ToString()),
                 ["link"] = link,
@@ -166,14 +165,5 @@ public sealed class BackInStockWorker(
             .Where(p => p.TenantId == TenantId.From(tenantId) && productIds.Contains(p.Id))
             .ToListAsync(ct);
         return products.ToDictionary(p => p.Id, p => p.Slug.Value);
-    }
-
-    private async Task<(string Name, string Url)?> StoreAsync(IServiceProvider sp, Guid tenantId, CancellationToken ct)
-    {
-        var tenant = await sp.GetRequiredService<TenancyDbContext>().Tenants.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
-        if (tenant is null) return null;
-        var platform = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
-        return (tenant.Name, StoreUrls.For(tenant.CustomDomain, tenant.Subdomain.Value, platform, "https"));
     }
 }

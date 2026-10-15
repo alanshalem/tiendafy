@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Api.Auth;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -189,10 +190,7 @@ public static class AuthEndpoints
     {
         if (string.IsNullOrWhiteSpace(origin) || !Uri.TryCreate(origin, UriKind.Absolute, out var u)) return false;
         if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;
-        var host = u.Host.ToLowerInvariant();
-        if (host == "localhost" || host.EndsWith(".localhost")) return true;
-        var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
-        return host == platform || host.EndsWith("." + platform);
+        return SafeRedirect.IsOwnHost(u.Host, cfg);
     }
 }
 

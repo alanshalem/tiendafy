@@ -9,7 +9,6 @@ using Notifications.Infrastructure;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
 using Reviews.Infrastructure;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Notifications;
 
@@ -28,7 +27,6 @@ namespace Api.Notifications;
 /// </summary>
 public sealed class ReviewRequestWorker(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
     ILogger<ReviewRequestWorker> logger) : PollingWorker(TimeSpan.FromHours(1))
 {
     /// <summary>Cuánto después del día pactado todavía se manda (worker caído, deploy).</summary>
@@ -108,12 +106,10 @@ public sealed class ReviewRequestWorker(
     private async Task<int> RunTenantAsync(
         IServiceProvider sp, ReviewsDbContext reviewsDb, Guid tenantId, List<Order> orders, CancellationToken ct)
     {
-        var tenant = await sp.GetRequiredService<TenancyDbContext>().Tenants.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
-        if (tenant is null) return 0;
-        var platform = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
-        var storeUrl = StoreUrls.For(tenant.CustomDomain, tenant.Subdomain.Value, platform, "https");
-        var apiBase = configuration["PublicApiBaseUrl"] ?? "http://localhost:5080";
+        var links = sp.GetRequiredService<StoreLinks>();
+        if (await links.ForTenantAsync(tenantId, "https", ct) is not { } store) return 0;
+        var storeUrl = store.Url;
+        var apiBase = links.ApiBase;
 
         var suppressed = (await sp.GetRequiredService<NotificationsDbContext>().EmailSuppressions
                 .IgnoreQueryFilters().AsNoTracking()
@@ -141,7 +137,7 @@ public sealed class ReviewRequestWorker(
                 var unsubscribe = UnsubscribeToken.Protect(dp, tenantId, order.BuyerEmail);
                 var vars = new Dictionary<string, string>
                 {
-                    ["store"] = Enc(tenant.Name),
+                    ["store"] = Enc(store.Name),
                     ["name"] = Enc(FirstName(order.BuyerName)),
                     ["order_id"] = Enc(order.Id.ToString()),
                     ["items"] = ItemsList(order, await images.ForOrderAsync(order, ct)),

@@ -5,7 +5,6 @@ using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using SharedKernel.Common;
-using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Notifications;
 
@@ -75,7 +74,7 @@ public sealed class FavoriteAlertWorker(
                 .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var store = await StoreAsync(sp, tenantId, ct);
+        var store = await sp.GetRequiredService<StoreLinks>().ForTenantAsync(tenantId, "https", ct);
         if (store is null) return;
 
         var templates = sp.GetRequiredService<IEmailTemplates>();
@@ -97,11 +96,11 @@ public sealed class FavoriteAlertWorker(
             {
                 var vars = new Dictionary<string, string>
                 {
-                    ["store"] = store.Value.Name,
+                    ["store"] = store.Name,
                     ["name"] = person.Name,
                     ["product"] = product.Name,
                     ["price"] = new Money(product.PriceMinor, product.Currency).ToString(),
-                    ["link"] = $"{store.Value.Url}/productos/{product.Slug}",
+                    ["link"] = $"{store.Url}/productos/{product.Slug}",
                 };
 
                 var rendered = await templates.RenderAsync(tenantId, alert, vars, ct);
@@ -148,18 +147,6 @@ public sealed class FavoriteAlertWorker(
                 p.Variants.Min(v => v.Price.AmountInMinorUnits),
                 p.Variants[0].Price.Currency,
                 p.Variants.Sum(v => availableByVariant.GetValueOrDefault(v.Id, 0))));
-    }
-
-    private static async Task<(string Name, string Url)?> StoreAsync(
-        IServiceProvider sp, Guid tenantId, CancellationToken ct)
-    {
-        var tenant = await sp.GetRequiredService<TenancyDbContext>().Tenants.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
-        if (tenant is null) return null;
-
-        var platform = (sp.GetRequiredService<IConfiguration>()["Tenancy:PlatformBaseDomain"] ?? "localhost")
-            .ToLowerInvariant();
-        return (tenant.Name, StoreUrls.For(tenant.CustomDomain, tenant.Subdomain.Value, platform, "https"));
     }
 
     private sealed record ProductSnapshot(

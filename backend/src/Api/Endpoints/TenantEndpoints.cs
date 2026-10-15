@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Api.Auth;
+using Api.Notifications;
 using Api.Storefront;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -138,12 +139,12 @@ public static class TenantEndpoints
         // resuelto un paso que el comerciante todavía tiene que hacer en su
         // proveedor de dominios.
         tenants.MapGet("/domain-status", async (
-            ITenantContext tenant, ITenancyService service, IConfiguration cfg, CancellationToken ct) =>
+            ITenantContext tenant, ITenancyService service, StoreLinks links, CancellationToken ct) =>
         {
             var store = await service.GetByIdAsync(tenant.TenantId.Value, ct);
             if (store is null) return Results.NotFound();
 
-            var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+            var platform = links.PlatformDomain;
             var custom = store.CustomDomain;
 
             if (string.IsNullOrWhiteSpace(custom))

@@ -107,6 +107,7 @@ public static class ServiceRegistration
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddHttpClient<IEmailSender, EmailSender>();
         services.AddScoped<OrderNotifier>();
+        services.AddScoped<StoreLinks>();
         services.AddScoped<BrandedEmailSender>();
         services.AddScoped<OrderItemImages>();
         services.AddHttpClient<WhatsAppSender>();
@@ -356,7 +357,7 @@ public static class ServiceRegistration
     public static IServiceCollection AddAppCors(
         this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
-        var platformDomain = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+        var platformDomain = StoreLinks.PlatformDomainOf(configuration);
         var extraOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
         var allowLocalhost = environment.IsDevelopment();
         services.AddCors(options =>
