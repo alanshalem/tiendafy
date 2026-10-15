@@ -1,79 +1,88 @@
-# Tests de Tiendafy
+# Tests y CI
 
-Qué se prueba, con qué, cómo se corre y qué cuenta como "verde". La idea
-rectora: **probar con datos reales y contra la cosa real** (Postgres de verdad,
-respuestas reales de la API, un navegador de verdad donde hace falta), y tener
-un solo lugar para cada cosa compartida (fixtures, explorador, accesibilidad).
+Qué se prueba, con qué, cómo se corre y qué exige CI. La idea rectora: probar
+contra la cosa real (Postgres de verdad, respuestas reales de la API, un
+navegador donde hace falta) y tener un solo lugar para cada pieza compartida.
 
 ## El mapa
 
 | Tipo | Qué cubre | Dónde | Cómo se corre | En CI |
-|---|---|---|---|---|
-| **Unitarios (backend)** | Dominio, reglas, value objects, handlers | `backend/tests/UnitTests` | `dotnet test tests/UnitTests` | ✅ + ratchet de dominio ≥ 60 % |
-| **Integración / API** | Cada flujo de punta a punta por HTTP contra Postgres real: checkout, pagos (MP, Payway), envíos (Correo, Zipnova, Andreani), ARCA, Mercado Libre, campañas, finanzas, aislamiento multi-tenant | `backend/tests/IntegrationTests` | `dotnet test tests/IntegrationTests` | ✅ |
-| **Contrato** | Forma de lo que la API le devuelve al storefront y a los listados | `StorefrontContractTests`, `ListContractTests` | (parte de integración) | ✅ |
-| **Smoke de la API** | Todas las rutas GET (dueño, anónimo, con/sin tienda, con ids reales): ninguna da 5xx | `ApiSmokeTests` | (parte de integración) | ✅ |
-| **Performance (en cada build)** | Ningún listado hace una consulta por fila (N+1); el catálogo público aguanta 20 pedidos concurrentes con p95 < 1 s | `PerformanceTests` | (parte de integración) | ✅ |
-| **Componentes (admin)** | Las 49 pantallas renderizan con datos reales; flujos por pantalla (productos, ventas, compras, finanzas, ARCA, campañas…) | `admin/src/__tests__` | `pnpm --filter ./admin exec vitest run` | ✅ + piso de cobertura |
-| **Componentes (tienda)** | Las 17 páginas como las sirve Next (Server Components resueltos); checkout, cuenta, ficha, catálogo, editor en vivo | `storefront/src/__tests__` | `pnpm --filter ./storefront exec vitest run` | ✅ + piso de cobertura |
-| **Exploratorios ("monkey")** | Cada pantalla/página: aprieta cada botón, completa cada formulario con valores válidos, abre cada diálogo. Nada puede romperse | `interactions.test.tsx` (admin y tienda) | (parte de vitest) | ✅ |
-| **Accesibilidad (jsdom)** | axe-core (WCAG 2.1 A/AA sin layout) en cada pantalla, cada página y **cada diálogo que abre el explorador** | `a11y.test.tsx` + `interactions.test.tsx` | (parte de vitest) | ✅ |
-| **Regresión** | Cada bug que encontraron los tests tiene su test, que falla sin el arreglo | En el test de cada área (buscar "regresión") | (todo lo anterior) | ✅ |
-| **E2E** | El camino que factura (tienda → producto → checkout → pedido por transferencia → pago registrado en el panel, con envío gratis desde un monto), 404 y buscador predictivo, filtros en el celular, "en construcción" y token de vista previa, pantallas críticas del panel | `e2e/tests` | `pnpm test:e2e` con el stack levantado | ✅ (workflow E2E) |
-| **Smoke e2e** | Un despliegue está vivo: API, tienda por host, catálogo, sitemap/robots, login | `e2e/tests/smoke.spec.ts` (`@smoke`) | `pnpm test:smoke` | ✅ (parte del e2e) |
-| **Accesibilidad (navegador)** | axe en Chromium, con contraste de color | `e2e/tests/accesibilidad.spec.ts` | (parte del e2e) | ✅ (parte del e2e) |
-| **Carga y protección** | Usuarios virtuales recorriendo la tienda (p50/p95/p99); el rate limit corta el abuso con 429 | `scripts/load-test.mjs` | `pnpm test:load` / `pnpm test:load -- --mode protection` | — |
+| --- | --- | --- | --- | --- |
+| Unitarios (backend) | Dominio, reglas, value objects, handlers; arquitectura (fronteras entre módulos, filtro de tienda en cada entidad) | `backend/tests/UnitTests` (`Architecture/` para lo segundo) | `dotnet test tests/UnitTests` desde `backend/` | Backend CI |
+| Integración (backend) | Cada flujo por HTTP contra la API real y Postgres: checkout, pagos (MP, Payway, transferencia), envíos (Correo, Andreani, Zipnova), ARCA, Mercado Libre, campañas, finanzas, permisos, aislamiento entre tiendas | `backend/tests/IntegrationTests` | `dotnet test tests/IntegrationTests` | Backend CI |
+| Contrato | Forma de lo que la API le devuelve a la tienda y a los listados | `StorefrontContractTests`, `ListContractTests` | (integración) | Backend CI |
+| Smoke de la API | Todas las rutas GET (dueño, anónimo, con y sin tienda, con ids reales): ninguna da 5xx | `ApiSmokeTests` | (integración) | Backend CI |
+| Performance | Ningún listado hace una consulta por fila; el catálogo público aguanta 20 pedidos concurrentes con p95 < 1 s | `PerformanceTests` | (integración) | Backend CI |
+| Componentes (panel) | Todas las pantallas con datos reales y los flujos de cada una | `admin/src/__tests__` | `pnpm --filter ./admin exec vitest run` | Frontend CI, con piso de cobertura |
+| Componentes (tienda) | Las páginas como las sirve Next (Server Components resueltos): checkout, cuenta, ficha, catálogo, editor en vivo | `storefront/src/__tests__` | `pnpm --filter ./storefront exec vitest run` | Frontend CI, con piso de cobertura |
+| Exploratorios | En cada pantalla: aprieta cada botón, completa cada formulario y abre cada diálogo; nada puede romperse | `interactions.test.tsx` (panel y tienda) | (vitest) | Frontend CI |
+| Accesibilidad (jsdom) | axe-core (WCAG 2.1 A/AA sin layout) en cada pantalla, cada página y cada diálogo que abre el explorador | `a11y.test.tsx` + `interactions.test.tsx` | (vitest) | Frontend CI |
+| E2E | Camino que factura (tienda → producto → checkout → pedido por transferencia → pago registrado en el panel), 404 y buscador, filtros en el celular, tienda en construcción, token de vista previa, pantallas críticas del panel | `e2e/tests/*.spec.ts` | `pnpm test:e2e` | Workflow E2E |
+| Smoke e2e | Un despliegue está vivo: API, tienda por host, catálogo, sitemap/robots, login | `e2e/tests/smoke.spec.ts` (`@smoke`) | `pnpm test:smoke` | (dentro del E2E) |
+| Accesibilidad (navegador) | axe en Chromium, contraste de color incluido | `e2e/tests/accesibilidad.spec.ts` | (e2e) | (dentro del E2E) |
+| Carga y protección | Usuarios virtuales recorriendo la tienda (p50/p95/p99); el rate limit corta el abuso con 429 | `scripts/load-test.mjs` | `pnpm test:load` / `pnpm test:load -- --mode protection` | No |
 
-Los e2e, el smoke y la carga necesitan el stack levantado (`.\dev-up.ps1`).
-El e2e corre además en CI (`.github/workflows/e2e.yml`): Postgres como
-servicio, la API en Development y los builds de producción del storefront y
-el panel, sobre una base vacía que siembra `e2e/tests/seed.setup.ts`
-(`E2E_SEED=1`: una tienda fija con catálogo, transferencia, envío y la demo de
-ventas). Para correrlo contra otro stack: `E2E_API_URL`, `E2E_ADMIN_URL`,
-`E2E_STORE_DOMAIN` y `E2E_STORE`. Ninguna pasarela de pago se toca: el camino
-crítico paga por transferencia. En desarrollo todo llega desde 127.0.0.1 (navegador,
-storefront, panel, e2e), así que el techo global de pedidos es 5000/min en
-`appsettings.Development.json`; con el de producción (300/min) una corrida
-completa del e2e lo agotaba y fallaba al azar.
+## Qué necesita cada suite
 
-## Verificar todo en local
+- **Unitarios y componentes**: nada.
+- **Integración**: el Postgres de dev en `localhost:5432` (`docker compose -f
+  infra/docker/docker-compose.dev.yml up -d postgres`). Usan su propia base,
+  `tiendafy_itests`, que migran al arrancar; `TIENDAFY_TEST_DB` la cambia por
+  otra cadena de conexión. Todo el HTTP saliente pasa por `FakeHttp`.
+- **E2E, smoke y carga**: el stack levantado (`.\dev-up.ps1`). Contra dev, el
+  smoke y la accesibilidad miran la tienda `canicari`; si no la tenés, usá
+  `E2E_STORE=<subdominio>`. Otro stack: `E2E_API_URL`, `E2E_ADMIN_URL`,
+  `E2E_STORE_DOMAIN` y `E2E_STORE`. Con `E2E_SEED=1`, `e2e/tests/seed.setup.ts`
+  arma la tienda de la corrida desde una base vacía (así corre en CI). Ningún
+  e2e toca una pasarela de pago: el camino crítico paga por transferencia.
 
-`pnpm verify` corre lo mismo que CI (salvo el e2e) en fases, con el
+En desarrollo el navegador, la tienda (SSR), el panel y el e2e llegan todos
+desde 127.0.0.1, por eso `appsettings.Development.json` sube el techo global a
+5000 pedidos/min. Con el de producción (300) una corrida del e2e lo agota.
+
+## Verificar todo en local: `pnpm verify`
+
+`scripts/verify.mjs` corre lo mismo que CI (menos el e2e) en fases, con el
 paralelismo que aguanta la máquina, y deja un log por paso en `.verify/`:
 
-1. Formato, lint y tipos de todos los paquetes, en paralelo.
-2. Las suites del panel y de la tienda: **juntas** si hay ≥ 8 GB libres (cada
-   una con la mitad de los workers), si no de a una.
-3. Builds (`next build`, `vite build`, backend en Release con
-   `-warnaserror`), en paralelo si hay ≥ 7 GB libres.
-4. Backend: `dotnet format` y unitarios juntos; después integración, sola
-   (levanta Postgres en Docker).
+1. Prettier, ESLint y tipos de todos los paquetes, en paralelo.
+2. Las suites del panel y de la tienda: juntas si hay 8 GB libres o más (cada
+   una con la mitad de los workers); si no, de a una.
+3. Builds (`next build`, `vite build` y el backend en Release con
+   `-warnaserror --no-incremental`), en paralelo si hay 7 GB libres o más.
+4. Backend: `dotnet format --verify-no-changes` y unitarios juntos; después
+   integración, sola (necesita el Postgres de dev).
 
-`--front` / `--back` corren una mitad, `--coverage` agrega la cobertura (como
-CI) y `--seq` hace todo de a uno. Al final: tabla con tiempos, la RAM libre
-mínima de la corrida y la cola del log de lo que falló.
+| Opción | Qué hace |
+| --- | --- |
+| `--front` | Solo panel, tienda y paquetes compartidos |
+| `--back` | Solo backend |
+| `--coverage` | Los tests del front con cobertura, como CI |
+| `--seq` | Todo de a uno (máquina cargada) |
 
-Las suites del front **nunca** corren al lado de un build: miden tiempos
-(`findBy`, debounces) y con la CPU compartida fallan por tiempo sin que el
-código tenga nada.
+Al final muestra una tabla con tiempos, la RAM libre mínima y la cola del log
+de lo que falló.
 
-**Workers.** El default de vitest es uno por núcleo menos uno (19 en una
-máquina de 20 hilos), y cada worker carga el panel o la tienda enteros en
-jsdom. Medido el 15-oct con 6 workers: el panel llega a ~3,3 GB (hasta 0,9 GB
-por worker) y la tienda con cobertura a ~2,2 GB (0,5 GB por worker). Con 19 la
-RAM no alcanzaba con el editor, el navegador y los dev servers abiertos. Por
-eso los dos `vitest.config.ts` usan `test-fixtures/workers.ts`: en local, 30 %
-de los núcleos y no más de uno cada 1,5 GB libres; en CI, el default.
-`VITEST_MAX_WORKERS=4` (o `--maxWorkers`) lo pisa.
+Las suites del front nunca corren al lado de un build: miden tiempos
+(`findBy`, debounces) y con la CPU compartida fallan sin que el código tenga
+nada. Si una falla por timeout con la máquina ocupada, corréla sola antes
+de investigar.
+
+**Workers de vitest.** Los dos `vitest.config.ts` usan
+`test-fixtures/workers.ts`: en local, el 30 % de los núcleos y no más de uno
+cada 1,5 GB libres (mínimo 2); en CI, el default de vitest.
+`VITEST_MAX_WORKERS` (un número o un porcentaje) o `--maxWorkers` lo pisan.
+Cada worker carga el panel o la tienda enteros en jsdom: con el default
+(núcleos menos uno) una máquina de 20 hilos se queda sin RAM.
 
 ## Cobertura
 
-| Proyecto | Medido | Piso en CI |
-|---|---|---|
-| Backend (unit + integración, unidos por archivo y línea) | 94,8 % | 93 % (`tools/coverage.py --min 93`) |
-| Backend, solo dominio (`*.Core` + SharedKernel, unit) | — | 60 % |
-| Panel (`admin/src` + `@tiendafy/ui` + `@tiendafy/types`) | 94 % | 92 % |
-| Tienda (`storefront/src`) | 97,6 % | 96 % |
+| Alcance | Piso | Dónde se exige |
+| --- | --- | --- |
+| Backend total (unit + integración, unidos por archivo y línea) | 93 % | `backend-ci.yml` → `python tools/coverage.py test-results --min 93` |
+| Backend, dominio (`*.Core` + SharedKernel, solo unit) | 60 % | `backend-ci.yml` |
+| Panel (`admin/src` + `shared/types` + `shared/ui`) | 92 % de líneas | `admin/vitest.config.ts` |
+| Tienda (`storefront/src`) | 96 % de líneas | `storefront/vitest.config.ts` |
 
 Los pisos son un *ratchet*: cuando la cobertura sube, se sube el piso; nunca se
 baja. Para ver qué falta en el backend:
@@ -83,110 +92,75 @@ cd backend
 dotnet test tests/UnitTests --collect:"XPlat Code Coverage" --results-directory ./coverage/unit
 dotnet test tests/IntegrationTests --collect:"XPlat Code Coverage" --results-directory ./coverage/integration
 python tools/coverage.py coverage --top 30            # por proyecto + los archivos con más líneas sin cubrir
-python tools/coverage.py coverage --scope 'Payments'  # un alcance
+python tools/coverage.py coverage --scope 'Payments'  # un alcance (regex sobre el proyecto)
 ```
 
 En los frontends, `vitest run --coverage` deja `coverage/lcov-report/index.html`.
 
-## Las piezas compartidas
+## Piezas compartidas
 
-- **`test-fixtures/api.json`** — las respuestas **reales** de la API sobre la
-  tienda sembrada (113 rutas, incluidas las del comprador logueado). Las genera
-  el backend: `pnpm fixtures:api` (corre `ApiFixturesExport` contra Postgres).
-  Si cambia la forma de una respuesta, se regeneran y los tests de los
-  frontends lo notan. La tienda sembrada (`SeededStore`) está completa como
-  la deja un comercio: catálogo con categoría, ficha técnica y fotos, ventas,
-  presupuestos, compras, campañas, chat posventa, movimiento financiero.
-- **`test-fixtures/mock-api.ts`** — `fetch` simulado que responde con esas
-  fixtures (rutas normalizadas igual que el backend: GUID → `:id`, slug →
-  `:slug`). `api.on(método, ruta, respuesta, status)` pisa una ruta para un
-  caso; `api.calls` registra lo que viajó (método, ruta, body, headers).
-- **`test-fixtures/explore.ts`** — el explorador ("monkey testing"): una
-  fábrica que cada proyecto instancia con su Testing Library. Completa con
-  valores plausibles por tipo de campo y avisa cada diálogo que abre.
-- **`test-fixtures/a11y.ts`** — axe-core con las reglas que tienen sentido en
-  jsdom. Una regla que no puede correr hace fallar el test (así fue como, un
-  tiempo, los diálogos quedaban sin revisar).
-- **`test-fixtures/dom-setup.ts`** — lo que jsdom no trae: `<dialog>`,
-  observers, `elementFromPoint`, Escape que cierra diálogos, `Blob.text()`
-  (vista previa de un CSV) y rectángulos de `Range` (el editor de texto).
-- **Backend**: `Merchant` (un comercio con sesión y su tienda), `Shopper` (un
-  comprador con su cookie), `SeededStore`, `FakeHttp` (todo HTTP saliente
-  —Mercado Pago, ARCA, carriers, Resend, S3— pasa por acá; lo que no está
-  simulado responde 503), `Workers.RunOnceAsync<T>` (una pasada de un worker),
-  `SqlCommands` (cuenta las consultas de EF), `FakeArca` + `TestCa` +
-  `merchant.ConfigureFiscalAsync()` (facturación electrónica lista para emitir)
-  y `merchant.ConnectMercadoPagoAsync()` (el OAuth de Mercado Pago).
+- **`test-fixtures/api.json`**: respuestas reales de la API sobre una tienda
+  sembrada completa (`SeededStore`: catálogo, ventas, presupuestos, compras,
+  campañas, chat, movimientos financieros), incluidas las del comprador
+  logueado. Se regeneran con `pnpm fixtures:api` (corre `ApiFixturesExport`
+  contra el Postgres de dev). No es determinista: si solo cambiaron unas
+  rutas, regenerá aparte y copiá esas rutas, porque reescribir el archivo
+  entero puede romper tests ajenos por el orden de los productos.
+- **`test-fixtures/mock-api.ts`**: `fetch` simulado con esas respuestas (rutas
+  normalizadas como el backend: GUID → `:id`). `api.on(método, ruta,
+  respuesta, status)` pisa una ruta; `api.calls` registra método, ruta, body y
+  headers de lo que viajó.
+- **`test-fixtures/explore.ts`**: el explorador. Completa con valores
+  plausibles por tipo de campo y avisa cada diálogo que abre.
+- **`test-fixtures/a11y.ts`**: axe-core con las reglas que tienen sentido en
+  jsdom, más el chequeo propio `label-sin-campo`. Una regla que no puede correr
+  hace fallar el test.
+- **`test-fixtures/dom-setup.ts`**: lo que jsdom no trae (`<dialog>` modal con
+  Escape, observers, `elementFromPoint`, `Blob.text()`, rectángulos de
+  `Range`).
+- **Backend** (`backend/tests/IntegrationTests/Infrastructure/`): `ApiFactory`,
+  `Merchant` (comercio con sesión y tienda), `Shopper` (comprador con su
+  cookie), `SeededStore`, `FakeHttp` (todo HTTP saliente; lo no simulado
+  responde 503), `Workers.RunOnceAsync<T>` (una pasada de un worker),
+  `SqlCommands` (cuenta consultas de EF), `FakeArca` + `TestCa` +
+  `merchant.ConfigureFiscalAsync()` y `merchant.ConnectMercadoPagoAsync(...)`.
 
 ## Convenciones
 
-- **Nombres en castellano que digan el comportamiento**, no la función:
+- **Nombres en castellano que digan el comportamiento**:
   `Los_listados_no_hacen_una_consulta_por_fila`, `'un 429 no cierra la sesión
   del comprador cacheado'`.
 - **Se verifica lo que viaja a la API** (el body del POST), no solo lo que se
   ve: es lo que cobra, factura o despacha.
 - **Buscar por rol y nombre accesible** (`getByRole('button', { name })`). Si
-  un control no se puede encontrar así, tampoco lo encuentra un lector de
-  pantalla: es un bug, no un problema del test.
-- **Nombres reales con paréntesis o puntos**: `rx(nombre)` (admin `src/test/text.ts`).
+  un control no se encuentra así, tampoco lo encuentra un lector de pantalla:
+  es un bug de la UI, no del test.
+- **Nombres con paréntesis o puntos**: `rx(nombre)` de `admin/src/test/text.ts`.
 - **Un bug encontrado = un test de regresión** que falla sin el arreglo.
+- Antes de crear un archivo de test, buscá si ya hay uno del tema.
 
-## Lo que encontraron los tests (y se arregló)
+## CI (GitHub Actions)
 
-Funcionales y de seguridad: membresías de tienda con un rol inexistente,
-`/shipping/methods` y `/checkout-settings` sin exigir tienda, certificado ARCA
-activado sin habilitar la facturación, URLs firmadas de MinIO con el esquema
-equivocado, la cotización de Andreani bloqueada para el comprador, el sitemap
-que publicaba el catálogo de una tienda en construcción, y el panel/la tienda
-que mostraban "sesión cerrada" ante un 429 o un corte de la API.
+| Workflow | Cuándo | Qué hace |
+| --- | --- | --- |
+| `backend-ci.yml` | Push a `main` y PR que tocan `backend/` | Build Release con `-warnaserror`, `dotnet format --verify-no-changes`, unitarios e integración (Postgres 18 como servicio), pisos de cobertura |
+| `frontend-ci.yml` | Push a `main` y PR que tocan frontends, `shared/`, `e2e/`, `test-fixtures/` o la config de pnpm/Node | `pnpm format:check`, `pnpm -r run type-check`, ESLint de panel y tienda, builds de producción, vitest con cobertura |
+| `e2e.yml` | Push a `main` y PR que tocan backend o frontends | API en Development + builds de producción de tienda y panel sobre una base vacía (`E2E_SEED=1`, tienda `e2etienda`), Playwright |
+| `codeql.yml` | Push a `main`, PR a `main` y los lunes | CodeQL JS/TS y C#. El SARIF se evalúa en el workflow (`upload: never`): un hallazgo `error` rompe el build, un `warning` se anota |
+| `gitleaks.yml` | Push a `main` y PR | Secretos en todo el historial |
+| `docker-release.yml` | Push a `main` y tags `v*` | Imágenes de API, tienda y panel a GHCR (tag `sha-XXXXXXX`, `GIT_SHA` adentro); deploy a staging si existe la variable `STAGING_DOMAIN` y a producción con aprobación si existe `PLATFORM_DOMAIN` |
 
-Segunda tanda (octubre):
+CodeQL y gitleaks se saltean en los PR de Dependabot (token de solo lectura) y
+corren igual al mergear. Dependabot (`.github/dependabot.yml`) agrupa semanal
+con 2 días de espera, para no proponer versiones que pnpm todavía rechaza por
+recientes; los majors del stack de Vite/Vitest, TypeScript, ESLint,
+`@types/node` y `react-router-dom` se hacen a mano.
 
-- **Límites por IP compartidos por toda la plataforma.** El stack no
-  configuraba `ForwardedHeaders:KnownNetworks`: detrás de Caddy todo el
-  tráfico parecía venir de Caddy, así que 10 logins cada 5 minutos y el techo
-  de 300 pedidos/min eran para todos los usuarios juntos. Y el storefront, que
-  arma cada página llamando a la API por la red interna, consumía un único
-  cupo por todos los compradores de todas las tiendas (`TrustedNetworks`).
-- **SSRF en la importación de imágenes del CSV**: una IPv4 escrita como IPv6
-  (`::ffff:169.254.169.254`) o `::` pasaban como públicas, el `HttpClient`
-  seguía redirecciones a la red interna y el DNS podía cambiar entre el chequeo
-  y la conexión (`PublicUrlGuard`: valida al conectar y no redirige).
-- Facturar una venta de Mercado Libre rechazada por ARCA no decía por qué
-  (el motivo viene en las observaciones, no en los errores).
-- Un error del servidor sin explicación (500 vacío, 502 del proxy) mostraba
-  "Request failed with status 502" en vez del mensaje de cada pantalla.
-- La barra del editor de texto (Páginas, e-mails) nunca marcaba el formato
-  activo: Tiptap 3 dejó de re-renderizar en cada cambio.
-- El buscador del centro de ayuda no ignoraba tildes ("envios" no encontraba
-  "envíos"); conectar Meta Ads fallaba en silencio; textos sin tilde en la
-  repreciación masiva y "2 ordenes de compra".
-- Accesibilidad: ~50 campos con etiqueta visible pero sin nombre accesible, y
-  botones de opción/plegables/tabs sin `aria-pressed`/`aria-expanded`.
+## Números de referencia (carga)
 
-Primera tanda: accesibilidad: el carrito y el panel de filtros cerrados seguían alcanzables
-con Tab; los menús "Más" y "Categorías" no abrían con un tap en tablets; los
-menús ⋮ y varios botones de ícono, selects, switches y campos sin nombre
-accesible; el `Modal` y los `Tabs` compartidos sin nombre/estado accesible.
-
-## Pendientes conocidos
-
-Ninguno abierto. Cerrados en oct-2026 (cada uno con su prueba):
-
-- Contraste WCAG AA: tokens del panel en claro y oscuro (con `status-fg`
-  para el texto sobre rojo/verde/naranja llenos), y en la tienda
-  `primary-ink`/`fg-muted` calculados con los colores del comercio
-  (`e2e/tests/accesibilidad.spec.ts`, `storefront/src/lib/__tests__/theme.test.ts`).
-- `<label>` sin campo: asociadas con `useId`; `test-fixtures/a11y.ts` marca
-  cualquier etiqueta suelta (`label-sin-campo`) en todas las pantallas.
-- "Lista para retirar": la orden guarda `IsPickup` y al despacharla avisa eso
-  en vez de "en camino" (`PickupOrderTests`).
-- Pool en frío: `Minimum Pool Size` (5, `DB_MIN_POOL_SIZE`) en el stack.
-
-## Números de referencia (carga, dev en Windows + Docker)
-
-Contra una tienda con 1.032 productos, 20 usuarios virtuales, 30 s:
-**631 pedidos/s, p95 88 ms, 0 errores** (la búsqueda del catálogo, ~100 ms de
-p95 por las facetas, es lo más pesado). En modo protección (`--cap` = el cupo
-global: 5000/min en dev, 300 en producción), de 5.100 pedidos seguidos desde
-una IP se atienden 5.000 y el resto se corta con 429 + `Retry-After`, sin 5xx.
+Medido en dev (Windows + Docker) contra una tienda con 1.032 productos, 20
+usuarios virtuales, 30 s: 631 pedidos/s, p95 88 ms, 0 errores; lo más pesado
+es la búsqueda del catálogo (~100 ms de p95 por las facetas). En modo
+protección (`--cap` = el cupo global: 5000/min en dev, 300 en producción), de
+5.100 pedidos seguidos desde una IP se atienden 5.000 y el resto recibe 429
+con `Retry-After`, sin 5xx.

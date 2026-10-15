@@ -1,31 +1,52 @@
 # Agregar un módulo al backend
 
-Guía basada en módulos reales del repo (los ejemplos citados existen y
-compilan). Dos tamaños:
+Receta basada en los módulos que existen hoy en `backend/src/Modules`.
 
-- **Simple** (una entidad, pocos endpoints): un solo proyecto
-  `X.Infrastructure`. Ejemplos reales: `Support`, `Discounts`.
-- **Completo** (dominio con reglas): `X.Contracts` (DTOs/eventos públicos) +
-  `X.Core` (dominio + handlers) + `X.Infrastructure` (EF + registro).
-  Ejemplo real: `Catalog`.
+## Qué forma tiene un módulo
 
-El patrón de features es **handler plano** (`Features/<Caso>/<Caso>Handler.cs`
-con `IUnitOfWork`, ver `Catalog.Core/Features/CreateProduct/`) + endpoint
-minimal API en `backend/src/Api/Endpoints/`. No hay MediatR ni FluentValidation.
+| Tamaño | Proyectos | Ejemplos |
+| --- | --- | --- |
+| Simple (entidades + persistencia; la lógica vive en los endpoints) | `X.Infrastructure` | `Support`, `Discounts`, `Reviews`, `Finance` |
+| Con dominio propio | `X.Core` (dominio y handlers) + `X.Infrastructure` | `Orders`, `Checkout` |
+| Con tipos que usan otros módulos | `X.Contracts` + `X.Infrastructure` | `Social` |
+| Con las dos cosas | `X.Contracts` + `X.Core` + `X.Infrastructure` | `Catalog`, `Inventory`, `Payments`, `Fiscal`, `Tenancy` |
 
-## Receta (módulo simple, espejo de Support)
+Dónde va cada cosa:
 
-1. **Proyecto**: `backend/src/Modules/Mimodulo/Mimodulo.Infrastructure/` con
-   csproj referenciando `SharedKernel` y `SharedKernel.Persistence`; sumarlo a
-   `backend.slnx`.
+- **Endpoints**: en la Api, `backend/src/Api/Endpoints/<X>Endpoints.cs`
+  (minimal APIs). Un módulo nunca referencia a la Api.
+- **Orquestación entre módulos** (un caso que toca dos o más): en la Api, en
+  una carpeta por área (`Api/Orders/`, `Api/Finance/`…). Un módulo solo ve el
+  `.Contracts` de otro.
+- **Handlers** (si hay `.Core`): clase plana por caso de uso en
+  `Features/<Caso>/<Caso>Handler.cs`, con su repositorio e `IUnitOfWork`
+  (ver `Catalog.Core/Features/CreateProduct/`). No hay MediatR ni
+  FluentValidation.
 
-2. **Entidad + DbContext** (`MimoduloDbContext`): toda tabla lleva
-   `TenantId` y el DbContext define el **query filter global de tenant**
-   (copiar el patrón de `SupportDbContext.cs` — el filtro es lo que hace
-   imposible leer datos de otra tienda).
+Las reglas las controlan dos tests de arquitectura que corren con los
+unitarios (`backend/tests/UnitTests/Architecture/`):
 
-3. **Registro del DbContext** — una línea, todo lo demás lo da
-   `SharedKernel.Persistence/ModuleDb`:
+- `ModuleBoundariesTests`: un módulo solo puede referenciar el `.Contracts` de
+  otro, ningún módulo referencia a `Api`, y un `.Contracts` no referencia un
+  `.Infrastructure`.
+- `TenantQueryFilterTests`: toda entidad con `TenantId`, en todos los
+  DbContext que alcanza la Api, tiene filtro global de tienda. Una excepción
+  se declara en `SinFiltroAProposito` con su motivo.
+
+## Receta (módulo simple, espejo de `Support`)
+
+1. **Proyecto** `backend/src/Modules/Mimodulo/Mimodulo.Infrastructure/`, con
+   un `.csproj` como el de `Support.Infrastructure` (referencias a
+   `SharedKernel` y `SharedKernel.Persistence`, paquetes
+   `Npgsql.EntityFrameworkCore.PostgreSQL` y `EFCore.NamingConventions`).
+   Sumalo a `backend/backend.slnx` y referencialo desde `src/Api/Api.csproj`.
+
+2. **Entidades y `MimoduloDbContext`**: toda tabla de una tienda lleva
+   `TenantId`, y el contexto recibe `ITenantContext? tenant = null` y declara
+   `HasQueryFilter` en cada una de esas entidades. Copiá el patrón de
+   `SupportDbContext.cs`: el filtro es lo que impide leer filas de otra tienda.
+
+3. **Registro**, en `MimoduloModule.cs`:
 
    ```csharp
    public static IServiceCollection AddMimoduloModule(this IServiceCollection services, IConfiguration configuration)
@@ -35,47 +56,64 @@ minimal API en `backend/src/Api/Endpoints/`. No hay MediatR ni FluentValidation.
    }
    ```
 
-4. **DesignTimeFactory** para las migraciones (delegando en
-   `ModuleDb.DesignTimeOptions`, copiar `Support/DesignTimeFactory.cs`).
+   `AddModuleDbContext` (`SharedKernel.Persistence/ModuleDb.cs`) arma la
+   conexión, el naming en snake_case y lo demás.
 
-5. **Migración** (el patrón real del repo — proyecto del módulo + startup Api
-   + context explícito):
+4. **`DesignTimeFactory`** para las migraciones: copiá
+   `Support.Infrastructure/DesignTimeFactory.cs` (delega en
+   `ModuleDb.DesignTimeOptions`).
+
+5. **Primera migración**, desde `backend/`:
 
    ```bash
+   dotnet tool restore     # dotnet-ef, fijado en backend/dotnet-tools.json
    dotnet ef migrations add InitialMimodulo \
      --project src/Modules/Mimodulo/Mimodulo.Infrastructure \
      --startup-project src/Api --context MimoduloDbContext
-   dotnet ef database update --project src/Modules/Mimodulo/Mimodulo.Infrastructure \
-     --startup-project src/Api --context MimoduloDbContext
    ```
 
-   Gotcha de CI: `dotnet format` no debe tocar migraciones — ya está excluido,
-   no reformatearlas a mano.
+   No hace falta `dotnet ef database update`: la API aplica las migraciones al
+   arrancar en dev (`Database:MigrateOnStartup`) y con `dotnet Api.dll migrate`
+   en el deploy, siempre que el contexto esté en la lista del paso 6.
+   Después de generar una migración corré `dotnet format backend.slnx`
+   completo: el `pre-commit` formatea solo lo que commiteás y no deja las
+   migraciones como las pide CI.
 
-6. **Registrar en el arranque**:
-   - `Api/Startup/ServiceRegistration.cs` → `services.AddMimoduloModule(configuration);`
-     junto a los otros 17 (el ORDEN de los `AddHostedService` importa si el
-     módulo trae workers).
-   - `Api/Startup/PipelineExtensions.cs` → `apiV1.MapMimoduloEndpoints();`.
+6. **Arranque** (`backend/src/Api/Startup/`):
+   - `ServiceRegistration.cs` → `AddAllModules`:
+     `services.AddMimoduloModule(configuration);`. Si el módulo trae workers,
+     se registran en `AddIntegrations`, respetando `Workers:Enabled`.
+   - `DatabaseMigrator.cs` → `MigrateDatabaseAsync`:
+     `await MigrateAsync<MimoduloDbContext>(sp, logger);`. La lista es
+     explícita: un contexto que no esté ahí nunca se migra solo.
+   - `PipelineExtensions.cs` → `MapApiV1`: `apiV1.MapMimoduloEndpoints();`.
 
 7. **Endpoints** en `Api/Endpoints/MimoduloEndpoints.cs`: grupo con
-   `RequireTenant()` + el permiso que corresponda —
-   `RequirePermission(Permission.X)` o `RequirePermissionForWrites(...)`
-   (ver [rbac.md](../rbac.md); si hace falta un permiso nuevo, la receta está
-   al final de ese doc). Errores como RFC 7807 (`ToProblem()`).
+   `RequireTenant()` y el permiso que corresponda, `RequirePermission(...)` o
+   `RequirePermissionForWrites(...)` (`Api/Auth/AuthExtensions.cs`). Un
+   permiso nuevo es una línea en el catálogo de
+   `Identity.Infrastructure/Permissions.cs` (ver [rbac.md](../rbac.md)).
+   `EndpointPermissionTests` falla si una ruta no exige permiso y no está en
+   su lista de excepciones con motivo. Los errores de dominio salen como
+   problem+json con `ToProblem()` (`Api/Endpoints/ErrorResults.cs`).
 
-8. **Tests**: unit tests del dominio en `backend/tests/UnitTests/Mimodulo/`
-   (helpers compartidos en `TestData.cs`); si el módulo guarda datos por
-   tenant, el test de aislamiento de integración ya lo cubre vía query filter,
-   pero un caso explícito no sobra.
+8. **Tests**: unitarios en `backend/tests/UnitTests/Mimodulo/` (helpers en
+   `TestData.cs`) y el flujo por HTTP en `backend/tests/IntegrationTests/`
+   con `Merchant` y `ApiFactory` (ver [TESTING.md](../TESTING.md)).
 
-9. **Docs**: sumar el módulo a la lista de `docs/START_HERE.md` y al diagrama
-   de `docs/ARQUITECTURA-VISUAL.md`.
+9. **Docs**: sumá el módulo a la lista de [START_HERE.md](../START_HERE.md) y
+   al diagrama de [ARQUITECTURA-VISUAL.md](../ARQUITECTURA-VISUAL.md).
 
-## Checklist de verificación
+## Antes de dar por terminado
 
 ```bash
-dotnet build backend.slnx            # 0 warnings (CI usa -warnaserror)
+cd backend
+dotnet build backend.slnx -c Release -warnaserror --no-incremental   # como CI
+dotnet format backend.slnx --verify-no-changes
 dotnet test backend.slnx
-dotnet ef migrations has-pending-model-changes --project ... --context ...   # "No changes"
+dotnet ef migrations has-pending-model-changes \
+  --project src/Modules/Mimodulo/Mimodulo.Infrastructure \
+  --startup-project src/Api --context MimoduloDbContext
 ```
+
+O todo junto: `pnpm verify --back`.
