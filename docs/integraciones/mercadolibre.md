@@ -114,11 +114,9 @@ muestra "no configurada".
 
 - **Dev:** user-secrets, con la URL de un túnel en `RedirectUri` (ML exige
   HTTPS público para el callback y los avisos).
-- **Prod:** variables de entorno con doble guion bajo
-  (`MercadoLibre__ClientId`, etc.). Ojo: hoy `infra/docker/docker-compose.stack.yml`
-  **no** mapea ninguna `MercadoLibre__*` (sí las de Mercado Pago, Meta Ads y
-  Social), y `docs/DEPLOY.md` las nombra como `Meli__*`, que no es la sección
-  real. Para prenderlo en prod hay que agregar el mapeo al compose.
+- **Prod:** `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` en `.env.prod`; el compose
+  las pasa como `MercadoLibre__ClientId` / `__ClientSecret` y arma solo
+  `RedirectUri` y `AdminReturnUrl` con el dominio del ambiente.
 - **En la app de ML:** Redirect URI como arriba y URL de notificaciones
   `https://api.TUDOMINIO/api/v1/webhooks/meli` con el topic `orders_v2`
   (los demás topics se aceptan pero se ignoran). Ver también
@@ -226,9 +224,6 @@ real (ver Pendiente).
 
 - Crear la app de plataforma en developers.mercadolibre.com.ar y probar OAuth,
   webhooks y sync con una cuenta real.
-- Mapear `MercadoLibre__ClientId`, `__ClientSecret`, `__RedirectUri` y
-  `__AdminReturnUrl` en `docker-compose.stack.yml` y corregir `Meli__*` en
-  `docs/DEPLOY.md`.
 - Backlog: publicar con variaciones de ML, responder reclamos, mensajes con
   adjuntos, `missed_feeds` como respaldo de los webhooks, y los switches de
   sync por publicación (existen en la entidad pero no hay endpoint ni UI).

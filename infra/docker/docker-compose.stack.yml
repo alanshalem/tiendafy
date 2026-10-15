@@ -158,6 +158,11 @@ services:
       MercadoPago__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/payments/mercadopago/callback
       MercadoPago__AdminReturnUrl: https://admin.${STACK_DOMAIN}/configuracion/medios-de-pago
       PublicApiBaseUrl: https://api.${STACK_DOMAIN}
+      # Canal Mercado Libre (app de la plataforma). Vacío = canal apagado.
+      MercadoLibre__ClientId: ${MELI_CLIENT_ID:-}
+      MercadoLibre__ClientSecret: ${MELI_CLIENT_SECRET:-}
+      MercadoLibre__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/meli/oauth/callback
+      MercadoLibre__AdminReturnUrl: https://admin.${STACK_DOMAIN}/configuracion/mercadolibre
       MetaAds__AppId: ${META_APP_ID:-}
       MetaAds__AppSecret: ${META_APP_SECRET:-}
       MetaAds__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/meta-ads/oauth/callback

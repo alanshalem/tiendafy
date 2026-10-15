@@ -148,7 +148,7 @@ Correo Argentino no necesita env vars: las credenciales MiCorreo son **por
 tienda** y viven cifradas en la DB (las carga el merchant desde el admin).
 
 Integraciones opcionales de plataforma (vacío = apagado, el panel lo dice):
-`Meli__*` (canal Mercado Libre), `MetaAds__*` (ROAS real) y `Social__Meta__*` /
+`MercadoLibre__*` (canal Mercado Libre), `MetaAds__*` (ROAS real) y `Social__Meta__*` /
 `Social__X__*` (redes sociales; Telegram no necesita credenciales). El detalle
 de cada una — qué conseguir y dónde — está en
 [CONFIGURACION.md](./CONFIGURACION.md); el compose de prod ya mapea todas desde
