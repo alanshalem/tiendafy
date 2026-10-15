@@ -186,14 +186,21 @@ public sealed class DemoDataSeeder(
     /// </summary>
     private async Task<int> SeedCostsAsync(TenantId tenantId, CancellationToken ct)
     {
+        // Con orden: sin ORDER BY, Postgres devuelve las filas como las tenga
+        // (un producto recién editado cambia de lugar) y cada variante se
+        // llevaba otro número del sorteo. Todo lo que se siembra después
+        // (ventas, rentabilidad, compras) salía distinto en cada corrida.
         var products = await catalog.Products
             .Where(p => p.TenantId == tenantId)
+            .OrderBy(p => p.CreatedAtUtc).ThenBy(p => p.Id)
             .ToListAsync(ct);
 
         var touched = 0;
         foreach (var product in products)
         {
-            foreach (var variant in product.Variants.Where(v => v.Cost is null && v.Price.AmountInMinorUnits > 0))
+            foreach (var variant in product.Variants
+                         .Where(v => v.Cost is null && v.Price.AmountInMinorUnits > 0)
+                         .OrderBy(v => v.Sku, StringComparer.Ordinal))
             {
                 var ratio = 0.45 + (_rng.NextDouble() * 0.20);
                 var cost = (long)Math.Round(variant.Price.AmountInMinorUnits * ratio / 100) * 100;
@@ -253,7 +260,7 @@ public sealed class DemoDataSeeder(
 
         var codes = await discounts.Coupons
             .Where(c => c.TenantId == tenantId.Value && c.Active)
-            .Select(c => c.Code).ToListAsync(ct);
+            .Select(c => c.Code).OrderBy(c => c).ToListAsync(ct); // se sortea por posición: con orden
 
         var now = DateTime.UtcNow;
         var made = new List<Order>();
@@ -269,7 +276,10 @@ public sealed class DemoDataSeeder(
 
             for (var i = 0; i < count; i++)
             {
-                var order = BuildOrder(tenantId, sellable, codes, date);
+                // Cada venta del día a otra hora: con la misma, los listados
+                // (más nuevas primero) las desempataban como viniera y el
+                // chat posventa caía sobre ventas distintas en cada corrida.
+                var order = BuildOrder(tenantId, sellable, codes, date.AddMinutes(-47 * i));
                 if (order is not null) made.Add(order);
             }
         }
@@ -701,6 +711,7 @@ public sealed class DemoDataSeeder(
         var audience = await customers.Customers
             .Where(c => c.TenantId == tenantId.Value && c.Email != null)
             .Select(c => c.Email!)
+            .OrderBy(e => e)
             .Take(200)
             .ToListAsync(ct);
 
@@ -804,7 +815,7 @@ public sealed class DemoDataSeeder(
         var sellable = await SellableVariantsAsync(tenantId, ct);
         var products = await catalog.Products.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active)
-            .OrderBy(p => p.CreatedAtUtc).Take(300).ToListAsync(ct);
+            .OrderBy(p => p.CreatedAtUtc).ThenBy(p => p.Id).Take(300).ToListAsync(ct);
         var productByVariant = products
             .SelectMany(p => p.Variants.Select(v => (VariantId: v.Id, ProductId: p.Id)))
             .ToDictionary(x => x.VariantId, x => x.ProductId);
@@ -912,7 +923,7 @@ public sealed class DemoDataSeeder(
     {
         var products = await catalog.Products.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active)
-            .OrderBy(p => p.CreatedAtUtc)
+            .OrderBy(p => p.CreatedAtUtc).ThenBy(p => p.Id) // un catálogo importado de golpe empata la fecha
             .Take(300)
             .ToListAsync(ct);
 
