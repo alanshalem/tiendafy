@@ -37,11 +37,11 @@ public sealed class PaywayFlowTests
         installmentOptions = new[] { 1, 3, 6 },
     };
 
-    private static object Card(string token = "tok-1", string bin = "450799") => new
+    private static object Card(string token = "tok-1", string bin = "450799", int installments = 3) => new
     {
         token,
         bin,
-        installments = 3,
+        installments,
         cardLastFour = "4905",
         cardBrand = (string?)null,
         isDebit = false,
@@ -194,5 +194,32 @@ public sealed class PaywayFlowTests
         var lost = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{lostCheckout}/pay-payway", Card("tok-lost"));
         Assert.Contains("No vuelvas a intentar", await lost.Content.ReadAsStringAsync());
         Assert.Single(_factory.ExternalHttp.SentTo($"{Sandbox}/payments"), r => r.Body?.Contains("tok-lost") == true);
+    }
+
+    [Fact]
+    public async Task Solo_se_cobra_en_las_cuotas_que_ofrece_la_tienda()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "pwc");
+        var shopper = new Shopper(merchant);
+        await merchant.PutAsync("/api/v1/payments/payway/connection", Config()); // 1, 3 y 6
+        var (_, variantId) = await merchant.CreateProductAsync("Reloj Payway", priceMinor: 50_000_00);
+
+        // Fuera de lo configurado: 400 y a Payway no le llega nada.
+        foreach (var (installments, token) in new[] { (12, "tok-12-cuotas"), (99, "tok-99-cuotas"), (0, "tok-0-cuotas") })
+        {
+            var checkoutId = await shopper.CheckoutAsync(variantId);
+            var res = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-payway", Card(token, installments: installments));
+            Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+            Assert.Contains("Elegí una de las opciones de cuotas", await res.Content.ReadAsStringAsync());
+            Assert.DoesNotContain(_factory.ExternalHttp.SentTo($"{Sandbox}/payments"), r => r.Body?.Contains(token) == true);
+        }
+
+        // Una de las configuradas, sí.
+        var okCheckout = await shopper.CheckoutAsync(variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments", Approved(9_400_001, 50_000_00), HttpStatusCode.Created);
+        var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{okCheckout}/pay-payway", Card("tok-6-cuotas", installments: 6));
+        Assert.Equal("APPROVED", paid.GetProperty("status").GetString());
+        var charge = _factory.ExternalHttp.SentTo($"{Sandbox}/payments").Last(r => r.Body?.Contains("tok-6-cuotas") == true);
+        Assert.Contains("\"installments\":6", charge.Body);
     }
 }

@@ -116,6 +116,17 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.Bin))
                 return Error.Validation("Payway.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
+            // Solo las cuotas que la tienda configuró con Payway: otro número no
+            // es un plan que el comercio haya acordado (y Payway podría cobrarlo
+            // igual). Se chequea antes de crear la orden, que no quede una huérfana.
+            var installments = request.Installments ?? 1;
+            var paywayConfig = await payway.GetPublicConfigAsync(tenant.TenantId, ct);
+            if (paywayConfig.Enabled && !paywayConfig.InstallmentOptions.Contains(installments))
+                return Error.Validation("Payway.BadInstallments",
+                    installments == 1
+                        ? "La tienda no ofrece pagar en un pago. Elegí una de las opciones de cuotas."
+                        : $"La tienda no ofrece pagar en {installments} cuotas. Elegí una de las opciones de cuotas.").ToProblem();
+
             var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
@@ -126,7 +137,7 @@ public static class OrderEndpoints
                 tenant.TenantId, order.Id,
                 order.Total.AmountInMinorUnits, order.Currency,
                 request.Token, request.Bin.Trim(),
-                Math.Clamp(request.Installments ?? 1, 1, 99),
+                installments,
                 order.BuyerEmail,
                 http.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0",
                 request.CardLastFour, request.CardBrand, request.IsDebit,
