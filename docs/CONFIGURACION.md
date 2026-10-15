@@ -80,7 +80,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | Clave | Para qué | Default / dev | En `.env.prod` |
 | --- | --- | --- | --- |
 | `PublicApiBaseUrl` | Base de los links de baja y de seguimiento de los emails | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
-| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo | Vacío = el mail va sin link | No se mapea (ver Pendientes) |
+| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo | Vacío = el mail va sin link | `https://admin.${STACK_DOMAIN}` (lo arma el compose) |
 | `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso a la tienda para que un diseño publicado o un cambio de catálogo se vea al toque. Vacío = apagado: la tienda vence su caché sola en 30 a 60 s | Dev: `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | URL fija `http://storefront:3000/internal/revalidate`; secreto `REVALIDATE_SECRET` (el mismo que usa la tienda) |
 
 ### Email y notificaciones
@@ -92,7 +92,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Email:WebhookSecret` | Firma (svix) del webhook de Resend | Vacío = el webhook responde 404 | `EMAIL_WEBHOOK_SECRET` |
 | `Email:MaxRetries` | Reintentos de envío | `2` | No se mapea |
 | `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas para el costo estimado del panel | `0.40` / `0.034` | No se mapea |
-| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha | No se mapea (ver Pendientes) |
+| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` |
 
 ### Medios de pago y canales
 
@@ -103,10 +103,10 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `MercadoPago:RedirectUri` | Callback del OAuth | Vacío. Con `dev-up.ps1 -Tunnel`, `<túnel>/api/v1/payments/mercadopago/callback` | `https://api.<STACK_DOMAIN>/api/v1/payments/mercadopago/callback` |
 | `MercadoPago:PublicApiBaseUrl` | Base del `notification_url` de los pagos. Vacío = MP no avisa y la venta no se concilia sola | Vacío. Con `-Tunnel`, la URL del túnel | `https://api.<STACK_DOMAIN>` |
 | `MercadoPago:AdminReturnUrl` | Adónde vuelve el navegador tras conectar | `http://localhost:5173/configuracion/medios-de-pago` | `https://admin.<STACK_DOMAIN>/configuracion/medios-de-pago` |
-| `MercadoLibre:ClientId` / `:ClientSecret` | App de ML. Vacío = canal apagado | Vacío | No se mapea (ver Pendientes) |
+| `MercadoLibre:ClientId` / `:ClientSecret` | App de ML. Vacío = canal apagado | Vacío | `MELI_CLIENT_ID` / `MELI_CLIENT_SECRET` (el compose arma `RedirectUri` y `AdminReturnUrl`) |
 | `MercadoLibre:RedirectUri` | Callback del OAuth | Vacío | No se mapea |
 | `MercadoLibre:AdminReturnUrl` | Vuelta al panel | `http://localhost:5173/configuracion/mercadolibre` | No se mapea |
-| `Authentication:Google:ClientId` / `:ClientSecret` | Login de compradores con Google. Vacío = botón oculto | Vacío | No se mapea (ver Pendientes) |
+| `Authentication:Google:ClientId` / `:ClientSecret` | Login de compradores con Google. Vacío = botón oculto | Vacío | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
 | `MetaAds:AppId` / `:AppSecret` | Meta Ads. Vacío = apagado | Vacío | `META_APP_ID` / `META_APP_SECRET` |
 | `MetaAds:RedirectUri` / `:AdminReturnUrl` | OAuth y vuelta | Vacío / `http://localhost:5173/estadisticas/rentabilidad` | Derivadas de `STACK_DOMAIN` |
 | `Social:Meta:AppId` / `:AppSecret` | Facebook e Instagram. Vacío = conector apagado | Vacío | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET` |
@@ -189,7 +189,7 @@ Usuarios de desarrollo: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
 
 ## Pendientes
 
-- Pendiente: `docker-compose.stack.yml` no pasa al servicio `api` las claves de
-  Mercado Libre, Turnstile, Google, `Cors:AllowedOrigins` ni `Admin:BaseUrl`, y
-  `deploy.sh` solo usa ese archivo. Para activarlas en producción hay que
-  sumarlas al `environment` del servicio `api`.
+- Pendiente: `Cors:AllowedOrigins` no se pasa en `docker-compose.stack.yml` (un
+  valor vacío podría leerse como un origen permitido). Hace falta recién con el
+  primer dominio propio de una tienda, y ese trabajo incluye servir la API
+  desde el mismo dominio (ver [DEPLOY.md](./DEPLOY.md), Seguridad).

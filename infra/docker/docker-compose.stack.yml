@@ -158,6 +158,13 @@ services:
       MercadoPago__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/payments/mercadopago/callback
       MercadoPago__AdminReturnUrl: https://admin.${STACK_DOMAIN}/configuracion/medios-de-pago
       PublicApiBaseUrl: https://api.${STACK_DOMAIN}
+      # Link al panel en el aviso de stock bajo (sin esto el mail sale sin link).
+      Admin__BaseUrl: https://admin.${STACK_DOMAIN}
+      # Opcionales: vacías, sin captcha y sin "Entrar con Google" (como hasta ahora).
+      Captcha__Turnstile__SiteKey: ${TURNSTILE_SITE_KEY:-}
+      Captcha__Turnstile__Secret: ${TURNSTILE_SECRET:-}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       # Canal Mercado Libre (app de la plataforma). Vacío = canal apagado.
       MercadoLibre__ClientId: ${MELI_CLIENT_ID:-}
       MercadoLibre__ClientSecret: ${MELI_CLIENT_SECRET:-}
