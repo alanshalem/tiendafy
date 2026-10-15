@@ -60,8 +60,10 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 
 1. Normaliza el teléfono del comprador a E.164 argentino sin `+` (`NormalizeArPhone`: agrega el `549`, saca el `0` y el `15`). Si no es usable, no manda.
 2. Busca la conexión de la tienda y el override de ese tipo. Sin conexión, sin override, apagado o sin nombre de plantilla: no manda.
-3. Llama `POST https://graph.facebook.com/v20.0/{phoneNumberId}/messages` con `type: template` y los parámetros del body.
+3. Llama `POST https://graph.facebook.com/{versión}/{phoneNumberId}/messages` con `type: template` y los parámetros del body. La versión es `MetaGraph.Version` (`backend/src/Api/MetaAds/MetaGraph.cs`, hoy `v26.0`), la misma de redes y Meta Ads.
 4. Reintenta dos veces (1 s y 3 s) ante 429, 5xx o error de red. Un 4xx es definitivo.
+
+Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`), también dentro del cuerpo de error de Meta.
 
 ## Lo que aprendimos de la API real
 
@@ -79,7 +81,6 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 ## Pendiente
 
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
-- Los logs de `WhatsAppSender` escriben el teléfono completo; los de email lo enmascaran.
 - `confirmacion-compra` está en el catálogo pero nada la dispara (el email equivalente se sacó del catálogo de emails en oct-2026, por lo mismo).
-- La versión de la Graph API (`v20.0`) está fija en `WhatsAppSender.GraphBase`: Meta retira versiones a los dos años, conviene revisarla contra su [changelog](https://developers.facebook.com/docs/graph-api/changelog).
+- La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.

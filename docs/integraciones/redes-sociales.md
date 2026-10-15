@@ -35,6 +35,7 @@ los conectores viven en la Api porque cada uno habla con un tercero.
 | Post y targets, máquina de estados | `backend/src/Modules/Social/Social.Infrastructure/SocialPost.cs` |
 | Meta: conector OAuth + canales Facebook e Instagram + traducción de errores | `backend/src/Api/Social/MetaSocialChannels.cs` |
 | X: conector y canal en la misma clase | `backend/src/Api/Social/XSocialChannel.cs` |
+| Renovación de tokens que vencen (X): serializada por cuenta y guardada antes de publicar | `backend/src/Api/Social/SocialAccountTokens.cs` |
 | Telegram: canal + validación del bot | `backend/src/Api/Social/TelegramChannel.cs` |
 | Cifrado de tokens y del `state` OAuth | `backend/src/Api/Social/SocialTokenService.cs` |
 | Verifier PKCE | `backend/src/Api/Social/SocialContracts.cs` |
@@ -42,6 +43,8 @@ los conectores viven en la Api porque cada uno habla con un tercero.
 | Publicador programado | `backend/src/Api/Social/SocialPublishWorker.cs` |
 | Endpoints | `backend/src/Api/Endpoints/SocialEndpoints.cs` |
 | Canje de code a token largo, compartido con Meta Ads | `backend/src/Api/MetaAds/MetaGraphTokens.cs` |
+| Versión de la Graph API (una para Meta Ads, redes y WhatsApp) | `backend/src/Api/MetaAds/MetaGraph.cs` |
+| Logs de HttpClient sin la URL (Telegram y Meta llevan secretos en ella) | `backend/src/Api/Startup/SecretUrlHttpLogging.cs` |
 | Registro DI | `backend/src/Api/Startup/ServiceRegistration.cs` (bloque "Redes sociales") |
 | Panel | `admin/src/pages/Redes.tsx`, `redes-cuentas.tsx`, `redes-composer.tsx`, `redes-publicaciones.tsx`, `redes-calendario.tsx`, `redes-shared.tsx` |
 
@@ -49,6 +52,15 @@ El diseño está tomado de Mixpost: cada red declara sus límites
 (`MaxChars`, `MaxImages`, `RequiresMedia`) y el composer valida con eso; cada
 canal traduce su HTTP a un `SocialPublishResult` normalizado y el worker no
 conoce redes.
+
+El servidor valida los mismos límites (texto de cada cuenta contra
+`MaxChars` de su red e imagen si la red la exige) al **programar** y al
+**editar un post ya programado**: 400 `Social.TooLongForNetwork` o
+`Social.MediaRequired`, con la red y la cuenta en el mensaje. Un borrador se
+guarda igual, como en el composer (puede estar a medio escribir y no sale a
+ninguna red). `MaxImages` no se valida en ningún lado a propósito: Instagram
+publica la primera imagen y X solo texto, y un post con fotos para Facebook
+puede ir también a esas dos.
 
 | Canal (`Provider`) | Máx. caracteres | Máx. imágenes | Exige imagen |
 |---|---|---|---|
@@ -71,6 +83,11 @@ conoce redes.
 - `GET|POST /admin/social/posts`, `PUT /admin/social/posts/{id}`,
   `POST /admin/social/posts/{id}/schedule`, `POST .../unschedule`,
   `DELETE /admin/social/posts/{id}` (no se puede borrar mientras se publica).
+- `POST /admin/social/posts/{id}/retry`: un post `Failed` vuelve a la cola
+  para ya (`Scheduled` + `Pending`) y salen solo las redes que fallaron; las
+  que ya salieron se saltean. 409 `Social.NotRetryable` si el post no terminó
+  con errores. Un post que ya salió en alguna red no se edita (cambiar los
+  destinos la repetiría); si no salió en ninguna, sí.
 
 ### Tokens y purposes de DataProtection
 
@@ -100,7 +117,7 @@ conector queda apagado y el panel lo dice. Telegram no lleva nada.
 | `Social:X:ClientId` / `ClientSecret` | `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` | Alcanza con el ClientId; si la app es confidencial, con el secret se manda Basic auth al canjear. |
 | `Social:X:RedirectUri` | fija en el compose | `https://api.<dominio>/api/v1/social/oauth/callback/x` |
 | `Social:AdminReturnUrl` | fija en el compose | `https://admin.<dominio>/redes` |
-| `Social:Meta:ApiBaseUrl`, `AuthBaseUrl`, `Social:X:ApiBaseUrl`, `AuthBaseUrl`, `Social:Telegram:ApiBaseUrl` | no | Defaults en `SocialOptions` (Graph `v21.0`, `api.x.com/2`, `api.telegram.org`); existen para los tests. |
+| `Social:Meta:ApiBaseUrl`, `AuthBaseUrl`, `Social:X:ApiBaseUrl`, `AuthBaseUrl`, `Social:Telegram:ApiBaseUrl` | no | Defaults en `SocialOptions` (Graph `MetaGraph.Version`, hoy `v26.0`; `api.x.com/2`, `api.telegram.org`); existen para los tests. |
 
 El mapeo está en `infra/docker/docker-compose.stack.yml` y los placeholders en
 `infra/docker/.env.prod.example`. En `appsettings.json` no hay sección
@@ -141,21 +158,34 @@ hasta 10 vencidos y reclama cada uno con un `UPDATE ... WHERE ScheduleStatus =
 Pending` por fila (si afecta 0 filas, lo agarró otra instancia). Publica target
 por target: el fallo de una red no frena a las demás. Al terminar, el post
 queda `Published` o `Failed` (si algún target tuvo error) y `Processed`.
+Desde la bandeja, "Reintentar" lo vuelve a mandar (solo lo que falló).
 
 - **Facebook**: cada imagen se sube a `/{page}/photos` con `published=false` y
   se adjunta al `POST /{page}/feed` con `attached_media[i]`.
 - **Instagram**: contenedor `POST /{ig}/media` con `image_url` y `caption` →
   `POST /{ig}/media_publish` → `GET /{media}?fields=permalink` para el link.
-- **X**: si al token le quedan menos de 5 minutos, se refresca ahí mismo y el
-  token nuevo vuelve al worker en `RefreshedTokenJson` para persistirlo
-  cifrado; después `POST /tweets` con el texto.
+- **X**: si al token le quedan menos de 5 minutos, `SocialAccountTokens` lo
+  renueva ANTES de publicar: con un semáforo por cuenta y re-leyendo el token
+  dentro del lock (si otro publicador ya renovó, usa ese), y lo guarda
+  cifrado apenas vuelve. Después `POST /tweets` con el texto. Antes el token
+  nuevo volvía en el resultado de publicar y un error de red en el tweet lo
+  perdía: con el refresh token de un solo uso ya rotado, la cuenta moría.
 - **Telegram**: `sendMessage`, `sendPhoto` o `sendMediaGroup` según la cantidad
   de imágenes. Si el texto pasa los 1024 caracteres de un caption, sale como
   mensaje aparte.
 
 Respuestas normalizadas: `Unauthorized` marca la cuenta como no autorizada (el
 panel pide reconectar y el worker la saltea en los próximos posts);
-`RateLimited` y `Error` dejan el mensaje en el target.
+`RateLimited` y `Error` dejan el mensaje en el target (el de rate limit dice
+"Probá de nuevo con «Reintentar» en N min").
+
+**Logs.** El token del bot de Telegram va en el path de la URL y Meta lleva
+`access_token` y `client_secret` en la query. El log por defecto de
+IHttpClientFactory escribe la URL en Information (.NET redacta la query desde
+la versión 9, el path no), así que esos clientes (Telegram, los tres de redes
+de Meta y Meta Ads) loguean solo método, host, status y duración
+(`SecretUrlHttpLogging`, probado en `SecretUrlLoggingTests`). Ojo: si se
+prende Sentry, sus breadcrumbs HTTP llevan la URL entera.
 
 ## Lo que aprendimos de la API real
 
@@ -164,6 +194,12 @@ documentación oficial y quedó codificado así.
 
 - **Meta canjea por GET**, con `client_secret` en query, no por POST form como
   Mercado Pago o Mercado Libre.
+- **Versión de la Graph API**: una sola, `MetaGraph.Version` (hoy `v26.0`,
+  salida el 29-jul-2026). Meta apaga cada versión a los ~2 años (v20.0 murió
+  el 24-sep-2026, v21.0 muere el 21-ene-2027). Los changelogs de v22 a v26 no
+  tocan los endpoints que usamos; v26 deja de aceptar `date_format`,
+  `pretty`/`debug`, ETag y `GET /?ids=`, que no usamos. Al subirla, revisá el
+  [changelog](https://developers.facebook.com/docs/graph-api/changelog).
 - Los **page tokens** obtenidos con un token largo de usuario no vencen en la
   práctica: no hay refresh. Ante el error `190` se marca la cuenta y se
   reconecta. Los códigos `4`, `17` y `613` son rate limit.
@@ -204,7 +240,8 @@ no crea campañas ni manda eventos.
   `GET /ad-accounts`, `POST /ad-account` (permiso `ads.manage`); callback
   público `GET /oauth/callback`, que vuelve a `MetaAds:AdminReturnUrl?meta=connected|error`.
 - Gasto: `GET /{adAccountId}/insights?level=campaign&fields=campaign_id,campaign_name,spend`
-  con `time_range`; sin fechas toma los últimos 30 días. Se devuelve en
+  con `time_range`; sin fechas toma los últimos 30 días hasta hoy en
+  Argentina (`ArgentinaTime.Today`, no la fecha UTC). Se devuelve en
   centavos, en la moneda de la cuenta publicitaria.
 - Token: largo de usuario (~60 días), sin refresh. Vencido, el endpoint lo
   trata como no conectado y el panel pide reconectar.
@@ -244,7 +281,4 @@ No hay Conversions API del lado del servidor.
   (y `ads_read` para Meta Ads) antes de que la usen cuentas que no sean
   testers de la app.
 - Media en X (hoy solo texto).
-- No hay reintento de un post fallido: queda `Failed` + `Processed`, no es
-  editable y hay que armar uno nuevo, aunque el mensaje de rate limit diga
-  "Probá de nuevo en N min".
 - Conversions API de Meta: no existe; solo el pixel en el navegador.

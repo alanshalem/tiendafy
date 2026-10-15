@@ -34,7 +34,9 @@ Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre
   auto-factura opcional al importar cada venta cobrada; nota de crédito
   automática si una venta facturada se cancela o reembolsa.
 - **Métricas.** Las ventas ML entran en Estadísticas, Rentabilidad, Reposición
-  y en los avisos del Inicio (sin facturar, preguntas sin responder).
+  y en los avisos del Inicio (sin facturar, preguntas sin responder). Ingresos
+  y ganancia del canal cuentan lo cobrado (`BillableAmount`: `paid_amount`, o
+  el total si no viene), no el total de la venta.
 
 ### "Venta cobrada"
 
@@ -96,8 +98,9 @@ Todos bajo `/api/v1`.
 | `GET /admin/meli/claims` | `meli.operate` | Reclamos paginados. |
 | `POST /admin/meli/orders/{id}/invoice` | `fiscal.emit` | Factura ARCA de una venta cobrada. |
 | `GET /admin/meli/items`, `POST/DELETE /admin/meli/items/{itemId}/link` | `meli.publish` | Publicaciones del vendedor y vínculos con variantes. |
+| `PUT /admin/meli/items/{itemId}/sync` | `meli.publish` | Switches de stock y precio de UNA publicación vinculada (`{ meliVariationId, syncStock?, syncPrice? }`). No escribe en ML: vale también en la cuenta de ejemplo. |
 | `GET /admin/meli/categories/predict`, `POST /admin/meli/products/{id}/publish` | `meli.publish` | Sugerir categoría y publicar. |
-| `POST /webhooks/meli` | público (allowlist en `AdminWriteAuthMiddleware`) | Webhook: solo persiste y responde 200. |
+| `POST /webhooks/meli` | público (allowlist en `AdminWriteAuthMiddleware`) | Webhook: solo persiste y responde 200 (también a un cuerpo que no es JSON, ver "Venta nueva"). |
 
 ## Configuración
 
@@ -127,6 +130,13 @@ Por tienda (desde `/configuracion/mercadolibre`): sincronizar stock, buffer
 anti-sobreventa, sincronizar precios, recargo del canal y auto-factura. Todos
 apagados al conectar.
 
+Por publicación (en `/mercadolibre`, pestaña Publicaciones): los switches
+"Stock" y "Precio" de cada publicación vinculada. Nacen prendidos; el de la
+conexión manda sobre ellos (apagado allá, no viaja nada). Sirven para dejar
+afuera una publicación puntual, por ejemplo una con precio promocional
+cargado a mano en ML. Al volver a prender uno se olvida lo último empujado y
+la próxima pasada manda el valor de la tienda aunque coincida con el de antes.
+
 ## Flujos
 
 **Conectar.** `POST /admin/meli/connect` arma la URL de
@@ -142,8 +152,10 @@ dentro del lock**: si otro request ya renovó, usa ese token. Si ML no devuelve
 un refresh token nuevo, se conserva el anterior.
 
 **Venta nueva.** ML hace `POST /api/v1/webhooks/meli` → se guarda en
-`meli_notifications` y se responde 200 (si el payload viene incompleto, 200
-igual para que no reintente). `MeliNotificationWorker` resuelve el tenant por
+`meli_notifications` y se responde 200 (si el payload viene incompleto o el
+cuerpo no es JSON, 200 igual y se descarta: ML reintenta todo lo que no sea
+200 y un cuerpo roto no se arregla reintentando; si de verdad era una venta,
+la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
 `user_id`, saca el id de `resource` (`/orders/123`) y re-consulta
 `GET /orders/{id}` con el token del vendedor. `MeliSyncService.ApplyOrderAsync`:
 
@@ -159,7 +171,8 @@ igual para que no reintente). `MeliNotificationWorker` resuelve el tenant por
    consumidor final.
 
 **Tiendafy → ML.** `MeliStockSyncWorker`, cada 5 min, toma las conexiones con
-stock **o** precio prendidos (nunca las de demo). Por vínculo calcula
+stock **o** precio prendidos (nunca las de demo) y, de cada una, los vínculos
+con su switch de stock o de precio prendido. Por vínculo calcula
 `disponible − buffer` y `MeliPricing.ForChannel(precio, recargo)`, y hace un
 solo `PUT /items/{id}` con lo que cambió respecto de lo último empujado. En
 publicaciones con variaciones, stock y precio van dentro de `variations[]`
@@ -167,14 +180,17 @@ publicaciones con variaciones, stock y precio van dentro de `variations[]`
 reintenta en la próxima pasada.
 
 **Publicar.** Exige categoría (sugerida por
-`/sites/{site}/domain_discovery/search`) y stock disponible > 0. Arma el
-payload: título hasta 60 caracteres, precio con recargo solo si la
+`/sites/{site}/domain_discovery/search`) y stock disponible > 0, y que el
+colchón anti-sobreventa no se coma todo el stock: si disponible − buffer < 1
+responde 400 (`Meli.BufferExceedsStock`) en vez de publicar 1 unidad igual.
+Arma el payload: título hasta 60 caracteres, precio con recargo solo si la
 sincronización de precios está prendida, `available_quantity` = disponible −
-buffer (mínimo 1), `condition: new`, `listing_type_id` `gold_special` por
+buffer, `condition: new`, `listing_type_id` `gold_special` por
 defecto, hasta 6 fotos, atributos `BRAND`, `SELLER_SKU` y los de la ficha
 técnica que tengan `MeliAttributeId`. La descripción va en un segundo
-`POST /items/{id}/description`. Después auto-vincula. v1 no publica
-variaciones de ML.
+`POST /items/{id}/description`. Después auto-vincula, con lo que viajó
+(disponible − buffer y el precio del canal) como último empujado: el worker
+no repite el PUT. v1 no publica variaciones de ML.
 
 ## Lo que aprendimos de la API real
 
@@ -225,5 +241,4 @@ real (ver Pendiente).
 - Crear la app de plataforma en developers.mercadolibre.com.ar y probar OAuth,
   webhooks y sync con una cuenta real.
 - Backlog: publicar con variaciones de ML, responder reclamos, mensajes con
-  adjuntos, `missed_feeds` como respaldo de los webhooks, y los switches de
-  sync por publicación (existen en la entidad pero no hay endpoint ni UI).
+  adjuntos y `missed_feeds` como respaldo de los webhooks.
