@@ -169,7 +169,7 @@ desde el panel y cobra en su nombre.
    - Anotá la **clave secreta** que muestra (`MP_WEBHOOK_SECRET`).
 4. **Credenciales de producción**: anotá **Client ID** y **Client Secret**.
 
-Más detalle: [payments-mercadopago.md](./payments-mercadopago.md).
+Más detalle: [integraciones/mercadopago.md](./integraciones/mercadopago.md).
 
 ### 1.8 Token de Cloudflare para Caddy
 
