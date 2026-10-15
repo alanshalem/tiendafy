@@ -28,19 +28,27 @@ export function HeaderActions() {
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-      <button
-        type="button"
-        onClick={openCommandPalette}
-        aria-label="Buscar en el panel"
-        aria-keyshortcuts="Control+K Meta+K"
-        className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-md border border-border bg-surface px-2.5 text-sm text-fg-muted hover:bg-bg-muted hover:text-fg md:w-56 md:justify-start lg:w-64"
-      >
-        <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="hidden flex-1 text-left md:inline">Buscar…</span>
-        <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-3xs text-fg-subtle md:inline">
+      {/* El atajo se dibuja encima del botón y no adentro: lo que se ve en un
+          botón tiene que estar en su nombre (WCAG 2.5.3, quien lo maneja por voz
+          dice "Buscar"), y "Ctrl K" ya se anuncia con aria-keyshortcuts. */}
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          aria-label="Buscar en el panel"
+          aria-keyshortcuts="Control+K Meta+K"
+          className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-md border border-border bg-surface px-2.5 text-sm text-fg-muted hover:bg-bg-muted hover:text-fg md:w-56 md:justify-start md:pr-16 lg:w-64"
+        >
+          <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="hidden flex-1 text-left md:inline">Buscar…</span>
+        </button>
+        <kbd
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded border border-border px-1.5 py-0.5 text-3xs text-fg-subtle md:inline"
+        >
           {paletteShortcut()}
         </kbd>
-      </button>
+      </div>
 
       {store && (
         <a
@@ -63,12 +71,13 @@ export function HeaderActions() {
           label={`Tu cuenta${user?.name ? `: ${user.name}` : ''}`}
           className="h-10 min-w-10 justify-center gap-2 rounded-full hover:text-fg sm:ml-1 sm:border-l sm:border-border sm:pl-3"
         >
+          {/* La inicial va por CSS: como texto contaba como parte de lo que se
+              ve en el botón ("A Alan"), y el nombre es "Tu cuenta: Alan". */}
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary"
-          >
-            {initial}
-          </span>
+            data-initial={initial}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary before:content-[attr(data-initial)]"
+          />
           <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">{user?.name}</span>
         </Dropdown.Trigger>
         <Dropdown.Menu align="end">

@@ -27,8 +27,17 @@ interface Axe {
   run(context: Element, options: object): Promise<{ violations: AxeResult[]; incomplete: AxeResult[] }>;
 }
 
-/** Reglas que dependen de layout/color reales (jsdom no los tiene). */
-const NEEDS_A_BROWSER = ['color-contrast', 'target-size', 'scrollable-region-focusable'];
+/**
+ * Reglas que dependen de layout/color reales (jsdom no los tiene).
+ * `label-content-name-mismatch` (lo visible tiene que estar en el nombre)
+ * mide el texto en un <canvas> desde axe 4.14: en jsdom no puede correr.
+ */
+const NEEDS_A_BROWSER = [
+  'color-contrast',
+  'target-size',
+  'scrollable-region-focusable',
+  'label-content-name-mismatch',
+];
 
 /** Las violaciones, resumidas para que un fallo se lea en el reporte del test. */
 export async function a11yViolations(axe: Axe, root: Element = document.body) {

@@ -201,7 +201,11 @@ describe('paleta de comandos', () => {
   it('el botón del encabezado abre el buscador y muestra el atajo', async () => {
     const user = await openPanel();
     const button = screen.getByRole('button', { name: 'Buscar en el panel' });
-    expect(button).toHaveTextContent(/Ctrl K|⌘ K/);
+    // El atajo se anuncia con aria-keyshortcuts y se ve encima del botón, pero no
+    // es texto del botón: lo visible tiene que estar en su nombre (WCAG 2.5.3).
+    expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+    expect(button).not.toHaveTextContent(/Ctrl K|⌘ K/);
+    expect(button.parentElement).toHaveTextContent(/Ctrl K|⌘ K/);
     await user.click(button);
     expect(await screen.findByRole('dialog', { name: 'Buscar en el panel' })).toBeInTheDocument();
   });
