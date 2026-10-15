@@ -1,70 +1,132 @@
-# Tiendafy — START HERE
+# Empezá acá
 
-Mapa de la documentación. El proyecto está **construido y funcionando** (no es
-un plano): 20 módulos backend, storefront y admin completos, CI verde, deploy
-reproducible. Este archivo te dice qué leer según lo que necesites.
+Lo que necesitás el primer día para levantar Tiendafy, probarlo y saber dónde
+tocar. El índice de toda la documentación está en [README.md](./README.md).
 
-## En 2 minutos
+Tiendafy es la plataforma con la que una importadora opera varias tiendas
+propias desde un panel. "Multi-tenant" acá quiere decir varias tiendas de la
+misma empresa: cada fila lleva `tenant_id` y cada módulo filtra por tienda.
 
-- **Qué es**: SaaS e-commerce multi-tenant para merchants de Argentina/LATAM
-- **Stack**: .NET 10 (backend modular) + Next.js 16 (storefront SSR) + React+Vite (admin SPA)
-- **Multi-tenant**: DB compartida + `tenant_id` en cada fila + query filters globales de EF por módulo + tests de aislamiento
-- **Estado**: funcional de punta a punta — venta real con Mercado Pago, factura ARCA, envío con Correo Argentino, emails/WhatsApp automáticos
+## 1. Requisitos
 
-## Qué leer según lo que busques
+| Herramienta | Versión                         | Nota                                                                |
+| ----------- | ------------------------------- | ------------------------------------------------------------------- |
+| Docker      | Docker Desktop (Windows) o Engine | Postgres 18, MinIO y pgAdmin corren en contenedores               |
+| .NET SDK    | 10                              | `setup.*` lo exige                                                  |
+| Node        | 26 (`.node-version`)            | Desde Node 25 no hay corepack                                       |
+| pnpm        | la de `packageManager` en `package.json` | `npm install -g pnpm`; al correr en el repo se pasa sola a esa versión |
 
-| Necesito… | Leé |
-|---|---|
-| Levantar el entorno y ver algo andando | [../README.md](../README.md) → Quick start (`.\dev-up.ps1`; admin en :5173, tiendas en `<sub>.localhost:3000`) |
-| Dónde vive cada puerto y cómo convivir con otro proyecto en la misma máquina | [URLS.md](./URLS.md) |
-| Storage de imágenes (MinIO en dev, Cloudflare R2 en prod) | [DEPLOY.md](./DEPLOY.md) → Imágenes de las tiendas |
-| Todas las API keys/secretos/variables (dev y prod) | [CONFIGURACION.md](./CONFIGURACION.md) — qué conseguir, dónde se consigue y dónde va |
-| Entender TODO el sistema de un vistazo | [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) — diagramas Mermaid: piezas, integraciones y el flujo de una venta |
-| Loguearme en dev | [usuarios-de-prueba.md](./usuarios-de-prueba.md) |
-| Ver las 130+ rutas de la API | http://localhost:5080/scalar/v1 (con la API corriendo) |
-| Qué le falta al sistema frente a un ERP del mercado | [COMPARATIVA-LAPYME.md](./COMPARATIVA-LAPYME.md) — brechas verificadas contra el código, y qué conviene construir |
-| Deployar a producción | [DEPLOY.md](./DEPLOY.md) — imágenes, compose.prod, Caddy, backups, variables |
-| Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
-| Entender roles y permisos | [rbac.md](./rbac.md) — roles, matriz y enforcement (fuente de verdad: `Permissions.cs`) |
-| Entender el chat posventa | [support-chat.md](./support-chat.md) |
-| Correr o escribir tests (todos los tipos: unit, integración, componentes, accesibilidad, e2e, carga) | [TESTING.md](./TESTING.md) |
-| Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) |
-| Agregar un módulo | [guides/adding-a-module.md](./guides/adding-a-module.md) — receta basada en módulos reales |
-| Por qué cada decisión de arquitectura | [adr/](./adr/) — monolito .NET, Next+Vite, multi-tenancy |
+## 2. Primera vez
 
-> Los documentos de planificación de junio 2026 (blueprint, checklist de
-> construcción, investigación ARCA) se eliminaron: el código y esta doc son la
-> fuente de verdad. Si necesitás ese contexto, está en el historial de git.
-> La explicación de facturación "en criollo" vive ahora en el centro de ayuda
-> del admin (`/ayuda/fiscal`).
+```powershell
+.\setup.ps1              # Windows. Opciones: -SkipDocker, -SkipTests
+./setup.sh               # Linux/macOS/WSL. Opciones: --skip-docker, --skip-tests
+```
 
-## Los módulos del backend (los 20 reales)
+Hace, en orden: chequea requisitos, levanta `infra/docker/docker-compose.dev.yml`
+(Postgres, MinIO, pgAdmin), `pnpm install`, compila el backend y corre sus tests.
 
-`Tenancy` (tiendas, dominios, resolve por host) · `Identity` (staff, RBAC, verificación email) ·
-`Catalog` (productos, variantes, categorías, CSV) · `Inventory` (stock, reservas anti-oversell) ·
-`Checkout` (sesiones, envíos manuales + Correo Argentino) · `Orders` (órdenes, reembolsos, fulfillment) ·
-`Payments` (Mercado Pago OAuth + webhooks) · `Fiscal` (ARCA: CAE, PDF con QR, NC) ·
-`Themes` (editor draft/published) · `Customers` (compradores, favoritos, mensajes) ·
-`Notifications` (email/WhatsApp por plantilla + contadores) · `Analytics` (visitas) ·
-`Media` (imágenes/videos a MinIO/S3) · `Content` (páginas CMS) · `Discounts` (cupones) ·
-`Support` (chat posventa) · `MercadoLibre` (canal ML: ventas, preguntas, mensajes, stock unificado, publicar) ·
-`Purchasing` (compras a proveedores, ficha de proveedor, importación, landed cost, reposición) ·
-`Finance` (tesorería: cajas y bancos; cuentas corrientes de clientes y proveedores; recibos) ·
-`Social` (redes sociales: cuentas conectadas, posts multi-red programados, calendario) ·
-`Reviews` (reseñas de productos con estrellas y fotos: solo compradores, moderación, pedido por email)
+Los tests de integración del backend usan el Postgres de dev (base
+`tiendafy_itests`, aparte de la de desarrollo): con `-SkipDocker` y sin
+Postgres levantado, fallan.
 
-Cada módulo: `{Module}.Contracts` (interfaz pública) / `.Core` (dominio+features) /
-`.Infrastructure` (persistencia, DbContext propio con filtro de tenant). Los módulos
-solo se hablan por Contracts.
+> Si venís de antes del 15-oct-2026: el Postgres de dev pasó a la 18 con un
+> volumen nuevo (`postgres18_data`) y arranca vacío. Para traer tus datos de la
+> 16, seguí [DEPLOY.md → Cambiar de major de Postgres → Desarrollo](./DEPLOY.md#cambiar-de-major-de-postgres-16--18).
 
-## Preguntas frecuentes
+## 3. Día a día
 
-**P: ¿Por qué .NET y no Node?** → [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md)
+```powershell
+.\dev-up.ps1                     # infra + API (:5080) + panel (:5173) + tienda (:3000)
+.\dev-up.ps1 -BackendOnly        # solo infra + API
+.\dev-up.ps1 -StorefrontPort 3001  # si otra app ya usa el 3000
+.\dev-up.ps1 -Tunnel             # túnel cloudflared para webhooks de Mercado Pago
+.\dev-up.ps1 -Docker             # todo en contenedores (demo/smoke, sin hot-reload)
+.\dev-down.ps1                   # apagar (-KeepInfra deja Docker; -Docker baja el modo contenedores)
+```
 
-**P: ¿Por qué DB compartida entre tenants?** → [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md). Nota: el ADR propone RLS; lo implementado son query filters de EF + tests de aislamiento — el trade-off está anotado en el ADR.
+`dev-up.ps1` espera a que `/health` dé 200 antes de lanzar los frontends, abre
+cada uno en su ventana y al final lista las tiendas de la base con su URL. Los
+logs de la API quedan en `backend/api-run.log` y `backend/api-err.log`.
 
-**P: ¿Por qué Next.js + Vite y no un solo frontend?** → [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md)
+Sin Windows, a mano (con la infra arriba):
 
-**P: ¿Cómo se evita el data leak entre tenants?** → Query filters globales por DbContext + middleware de membresía en toda escritura admin + `X-Tenant-Id` verificado contra la sesión + tests de integración (`TenantIsolationTests`) contra Postgres real.
+```bash
+cd backend/src/Api && dotnet run          # http://localhost:5080
+cd storefront && pnpm dev                 # http://localhost:3000
+cd admin && pnpm dev                      # http://localhost:5173
+```
 
-**P: ¿Dónde están los secretos?** → user-secrets en dev, env vars en prod. Credenciales de merchants (MP/ARCA/WhatsApp/MiCorreo) cifradas con DataProtection en la DB; el keyring vive en el volumen `dpkeys`.
+## 4. Entrar y tener datos
+
+1. Panel en http://localhost:5173 con `admin@tiendafy.local` / `password123`.
+   En Development la API siembra al arrancar una cuenta por rol y dos
+   compradores por tienda: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
+2. Si no hay tiendas, creá una desde el menú de usuario → **Mis tiendas** (`/tenants`).
+3. Para llenarla con datos de ejemplo: `POST /api/v1/dev/demo-seed` sobre la
+   tienda activa, como dueño (`?reset=true` borra la demo anterior y la
+   rehace). La ruta existe solo en Development.
+4. La tienda se ve en `http://<subdominio>.localhost:3000`. `localhost:3000`
+   pelado muestra la tienda de `PRIMARY_STORE_SUBDOMAIN` (ver
+   [CONFIGURACION.md](./CONFIGURACION.md#3-variables-de-los-frontends)); sin
+   esa variable, "tienda no encontrada".
+
+## 5. Tests
+
+```bash
+pnpm verify              # todo lo de CI salvo el e2e, en fases que no ahogan la máquina
+pnpm verify --front      # solo panel, tienda y paquetes compartidos
+pnpm verify --back       # solo backend
+pnpm test:e2e            # Playwright contra el stack levantado
+```
+
+Qué hay, cómo correr cada suite y qué exige CI: [TESTING.md](./TESTING.md).
+
+## 6. Dónde vive cada cosa
+
+```
+backend/src/Api/            composición: endpoints (Endpoints/), arranque (Startup/), workers, orquestación entre módulos
+backend/src/Modules/<M>/    un módulo por área, con su DbContext y su filtro de tienda
+backend/src/SharedKernel*/  tipos comunes y helpers de persistencia (ModuleDb)
+backend/tests/              UnitTests (incluye Architecture/) e IntegrationTests (API real + Postgres)
+admin/src/                  panel; el centro de ayuda (/ayuda) sale de src/config/help-content-*.ts
+storefront/src/             tienda; las secciones del inicio en components/store/sections/
+shared/types/src/sections/  registro único de secciones del editor (ver su README.md)
+test-fixtures/              respuestas reales de la API y helpers que comparten las suites del front
+e2e/tests/                  specs de Playwright
+infra/docker/               compose de dev, overlay full-docker y stack de producción
+infra/edge/                 Caddy del borde (80/443) para todo el servidor
+scripts/                    verify, fixtures de la API, prueba de carga
+```
+
+Los 21 módulos de `backend/src/Modules`: Analytics, Catalog, Checkout,
+Content, Customers, Discounts, Finance, Fiscal, Identity, Inventory, Media,
+MercadoLibre, Notifications, Orders, Payments, Purchasing, Reviews, Social,
+Support, Tenancy y Themes. La mayoría es un solo proyecto `.Infrastructure`;
+los que tienen dominio con reglas suman `.Core`, y los que les muestran tipos
+a otros módulos, `.Contracts`. Un módulo solo puede referenciar el
+`.Contracts` de otro (lo controla
+`backend/tests/UnitTests/Architecture/ModuleBoundariesTests.cs`).
+
+## 7. Convenciones
+
+- Código, commits, UI y docs en castellano rioplatense. Commits con el formato
+  del historial: `tipo(área): qué cambia` (`fix(pagos): …`, `docs(testing): …`).
+- `pre-commit` (husky + lint-staged) formatea lo que commiteás: Prettier en
+  TS/CSS/JSON/YAML y `dotnet format --include` en C#. No reemplaza a
+  `pnpm verify`: CI corre `dotnet format` sobre toda la solución y compila con
+  `-warnaserror`.
+- Módulo nuevo: [guides/adding-a-module.md](./guides/adding-a-module.md).
+  Permisos: [rbac.md](./rbac.md) (fuente de verdad:
+  `backend/src/Modules/Identity/Identity.Infrastructure/Permissions.cs`).
+  UI: [DESIGN.md](./DESIGN.md). Decisiones de arquitectura: [adr/](./adr/).
+- Un bug arreglado lleva su test de regresión ([TESTING.md](./TESTING.md#convenciones)).
+
+## 8. Problemas comunes
+
+| Síntoma                                                     | Qué hacer                                                                                                     |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| El 3000 lo usa otra app                                     | `.\dev-up.ps1 -StorefrontPort 3001`; el script actualiza `VITE_STOREFRONT_ORIGIN` en `admin/.env.local`        |
+| `dotnet build` falla con MSB3027 (DLL bloqueada por `Api`)  | La API de `dev-up` sigue corriendo: `.\dev-down.ps1 -KeepInfra` y compilá de nuevo                            |
+| "Ver mi tienda" o el editor apuntan a un puerto vacío       | Revisá `VITE_STOREFRONT_ORIGIN` en `admin/.env.local` (plantilla `http://{sub}.localhost:<puerto>`)           |
+| Docker dice "Engine running" pero los puertos no responden | `dev-up.ps1` reinicia Docker Desktop solo una vez; si sigue, reinicialo a mano                               |
