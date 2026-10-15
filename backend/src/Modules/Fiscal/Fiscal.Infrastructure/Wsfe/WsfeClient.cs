@@ -258,7 +258,17 @@ public sealed class WsfeClient(
         var text = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            var fault = SoapFault.Extract(text);
+            // Un SOAP Fault es ARCA contestando: procesó el pedido y lo rechazó.
+            // Un 502/503/504 sin Fault (un proxy, un balanceador, una página de
+            // error) no dice nada de si el pedido llegó: tratarlo como rechazo
+            // liberaba un número que ARCA pudo haber autorizado, y el reintento
+            // facturaba dos veces. Es ambiguo: se reconcilia.
+            if (SoapFault.Find(text) is not { } fault)
+            {
+                logger.LogWarning("WSFEv1 {Op} {Status} sin SOAP Fault: no se sabe si llegó a ARCA.", operation, (int)resp.StatusCode);
+                return Result.Failure<XElement>(Error.Conflict(FiscalGatewayErrors.NoFault,
+                    $"ARCA (WSFEv1) no respondió bien (HTTP {(int)resp.StatusCode})."));
+            }
             logger.LogWarning("WSFEv1 {Op} {Status}: {Fault}", operation, (int)resp.StatusCode, fault);
             return Result.Failure<XElement>(Error.Conflict("Wsfe.Fault", $"ARCA (WSFEv1): {fault}"));
         }

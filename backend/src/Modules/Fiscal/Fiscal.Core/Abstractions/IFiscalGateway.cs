@@ -13,7 +13,13 @@ public static class FiscalGatewayErrors
     public const string Network = "Wsfe.Network";
     public const string BadResponse = "Wsfe.BadResponse";
 
-    public static bool IsAmbiguous(Error error) => error.Code is Network or BadResponse;
+    /// <summary>
+    /// Respuesta HTTP de error sin SOAP Fault (un 502 de un proxy, por
+    /// ejemplo): no la mandó ARCA, así que no dice si el pedido llegó.
+    /// </summary>
+    public const string NoFault = "Wsfe.NoFault";
+
+    public static bool IsAmbiguous(Error error) => error.Code is Network or BadResponse or NoFault;
 }
 
 /// <summary>Salud de WSFEv1 (FEDummy, no requiere autenticación).</summary>

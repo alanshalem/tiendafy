@@ -16,6 +16,23 @@ internal static class SoapFault
     }
 
     /// <summary>
+    /// El faultstring si la respuesta es un SOAP Fault de verdad; null si no lo
+    /// es (HTML de un proxy, cuerpo vacío, XML sin Fault). Distingue "ARCA lo
+    /// rechazó" de "no sabemos qué pasó".
+    /// </summary>
+    public static string? Find(string body)
+    {
+        try
+        {
+            var fault = XDocument.Parse(body).Descendants().FirstOrDefault(e => e.Name.LocalName == "Fault");
+            if (fault is null) return null;
+            var s = fault.Descendants().FirstOrDefault(e => e.Name.LocalName == "faultstring")?.Value;
+            return string.IsNullOrWhiteSpace(s) ? "(sin detalle)" : s.Trim();
+        }
+        catch { return null; }
+    }
+
+    /// <summary>
     /// El faultcode ("ns1:coe.alreadyAuthenticated"). WSAA pone ahí el motivo
     /// técnico y en faultstring una frase en castellano que no lo nombra: para
     /// decidir qué hacer hay que mirar el código.

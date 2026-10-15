@@ -192,6 +192,25 @@ public sealed class ArcaGotchasTests
         Assert.False(FiscalGatewayErrors.IsAmbiguous(fault.Error));
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.BadGateway, "<html><body>502 Bad Gateway</body></html>")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "")]
+    [InlineData(HttpStatusCode.GatewayTimeout, "upstream request timeout")]
+    [InlineData(HttpStatusCode.InternalServerError, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body/></soap:Envelope>")]
+    public async Task Un_error_HTTP_sin_SOAP_Fault_es_ambiguo(HttpStatusCode status, string body)
+    {
+        // Lo contestó un proxy, no ARCA: el pedido pudo haber llegado y estar
+        // autorizado. Antes se tomaba como rechazo y el número quedaba libre:
+        // el reintento lo volvía a pedir con otra venta o facturaba dos veces.
+        var (client, _) = Make(body, status);
+
+        var r = await client.RequestCaeAsync(Ticket, Emisor, FiscalEnvironment.Homologacion, 1, 7, new DateOnly(2026, 9, 21), Draft());
+
+        Assert.True(r.IsFailure);
+        Assert.Equal(FiscalGatewayErrors.NoFault, r.Error.Code);
+        Assert.True(FiscalGatewayErrors.IsAmbiguous(r.Error));
+    }
+
     // ---- Puntos de venta de Web Services ----------------------------------------
 
     [Fact]
