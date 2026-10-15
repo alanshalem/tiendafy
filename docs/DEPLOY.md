@@ -16,6 +16,10 @@ esto** — todo cae a `localhost` por defecto.
 | Emails | Resend | sin API key: se escriben en el log |
 | Indexación | sí | `noindex` en todas las respuestas |
 
+Hoy la VPS corre **solo producción** (`puenteoriente.com.ar`): staging quedó
+pospuesto por RAM. El compose y los scripts ya lo soportan; prenderlo es
+completar `.env.staging` y sumar su sitio en Caddy.
+
 Los dos ambientes usan **el mismo** `docker-compose.stack.yml`. Que sea el
 mismo archivo no es prolijidad: si staging se define aparte, se va pareciendo
 cada vez menos a producción y deja de servir para probar.
@@ -70,8 +74,9 @@ común de mandarle un email a un cliente real desde un ambiente de prueba.
 
 - **backend** (`backend/src/Api`, .NET 10) → API HTTP. Detrás de un reverse
   proxy/ingress que termina TLS (el compose de prod la corre en `:5080`; `:8080` es el default del Dockerfile).
-- **storefront** (Next.js) → tiendas de los merchants + landing de plataforma.
-  Resuelve por host: `tudominio.com` = landing, `*.tudominio.com` = tienda.
+- **storefront** (Next.js) → las tiendas. Resuelve cuál por host
+  (`<subdominio>.tudominio.com` o un dominio propio); el dominio pelado atiende
+  la tienda de `PRIMARY_STORE_SUBDOMAIN` (sin ella, "tienda no encontrada").
 - **admin** (Vite SPA estática) → panel del merchant.
 - **infra**: PostgreSQL (+ backup diario) por ambiente y un Caddy compartido;
   imágenes en Cloudflare R2 (o cualquier S3-compatible).
@@ -80,6 +85,8 @@ común de mandarle un email a un cliente real desde un ambiente de prueba.
 
 ### Backend (`ASPNETCORE_ENVIRONMENT=Production`)
 Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Production.json`.
+En el stack ya están mapeadas desde `.env.prod` (`infra/docker/docker-compose.stack.yml`);
+la referencia completa, con qué conseguir y dónde, es [CONFIGURACION.md](./CONFIGURACION.md).
 
 | Variable | Ejemplo | Notas |
 |----------|---------|-------|
@@ -106,6 +113,9 @@ Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Produc
 | `Captcha__Turnstile__SiteKey` / `__Secret` | — | Opcional. Cloudflare Turnstile anti-bots en contacto y login/signup. Vacío = sin captcha |
 | `Notifications__EmailCostUsdPer1000` | `0.40` | Opcional. Tarifa de referencia del panel "Uso del mes" (emails) |
 | `Notifications__WhatsAppCostUsdPerMessage` | `0.034` | Opcional. Ídem para WhatsApp |
+| `PublicApiBaseUrl` | `https://api.tudominio.com` | URL pública de la API: links de seguimiento y de baja de los mails de campañas |
+| `Storefront__RevalidateUrl` / `__RevalidateSecret` | `http://storefront:3000/internal/revalidate` | Aviso a la tienda para que un cambio se vea al toque. Sin secreto, la caché vence sola (30 a 60 s) |
+| `Workers__Enabled` | `true` | `false` en réplicas extra de la API, para no duplicar los workers |
 
 ### Imágenes de las tiendas (storage)
 
@@ -193,17 +203,19 @@ Notas de build (ya resueltas en los Dockerfiles):
 - **API**: user no-root `app` de las imágenes .NET 8+ (`USER $APP_UID`); cache
   mount de NuGet (cambiar código no re-descarga paquetes); `libfontconfig1` +
   fuentes en el runtime para los PDFs de facturas (QuestPDF/Skia).
-- **Frontends**: se instala con npm el pnpm pinneado en el `packageManager`
-  del package.json raíz (Node 25+ ya no trae corepack). Capa de deps con
-  `pnpm fetch` (solo lockfile) + cache mount del store, e install `--frozen-lockfile --offline --filter ./app...` (el
-  equivalente estricto de `npm ci`, filtrado al workspace que se buildea).
+- **Frontends**: Node de la misma major que `.node-version`; se instala con npm
+  el pnpm fijado en el `packageManager` del package.json raíz (Node 25+ ya no
+  trae corepack). Capa de deps con `pnpm fetch` (solo lockfile) + cache mount
+  del store, e install `--frozen-lockfile --offline` del workspace completo (un
+  install filtrado deja a tsc sin los tipos compartidos).
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
 - Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
   "La misma imagen en los dos ambientes"). Los `--build-arg` de `NEXT_PUBLIC_*`
   y `VITE_*` quedan solo para builds sueltos de desarrollo.
 - **pnpm**: los build scripts nativos aprobados están en `pnpm-workspace.yaml`
-  (`allowBuilds`/`onlyBuiltDependencies`), si no `--frozen-lockfile` falla.
+  (`allowBuilds`); si no, `--frozen-lockfile` falla. pnpm 12 corta con cualquier
+  clave que no reconozca en ese archivo.
 - Cada imagen tiene su **`Dockerfile.dockerignore`** (BuildKit): el contexto solo
   lleva lo que esa imagen necesita, y repite las exclusiones de secretos porque
   reemplaza al `.dockerignore` raíz.
@@ -394,6 +406,13 @@ docker compose -f infra/docker/docker-compose.dev.yml up -d --wait postgres     
 docker exec -i tiendafy-postgres pg_restore -U tiendafy -d tiendafy --exit-on-error < dev.dump
 ```
 
+En desarrollo sí hay filas huérfanas: la purga de tiendas de prueba
+(`DELETE /tenants/{id}/purge`, solo en Development) desactiva las claves
+foráneas y deja hijas sin padre (imágenes, variantes, ítems de pedidos), y el
+restore falla al recrear esas claves. Antes del dump, o se borran (son basura:
+nadie las puede ver) o se arranca la base de cero con los datos de demo
+(`POST /dev/demo-seed`).
+
 ### Correr TODO el sistema en contenedores (local)
 
 Overlay que suma las 3 apps a la infra, sin duplicarla:
@@ -429,32 +448,32 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   post-login solo apunta a destinos propios (anti open-redirect/robo de token).
 - **Uploads**: validación por *magic bytes* además del content-type.
 - **Sesión admin**: cookie `HttpOnly` + `SameSite=Lax` + `Secure` (forzado en prod).
-- **Sesión comprador**: cookie `HttpOnly` por-tenant (`shop_{tenantId}`), `SameSite=Lax`,
-  `Secure` en https. **Ya no usa `localStorage`** ni viaja el token por la URL del
-  OAuth. El front pega con `credentials: 'include'`.
+- **Sesión comprador**: cookie `HttpOnly` por tienda (`shop_{tenantId}`), `SameSite=Lax`,
+  `Secure` en https; nunca `localStorage` ni el token en la URL del OAuth. El
+  front pega con `credentials: 'include'`.
+- **PII en reposo**: teléfono y dirección de los clientes van cifrados por
+  columna (DataProtection, purpose `Customers.PII.v1`).
+- **Archivos privados** (adjuntos del chat de soporte): bucket aparte, nunca
+  público, servido con URLs firmadas de vida corta.
 - **CSS del tema**: `customCss` se sanea al guardar (quita `<`, `@import`,
   `expression()`, `javascript:`…) para que no rompa el `<style>` e inyecte HTML/JS.
 - **CSRF**: las escrituras con cookie exigen el header custom `X-Tenant-Id` (no
   enviable por un form cross-site sin preflight CORS, que no permitimos) **y** la
   cookie es `SameSite=Lax` → doble defensa. No usamos tokens CSRF dedicados.
 
-**Debe poner el proxy / hosting:**
-- Headers de seguridad para el **admin** (Vite estático). Ya hay un
-  `admin/public/_headers` (Netlify/Cloudflare Pages) y un `<meta>` CSP en `index.html`.
-  Para **nginx**, agregá en el `server` del admin:
-  ```nginx
-  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-  add_header X-Content-Type-Options "nosniff" always;
-  add_header X-Frame-Options "DENY" always;
-  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-  ```
-  El **storefront** (Next) ya emite CSP/nosniff/referrer vía `next.config.ts` (sin
-  `X-Frame-Options` porque el editor lo previsualiza en iframe).
-- HTTPS obligatorio (redirect HTTP→HTTPS) y puertos de DB cerrados a internet (VPC).
-- **Rotación de secretos**: DataProtection **ya rota** sus llaves solo (cada 90 días,
-  conserva las viejas para descifrar) si `DataProtection__KeyPath` es persistente.
-  Tokens MP: re-OAuth del merchant. DB/Resend/Turnstile: rotá vía secrets manager
-  (AWS Secrets Manager / Vault) y redeploy.
+**Headers de seguridad:** el panel los manda desde el nginx de su imagen
+(`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
+referrer y permissions policy) y la tienda desde `next.config.ts` (CSP, nosniff,
+referrer; sin `X-Frame-Options` porque el editor la previsualiza en un iframe).
+
+**Lo pone el borde / el servidor:** HTTPS con redirect desde HTTP (Caddy) y
+ningún puerto de la base ni de las apps abierto a internet (todo escucha en
+`127.0.0.1`).
+
+**Rotación de secretos:** DataProtection rota sus llaves solo (cada 90 días,
+conserva las viejas para descifrar) mientras el volumen `dpkeys` persista.
+Tokens de MP: el comercio vuelve a conectar su cuenta. Base, Resend, R2,
+Turnstile: cambiar el valor en `.env.prod` y redesplegar.
 
 **Decisiones / roadmap pendientes:**
 - **MFA/2FA** para admins (TOTP/WebAuthn) — feature de producto.
@@ -463,6 +482,7 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   el storefront ahí (el merchant no inyecta JS propio; su `customCss` es solo CSS
   saneado). Aislamiento total = servir las tiendas en un **dominio registrable
   aparte** del admin/API (decisión de infra, modelo `myshopify.com`).
-- **PII en reposo** (teléfono/dirección): cifrado a nivel columna (DataProtection).
-- **Bucket de media** es público de solo-lectura (ok para fotos de productos). Si se
-  suben **documentos privados**, pasar a *signed URLs* y bucket privado.
+- **Dominios propios de tiendas**: hoy hay que sumar cada uno a
+  `Cors__AllowedOrigins`, y la sesión del comprador vive en `api.` (desde otro
+  dominio es una cookie de terceros). Se resuelve sirviendo la API desde el
+  mismo dominio de cada tienda, antes de conectar el primero.

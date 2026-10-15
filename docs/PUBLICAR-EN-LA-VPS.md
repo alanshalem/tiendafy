@@ -3,6 +3,13 @@
 Guía paso a paso para poner Tiendafy en producción en la VPS de Hostinger donde
 ya corren **cking** y **ckinsight**, con **Caddy delante de todo**.
 
+> **Estado al 15-oct-2026.** Partes 1 a 3 hechas: Tiendafy es público desde el
+> 13-oct, con Caddy en 80/443 y nginx detrás (respaldo en
+> `/root/nginx-antes-de-caddy`). Falta: la app de Mercado Pago (1.7), apagar
+> `certbot.timer` (3.6), la Parte 4 (cuenta y tiendas reales) y, cuando
+> quieras, la 5 (deploy automático). El día a día del deploy está en
+> [DEPLOY.md](./DEPLOY.md).
+
 ## Cómo queda
 
 ```
@@ -467,6 +474,14 @@ Desde ahí, cada push a `main` arma las imágenes, espera tu aprobación y
 despliega. Mientras no exista la variable `STAGING_DOMAIN`, staging se saltea
 solo; y mientras no exista `PLATFORM_DOMAIN`, producción también (GitHub solo
 arma las imágenes).
+
+Dos cosas que el deploy automático no resuelve solo:
+
+- **Un cambio de major de Postgres** frena el deploy (`deploy.sh` lo detecta).
+  Se corre a mano `./infra/pg-upgrade.sh prod` y se vuelve a aprobar.
+- El workflow deja el servidor en el commit exacto que desplegó (`git checkout
+  <sha>`, sin rama). Para volver a desplegar a mano con `git pull`, primero
+  `git checkout main`.
 
 ---
 
