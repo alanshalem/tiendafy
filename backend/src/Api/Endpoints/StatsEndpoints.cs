@@ -1,3 +1,4 @@
+using System.Globalization;
 using Analytics.Infrastructure;
 using Api.Auth;
 using Catalog.Core.Domain;
@@ -510,7 +511,8 @@ public static class StatsEndpoints
                 .Select(i => hourAgo.AddMinutes(i))
                 .Select(t => new
                 {
-                    minute = t.ToString("HH:mm"),
+                    // La etiqueta, en hora argentina (el panel la muestra tal cual).
+                    minute = ArgentinaTime.ToLocal(t).ToString("HH:mm", CultureInfo.InvariantCulture),
                     views = lastHour.FirstOrDefault(x => x.Hour == t.Hour && x.Minute == t.Minute)?.views ?? 0,
                 })
                 .ToList();
