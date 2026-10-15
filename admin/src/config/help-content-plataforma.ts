@@ -204,11 +204,7 @@ export const PLATAFORMA = {
                 'docker info responde',
               ],
               ['SDK de .NET 10', 'Compila y corre la API', 'dotnet --version'],
-              [
-                'Node 22 o mayor',
-                'Corre el panel y las tiendas (pnpm llega solo con corepack)',
-                'node --version',
-              ],
+              ['Node 26', 'Corre el panel y las tiendas (pnpm: npm install -g pnpm)', 'node --version'],
             ],
           },
         ],

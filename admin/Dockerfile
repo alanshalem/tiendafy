@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1
 # Admin (Vite SPA) → estático servido por nginx. Contexto de build: RAÍZ del repo.
 #   docker build -f admin/Dockerfile -t tiendafy-admin .
-# Mismo patrón que el storefront: pnpm pinneado por corepack (packageManager),
+# Mismo patrón que el storefront: pnpm pinneado en packageManager, Node de .node-version,
 # capa de deps con `pnpm fetch` + cache mount, install --frozen-lockfile --offline.
-FROM node:24-alpine AS base
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-    PNPM_HOME=/pnpm \
-    PATH=/pnpm:$PATH
-RUN corepack enable
+FROM node:26-alpine AS base
 WORKDIR /repo
+# Node 25+ ya no trae corepack: se instala con npm el pnpm PINNEADO en
+# package.json (packageManager), que sigue siendo la única versión de la verdad.
+COPY package.json ./
+RUN npm install -g --allow-scripts=pnpm "$(node -p "require('./package.json').packageManager.split('+')[0]")" \
+    && npm cache clean --force
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

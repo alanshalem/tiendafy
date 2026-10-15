@@ -67,9 +67,10 @@ if ($nodeMajor -lt 22) {
 Write-Ok "Node $(node --version)"
 
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Write-Host "    pnpm no encontrado, instalando via corepack..." -ForegroundColor Yellow
-    corepack enable
-    corepack prepare pnpm@latest --activate
+    # Node 25+ ya no trae corepack. pnpm se cambia solo a la versión fijada en
+    # package.json (packageManager) la primera vez que corre en el repo.
+    Write-Host "    pnpm no encontrado, instalando con npm..." -ForegroundColor Yellow
+    npm install -g pnpm
     if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
         Fail "No se pudo instalar pnpm. Manual: npm install -g pnpm"
     }

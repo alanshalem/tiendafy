@@ -3,20 +3,21 @@
 #   docker build -f storefront/Dockerfile -t tiendafy-store .
 #
 # Optimizaciones:
-# - corepack usa el pnpm PINNEADO en package.json (packageManager) — una sola
-#   versión de la verdad, sin `corepack prepare` desincronizado.
+# - pnpm sale del packageManager de package.json — una sola versión de la verdad.
+# - Node: la misma major que .node-version (CI y desarrollo).
 # - Capa de deps separada: `pnpm fetch` baja el store SOLO desde el lockfile →
 #   cambiar código no re-descarga dependencias. Cache mount del store pnpm:
 #   ni siquiera un cambio de lockfile parte de cero.
 # - `--frozen-lockfile --offline` (el equivalente estricto de `npm ci`).
 # - Runtime = output STANDALONE de Next: server.js + node_modules podados por
 #   file-tracing. Antes se copiaba el repo entero (~GB); ahora ~200MB.
-FROM node:24-alpine AS base
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-    PNPM_HOME=/pnpm \
-    PATH=/pnpm:$PATH
-RUN corepack enable
+FROM node:26-alpine AS base
 WORKDIR /repo
+# Node 25+ ya no trae corepack: se instala con npm el pnpm PINNEADO en
+# package.json (packageManager), que sigue siendo la única versión de la verdad.
+COPY package.json ./
+RUN npm install -g --allow-scripts=pnpm "$(node -p "require('./package.json').packageManager.split('+')[0]")" \
+    && npm cache clean --force
 
 # --- deps: solo lockfile + manifests → máxima estabilidad de caché ---
 FROM base AS deps
@@ -42,7 +43,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
 RUN pnpm --filter ./storefront build
 
 # --- runtime mínimo (standalone) ---
-FROM node:24-alpine AS run
+FROM node:26-alpine AS run
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \

@@ -66,8 +66,8 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # El salto de major de Node (22 LTS → 24/26) se hace a mano: los
-      # Dockerfiles dependen de corepack, que Node quitó en 25+.
+      # El salto de major de Node se hace a mano y junto con .node-version
+      # (CI y desarrollo): si no, producción corre una versión que nadie probó.
       - dependency-name: node
         update-types: [version-update:semver-major]
   - package-ecosystem: docker

@@ -7,16 +7,8 @@ packages:
 # pnpm ignora los build scripts de dependencias salvo que se aprueben acá
 # (si no, `pnpm install --frozen-lockfile` falla con ERR_PNPM_IGNORED_BUILDS,
 # p.ej. en el build de Docker). Son deps con binarios nativos legítimos.
-# pnpm 11 usa allowBuilds (booleanos); onlyBuiltDependencies queda por compat
-# con pnpm 10 (Docker aún puede usarlo).
 allowBuilds:
   '@sentry/cli': true
   esbuild: true
   sharp: true
   unrs-resolver: true
-
-onlyBuiltDependencies:
-  - '@sentry/cli'
-  - esbuild
-  - sharp
-  - unrs-resolver

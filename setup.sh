@@ -42,9 +42,10 @@ NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
 ok "Node $(node --version)"
 
 if ! command -v pnpm >/dev/null 2>&1; then
-  echo "    pnpm no encontrado, instalando via corepack..."
-  corepack enable
-  corepack prepare pnpm@latest --activate
+  # Node 25+ ya no trae corepack. pnpm se cambia solo a la versión fijada en
+  # package.json (packageManager) la primera vez que corre en el repo.
+  echo "    pnpm no encontrado, instalando con npm..."
+  npm install -g pnpm
   command -v pnpm >/dev/null 2>&1 || fail "No se pudo instalar pnpm. Manual: npm install -g pnpm"
 fi
 ok "pnpm $(pnpm --version)"

@@ -36,7 +36,7 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 # Full-docker (demo/smoke): .\dev-up.ps1 -Docker
 ```
 
-Requisitos: Docker, .NET 10 SDK, Node 22+ (pnpm llega vía corepack).
+Requisitos: Docker, .NET 10 SDK, Node 26 (la versión exacta está en `.node-version`; pnpm se instala con `npm install -g pnpm` y se ajusta solo a la fijada en `package.json`).
 
 **URLs locales**:
 
