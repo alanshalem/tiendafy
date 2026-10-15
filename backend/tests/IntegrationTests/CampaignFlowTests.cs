@@ -128,11 +128,17 @@ public sealed partial class CampaignFlowTests
 
         // Resend avisa que el mail de Beto rebotó: también queda suprimido.
         Assert.Equal(HttpStatusCode.Unauthorized, (await ResendWebhookAsync(new { type = "email.bounced" }, sign: false)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await ResendWebhookAsync(new
+        var bounce = new
         {
             type = "email.bounced",
             data = new { to = new[] { beto.ToUpperInvariant() }, tags = new[] { new { name = "tenant", value = merchant.TenantId.ToString() } } },
-        })).StatusCode);
+        };
+        // Bien firmado pero de hace 10 minutos: un reenvío de un aviso capturado.
+        // Se rechaza y no suprime a nadie (Beto sigue en la audiencia).
+        Assert.Equal(HttpStatusCode.BadRequest, (await ResendWebhookAsync(bounce, age: TimeSpan.FromMinutes(10))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await ResendWebhookAsync(bounce, age: TimeSpan.FromMinutes(-10))).StatusCode);
+        Assert.Equal(1, (await merchant.PostAsync("/api/v1/admin/campaigns/audience/preview", new { type = "buyers" })).GetProperty("count").GetInt32());
+        Assert.Equal(HttpStatusCode.OK, (await ResendWebhookAsync(bounce)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await ResendWebhookAsync(new { type = "email.delivered", data = new { } })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await ResendWebhookAsync(new { type = "email.complained", data = new { to = "x@y.com" } })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await ResendWebhookAsync(new { type = "email.bounced" })).StatusCode); // sin data: no reintentar
@@ -206,6 +212,50 @@ public sealed partial class CampaignFlowTests
         await merchant.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/admin/campaigns/{missing}");
     }
 
+    [Fact]
+    public async Task Si_Resend_rechaza_un_email_el_destinatario_cuenta_como_fallido()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cmf");
+        var ok = $"llega-{merchant.Subdomain}@mail.com";
+        var rejected = $"rebota-{merchant.Subdomain}@mail.com";
+
+        // Resend acepta todo menos esa dirección (422: un error definitivo, sin reintentos).
+        _factory.ExternalHttp.On(HttpMethod.Post, ApiFactory.ResendEmails, (_, body) =>
+            body!.Contains(rejected, StringComparison.Ordinal)
+                ? FakeHttp.Json(new { statusCode = 422, message = "Invalid `to` field." }, HttpStatusCode.UnprocessableEntity)
+                : FakeHttp.Json(new { id = "re_test" }));
+        try
+        {
+            var created = await merchant.PostAsync("/api/v1/admin/campaigns",
+                Campaign("Con un rechazo", audience: "custom", emails: [ok, rejected]));
+            var id = created.GetProperty("id").GetGuid();
+            await merchant.PostAsync($"/api/v1/admin/campaigns/{id}/send", new { });
+            await RunUntilAsync(id, "sent");
+
+            // Antes EmailSender se tragaba el error y los dos quedaban "enviados".
+            var detail = await merchant.GetAsync($"/api/v1/admin/campaigns/{id}");
+            var stats = detail.GetProperty("stats");
+            Assert.Equal(1, stats.GetProperty("sent").GetInt32());
+            Assert.Equal(1, stats.GetProperty("failed").GetInt32());
+            Assert.Equal(rejected, Assert.Single(detail.GetProperty("failedEmails").EnumerateArray()).GetString());
+            Assert.Single(_factory.ExternalHttp.EmailsTo(ok));
+        }
+        finally
+        {
+            _factory.AcceptAllEmails();
+        }
+    }
+
+    [Fact]
+    public async Task Las_cards_de_productos_apuntan_a_la_tienda()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cml");
+        var preview = await merchant.PostAsync("/api/v1/admin/campaigns/preview", Campaign("Links"));
+        // En los tests la plataforma es localhost: ahí (y solo ahí) va http.
+        // En producción la misma cuenta da https (ver StoreLinksTests).
+        Assert.Contains($"http://{merchant.Subdomain}.localhost/productos/remera", preview.GetProperty("html").GetString(), StringComparison.Ordinal);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     /// <summary>
@@ -250,11 +300,11 @@ public sealed partial class CampaignFlowTests
     private static partial Regex Src();
 
     /// <summary>Un aviso de Resend firmado como lo firma svix.</summary>
-    private Task<HttpResponseMessage> ResendWebhookAsync(object payload, bool sign = true)
+    private Task<HttpResponseMessage> ResendWebhookAsync(object payload, bool sign = true, TimeSpan? age = null)
     {
         var body = System.Text.Json.JsonSerializer.Serialize(payload, Merchant.Json);
         var id = $"msg_{Guid.NewGuid():N}";
-        var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var ts = (DateTimeOffset.UtcNow - (age ?? TimeSpan.Zero)).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
         var key = Convert.FromBase64String(ApiFactory.ResendWebhookSecret["whsec_".Length..]);
         var signature = Convert.ToBase64String(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes($"{id}.{ts}.{body}")));
 

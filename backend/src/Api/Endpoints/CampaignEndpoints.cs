@@ -355,6 +355,9 @@ public static class CampaignEndpoints
             if (!ResendWebhook.VerifySvix(secret, http.Headers["svix-id"], http.Headers["svix-timestamp"],
                     http.Headers["svix-signature"], body))
                 return Results.Unauthorized();
+            // Firma buena pero vieja: un reenvío (replay) de un aviso capturado.
+            if (!ResendWebhook.IsFreshTimestamp(http.Headers["svix-timestamp"], DateTimeOffset.UtcNow))
+                return Results.BadRequest();
 
             try
             {

@@ -9,7 +9,8 @@ namespace UnitTests.Notifications;
 /// El envío por Resend: sin clave no sale nada (modo dev), el remitente lleva
 /// el nombre de la tienda, un error definitivo no se reintenta, uno
 /// transitorio sí —con la misma Idempotency-Key, para que Resend no mande el
-/// mail dos veces— y la red caída se reintenta hasta el tope.
+/// mail dos veces— y la red caída se reintenta hasta el tope. Nunca tira: el
+/// resultado dice si salió, para que las campañas cuenten los fallidos.
 /// </summary>
 public sealed class EmailSenderTests
 {
@@ -40,7 +41,8 @@ public sealed class EmailSenderTests
     public async Task Sin_clave_de_Resend_no_manda_nada()
     {
         var stub = new StubResend(() => Status(HttpStatusCode.OK));
-        await Sender(stub, apiKey: "").SendAsync("ana@mail.com", "Hola", "<p>x</p>");
+        // En dev cuenta como enviado: el email quedó en el log, que es lo que se pidió.
+        Assert.True(await Sender(stub, apiKey: "").SendAsync("ana@mail.com", "Hola", "<p>x</p>"));
         Assert.Empty(stub.Requests);
     }
 
@@ -48,8 +50,8 @@ public sealed class EmailSenderTests
     public async Task El_remitente_lleva_el_nombre_de_la_tienda_y_el_tag_para_los_rebotes()
     {
         var stub = new StubResend(() => Status(HttpStatusCode.OK));
-        await Sender(stub).SendAsync("ana@mail.com", "Tu compra", "<p>x</p>",
-            fromName: "Tienda \"La Esquina\"", replyTo: "ventas@laesquina.com", tenantTag: "t-1");
+        Assert.True(await Sender(stub).SendAsync("ana@mail.com", "Tu compra", "<p>x</p>",
+            fromName: "Tienda \"La Esquina\"", replyTo: "ventas@laesquina.com", tenantTag: "t-1"));
 
         var body = Assert.Single(stub.Bodies);
         Assert.Contains("\\u0022Tienda La Esquina\\u0022 \\u003Cno-reply@tiendafy.com\\u003E", body, StringComparison.Ordinal);
@@ -59,10 +61,10 @@ public sealed class EmailSenderTests
     }
 
     [Fact]
-    public async Task Un_error_definitivo_no_se_reintenta()
+    public async Task Un_error_definitivo_no_se_reintenta_y_se_informa()
     {
         var stub = new StubResend(() => Status(HttpStatusCode.UnprocessableEntity));
-        await Sender(stub, maxRetries: 3).SendAsync("ana@mail.com", "Hola", "<p>x</p>");
+        Assert.False(await Sender(stub, maxRetries: 3).SendAsync("ana@mail.com", "Hola", "<p>x</p>"));
         Assert.Single(stub.Requests);
     }
 
@@ -70,7 +72,7 @@ public sealed class EmailSenderTests
     public async Task Un_error_transitorio_se_reintenta_con_la_misma_clave_de_idempotencia()
     {
         var stub = new StubResend(() => Status(HttpStatusCode.ServiceUnavailable), () => Status(HttpStatusCode.OK));
-        await Sender(stub).SendAsync("ana@mail.com", "Hola", "<p>x</p>");
+        Assert.True(await Sender(stub).SendAsync("ana@mail.com", "Hola", "<p>x</p>"));
 
         Assert.Equal(2, stub.Requests.Count);
         var keys = stub.Requests.Select(r => r.Headers.GetValues("Idempotency-Key").Single()).Distinct();
@@ -81,7 +83,7 @@ public sealed class EmailSenderTests
     public async Task Con_la_red_caida_reintenta_hasta_el_tope_y_se_rinde()
     {
         var stub = new StubResend(() => throw new HttpRequestException("sin red"));
-        await Sender(stub, maxRetries: 1).SendAsync("ana@mail.com", "Hola", "<p>x</p>");
+        Assert.False(await Sender(stub, maxRetries: 1).SendAsync("ana@mail.com", "Hola", "<p>x</p>"));
         Assert.Equal(2, stub.Requests.Count);
     }
 
@@ -89,7 +91,7 @@ public sealed class EmailSenderTests
     public async Task Un_429_que_no_cede_se_abandona_tras_los_reintentos()
     {
         var stub = new StubResend(() => Status(HttpStatusCode.TooManyRequests));
-        await Sender(stub, maxRetries: 1).SendAsync("ana@mail.com", "Hola", "<p>x</p>");
+        Assert.False(await Sender(stub, maxRetries: 1).SendAsync("ana@mail.com", "Hola", "<p>x</p>"));
         Assert.Equal(2, stub.Requests.Count);
     }
 }

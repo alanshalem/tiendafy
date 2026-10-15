@@ -3,9 +3,8 @@ namespace Api.Notifications;
 /// <summary>
 /// URL pública de una tienda para links en emails: dominio propio (siempre
 /// https) o subdominio bajo el dominio de la plataforma. El esquema del
-/// subdominio es parámetro porque los sitios existentes difieren (campañas
-/// usan http para dev; carritos abandonados asume https) — unificar eso sería
-/// un cambio de comportamiento, no un refactor.
+/// subdominio es parámetro: los avisos y pedidos usan https fijo y las
+/// campañas https salvo en localhost (ver StoreLinks.SubdomainScheme).
 /// </summary>
 public static class StoreUrls
 {

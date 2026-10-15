@@ -28,7 +28,13 @@ public interface IEmailSender
     /// <param name="fromName">Nombre visible del remitente (la tienda). Null = el del From configurado.</param>
     /// <param name="replyTo">A dónde van las respuestas del cliente (email de la tienda). Null = sin reply-to.</param>
     /// <param name="tenantTag">Tag "tenant" para Resend: los webhooks (bounces) lo devuelven y permiten atribuir la supresión a la tienda correcta.</param>
-    Task SendAsync(string toEmail, string subject, string htmlBody,
+    /// <returns>
+    /// true si Resend aceptó el email (o, en modo dev, si se escribió en el log);
+    /// false si lo rechazó o se agotaron los reintentos. Nunca tira por un error
+    /// del proveedor: quien manda un transaccional puede ignorar el resultado y
+    /// seguir; las campañas lo usan para contar los fallidos.
+    /// </returns>
+    Task<bool> SendAsync(string toEmail, string subject, string htmlBody,
         string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null);
 }
 
@@ -44,7 +50,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
 
     private readonly EmailOptions _o = options.Value;
 
-    public async Task SendAsync(string toEmail, string subject, string htmlBody,
+    public async Task<bool> SendAsync(string toEmail, string subject, string htmlBody,
         string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null)
     {
         // En logs el destinatario va SIEMPRE enmascarado (PII) y sanitizado
@@ -55,7 +61,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
         {
             logger.LogInformation("[email:dev] → {To} · {Subject} (from: {From})",
                 toLog, LogValue.Safe(subject), BuildFrom(fromName));
-            return;
+            return true;
         }
 
         // Misma clave en todos los intentos: si el primero llegó pero la respuesta
@@ -87,7 +93,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
                 if (resp.IsSuccessStatusCode)
                 {
                     logger.LogInformation("Email enviado (Resend) → {To} · {Subject}", toLog, LogValue.Safe(subject));
-                    return;
+                    return true;
                 }
 
                 var body = await resp.Content.ReadAsStringAsync(ct);
@@ -97,7 +103,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
                     // 4xx definitivo (from inválido, dominio sin verificar…): reintentar no ayuda.
                     logger.LogError("Resend error {Status} enviando a {To} (intento {Attempt}): {Body}",
                         (int)resp.StatusCode, toLog, attempt + 1, LogValue.Safe(body, 500));
-                    return;
+                    return false;
                 }
                 logger.LogWarning("Resend {Status} transitorio, reintento {Attempt} en {Delay}s → {To}",
                     (int)resp.StatusCode, attempt + 1, Backoff[attempt].TotalSeconds, toLog);
@@ -107,7 +113,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
                 if (attempt >= Math.Min(_o.MaxRetries, Backoff.Length))
                 {
                     logger.LogError(ex, "Resend falló al enviar a {To} tras {Attempts} intentos.", toLog, attempt + 1);
-                    return;
+                    return false;
                 }
                 logger.LogWarning(ex, "Error de red con Resend, reintento {Attempt} → {To}", attempt + 1, toLog);
             }

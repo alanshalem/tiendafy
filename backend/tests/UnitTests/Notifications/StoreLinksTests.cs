@@ -26,6 +26,20 @@ public class StoreLinksTests
     }
 
     [Fact]
+    public void Las_campanias_van_en_https_salvo_en_localhost()
+    {
+        // Antes las cards de las campañas salían en http también en producción.
+        var prod = Links("tiendafy.com.ar");
+        Assert.Equal("https", prod.SubdomainScheme);
+        Assert.Equal("https://mitienda.tiendafy.com.ar", prod.For(null, "mitienda", prod.SubdomainScheme));
+
+        Assert.Equal("http", Links("localhost").SubdomainScheme);
+        Assert.Equal("http", Links("tiendas.localhost").SubdomainScheme);
+        Assert.Equal("http", Links("localhost:3000").SubdomainScheme);
+        Assert.Equal("https", Links("mylocalhost.com").SubdomainScheme);
+    }
+
+    [Fact]
     public void La_API_publica_sin_configurar_es_la_de_desarrollo()
     {
         Assert.Equal("http://localhost:5080", Links().ApiBase);

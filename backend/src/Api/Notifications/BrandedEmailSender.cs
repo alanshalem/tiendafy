@@ -21,12 +21,27 @@ public sealed class BrandedEmailSender(
     global::Notifications.Infrastructure.NotificationsDbContext notifications,
     ILogger<BrandedEmailSender> logger)
 {
+    /// <summary>
+    /// Dominio de las direcciones de relleno de las ventas sin email (venta
+    /// manual sin datos del comprador): no son casillas de nadie y nunca reciben mail.
+    /// </summary>
+    public const string PlaceholderDomain = "@sin-email.local";
+
+    public static bool IsPlaceholder(string? email) =>
+        email is not null && email.Trim().EndsWith(PlaceholderDomain, StringComparison.OrdinalIgnoreCase);
+
     /// <param name="replyTo">A dónde van las respuestas (la respuesta a un mensaje de contacto vuelve a quien la escribió).</param>
-    public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null, string? replyTo = null)
+    /// <returns>
+    /// Si el email salió: false si Resend lo rechazó o la dirección es de relleno.
+    /// No tira por errores del proveedor (ver <see cref="IEmailSender.SendAsync"/>).
+    /// </returns>
+    public async Task<bool> SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null, string? replyTo = null)
     {
+        if (IsPlaceholder(toEmail)) return false;
+
         var branding = await ResolveBrandingAsync(tenantId, ct);
         // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
-        await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
+        var sent = await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
             fromName: branding.StoreName, replyTo: replyTo, ct: ct, tenantTag: tenantId.ToString());
 
         // Contador de uso (panel de costos del merchant). Nunca rompe el envío.
@@ -40,6 +55,7 @@ public sealed class BrandedEmailSender(
         {
             logger.LogWarning(ex, "No se pudo registrar el envío de email (tenant {TenantId}).", tenantId);
         }
+        return sent;
     }
 
     public async Task<EmailBranding> ResolveBrandingAsync(Guid tenantId, CancellationToken ct = default)

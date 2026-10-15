@@ -232,4 +232,22 @@ public class SvixVerificationTests
         Assert.False(ResendWebhook.VerifySvix(secret, id, ts, "v1,AAAA", payload));
         Assert.False(ResendWebhook.VerifySvix(secret, null, ts, $"v1,{sig}", payload));
     }
+
+    [Fact]
+    public void Timestamp_FueraDeLosCincoMinutos_SeRechaza()
+    {
+        var now = DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);
+        string Ts(TimeSpan delta) => (now + delta).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.True(ResendWebhook.IsFreshTimestamp(Ts(TimeSpan.Zero), now));
+        Assert.True(ResendWebhook.IsFreshTimestamp(Ts(TimeSpan.FromMinutes(-5)), now));
+        Assert.True(ResendWebhook.IsFreshTimestamp(Ts(TimeSpan.FromMinutes(5)), now));
+        Assert.False(ResendWebhook.IsFreshTimestamp(Ts(TimeSpan.FromMinutes(-5) - TimeSpan.FromSeconds(1)), now)); // replay
+        Assert.False(ResendWebhook.IsFreshTimestamp(Ts(TimeSpan.FromMinutes(6)), now));
+        Assert.False(ResendWebhook.IsFreshTimestamp(null, now));
+        Assert.False(ResendWebhook.IsFreshTimestamp("", now));
+        Assert.False(ResendWebhook.IsFreshTimestamp("-1", now));
+        Assert.False(ResendWebhook.IsFreshTimestamp("1760000000.5", now));
+        Assert.False(ResendWebhook.IsFreshTimestamp("99999999999999999", now));
+    }
 }

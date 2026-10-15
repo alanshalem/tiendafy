@@ -111,9 +111,21 @@ public sealed class CampaignWorker(
                     trackClickBaseUrl: $"{apiBase}/api/v1/marketing/c?t={Uri.EscapeDataString(track)}",
                     openPixelUrl: $"{apiBase}/api/v1/marketing/o.gif?t={Uri.EscapeDataString(track)}",
                     unsubscribeUrl: $"{apiBase}/api/v1/marketing/unsubscribe?token={Uri.EscapeDataString(unsub)}");
-                await email.SendAsync(campaign.TenantId, recipient.Email, campaign.Subject, body, ct, template: "campaign");
-                recipient.MarkSent();
-                sent++;
+                // Resend no tira: si rechaza el email (o se agotan los
+                // reintentos) lo dice el resultado, y el destinatario cuenta
+                // como fallido en vez de quedar "enviado" sin haber salido.
+                if (await email.SendAsync(campaign.TenantId, recipient.Email, campaign.Subject, body, ct, template: "campaign"))
+                {
+                    recipient.MarkSent();
+                    sent++;
+                }
+                else
+                {
+                    logger.LogWarning("Campaña {CampaignId}: Resend no aceptó el envío a {Email}.",
+                        campaign.Id, LogValue.MaskEmail(recipient.Email));
+                    recipient.MarkFailed();
+                    failed++;
+                }
             }
             catch (Exception ex)
             {

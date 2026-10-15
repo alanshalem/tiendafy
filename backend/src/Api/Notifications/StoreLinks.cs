@@ -32,9 +32,26 @@ public sealed class StoreLinks(TenancyDbContext tenancy, TenancyOptions options,
     public string ApiBase => configuration["PublicApiBaseUrl"] ?? DevApiBase;
 
     /// <summary>
+    /// Si la plataforma corre en una máquina de desarrollo (localhost o
+    /// *.localhost), donde la tienda se sirve sin TLS. Es la misma regla que
+    /// usan CORS y los redirects (<see cref="Api.Auth.SafeRedirect"/>).
+    /// </summary>
+    public static bool IsDevHost(string host)
+    {
+        var name = host.Split(':', 2)[0].ToLowerInvariant(); // "localhost:3000" también es dev
+        return name == "localhost" || name.EndsWith(".localhost", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Esquema de los subdominios de la plataforma: https, salvo en
+    /// desarrollo (localhost), donde la tienda no tiene certificado.
+    /// </summary>
+    public string SubdomainScheme => IsDevHost(PlatformDomain) ? "http" : "https";
+
+    /// <summary>
     /// URL pública de la tienda. El esquema del subdominio sigue siendo
-    /// parámetro, como en <see cref="StoreUrls"/>: las campañas usan http y el
-    /// resto https.
+    /// parámetro, como en <see cref="StoreUrls"/>: los avisos y pedidos usan
+    /// https fijo; las campañas, <see cref="SubdomainScheme"/>.
     /// </summary>
     public string For(string? customDomain, string subdomain, string subdomainScheme) =>
         StoreUrls.For(customDomain, subdomain, PlatformDomain, subdomainScheme);
@@ -50,11 +67,13 @@ public sealed class StoreLinks(TenancyDbContext tenancy, TenancyOptions options,
     }
 
     /// <summary>
-    /// La base de las cards de producto de una campaña: la tienda en http, o
-    /// el dominio de la plataforma si la tienda ya no existe.
+    /// La base de las cards de producto de una campaña: la tienda (https en
+    /// producción, http solo en localhost), o el dominio de la plataforma si
+    /// la tienda ya no existe. Antes iba siempre en http: en producción los
+    /// links salían sin TLS y dependían del redirect de Caddy.
     /// </summary>
     public async Task<string> CampaignStoreBaseAsync(Guid tenantId, CancellationToken ct) =>
-        (await ForTenantAsync(tenantId, "http", ct))?.Url ?? $"http://{PlatformDomain}";
+        (await ForTenantAsync(tenantId, SubdomainScheme, ct))?.Url ?? $"{SubdomainScheme}://{PlatformDomain}";
 }
 
 /// <summary>Nombre y URL pública de una tienda, para los mails.</summary>

@@ -26,6 +26,25 @@ public static class ResendWebhook
                     Encoding.UTF8.GetBytes(parts[1]), Encoding.UTF8.GetBytes(expected)));
     }
 
+    /// <summary>
+    /// Tolerancia de svix para el header svix-timestamp: un aviso firmado más
+    /// viejo (o más "futuro") que esto se rechaza. La firma sola no alcanza:
+    /// un aviso capturado se podría reenviar tal cual días después.
+    /// </summary>
+    public static readonly TimeSpan TimestampTolerance = TimeSpan.FromMinutes(5);
+
+    /// <summary>¿svix-timestamp (segundos Unix) está dentro de los 5 minutos de <paramref name="now"/>?</summary>
+    public static bool IsFreshTimestamp(string? timestamp, DateTimeOffset now)
+    {
+        if (!long.TryParse(timestamp, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+            return false;
+        // Fuera del rango de DateTimeOffset es basura (y FromUnixTimeSeconds tiraría).
+        if (seconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds()) return false;
+        var sent = DateTimeOffset.FromUnixTimeSeconds(seconds);
+        return (now - sent).Duration() <= TimestampTolerance;
+    }
+
     /// <summary>El tag "tenant" del envío (objeto o array, según versión del payload).</summary>
     public static Guid? ExtractTenantTag(JsonElement data)
     {
