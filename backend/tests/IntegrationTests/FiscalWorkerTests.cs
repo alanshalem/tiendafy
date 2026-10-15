@@ -48,6 +48,59 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
             $"UPDATE fiscal_emission_jobs SET attempts = {attempts}, next_attempt_utc = {DateTime.UtcNow.AddMinutes(-1)} WHERE id = {jobId}");
     }
 
+    /// <summary>El job queda como lo deja un proceso que murió con él tomado.</summary>
+    private async Task LeaveProcessingAsync(Guid jobId, TimeSpan since)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE fiscal_emission_jobs SET status = 'Processing', updated_at_utc = {DateTime.UtcNow - since} WHERE id = {jobId}");
+    }
+
+    [Fact]
+    public async Task Un_job_abandonado_vuelve_por_la_reconciliacion_y_no_se_factura_dos_veces()
+    {
+        var merchant = await AutoInvoicingStoreAsync("fwl");
+        var arca = new FakeArca(factory.ExternalHttp) { LoseNextResponse = true };
+        var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00);
+
+        // ARCA autoriza el 1 y la respuesta se pierde: queda el comprobante
+        // pendiente (write-ahead). Después el proceso muere con el job tomado.
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+        var job = await JobAsync(order);
+        await LeaveProcessingAsync(job.Id, FiscalEmissionWorker.ProcessingLease + TimeSpan.FromMinutes(1));
+
+        // Pasado el lease vuelve a la cola, y el reintento le pregunta a ARCA
+        // por el pendiente antes de pedir otro número: lo adopta.
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+
+        var done = await JobAsync(order);
+        Assert.Equal(FiscalJobStatus.Done, done.Status);
+        Assert.Equal(1, arca.CaeRequests);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        var doc = await db.Documents.AsNoTracking().SingleAsync(d => d.OrderId == order);
+        Assert.Equal(FiscalResult.Authorized, doc.Result);
+        Assert.Equal(1, doc.Number);
+        Assert.Equal(done.FiscalDocumentId, doc.Id);
+    }
+
+    [Fact]
+    public async Task Un_job_tomado_hace_poco_no_se_toca()
+    {
+        var merchant = await AutoInvoicingStoreAsync("fwp");
+        var arca = new FakeArca(factory.ExternalHttp);
+        var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00);
+        var job = await JobAsync(order);
+
+        // Otro intento lo está procesando: dentro del lease no se retoma.
+        await LeaveProcessingAsync(job.Id, TimeSpan.FromMinutes(1));
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+
+        Assert.Equal(FiscalJobStatus.Processing, (await JobAsync(order)).Status);
+        Assert.Equal(0, arca.CaeRequests);
+    }
+
     [Fact]
     public async Task Un_rechazo_de_ARCA_no_se_reintenta_y_deja_el_motivo()
     {

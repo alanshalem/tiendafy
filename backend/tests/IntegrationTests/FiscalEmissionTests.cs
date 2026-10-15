@@ -172,6 +172,52 @@ public sealed class FiscalEmissionTests
         Assert.Equal(0, arca.CaeRequests);
     }
 
+    [Fact]
+    public async Task Una_emision_que_espero_a_otra_de_la_misma_venta_no_factura_de_nuevo()
+    {
+        // Dos emisiones de la misma venta a la vez: el botón manual y el
+        // worker, o un job que el worker dio por abandonado y retomó mientras
+        // el intento viejo seguía vivo. La segunda espera a la primera y,
+        // cuando entra, ve la factura: antes pedía otro CAE.
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+        var order = Guid.NewGuid();
+
+        await using var otherScope = _factory.Services.CreateAsyncScope();
+        var other = otherScope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        var key = OrderLockKey(tenant, order);
+        await other.Database.OpenConnectionAsync();
+        await other.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [key]);
+
+        var waiting = EmitAsync(tenant, arca, order);
+        await Task.Delay(500);
+        Assert.False(waiting.IsCompleted, "tiene que esperar a la otra emisión de la venta");
+
+        // La otra termina: deja la factura autorizada y suelta el lock.
+        var doc = FiscalDocument.Draft(tenant, order, FiscalEnvironment.Homologacion, 1, CbteTipo.FacturaB, 1,
+            DocTipo.ConsumidorFinal, 0, 121m, 100m, 21m, CondicionIvaReceptor.ConsumidorFinal);
+        doc.MarkAuthorized("75000000000001", DateTime.UtcNow.AddDays(10), null, null, null);
+        other.Documents.Add(doc);
+        await other.SaveChangesAsync();
+        await other.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock({0})", [key]);
+
+        var r = await waiting;
+        Assert.True(r.IsFailure);
+        Assert.Equal("Fiscal.AlreadyInvoiced", r.Error.Code);
+        Assert.Equal(0, arca.CaeRequests);
+    }
+
+    /// <summary>
+    /// La clave del lock de las facturas de una venta, como la arma el emisor
+    /// (FNV-1a de 64 bits sobre "tenant|orden|venta|factura").
+    /// </summary>
+    private static long OrderLockKey(Guid tenantId, Guid orderId)
+    {
+        var hash = 14695981039346656037UL;
+        foreach (var c in $"{tenantId:N}|orden|{orderId:N}|factura") { hash ^= c; hash *= 1099511628211UL; }
+        return unchecked((long)hash);
+    }
+
     // ---- infraestructura del test --------------------------------------------------
 
     // ------------------------------------------------- umbral y condición de IVA

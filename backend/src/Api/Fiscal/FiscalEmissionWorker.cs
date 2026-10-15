@@ -12,7 +12,8 @@ namespace Api.Fiscal;
 /// fallos transitorios (red/TA) con backoff exponencial; manda a dead-letter los
 /// rechazos de ARCA (datos) y los que agotan reintentos. Corre sin tenant en scope
 /// (el filtro global queda bypasseado; se filtra por tenant explícito). Sobrevive
-/// reinicios: el estado vive en Postgres.
+/// reinicios: el estado vive en Postgres, y un job que quedó tomado por un
+/// proceso que murió vuelve a la cola pasado el lease (<see cref="ProcessingLease"/>).
 /// </summary>
 public sealed class FiscalEmissionWorker(
     IServiceScopeFactory scopeFactory,
@@ -20,6 +21,15 @@ public sealed class FiscalEmissionWorker(
 {
     private const int MaxAttempts = 8;
     private const int BatchSize = 20;
+
+    /// <summary>
+    /// Cuánto puede estar un job tomado antes de darlo por abandonado. Un
+    /// intento son unas pocas llamadas a ARCA con el timeout del HttpClient
+    /// (100 s) y alguna consulta de reconciliación: 15 minutos es de sobra. Si
+    /// el proceso muere con el job tomado (deploy, OOM), sin esto quedaba
+    /// "procesando" para siempre y solo salía con el reintento manual.
+    /// </summary>
+    public static readonly TimeSpan ProcessingLease = TimeSpan.FromMinutes(15);
 
     protected override void LogPollFailure(Exception ex) =>
         logger.LogError(ex, "Polling de emisión fiscal falló.");
@@ -30,6 +40,8 @@ public sealed class FiscalEmissionWorker(
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<FiscalDbContext>();
         var emitter = sp.GetRequiredService<IInvoiceEmitter>();
+
+        await ReleaseStaleLeasesAsync(db, ct);
 
         var now = DateTime.UtcNow;
         var due = await db.EmissionJobs
@@ -108,6 +120,35 @@ public sealed class FiscalEmissionWorker(
 
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    /// <summary>
+    /// Los jobs tomados hace más que el lease vuelven a la cola, para esta
+    /// misma pasada. No se reemite nada acá: el reintento va por el emisor, que
+    /// con el lock de la venta tomado mira si ya está facturada y, antes de
+    /// pedir otro número, le pregunta a ARCA por el comprobante que el intento
+    /// muerto pudo haber dejado pendiente (write-ahead + FECompConsultar).
+    /// </summary>
+    private async Task ReleaseStaleLeasesAsync(FiscalDbContext db, CancellationToken ct)
+    {
+        var staleBefore = DateTime.UtcNow - ProcessingLease;
+        var stale = await db.EmissionJobs
+            .Where(j => j.Status == FiscalJobStatus.Processing && j.UpdatedAtUtc < staleBefore)
+            .ToListAsync(ct);
+        if (stale.Count == 0) return;
+
+        foreach (var job in stale)
+        {
+            logger.LogWarning("Job fiscal {Job} (orden {Order}) quedó tomado desde {Since:O}: vuelve a la cola para reconciliar.",
+                job.Id, job.OrderId, job.UpdatedAtUtc);
+            if (job.Attempts >= MaxAttempts)
+                job.MarkFailed($"Agotó {MaxAttempts} reintentos: el último quedó a medias (¿se reinició el servidor?). " +
+                               "Si quedó un comprobante pendiente, se reconcilia con ARCA en el próximo intento.");
+            else
+                job.ReleaseStaleLease("El intento anterior quedó a medias (¿se reinició el servidor?). " +
+                                      "Antes de volver a emitir se verifica con ARCA si el comprobante quedó autorizado.");
+        }
+        await db.SaveChangesAsync(ct);
     }
 
     private static void RescheduleOrFail(FiscalEmissionJob job, string error)

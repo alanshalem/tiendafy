@@ -44,29 +44,11 @@ public sealed class EmitInvoiceHandler(
             return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.NotConfigured",
                 "Falta configurar la facturación (datos del emisor)."));
 
-        // Guarda anti-duplicado: no re-facturar una orden ya facturada (protege el
-        // camino manual y el automático). No aplica a notas de crédito.
-        if (!cmd.CreditNote && cmd.OrderId is { } orderId)
-        {
-            var already = await db.Documents.AsNoTracking().AnyAsync(
-                d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
-                  && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC, ct);
-            if (already)
-                return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.AlreadyInvoiced",
-                    "Esta orden ya tiene una factura autorizada."));
-        }
-
-        // Lo mismo para la nota de crédito: una segunda NC autorizada chocaría con
-        // el índice único DESPUÉS de que ARCA la autorizó — CAE emitido y perdido.
-        if (cmd.CreditNote && cmd.OrderId is { } creditedOrder)
-        {
-            var credited = await db.Documents.AsNoTracking().AnyAsync(
-                d => d.TenantId == cmd.TenantId && d.OrderId == creditedOrder && d.Result == FiscalResult.Authorized
-                  && (d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC), ct);
-            if (credited)
-                return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.AlreadyCredited",
-                    "Esta orden ya tiene una nota de crédito autorizada."));
-        }
+        // Guarda anti-duplicado (camino manual y automático): una orden no se
+        // factura ni se acredita dos veces. Acá es el corte barato; la que vale
+        // se repite con el lock de la venta tomado, más abajo.
+        if (await AlreadyIssuedAsync(cmd, ct) is { } duplicate)
+            return Result.Failure<EmitInvoiceResult>(duplicate);
 
         var cuitResult = Cuit.Create(cfg.Cuit);
         if (cuitResult.IsFailure) return Result.Failure<EmitInvoiceResult>(cuitResult.Error);
@@ -145,25 +127,70 @@ public sealed class EmitInvoiceHandler(
         // el pedido y la respuesta, queda el registro para reconciliar; sin él,
         // el reintento no sabría que ese número pudo haberse usado y facturaría
         // dos veces. Si la conexión se cae, Postgres suelta el lock solo.
+        //
+        // Antes que el de la serie, el de la venta: dos emisiones de la misma
+        // venta (el botón manual y el worker, o un job que el worker dio por
+        // abandonado y retomó mientras el intento viejo seguía vivo) no corren
+        // a la vez, y la segunda ve lo que hizo la primera. Sin esto, la que
+        // esperaba el lock emitía igual: dos facturas con CAE. Siempre en ese
+        // orden (venta, serie), así que no hay deadlock.
         var lockKey = LockKey(cmd.TenantId, env, ptoVta, draft.CbteTipo);
+        long? orderLockKey = cmd.OrderId is { } lockedOrder ? OrderLockKey(cmd.TenantId, lockedOrder, cmd.CreditNote) : null;
         await db.Database.OpenConnectionAsync(ct);
         try
         {
-            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [lockKey], ct);
+            if (orderLockKey is { } takeOrder)
+                await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [takeOrder], ct);
             try
             {
-                return await EmitLockedAsync(cmd, cuit, env, ptoVta, draft, ticket, ct);
+                if (orderLockKey is not null && await AlreadyIssuedAsync(cmd, ct) is { } issuedMeanwhile)
+                    return Result.Failure<EmitInvoiceResult>(issuedMeanwhile);
+
+                await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [lockKey], ct);
+                try
+                {
+                    return await EmitLockedAsync(cmd, cuit, env, ptoVta, draft, ticket, ct);
+                }
+                finally
+                {
+                    // Sin el token del request: soltar el lock no puede cancelarse.
+                    await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock({0})", [lockKey], CancellationToken.None);
+                }
             }
             finally
             {
-                // Sin el token del request: soltar el lock no puede cancelarse.
-                await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock({0})", [lockKey], CancellationToken.None);
+                if (orderLockKey is { } releaseOrder)
+                    await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock({0})", [releaseOrder], CancellationToken.None);
             }
         }
         finally
         {
             await db.Database.CloseConnectionAsync();
         }
+    }
+
+    /// <summary>
+    /// La venta ya tiene el comprobante que se pide: factura autorizada (si se
+    /// factura) o nota de crédito autorizada (si se acredita). Una segunda NC
+    /// chocaría con el índice único DESPUÉS de que ARCA la autorizó: CAE
+    /// emitido y perdido. Null = se puede seguir. Sin orden no hay con qué comparar.
+    /// </summary>
+    private async Task<Error?> AlreadyIssuedAsync(EmitInvoiceCommand cmd, CancellationToken ct)
+    {
+        if (cmd.OrderId is not { } orderId) return null;
+
+        if (!cmd.CreditNote)
+        {
+            var invoiced = await db.Documents.AsNoTracking().AnyAsync(
+                d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
+                  && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC, ct);
+            return invoiced ? Error.Conflict("Fiscal.AlreadyInvoiced", "Esta orden ya tiene una factura autorizada.") : null;
+        }
+
+        var credited = await db.Documents.AsNoTracking().AnyAsync(
+            d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
+              && (d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC), ct);
+        return credited ? Error.Conflict("Fiscal.AlreadyCredited", "Esta orden ya tiene una nota de crédito autorizada.") : null;
     }
 
     /// <summary>La emisión propiamente dicha, con el lock de la serie tomado.</summary>
@@ -359,6 +386,10 @@ public sealed class EmitInvoiceHandler(
 
     private static string Serialize(IReadOnlyList<FiscalMessage> messages) =>
         JsonSerializer.Serialize(messages.Select(m => new { m.Code, m.Message }));
+
+    /// <summary>Clave del lock de las emisiones de una venta (facturas y notas de crédito por separado).</summary>
+    private static long OrderLockKey(Guid tenantId, Guid orderId, bool creditNote) =>
+        AdvisoryLock.KeyFor($"{tenantId:N}|orden|{orderId:N}|{(creditNote ? "nc" : "factura")}");
 
     /// <summary>Clave del lock de una serie de numeración.</summary>
     private static long LockKey(Guid tenantId, FiscalEnvironment env, int ptoVta, CbteTipo cbteTipo) =>

@@ -71,6 +71,18 @@ public class FiscalEmissionJobTests
     }
 
     [Fact]
+    public void ReleaseStaleLease_BackToPendingNow_KeepsAttempts()
+    {
+        var j = NewJob();
+        j.MarkProcessing();
+        j.ReleaseStaleLease("quedó a medias");
+        Assert.Equal(FiscalJobStatus.Pending, j.Status);
+        Assert.True(j.NextAttemptUtc <= DateTime.UtcNow);
+        Assert.Equal(1, j.Attempts); // el intento muerto cuenta para el tope
+        Assert.Equal("quedó a medias", j.LastError);
+    }
+
+    [Fact]
     public void LastError_TruncatedTo1000()
     {
         var j = NewJob();

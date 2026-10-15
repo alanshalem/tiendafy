@@ -98,6 +98,21 @@ public sealed class FiscalEmissionJob
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Quedó tomado (<see cref="FiscalJobStatus.Processing"/>) más allá del
+    /// lease: el proceso que lo tenía murió a mitad de camino. Vuelve a la
+    /// cola ya, y el reintento pasa por el emisor de siempre, que antes de
+    /// pedir otro número reconcilia con ARCA lo que haya quedado pendiente
+    /// (el pedido pudo haber salido y estar autorizado). Nunca se reemite a ciegas.
+    /// </summary>
+    public void ReleaseStaleLease(string reason)
+    {
+        Status = FiscalJobStatus.Pending;
+        LastError = Text.Cap(reason, 1000);
+        NextAttemptUtc = DateTime.UtcNow;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
     /// <summary>Reintento manual desde el admin: vuelve a la cola.</summary>
     public void Requeue()
     {

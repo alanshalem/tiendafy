@@ -52,12 +52,22 @@ public sealed partial class FakeArca
     public const string Padron = "https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5";
 
     private readonly Dictionary<string, long> _last = [];
+    private readonly Dictionary<string, (string DocTipo, string DocNro, string ImpTotal, string Cae, string Vto)> _authorized = [];
 
     public string? WsaaFault { get; set; }
     public string? PadronFault { get; set; }
     public bool RejectNext { get; set; }
     public bool Down { get; set; }
     public (string Code, string Message)? LastAuthorizedError { get; set; }
+
+    /// <summary>
+    /// El próximo FECAESolicitar se autoriza y la respuesta se pierde (la
+    /// conexión se corta): ARCA tiene el comprobante y la API no se enteró.
+    /// </summary>
+    public bool LoseNextResponse { get; set; }
+
+    /// <summary>Pedidos de CAE que llegaron (autorizados o no).</summary>
+    public int CaeRequests { get; private set; }
 
     public FakeArca(FakeHttp http)
     {
@@ -91,8 +101,21 @@ public sealed partial class FakeArca
             return Xml("<FEParamGetPtosVentaResponse xmlns=\"http://ar.gov.afip.dif.FEV1/\"><FEParamGetPtosVentaResult><Errors><Err><Code>602</Code><Msg>Sin Resultados</Msg></Err></Errors></FEParamGetPtosVentaResult></FEParamGetPtosVentaResponse>");
         }
 
+        if (action.Contains("FECompConsultar"))
+        {
+            var nro = Tag(body, "CbteNro");
+            if (!_authorized.TryGetValue($"{key}-{nro}", out var a))
+                return Xml("<FECompConsultarResponse xmlns=\"http://ar.gov.afip.dif.FEV1/\"><FECompConsultarResult><Errors><Err><Code>602</Code><Msg>No existen datos en nuestros registros para los parametros ingresados.</Msg></Err></Errors></FECompConsultarResult></FECompConsultarResponse>");
+            return Xml("<FECompConsultarResponse xmlns=\"http://ar.gov.afip.dif.FEV1/\"><FECompConsultarResult><ResultGet>" +
+                $"<Concepto>1</Concepto><DocTipo>{a.DocTipo}</DocTipo><DocNro>{a.DocNro}</DocNro><CbteDesde>{nro}</CbteDesde><CbteHasta>{nro}</CbteHasta>" +
+                $"<CbteFch>{DateTime.UtcNow:yyyyMMdd}</CbteFch><ImpTotal>{a.ImpTotal}</ImpTotal><Resultado>A</Resultado>" +
+                $"<CodAutorizacion>{a.Cae}</CodAutorizacion><EmisionTipo>CAE</EmisionTipo><FchVto>{a.Vto}</FchVto>" +
+                $"<PtoVta>{ptoVta}</PtoVta><CbteTipo>{tipo}</CbteTipo></ResultGet></FECompConsultarResult></FECompConsultarResponse>");
+        }
+
         if (action.Contains("FECAESolicitar"))
         {
+            CaeRequests++;
             var number = long.Parse(Tag(body, "CbteDesde"));
             if (RejectNext)
             {
@@ -102,6 +125,12 @@ public sealed partial class FakeArca
             _last[key] = number;
             var cae = "7" + Random.Shared.NextInt64(1_000_000_000_000, 9_999_999_999_999);
             var vto = DateTime.UtcNow.AddDays(10).ToString("yyyyMMdd");
+            _authorized[$"{key}-{number}"] = (Tag(body, "DocTipo"), Tag(body, "DocNro"), Tag(body, "ImpTotal"), cae, vto);
+            if (LoseNextResponse)
+            {
+                LoseNextResponse = false;
+                throw new HttpRequestException("la conexión se cortó antes de la respuesta");
+            }
             return Xml($"<FECAESolicitarResponse xmlns=\"http://ar.gov.afip.dif.FEV1/\"><FECAESolicitarResult><FeCabResp><Resultado>A</Resultado></FeCabResp><FeDetResp><FECAEDetResponse><CbteDesde>{number}</CbteDesde><Resultado>A</Resultado><CAE>{cae}</CAE><CAEFchVto>{vto}</CAEFchVto></FECAEDetResponse></FeDetResp></FECAESolicitarResult></FECAESolicitarResponse>");
         }
 
