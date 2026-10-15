@@ -80,6 +80,6 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
 - Los logs de `WhatsAppSender` escriben el teléfono completo; los de email lo enmascaran.
-- `confirmacion-compra` está en el catálogo pero nada la dispara (tampoco el email equivalente).
+- `confirmacion-compra` está en el catálogo pero nada la dispara (el email equivalente se sacó del catálogo de emails en oct-2026, por lo mismo).
 - La versión de la Graph API (`v20.0`) está fija en `WhatsAppSender.GraphBase`: Meta retira versiones a los dos años, conviene revisarla contra su [changelog](https://developers.facebook.com/docs/graph-api/changelog).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.
