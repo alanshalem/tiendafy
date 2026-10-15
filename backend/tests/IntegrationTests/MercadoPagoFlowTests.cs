@@ -163,6 +163,79 @@ public sealed class MercadoPagoFlowTests
         Assert.False(rejected.IsSuccessStatusCode);
     }
 
+    /// <summary>
+    /// Un reembolso total le avisa al comprador con la plantilla "Cancelación de
+    /// compra" de la tienda, lo haga el comercio desde el panel o desde su cuenta
+    /// de Mercado Pago (llega por webhook). Antes el webhook mandaba un texto fijo
+    /// propio, que el comercio no podía editar ni apagar.
+    /// </summary>
+    [Fact]
+    public async Task Un_reembolso_avisa_con_la_plantilla_de_la_tienda_venga_del_panel_o_de_Mercado_Pago()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mpr");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        await merchant.PutAsync("/api/v1/email-templates/cancelacion-compra", new
+        {
+            enabled = true,
+            subject = "Reembolsamos tu pedido #{{order_id}}",
+            bodyHtml = "<p>Listo, {{name}}: te devolvimos la plata.</p>",
+        });
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra MP", priceMinor: 15_000_00);
+        var shopper = new Shopper(merchant);
+
+        // Una venta que no existe no se reembolsa ni se cancela.
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{Guid.NewGuid()}/refund", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{Guid.NewGuid()}/cancel", new { })).StatusCode);
+
+        // Desde el panel.
+        var (panelOrder, panelPayment, panelBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments/{panelPayment}/refunds",
+            new { id = Random.Shared.Next(), amount = 15_000m });
+        await merchant.PostAsync($"/api/v1/orders/{panelOrder}/refund", new { reason = "Devolución" });
+        Assert.Equal("REFUNDED", await StatusAsync(shopper, panelOrder));
+
+        // Desde Mercado Pago: el comercio devolvió en su cuenta y llega el aviso.
+        var (mpOrder, mpPayment, mpBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{mpPayment}", new
+        {
+            id = mpPayment,
+            status = "refunded",
+            status_detail = "refunded",
+            external_reference = mpOrder.ToString(),
+            transaction_amount = 15_000m,
+            transaction_amount_refunded = 15_000m,
+        });
+        await WebhookAsync(mpPayment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("REFUNDED", await StatusAsync(shopper, mpOrder));
+
+        foreach (var (order, buyer) in new[] { (panelOrder, panelBuyer), (mpOrder, mpBuyer) })
+        {
+            var mails = _factory.ExternalHttp.EmailsTo(buyer);
+            var mail = Assert.Single(mails, m => m.Subject.StartsWith("Reembolsamos tu pedido #", StringComparison.Ordinal));
+            Assert.Contains("te devolvimos la plata", mail.Html);
+            Assert.DoesNotContain(mails, m => m.Subject == "Tu compra fue reembolsada");
+        }
+    }
+
+    /// <summary>Un comprador propio paga con tarjeta en la tienda; devuelve la orden, el pago y su email.</summary>
+    private async Task<(Guid Order, long Payment, string Buyer)> PaidOnsiteAsync(Shopper shopper, Guid variantId)
+    {
+        var buyer = $"reembolso-{Guid.NewGuid():N}@test.local";
+        var paymentId = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
+            new { id = paymentId, status = "approved", status_detail = "accredited" });
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: buyer);
+        var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-onsite",
+            new { token = "card-token", paymentMethodId = "visa" });
+        var orderId = paid.GetProperty("orderId").GetGuid();
+        Assert.Equal("PAID", await StatusAsync(shopper, orderId));
+        return (orderId, paymentId, buyer);
+    }
+
     [Fact]
     public async Task Los_avisos_que_no_se_pueden_procesar_quedan_a_la_vista_y_se_reintentan()
     {

@@ -1,4 +1,3 @@
-using Api.Notifications;
 using Api.Workers;
 using Orders.Core.Features;
 using Payments.Contracts;
@@ -61,8 +60,6 @@ public sealed class PaymentWebhookWorker(
         if (result.IsFailure || result.Value.Order is null) return;
 
         // Side-effects (emails + WhatsApp) según lo que cambió.
-        var email = sp.GetRequiredService<BrandedEmailSender>();
-        var whatsapp = sp.GetRequiredService<WhatsAppNotifier>();
         var order = result.Value.Order;
         switch (result.Value.Outcome)
         {
@@ -70,11 +67,10 @@ public sealed class PaymentWebhookWorker(
                 await sp.GetRequiredService<Api.Orders.PaidOrderSideEffects>().RunAsync(order, ct: ct);
                 break;
             case SettleOutcome.Refunded:
-                await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
-                await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
-                // Nota de crédito automática si la orden estaba facturada.
-                await sp.GetRequiredService<global::Fiscal.Core.Abstractions.IFiscalEmissionQueue>()
-                    .EnqueueCreditNoteAsync(order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct);
+                // Los mismos avisos que un reembolso total desde el panel (con la
+                // plantilla de la tienda); el reingreso de stock no, porque eso
+                // lo decide el comercio al devolver.
+                await sp.GetRequiredService<Api.Orders.RefundedOrderSideEffects>().RunAsync(order, ct);
                 break;
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);
