@@ -163,6 +163,9 @@ describe('redirecciones', () => {
 describe('dominio propio', () => {
   it('conecta un dominio, lo reverifica y lo quita', async () => {
     const { api, user } = await open('dominios');
+    const storeLists = () =>
+      api.calls.filter((c) => c.method === 'GET' && c.path.startsWith('/api/v1/tenants?'));
+    const before = storeLists().length;
     await user.click(screen.getByRole('button', { name: /Conectar mi dominio/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Conectar mi dominio' }));
     await user.type(dialog.getByPlaceholderText('tumarca.com.ar'), 'pesas.com.ar');
@@ -173,6 +176,8 @@ describe('dominio propio', () => {
     ).toMatchObject({
       customDomain: 'pesas.com.ar',
     });
+    // La lista de tiendas se vuelve a pedir: «Ver tienda» sale de ahí y abre el dominio nuevo.
+    expect(storeLists().length).toBeGreaterThan(before);
   });
 
   it('con un dominio ya cargado: reverificar, copiar y quitar', async () => {

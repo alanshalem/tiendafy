@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
 import { Button, useConfirm, useToast, PageHeader } from '@tiendafy/ui';
 import { HelpLink } from '../components/HelpLink';
@@ -80,7 +80,6 @@ function PresetPreview({ preset }: { preset: ThemePreset }) {
 
 export function ThemeGalleryPage() {
   const { store } = useStore();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -98,7 +97,6 @@ export function ThemeGalleryPage() {
       await api.put('/api/v1/theme/draft', version === undefined ? next : { ...next, draftVersion: version });
     },
     onSuccess: (_, preset) => {
-      queryClient.invalidateQueries({ queryKey: ['theme', store?.id] });
       toast(`Diseño "${preset.name}" aplicado al borrador. Revisalo y publicá.`, { variant: 'success' });
       navigate('/canales/tienda-online');
     },

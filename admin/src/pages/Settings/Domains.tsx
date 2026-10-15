@@ -57,7 +57,7 @@ export function DomainsPage() {
     onSuccess: () => {
       toast('Dominio propio quitado', { variant: 'success' });
       qc.invalidateQueries({ queryKey: ['domain-status'] });
-      qc.invalidateQueries({ queryKey: ['stores'] });
+      qc.invalidateQueries({ queryKey: ['tenants'] });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo quitar el dominio.'), { variant: 'error' }),
   });
@@ -291,7 +291,7 @@ export function DomainsPage() {
           onSaved={() => {
             setEditing(false);
             qc.invalidateQueries({ queryKey: ['domain-status'] });
-            qc.invalidateQueries({ queryKey: ['stores'] });
+            qc.invalidateQueries({ queryKey: ['tenants'] });
           }}
         />
       )}

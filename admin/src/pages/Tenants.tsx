@@ -141,7 +141,6 @@ export function TenantsPage() {
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['tenants'] });
-    queryClient.invalidateQueries({ queryKey: ['stores'] });
   };
 
   const archiveMut = useMutation({
