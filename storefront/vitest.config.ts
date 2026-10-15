@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
+import { localMaxWorkers } from '../test-fixtures/workers';
 
 // Tests de lógica (lib/), de componentes y de páginas enteras del storefront.
 export default defineConfig({
@@ -14,6 +15,8 @@ export default defineConfig({
     // Tests de componentes con el panel/la tienda enteros renderizados: con la
     // instrumentación de cobertura y la CPU compartida, 5 s quedaba justo.
     testTimeout: 15_000,
+    // En local, un tope según núcleos y RAM libre (ver test-fixtures/workers.ts).
+    maxWorkers: localMaxWorkers(),
     include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['src/test/setup.ts'],

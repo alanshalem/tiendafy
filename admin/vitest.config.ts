@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { localMaxWorkers } from '../test-fixtures/workers';
 
 export default defineConfig({
   // Una sola copia de React: @tiendafy/ui la declara como peer y, sin esto,
@@ -8,6 +9,8 @@ export default defineConfig({
     // Tests de componentes con el panel/la tienda enteros renderizados: con la
     // instrumentación de cobertura y la CPU compartida, 5 s quedaba justo.
     testTimeout: 15_000,
+    // En local, un tope según núcleos y RAM libre (ver test-fixtures/workers.ts).
+    maxWorkers: localMaxWorkers(),
     include: ['src/**/*.test.{ts,tsx}'],
     // Componentes con DOM: jsdom para todos (los tests de lógica pura no lo
     // necesitan, pero tampoco les molesta y evita dos configuraciones).

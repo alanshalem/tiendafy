@@ -100,3 +100,6 @@ e2e/tests/.auth/
 # Lo genera Next (dev apunta a .next/dev/types, typegen/build a .next/types):
 # versionarlo deja el árbol siempre modificado. `type-check` corre next typegen.
 storefront/next-env.d.ts
+
+# Logs de `pnpm verify` (scripts/verify.mjs)
+.verify/

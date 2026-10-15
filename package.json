@@ -6,6 +6,7 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "verify": "node scripts/verify.mjs",
     "fixtures:api": "node scripts/fixtures-api.mjs",
     "test:load": "node scripts/load-test.mjs",
     "test:smoke": "pnpm --filter tiendafy-e2e exec playwright test --grep @smoke",

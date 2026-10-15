@@ -36,6 +36,36 @@ storefront, panel, e2e), así que el techo global de pedidos es 5000/min en
 `appsettings.Development.json`; con el de producción (300/min) una corrida
 completa del e2e lo agotaba y fallaba al azar.
 
+## Verificar todo en local
+
+`pnpm verify` corre lo mismo que CI (salvo el e2e) en fases, con el
+paralelismo que aguanta la máquina, y deja un log por paso en `.verify/`:
+
+1. Formato, lint y tipos de todos los paquetes, en paralelo.
+2. Las suites del panel y de la tienda: **juntas** si hay ≥ 8 GB libres (cada
+   una con la mitad de los workers), si no de a una.
+3. Builds (`next build`, `vite build`, backend en Release con
+   `-warnaserror`), en paralelo si hay ≥ 7 GB libres.
+4. Backend: `dotnet format` y unitarios juntos; después integración, sola
+   (levanta Postgres en Docker).
+
+`--front` / `--back` corren una mitad, `--coverage` agrega la cobertura (como
+CI) y `--seq` hace todo de a uno. Al final: tabla con tiempos, la RAM libre
+mínima de la corrida y la cola del log de lo que falló.
+
+Las suites del front **nunca** corren al lado de un build: miden tiempos
+(`findBy`, debounces) y con la CPU compartida fallan por tiempo sin que el
+código tenga nada.
+
+**Workers.** El default de vitest es uno por núcleo menos uno (19 en una
+máquina de 20 hilos), y cada worker carga el panel o la tienda enteros en
+jsdom. Medido el 15-oct con 6 workers: el panel llega a ~3,3 GB (hasta 0,9 GB
+por worker) y la tienda con cobertura a ~2,2 GB (0,5 GB por worker). Con 19 la
+RAM no alcanzaba con el editor, el navegador y los dev servers abiertos. Por
+eso los dos `vitest.config.ts` usan `test-fixtures/workers.ts`: en local, 30 %
+de los núcleos y no más de uno cada 1,5 GB libres; en CI, el default.
+`VITEST_MAX_WORKERS=4` (o `--maxWorkers`) lo pisa.
+
 ## Cobertura
 
 | Proyecto | Medido | Piso en CI |
