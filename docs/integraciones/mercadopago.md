@@ -21,7 +21,8 @@ botón de conectar no lleva a ningún lado y no entran webhooks).
 - **Link de pago** para ventas manuales (`POST /orders/manual` con método
   `link`) y **vencimiento del link** al cancelar una venta pendiente.
 - **Comisión real** de Mercado Pago por venta (para Rentabilidad), cuando el
-  pago informa el neto acreditado.
+  pago informa el neto acreditado. En los dos modos: con el Brick llega con el
+  webhook, después de que la orden ya quedó pagada.
 
 ## Cómo está implementado
 
@@ -91,7 +92,8 @@ se valida contra dominios propios (`SafeRedirect`).
 **Checkout integrado.** El Brick tokeniza con la `publicKey` del vendedor
 (`GET /payments/mercadopago/public-config`), y `POST /checkout/{id}/pay-onsite`
 cobra en `/v1/payments` con `binary_mode=false` (deja lugar al challenge 3DS).
-El resultado se aplica en el momento; el webhook queda de respaldo.
+El resultado se aplica en el momento; el webhook queda de respaldo y es el
+que trae la comisión (la respuesta del cobro no informa el neto).
 
 **Webhook.** `POST /api/v1/payments/webhooks/mercadopago` es público. Valida la
 firma, guarda `(type, data.id, user_id)` en `payment_webhook_events` y contesta
@@ -102,7 +104,7 @@ el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 
 | `status` de MP | Qué pasa |
 |---|---|
-| `approved` | Orden pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada y `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
+| `approved` | Orden pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
 | `rejected`, `cancelled` | Orden pendiente → `Failed`, libera reservas |
 | `refunded` | → `Refunded` |
 | `charged_back`, `in_mediation` | → `ChargedBack` |
@@ -130,7 +132,9 @@ Pago no devuelve dos veces; un parcial nuevo da otra, porque lo ya devuelto
 cambió. El primer reembolso total va sin monto (Mercado Pago devuelve todo);
 con parciales previos siempre va con monto explícito. Si el `PaymentId` empieza
 con `manual-` (efectivo, transferencia, cuenta corriente) no se llama a Mercado
-Pago: solo se registra. Al completar el total corren los avisos y la nota de
+Pago: solo se registra. Si la venta se cobró con Payway (hay un intento de
+Payway de esa orden con ese id de pago), la devolución va a Payway (ver
+[payway.md](payway.md)). Al completar el total corren los avisos y la nota de
 crédito automática (ver [arca.md](arca.md)); el reingreso de stock es opcional.
 
 **Cancelar una venta pendiente.** Primero se vence la preference
@@ -196,11 +200,10 @@ A mano, con cuentas de prueba de Mercado Pago:
   `MP_CLIENT_SECRET` y `MP_WEBHOOK_SECRET` en `.env.prod`. Después: una compra
   real chica aprobada y devuelta, y probar que el webhook llega cerrando el
   navegador antes de volver a la tienda.
-- En modo `API` la comisión de Mercado Pago no se registra: `pay-onsite` aplica
-  el pago sin la comisión y, cuando llega el webhook, la orden ya está pagada y
-  se ignora. Rentabilidad queda sin ese costo para esas ventas.
-- Un reembolso desde el panel siempre va a Mercado Pago si el pago no es
-  `manual-`: hoy no distingue un pago de Payway (ver [payway.md](payway.md)).
+- Las ventas del Brick cobradas antes de este arreglo quedaron sin comisión:
+  no se recuperan solas, porque el webhook de esos pagos ya se procesó y el
+  inbox descarta un aviso repetido del mismo pago. Si importa, se completan a
+  mano consultando cada pago en Mercado Pago.
 
 Docs oficiales: [Checkout Pro](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing),
 [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing),

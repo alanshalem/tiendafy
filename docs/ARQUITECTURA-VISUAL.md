@@ -147,6 +147,7 @@ broker de mensajes; ver [ADR 0005](./adr/0005-segundo-plano-con-polling-a-postgr
 | Worker | Cada | Qué hace |
 | --- | --- | --- |
 | `PaymentWebhookWorker` | 5 s | Drena el inbox de webhooks de Mercado Pago (claim por fila, reintentos con escala hasta ~1 día) |
+| `PaywayReconciliationWorker` | 1 min | Reconsulta en Payway los cobros que quedaron sin resolver (timeout, revisión, 3DS), con intervalo creciente hasta 3 días |
 | `FiscalEmissionWorker` | 10 s | Outbox de facturas: pide el CAE a ARCA, con backoff exponencial y dead-letter a los 8 intentos |
 | `MeliNotificationWorker` | 5 s | Inbox de notificaciones de Mercado Libre |
 | `MeliStockSyncWorker` | 5 min | Empuja stock (y precio, si la sincronización está prendida) a las publicaciones vinculadas |
@@ -252,11 +253,12 @@ sequenceDiagram
     W->>N: "Confirmación de pago" con la plantilla de la tienda
     W->>AR: FiscalEmissionWorker: WSAA → WSFEv1 → CAE<br/>(si la tienda factura al pagar)
     A-->>C: Factura PDF con el QR de ARCA en "Mi cuenta"
-    Note over A,AR: Reembolso: OrderRefundService (MP → orden → cuenta corriente →<br/>avisos → nota de crédito → stock y kits)
+    Note over A,AR: Reembolso: OrderRefundService (MP o Payway → orden → cuenta corriente →<br/>avisos → nota de crédito → stock y kits)
 ```
 
-Payway y la venta manual del panel llegan al mismo `PaidOrderSideEffects`; la
-venta manual no manda WhatsApp.
+Payway (en el momento o, si quedó en el medio, cuando `PaywayReconciliationWorker`
+lo reconsulta) y la venta manual del panel llegan al mismo `PaidOrderSideEffects`;
+la venta manual no manda WhatsApp.
 
 ## 5. Multi-tenancy
 

@@ -7,7 +7,7 @@ Estado al 15-oct-2026.
 | Servicio | Para qué | Estado |
 |---|---|---|
 | [Mercado Pago](./mercadopago.md) | Cobro con tarjeta (Checkout Pro y Brick), webhooks, reembolsos | Código completo. Falta crear la app de la plataforma |
-| [Payway](./payway.md) | Segundo medio de pago con tarjeta | Código completo. Falta alta comercial y certificación; antes de cobrar de verdad hay que habilitarlo en la CSP de la tienda y rutear su reembolso (ver Pendiente) |
+| [Payway](./payway.md) | Segundo medio de pago con tarjeta | Código completo. Falta alta comercial y certificación |
 | [ARCA (AFIP)](./arca.md) | Factura electrónica, notas de crédito, padrón | Código completo. Falta el certificado para el primer CAE real |
 | [Andreani](./andreani.md) | Cotización en el checkout, envío, etiqueta, seguimiento | Cotización probada contra la API real; envío y etiqueta sin probar |
 | [Correo Argentino](./correo-argentino.md) | MiCorreo: cotización, sucursales, alta del envío | Código completo. Falta probar con credenciales reales |
@@ -25,9 +25,9 @@ conseguir y dónde, en [CONFIGURACION.md](../CONFIGURACION.md).
 
 Lo que los documentos marcan como bloqueante, juntado acá:
 
-- **Payway:** la política de seguridad de la tienda (`storefront/src/lib/csp.ts`)
-  no deja cargar `decidir.js` ni hablar con su API, y el reembolso desde el
-  panel de una venta cobrada con Payway va contra Mercado Pago.
+- **Payway:** si Payway da un host productivo distinto de `live.decidir.com`
+  o `ventasonline.payway.com.ar`, sumarlo al CSP de la tienda
+  (`storefront/src/lib/csp.ts`) además de cargarlo como host alternativo.
 - **ARCA:** en producción, `servicios1.afip.gov.ar` puede rechazar el TLS con
   `DH_KEY_TOO_SMALL` y la imagen de la API no baja el nivel de seguridad de
   OpenSSL. Probarlo contra producción apenas esté el certificado.
