@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
+import { KPI_GRID, KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
@@ -77,7 +77,7 @@ export function StatsOverviewPage() {
         <ScreenSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={KPI_GRID}>
             <KpiCard
               title="Facturación"
               value={money(sales?.revenue ?? 0)}

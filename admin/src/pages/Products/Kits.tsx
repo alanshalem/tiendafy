@@ -132,7 +132,9 @@ export function KitsPage() {
                   <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                     <th className="px-4 py-2.5 font-medium">Kit</th>
                     <th className="px-4 py-2.5 font-medium">Componentes</th>
-                    <th className="px-4 py-2.5" />
+                    <th className="px-4 py-2.5">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

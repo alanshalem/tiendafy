@@ -118,7 +118,9 @@ export function HomePage() {
 
       <AvisosCard />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* De a dos en el teléfono, como el resto de las métricas del panel; la
+          tercera ocupa la fila entera. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1">
         {canStats && (
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">

@@ -323,7 +323,11 @@ export function CustomersPage() {
           <span className="text-sm text-fg-subtle">Nunca</span>
         ),
     },
-    { key: 'id', header: '', cell: (c) => <div className="flex justify-end">{actions(c)}</div> },
+    {
+      key: 'id',
+      header: <span className="sr-only">Acciones</span>,
+      cell: (c) => <div className="flex justify-end">{actions(c)}</div>,
+    },
   ];
 
   if (!store) return <NoStoreSelected />;

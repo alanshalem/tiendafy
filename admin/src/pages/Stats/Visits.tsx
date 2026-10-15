@@ -1,5 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KPI_GRID,
+  KpiCard,
+  StatsPageHeader,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
@@ -44,7 +50,7 @@ export function StatsVisitsPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={KPI_GRID}>
             <KpiCard
               title="Visitas"
               hint="Páginas vistas totales del período."

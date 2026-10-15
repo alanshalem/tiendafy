@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KPI_GRID,
+  KpiCard,
+  StatsPageHeader,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
+import { cn } from '@tiendafy/ui';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { RankBars } from '../../components/charts/viz';
@@ -50,7 +57,7 @@ export function StatsProductsPage() {
         <ScreenSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className={cn(KPI_GRID, 'lg:grid-cols-3')}>
             <KpiCard
               title="Unidades vendidas"
               value={fmt(data?.totalUnits ?? 0)}

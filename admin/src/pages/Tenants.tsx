@@ -227,7 +227,7 @@ export function TenantsPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: <span className="sr-only">Acciones</span>,
       cell: (t) =>
         manageable.has(t.id) && (
           <div className="flex justify-end">

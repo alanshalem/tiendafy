@@ -16,6 +16,7 @@ import {
   type RoleRow,
 } from './team-access';
 import { TableSkeleton } from '../../components/Skeleton';
+import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
 /**
  * La columna de la izquierda queda fija al scrollear de costado: sin esto se
@@ -135,7 +136,7 @@ export function RolesPage() {
 
           <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
             <table className="w-full min-w-[52rem] border-separate border-spacing-0 text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_TEXT}>
                 <tr>
                   <th
                     className={cn(

@@ -21,7 +21,7 @@ import { useStore } from '../context/StoreContext';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { HelpLink } from '../components/HelpLink';
-import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_HEAD_STICKY, TABLE_HEAD_TEXT, TABLE_SCROLL_X } from '../lib/styles';
 import {
   base64ToBlob,
   CARRIERS,
@@ -258,7 +258,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           )}
           <div className={TABLE_SCROLL_X}>
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_TEXT}>
                 <tr className="border-b border-border text-left text-xs text-fg-muted">
                   <th className="py-2 pr-3 font-medium">Ubicación</th>
                   <th className="py-2 pr-3 font-medium">Producto</th>
@@ -367,7 +367,9 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
                   <th className="px-3 py-2 font-medium">Comprador</th>
                   <th className="px-3 py-2 font-medium">Envío</th>
                   <th className="px-3 py-2 text-right font-medium">Unid.</th>
-                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2">
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

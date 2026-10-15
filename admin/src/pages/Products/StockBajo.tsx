@@ -189,13 +189,21 @@ export function StockBajoPage() {
             <table className="w-full text-sm">
               <thead className={TABLE_HEAD_STICKY_SUBTLE}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-                  {canBuy && <th className="w-10 px-3 py-2.5" />}
+                  {canBuy && (
+                    <th className="w-10 px-3 py-2.5">
+                      <span className="sr-only">Elegir</span>
+                    </th>
+                  )}
                   <th className="px-3 py-2.5 font-medium">Producto</th>
                   <th className="px-3 py-2.5 text-right font-medium">Stock</th>
                   <th className="px-3 py-2.5 font-medium">Por qué</th>
                   <th className="px-3 py-2.5 text-right font-medium">Pedir</th>
                   <th className="px-3 py-2.5 font-medium">Desde</th>
-                  {canEdit && <th className="px-3 py-2.5" />}
+                  {canEdit && (
+                    <th className="px-3 py-2.5">
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>

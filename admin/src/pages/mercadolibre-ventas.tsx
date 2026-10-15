@@ -10,7 +10,6 @@ import {
   Modal,
   Select,
   Spinner,
-  StatCard,
   cn,
   useConfirm,
   useToast,
@@ -30,6 +29,7 @@ import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { useListParams, useListSearch } from '../lib/useListParams';
 import { useFiscalReady } from '../lib/useFiscalReady';
 import { useIsNarrow } from '../lib/useMediaQuery';
+import { ListStats } from '../components/stats/ListStats';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -287,23 +287,28 @@ export function VentasTab() {
   return (
     <div>
       {stats && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <StatCard
-            label="Ventas ML (30 días)"
-            hint="Ventas pagadas de los últimos 30 días en tu cuenta de ML."
-            value={String(stats.orders)}
-          />
-          <StatCard
-            label="Facturado en ML"
-            hint="Solo ventas pagadas: las canceladas no suman."
-            value={moneyMajor(stats.revenue, stats.currency)}
-          />
-          <StatCard
-            label="Unidades vendidas"
-            hint="Suma de unidades de todas las ventas pagadas."
-            value={String(stats.unitsSold)}
-          />
-        </div>
+        // La misma fila de métricas que el resto de los listados: eran tres
+        // tarjetas sueltas que en el teléfono iban una abajo de la otra.
+        <ListStats
+          className="mb-4"
+          items={[
+            {
+              label: 'Ventas ML (30 días)',
+              hint: 'Ventas pagadas de los últimos 30 días en tu cuenta de ML.',
+              value: String(stats.orders),
+            },
+            {
+              label: 'Facturado en ML',
+              hint: 'Solo ventas pagadas: las canceladas no suman.',
+              value: moneyMajor(stats.revenue, stats.currency),
+            },
+            {
+              label: 'Unidades vendidas',
+              hint: 'Suma de unidades de todas las ventas pagadas.',
+              value: String(stats.unitsSold),
+            },
+          ]}
+        />
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -429,7 +434,7 @@ export function VentasTab() {
             <div className={`${TABLE_SCROLL_X} rounded-lg border border-border bg-surface shadow-card`}>
               <table className="w-full min-w-[760px] text-sm">
                 <thead className={TABLE_HEAD_STICKY}>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
+                  <tr className="border-b border-border text-left text-xs text-fg-subtle">
                     {selectable && (
                       <th className="w-10 px-3 py-3">
                         <Checkbox
@@ -450,7 +455,9 @@ export function VentasTab() {
                     <th className="px-4 py-3">Productos</th>
                     <th className="px-4 py-3">Total</th>
                     <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

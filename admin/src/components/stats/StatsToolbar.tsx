@@ -174,6 +174,14 @@ function Select({
   );
 }
 
+/**
+ * La grilla de las KpiCard: de a dos en el teléfono (2×2 con cuatro, como
+ * ListStats) y de a cuatro en la compu. Antes cada pantalla de Estadísticas
+ * tenía la suya y en el teléfono las tarjetas iban de a una, una abajo de otra.
+ */
+export const KPI_GRID =
+  'grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1';
+
 /** KPI grande con sparkline (Visitas, Ventas, Facturación...). */
 export function KpiCard({
   title,
@@ -193,7 +201,8 @@ export function KpiCard({
         {title}
         {hint && <InfoDot info={hint} />}
       </div>
-      <div className="mt-2 text-3xl font-bold tracking-tight text-fg">{value}</div>
+      {/* Más chico en el teléfono: van de a dos por fila y "$ 1.234.567" no entraba. */}
+      <div className="mt-2 break-words text-2xl font-bold tracking-tight text-fg sm:text-3xl">{value}</div>
       {children && <div className="mt-3">{children}</div>}
     </div>
   );

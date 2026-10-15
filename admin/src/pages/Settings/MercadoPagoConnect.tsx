@@ -284,7 +284,9 @@ function ConnectedView({
             <table className="w-full min-w-[480px] text-xs">
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th className="py-2 pr-3 font-medium text-fg-muted" />
+                  <th className="py-2 pr-3 font-medium text-fg-muted">
+                    <span className="sr-only">Característica</span>
+                  </th>
                   <th className="py-2 pr-3 font-semibold text-fg">Checkout Pro</th>
                   <th className="py-2 font-semibold text-fg">Checkout integrado</th>
                 </tr>

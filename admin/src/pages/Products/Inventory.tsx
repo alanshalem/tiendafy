@@ -277,7 +277,9 @@ export function InventoryPage() {
                     <InfoDot info="Lo que se puede vender AHORA: el stock físico menos lo reservado." />
                   </span>
                 </th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-2.5">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody>

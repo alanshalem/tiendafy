@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
+import { KPI_GRID, KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { BarChart, Delta } from '../../components/charts/viz';
 import { formatMoney, formatNumber } from '../../lib/format';
@@ -34,7 +34,7 @@ export function StatsRealTimePage() {
         description="Actividad de los últimos 5 minutos · se actualiza solo."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={KPI_GRID}>
         <KpiCard
           title="Visitantes activos"
           hint="Personas navegando tu tienda en los últimos 5 minutos."

@@ -23,6 +23,7 @@ import {
   parseShipping,
 } from './product-form';
 import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
+import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
 interface ProductDto {
   id: string;
@@ -431,7 +432,7 @@ export function NewProductPage() {
                 {variantRows.length > 0 && (
                   <div className="overflow-x-auto rounded-md border border-border">
                     <table className="w-full text-sm">
-                      <thead>
+                      <thead className={TABLE_HEAD_TEXT}>
                         <tr className="border-b border-border bg-bg-muted text-left text-xs text-fg-muted">
                           <th className="px-3 py-2 font-medium">Variante</th>
                           <th className="px-3 py-2 font-medium">Precio (ARS)</th>

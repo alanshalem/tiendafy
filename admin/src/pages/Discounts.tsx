@@ -158,7 +158,7 @@ export function DiscountsPage() {
     },
     {
       key: 'createdAtUtc',
-      header: '',
+      header: <span className="sr-only">Acciones</span>,
       cell: (c) =>
         canEdit && (
           <div className="flex justify-end">

@@ -7,7 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_HEAD_TEXT, TABLE_SCROLL_X } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
 
 interface DomainStatus {
@@ -85,7 +85,7 @@ export function DomainsPage() {
         <div className={TABLE_SCROLL_X}>
           <table className="w-full text-sm">
             <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-              <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+              <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium text-fg-muted">
                 <th className="px-4 py-2.5">Dirección</th>
                 <th className="px-4 py-2.5">Estado</th>
                 <th className="px-4 py-2.5">Certificado</th>
@@ -216,8 +216,8 @@ export function DomainsPage() {
 
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[24rem] text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-subtle">
+              <thead className={TABLE_HEAD_TEXT}>
+                <tr className="text-left text-xs text-fg-subtle">
                   <th className="pb-1 pr-4 font-medium">Tipo</th>
                   <th className="pb-1 pr-4 font-medium">Nombre</th>
                   <th className="pb-1 font-medium">Valor</th>

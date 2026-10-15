@@ -6,8 +6,7 @@ import {
   Badge,
   Button,
   Card,
-  clickableRowProps,
-  cn,
+  Table,
   FormField,
   Input,
   Modal,
@@ -27,7 +26,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
@@ -252,54 +251,64 @@ function QuoteList({
         </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
-          <div className={TABLE_SCROLL_X}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Número</th>
-                  <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
-                  <th className="px-4 py-2 font-medium">Vence</th>
-                  <th className="px-4 py-2 text-right font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((q) => {
-                  // El número es un link de verdad (Tab, Enter, abrir en otra
-                  // pestaña); el resto de la fila responde al mouse.
-                  const row = clickableRowProps(() => onOpen(q.id), { focusable: false });
+          <Table
+            rows={rows}
+            rowKey={(q) => q.id}
+            // El número es un link de verdad (Tab, Enter, abrir en otra
+            // pestaña); el resto de la fila responde al mouse.
+            onRowClick={(q) => onOpen(q.id)}
+            rowFocusable={false}
+            columns={[
+              {
+                key: 'number',
+                header: 'Número',
+                className: 'whitespace-nowrap font-medium',
+                cell: (q) => {
                   const link = recordLink(q.id);
                   return (
-                    <tr key={q.id} {...row} className={cn('hover:bg-bg-muted', row.className)}>
-                      <td className="whitespace-nowrap px-4 py-2 font-medium">
-                        <Link to={{ search: link.search }} state={link.state} className="hover:underline">
-                          {q.number}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2">
-                        {q.customerName}
-                        <div className="text-xs text-fg-subtle">
-                          {q.items} producto{q.items === 1 ? '' : 's'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
-                          {q.expired && <Badge variant="warning">Vencido</Badge>}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                        {formatDate(q.validUntilUtc)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                        {formatMoney(q.totalMinor, q.currency)}
-                      </td>
-                    </tr>
+                    <Link to={{ search: link.search }} state={link.state} className="hover:underline">
+                      {q.number}
+                    </Link>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                },
+              },
+              {
+                key: 'customer',
+                header: 'Cliente',
+                cell: (q) => (
+                  <>
+                    {q.customerName}
+                    <div className="text-xs text-fg-subtle">
+                      {q.items} producto{q.items === 1 ? '' : 's'}
+                    </div>
+                  </>
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Estado',
+                cell: (q) => (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
+                    {q.expired && <Badge variant="warning">Vencido</Badge>}
+                  </div>
+                ),
+              },
+              {
+                key: 'validUntil',
+                header: 'Vence',
+                className: 'whitespace-nowrap',
+                cell: (q) => <span className="text-fg-muted">{formatDate(q.validUntilUtc)}</span>,
+              },
+              {
+                key: 'total',
+                header: 'Total',
+                align: 'right',
+                className: 'whitespace-nowrap font-medium tabular-nums',
+                cell: (q) => formatMoney(q.totalMinor, q.currency),
+              },
+            ]}
+          />
         </div>
       )}
 

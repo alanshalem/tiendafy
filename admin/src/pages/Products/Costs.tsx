@@ -226,7 +226,9 @@ export function CostsPage() {
                   </span>
                 </th>
                 <th className="px-4 py-2.5 text-center font-medium">Costo ($)</th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-2.5">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody>

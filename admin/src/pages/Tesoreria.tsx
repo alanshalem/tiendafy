@@ -12,6 +12,7 @@ import {
   useToast,
   EmptyList,
   PageHeader,
+  Table,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -19,7 +20,7 @@ import { formatDateTime, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { parseMoneyInput } from '../lib/price';
 import { useListParams } from '../lib/useListParams';
@@ -337,43 +338,49 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
         <EmptyList className="p-8">Todavía no hay movimientos en esta cuenta.</EmptyList>
       ) : (
         <div className={TABLE_CARD}>
-          <div className={TABLE_SCROLL_X}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Fecha</th>
-                  <th className="px-4 py-2 font-medium">Concepto</th>
-                  <th className="px-4 py-2 font-medium">Cuenta</th>
-                  <th className="px-4 py-2 text-right font-medium">Importe</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data!.items.map((m) => (
-                  <tr key={m.id}>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                      {formatDateTime(m.occurredAtUtc)}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate">{m.concept}</span>
-                        {m.transferGroupId && <Badge variant="neutral">Transferencia</Badge>}
-                      </div>
-                      {m.reference && <div className="text-xs text-fg-subtle">{m.reference}</div>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{m.accountName}</td>
-                    <td
-                      className={`whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums ${
-                        m.kind === 'in' ? 'text-success' : 'text-danger'
-                      }`}
-                    >
-                      {m.kind === 'in' ? '+' : '−'}
-                      {formatMoney(m.amountMinor, m.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            rows={data!.items}
+            rowKey={(m) => m.id}
+            columns={[
+              {
+                key: 'date',
+                header: 'Fecha',
+                className: 'whitespace-nowrap',
+                cell: (m) => <span className="text-fg-muted">{formatDateTime(m.occurredAtUtc)}</span>,
+              },
+              {
+                key: 'concept',
+                header: 'Concepto',
+                cell: (m) => (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate">{m.concept}</span>
+                      {m.transferGroupId && <Badge variant="neutral">Transferencia</Badge>}
+                    </div>
+                    {m.reference && <div className="text-xs text-fg-subtle">{m.reference}</div>}
+                  </>
+                ),
+              },
+              {
+                key: 'account',
+                header: 'Cuenta',
+                className: 'whitespace-nowrap',
+                cell: (m) => <span className="text-fg-muted">{m.accountName}</span>,
+              },
+              {
+                key: 'amount',
+                header: 'Importe',
+                align: 'right',
+                className: 'whitespace-nowrap font-medium tabular-nums',
+                cell: (m) => (
+                  <span className={m.kind === 'in' ? 'text-success' : 'text-danger'}>
+                    {m.kind === 'in' ? '+' : '−'}
+                    {formatMoney(m.amountMinor, m.currency)}
+                  </span>
+                ),
+              },
+            ]}
+          />
         </div>
       )}
 

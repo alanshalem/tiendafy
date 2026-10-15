@@ -27,7 +27,10 @@ export interface PageHeaderProps {
 export function PageHeader({ title, subtitle, actions, count, back, className }: PageHeaderProps) {
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-x-4 gap-y-3', className)}>
-      <div className="min-w-0">
+      {/* Base 0 y un mínimo: el título se lleva el espacio que sobra y las
+          acciones quedan arriba a la derecha aunque la bajada sea larga; en el
+          teléfono, sin lugar para las dos cosas, las acciones bajan. */}
+      <div className="min-w-[min(100%,18rem)] flex-[1_1_0%]">
         {back && <div className="mb-1">{back}</div>}
         <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-fg">{title}</h1>
         {subtitle && <div className="mt-0.5 text-sm text-fg-muted">{subtitle}</div>}
