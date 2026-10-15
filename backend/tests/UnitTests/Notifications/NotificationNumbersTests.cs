@@ -1,5 +1,6 @@
 using System.Globalization;
 using Api.Notifications;
+using Orders.Core.Domain;
 using SharedKernel.Common;
 
 namespace UnitTests.Notifications;
@@ -42,6 +43,16 @@ public class NotificationNumbersTests
             () => CampaignEmailComposer.ComposeForPreview("<p>Hola</p>", products, "https://tienda.test"));
 
         Assert.Contains("$ 15.000</div>", html);
+    }
+
+    [Fact]
+    public void El_tope_de_reembolso_del_panel_sale_con_punto_de_miles_y_centavos()
+    {
+        var error = WithCulture(CultureInfo.InvariantCulture,
+            () => OrderErrors.RefundExceedsRemaining(new Money(15_000_50, "ARS")));
+
+        // Antes: "(15000.50 ARS)" con la cultura invariante de producción.
+        Assert.Equal("El monto supera lo reembolsable (ARS 15.000,50).", error.Message);
     }
 
     [Theory]

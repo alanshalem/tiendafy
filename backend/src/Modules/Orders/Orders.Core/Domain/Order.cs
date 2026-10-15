@@ -510,6 +510,11 @@ public static class OrderLabel
 /// <summary>Errores de reembolso compartidos entre el dominio y el pre-chequeo del endpoint.</summary>
 public static class OrderErrors
 {
+    /// <summary>
+    /// Con centavos ("ARS 15.000,50"): es un tope y redondearlo confunde. Sin
+    /// la cultura del proceso, que en producción es la invariante ("15000.50 ARS").
+    /// </summary>
     public static Error RefundExceedsRemaining(Money remaining) =>
-        Error.Validation("Refund.ExceedsRemaining", $"El monto supera lo reembolsable ({remaining}).");
+        Error.Validation("Refund.ExceedsRemaining",
+            $"El monto supera lo reembolsable ({remaining.Currency} {ArgentineNumbers.Number(remaining.ToDecimal(), 2)}).");
 }
