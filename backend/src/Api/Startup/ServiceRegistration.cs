@@ -133,6 +133,7 @@ public static class ServiceRegistration
         services.AddScoped<Api.Orders.KitStockService>();
         services.AddScoped<Api.Crm.CustomerDirectory>();
         services.AddScoped<DemoDataSeeder>();   // datos de ejemplo; solo se usa desde /dev
+        services.AddScoped<Api.Orders.CheckoutOrderFactory>();
         services.AddScoped<Api.Orders.PaidOrderSideEffects>();
         services.AddScoped<Api.Orders.RefundedOrderSideEffects>();
         services.AddScoped<Api.Orders.OrderRefundService>();

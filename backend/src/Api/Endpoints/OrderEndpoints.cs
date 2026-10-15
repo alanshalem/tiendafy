@@ -1,8 +1,5 @@
 using Api.Auth;
 using Api.Fiscal;
-using Api.Notifications;
-using Checkout.Core.Domain;
-using Discounts.Infrastructure;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
@@ -26,11 +23,7 @@ public static class OrderEndpoints
             Guid id,
             PayCheckoutRequest request,
             ITenantContext tenant,
-            ICheckoutRepository checkouts,
-            DiscountsDbContext discountsDb,
-            CreateOrderHandler createOrder,
-            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
-            IShippingMethodRepository shippingMethods,
+            Api.Orders.CheckoutOrderFactory orderFactory,
             IOrderRepository orders,
             IMercadoPagoPaymentService mp,
             IConfiguration cfg,
@@ -45,7 +38,7 @@ public static class OrderEndpoints
                 return Error.Validation("Checkout.BadReturnUrl",
                     "La URL de retorno no es válida.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
+            var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -78,11 +71,7 @@ public static class OrderEndpoints
             Guid id,
             PayOnsiteRequest request,
             ITenantContext tenant,
-            ICheckoutRepository checkouts,
-            DiscountsDbContext discountsDb,
-            CreateOrderHandler createOrder,
-            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
-            IShippingMethodRepository shippingMethods,
+            Api.Orders.CheckoutOrderFactory orderFactory,
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
             Api.Orders.PaidOrderSideEffects paidEffects,
@@ -91,7 +80,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
+            var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -103,9 +92,8 @@ public static class OrderEndpoints
             var card = payResult.Value;
 
             // Aplicar el resultado ya (el webhook es backup, idempotente).
-            var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
-            if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
-                await paidEffects.RunAsync(settleResult.Value.Order, ct: ct);
+            await paidEffects.RunIfJustPaidAsync(
+                await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct), ct);
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
         }).RequireTenant().RequireRateLimiting("payments");
@@ -119,11 +107,7 @@ public static class OrderEndpoints
             PayPaywayRequest request,
             HttpContext http,
             ITenantContext tenant,
-            ICheckoutRepository checkouts,
-            DiscountsDbContext discountsDb,
-            CreateOrderHandler createOrder,
-            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
-            IShippingMethodRepository shippingMethods,
+            Api.Orders.CheckoutOrderFactory orderFactory,
             SettlePaymentHandler settle,
             IPaywayPaymentService payway,
             Api.Orders.PaidOrderSideEffects paidEffects,
@@ -132,7 +116,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.Bin))
                 return Error.Validation("Payway.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
+            var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -155,11 +139,8 @@ public static class OrderEndpoints
             // que no supimos interpretar la dejan pendiente a propósito: se
             // despacha cuando Payway confirma, no antes.
             if (charge.IsApproved && charge.ProviderPaymentId is { } paymentId)
-            {
-                var settleResult = await settle.HandleAsync(order.Id, "approved", paymentId, ct: ct);
-                if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
-                    await paidEffects.RunAsync(settleResult.Value.Order, ct: ct);
-            }
+                await paidEffects.RunIfJustPaidAsync(
+                    await settle.HandleAsync(order.Id, "approved", paymentId, ct: ct), ct);
 
             return Results.Ok(new
             {
@@ -462,83 +443,6 @@ public static class OrderEndpoints
         }).RequirePermission(Permission.OrdersRead);
 
         return group;
-    }
-
-    /// <summary>
-    /// Crea la Order desde un checkout enviado, aplicando el cupón validado
-    /// server-side. Con <paramref name="offline"/>, además el descuento y el
-    /// plazo de la transferencia o el efectivo (ver Order.UseOfflinePayment).
-    /// </summary>
-    internal static async Task<Result<Order>> BuildOrderAsync(
-        TenantId tenantId, Guid sessionId, string? couponCode, string? utmSource,
-        ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder,
-        Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, IShippingMethodRepository shippingMethods,
-        CancellationToken ct, OfflinePaymentPlan? offline = null)
-    {
-        var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
-        if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
-        if (session.Status != CheckoutStatus.Submitted)
-            return Result.Failure<Order>(Error.Conflict("Checkout.NotSubmitted",
-                "El checkout debe estar enviado (con stock reservado) antes de pagar."));
-
-        // Cupón: NUNCA confiar en el descuento del cliente; recalcular server-side.
-        Money discount = Money.Zero(session.Currency);
-        var freeShipping = false;
-        var code = (couponCode ?? string.Empty).Trim().ToUpperInvariant();
-        if (code.Length > 0)
-        {
-            var subtotal = session.Items.Aggregate(0L, (s, i) => s + i.UnitPrice.AmountInMinorUnits * i.Quantity);
-            var coupon = await discountsDb.Coupons.AsNoTracking()
-                .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value && c.Code == code, ct);
-            if (coupon is not null)
-            {
-                var ev = coupon.Evaluate(subtotal, DateTime.UtcNow);
-                if (ev.Valid)
-                {
-                    if (ev.Discount > 0) discount = new Money(ev.Discount, session.Currency);
-                    freeShipping = ev.FreeShipping;
-                }
-            }
-        }
-
-        // Un cupón de envío gratis no descuenta del producto: pone el envío en
-        // cero. Sin esto, el carrito prometía "envío gratis" y el comprador
-        // igual pagaba el envío completo.
-        var shippingCost = freeShipping ? Money.Zero(session.Currency) : session.ShippingCost;
-
-        // Snapshot de COSTO al momento de la venta (rentabilidad): se lee del
-        // catálogo acá y no en el checkout — el costo que importa es el vigente
-        // cuando la orden nace. Best effort: sin costo cargado, la orden va igual.
-        var variantCosts = (await catalogQuery.GetVariantsAsync(
-                tenantId.Value, session.Items.Select(i => i.VariantId).Distinct().ToList(), ct))
-            .Where(v => v.Cost is not null)
-            .ToDictionary(v => v.VariantId, v => new Money(v.Cost!.Amount, v.Cost.Currency));
-
-        var lines = session.Items.Select(i => new CreateOrderLine(
-            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId,
-            variantCosts.TryGetValue(i.VariantId, out var cost) ? cost : null)).ToList();
-
-        // Retiro en el local: lo dice el medio que eligió (los de carrier, aunque sean
-        // "a sucursal", se despachan y siguen con su seguimiento).
-        var isPickup = session.ShippingMethodId is { } methodId
-            && (await shippingMethods.GetByIdAsync(tenantId, methodId, ct))?.Kind == ShippingKind.Pickup;
-
-        var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
-
-        return await createOrder.HandleAsync(new CreateOrderCommand(
-            tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
-            discount.IsZero ? null : discount, code.Length > 0 ? code : null,
-            ShippingCost: shippingCost,
-            ShippingMethodName: session.ShippingMethodName,
-            ShippingAddress: session.ShippingAddress,
-            BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,
-            BuyerPhone: session.Phone,
-            DocNumber: session.DocNumber,
-            Notes: session.Notes,
-            UtmSource: utmSource,
-            IsPickup: isPickup,
-            OfflinePayment: offline), ct);
     }
 
     /// <summary>Quién hizo la acción, para dejarlo escrito: su nombre, si no su id, y si no "admin".</summary>

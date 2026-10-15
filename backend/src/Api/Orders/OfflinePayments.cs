@@ -1,11 +1,8 @@
 using System.Text;
-using Api.Endpoints;
 using Api.Notifications;
 using Api.Workers;
-using Catalog.Contracts;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
-using Discounts.Infrastructure;
 using Inventory.Contracts;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -27,9 +24,7 @@ public sealed class OfflinePaymentService(
     CheckoutDbContext checkoutDb,
     ICheckoutRepository checkouts,
     IShippingMethodRepository shippingMethods,
-    DiscountsDbContext discountsDb,
-    CreateOrderHandler createOrder,
-    ICatalogCheckoutQuery catalogQuery,
+    CheckoutOrderFactory orderFactory,
     IOrderRepository orders,
     OrdersDbContext ordersDb,
     IInventoryService inventory,
@@ -67,9 +62,9 @@ public sealed class OfflinePaymentService(
                     : "Esta tienda no está aceptando transferencias."));
 
         var dueAt = DateTime.UtcNow.AddHours(options.HoldHours);
-        var built = await OrderEndpoints.BuildOrderAsync(
-            tenantId, sessionId, couponCode, utmSource, checkouts, discountsDb, createOrder, catalogQuery,
-            shippingMethods, ct, new OfflinePaymentPlan(OfflinePayments.Wire(method), options.DiscountPercent, dueAt));
+        var built = await orderFactory.CreateAsync(
+            tenantId, sessionId, couponCode, utmSource,
+            ct, new OfflinePaymentPlan(OfflinePayments.Wire(method), options.DiscountPercent, dueAt));
         if (built.IsFailure) return built;
         var order = built.Value;
 

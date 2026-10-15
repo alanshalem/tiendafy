@@ -5,6 +5,8 @@ using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
+using Orders.Core.Features;
+using SharedKernel.Common;
 
 namespace Api.Orders;
 
@@ -55,6 +57,15 @@ public sealed class PaidOrderSideEffects(
         // es un cliente de la tienda.
         await StepAsync("ficha del cliente", order, () => customers.UpsertFromOrderAsync(order, ct));
     }
+
+    /// <summary>
+    /// Los efectos, solo si ese settle es el que dejó la orden pagada: un
+    /// reintento o un estado que no cambió nada no los repite.
+    /// </summary>
+    public Task RunIfJustPaidAsync(Result<SettleResult> settled, CancellationToken ct = default) =>
+        settled.IsSuccess && settled.Value.Outcome == SettleOutcome.JustPaid && settled.Value.Order is { } order
+            ? RunAsync(order, ct: ct)
+            : Task.CompletedTask;
 
     /// <summary>
     /// Suma un uso al cupón de la venta. El contador ya se mostraba en el panel
