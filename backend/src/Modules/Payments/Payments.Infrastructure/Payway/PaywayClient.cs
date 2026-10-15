@@ -204,22 +204,50 @@ public sealed class PaywayClient(
         using var message = Build(HttpMethod.Post, connection, $"payments/{providerPaymentId}/refunds", apiKey);
         message.Content = JsonContent.Create(body);
 
-        using var response = await http.SendAsync(message, timeout.Token);
-        var json = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        string json;
+        try
         {
-            logger.LogError("Payway rechazó la devolución de {PaymentId} con {Status}: {Body}",
-                providerPaymentId, (int)response.StatusCode, json);
-            return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundFailed",
-                "Payway no pudo procesar la devolución."));
+            response = await http.SendAsync(message, timeout.Token);
+            json = await response.Content.ReadAsStringAsync(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException && !ct.IsCancellationRequested)
+        {
+            // Igual que con un cobro: sin idempotencia, un timeout no dice que no
+            // se devolvió. No se reintenta; se avisa que hay que mirarlo antes de
+            // volver a pedirlo, o se devuelve dos veces.
+            logger.LogError(ex, "Payway no respondió a la devolución de {PaymentId}.", providerPaymentId);
+            return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundUnknown",
+                "Payway no respondió y no sabemos si hizo la devolución. Fijate en el portal de Payway antes de volver a intentarlo."));
         }
 
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        return new PaywayRefundResult(
-            root.TryGetProperty("id", out var id) ? id.ToString() : "",
-            root.TryGetProperty("amount", out var amt) && amt.TryGetInt64(out var value) ? value : amountMinor ?? 0,
-            JsonRead.GetString(root, "status") ?? "");
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Payway rechazó la devolución de {PaymentId} con {Status}: {Body}",
+                    providerPaymentId, (int)response.StatusCode, json);
+                return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundFailed",
+                    "Payway no pudo procesar la devolución."));
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var status = JsonRead.GetString(root, "status") ?? "";
+
+            // Un 2xx con la devolución rechazada adentro no es una devolución.
+            if (status.Equals("rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError("Payway rechazó la devolución de {PaymentId}: {Body}", providerPaymentId, json);
+                return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundFailed",
+                    "Payway no pudo procesar la devolución."));
+            }
+
+            return new PaywayRefundResult(
+                root.TryGetProperty("id", out var id) ? id.ToString() : "",
+                root.TryGetProperty("amount", out var amt) && amt.TryGetInt64(out var value) ? value : amountMinor ?? 0,
+                status);
+        }
     }
 
     // ----------------------------------------------------------------- Interno

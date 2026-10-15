@@ -24,6 +24,7 @@ public sealed record CancelledOrder(Order Order, bool LinkExpired, int ReleasedR
 public sealed class OrderRefundService(
     IOrderRepository orders,
     IMercadoPagoPaymentService mp,
+    IPaywayPaymentService payway,
     PaymentsDbContext paymentsDb,
     IStockRepository stock,
     KitStockService kits,
@@ -34,11 +35,15 @@ public sealed class OrderRefundService(
     ILogger<OrderRefundService> logger)
 {
     /// <summary>
-    /// Reembolso total o parcial. Mercado Pago primero (la plata), estado local
-    /// después, auditoría, agenda, cuenta corriente y avisos.
+    /// Reembolso total o parcial. La pasarela que cobró primero (la plata:
+    /// Mercado Pago o Payway), estado local después, auditoría, agenda, cuenta
+    /// corriente y avisos.
     ///
     /// Lock por orden + recarga dentro del lock: dos requests concurrentes no
-    /// disparan dos refunds ni dos emails.
+    /// disparan dos refunds ni dos emails. Con Payway, que no tiene
+    /// idempotencia, esto es TODA la defensa contra devolver dos veces: el
+    /// segundo pedido entra después del primero y recalcula lo que queda con
+    /// lo que ya se devolvió.
     /// </summary>
     /// <param name="requestedBy">Quién lo pidió, para la auditoría.</param>
     public async Task<Result<Order>> RefundAsync(
@@ -74,17 +79,26 @@ public sealed class OrderRefundService(
         // ya avanzó) da otra key.
         var idemKey = $"refund-{order.Id:N}-{order.RefundedAmount.AmountInMinorUnits}-{amount.AmountInMinorUnits}";
 
-        // MP primero (la plata), estado local después. amount null a MP = total
-        // del pago; con parciales previos siempre mandamos monto explícito.
+        // La pasarela primero (la plata), estado local después. Sin monto = el
+        // total del pago; con parciales previos siempre va el monto explícito.
         // Ventas manuales (efectivo/transferencia): la plata se devuelve a
         // mano — solo se registra el estado y la auditoría.
-        var isManualPayment = order.PaymentId!.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal);
-        if (!isManualPayment)
+        var fullRefund = isTotal && order.RefundedAmount.IsZero;
+        var gateway = await GatewayOfAsync(tenantId, order, ct);
+        if (gateway == RefundGateway.Payway)
         {
-            var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
-            var refund = await mp.RefundAsync(tenantId, order.PaymentId!, mpAmount, idemKey, ct);
+            // Payway no deduplica: no hay clave que mandar. Lo que evita la
+            // devolución doble es el lock de arriba y el recálculo de lo que queda.
+            var refund = await payway.RefundAsync(
+                tenantId, order.PaymentId!, fullRefund ? null : amount.AmountInMinorUnits, ct);
             if (refund.IsFailure) return Result.Failure<Order>(refund.Error);
-            audit.AttachMercadoPagoId(refund.Value.RefundId);
+            audit.AttachProviderRefundId(refund.Value.RefundId);
+        }
+        else if (gateway == RefundGateway.MercadoPago)
+        {
+            var refund = await mp.RefundAsync(tenantId, order.PaymentId!, fullRefund ? null : amount.ToDecimal(), idemKey, ct);
+            if (refund.IsFailure) return Result.Failure<Order>(refund.Error);
+            audit.AttachProviderRefundId(refund.Value.RefundId);
         }
 
         var applied = order.ApplyRefund(amount);
@@ -99,6 +113,17 @@ public sealed class OrderRefundService(
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (gateway == RefundGateway.Payway)
+            {
+                // Con Mercado Pago, repetir el pedido da la misma clave y no se
+                // devuelve dos veces. Con Payway, repetirlo SÍ devuelve otra vez:
+                // la plata ya salió, así que hay que decirlo.
+                logger.LogError(
+                    "Payway devolvió {Amount} de la venta {OrderId} pero el pedido cambió antes de guardarlo.",
+                    amount, order.Id);
+                return Result.Failure<Order>(Error.Conflict("Refund.Concurrent",
+                    "Payway ya hizo la devolución, pero el pedido cambió mientras se guardaba. No la repitas: recargá y revisá el estado."));
+            }
             return Result.Failure<Order>(Error.Conflict("Refund.Concurrent",
                 "El pedido cambió mientras se procesaba el reembolso. Recargá y verificá el estado."));
         }
@@ -125,6 +150,25 @@ public sealed class OrderRefundService(
                 await RestockAsync(tenantId, order, ct);
         }
         return order;
+    }
+
+    private enum RefundGateway { Manual, MercadoPago, Payway }
+
+    /// <summary>
+    /// Por dónde entró la plata de la venta. La orden no lo guarda (las de
+    /// Payway quedan con <c>PaymentProvider = "mercadopago"</c>, el default, y
+    /// los ids de pago de las dos pasarelas son números): lo que la distingue
+    /// es el intento de Payway que la cobró, con ese mismo id de pago.
+    /// </summary>
+    private async Task<RefundGateway> GatewayOfAsync(TenantId tenantId, Order order, CancellationToken ct)
+    {
+        if (order.PaymentId!.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal))
+            return RefundGateway.Manual;
+
+        var paidWithPayway = await paymentsDb.PaywayPaymentAttempts.AsNoTracking()
+            .AnyAsync(a => a.TenantId == tenantId.Value && a.OrderId == order.Id
+                && a.ProviderPaymentId == order.PaymentId, ct);
+        return paidWithPayway ? RefundGateway.Payway : RefundGateway.MercadoPago;
     }
 
     private async Task RestockAsync(TenantId tenantId, Order order, CancellationToken ct)

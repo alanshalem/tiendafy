@@ -1,9 +1,8 @@
 namespace Payments.Infrastructure.Persistence;
 
 /// <summary>
-/// Auditoría de reembolsos: quién pidió cuánto, cuándo y qué devolvió MP.
-/// Un registro por intento exitoso; el Id es además la clave de idempotencia
-/// enviada a MercadoPago, así un retry de red nunca duplica el débito.
+/// Auditoría de reembolsos: quién pidió cuánto, cuándo y qué devolvió la
+/// pasarela (Mercado Pago o Payway). Un registro por reembolso exitoso.
 /// </summary>
 public sealed class PaymentRefund
 {
@@ -11,6 +10,12 @@ public sealed class PaymentRefund
     public Guid TenantId { get; private set; }
     public Guid OrderId { get; private set; }
     public string PaymentId { get; private set; } = null!;
+    /// <summary>
+    /// Id del reembolso en la pasarela que cobró: Mercado Pago o Payway (es de
+    /// Payway si <see cref="PaymentId"/> está en un intento de
+    /// <c>payway_payment_attempts</c>). El nombre quedó de cuando solo había
+    /// Mercado Pago; renombrar la columna no vale una migración.
+    /// </summary>
     public string? MercadoPagoRefundId { get; private set; }
     public long AmountInMinorUnits { get; private set; }
     public string Currency { get; private set; } = null!;
@@ -39,6 +44,6 @@ public sealed class PaymentRefund
             CreatedAtUtc = DateTime.UtcNow,
         };
 
-    public void AttachMercadoPagoId(string refundId) =>
+    public void AttachProviderRefundId(string refundId) =>
         MercadoPagoRefundId = string.IsNullOrWhiteSpace(refundId) ? null : refundId;
 }

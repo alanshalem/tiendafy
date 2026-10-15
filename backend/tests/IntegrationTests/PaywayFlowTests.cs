@@ -222,4 +222,67 @@ public sealed class PaywayFlowTests
         var charge = _factory.ExternalHttp.SentTo($"{Sandbox}/payments").Last(r => r.Body?.Contains("tok-6-cuotas") == true);
         Assert.Contains("\"installments\":6", charge.Body);
     }
+
+    [Fact]
+    public async Task Reembolsar_una_venta_de_Payway_devuelve_por_Payway_y_no_por_Mercado_Pago()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "pwd");
+        var shopper = new Shopper(merchant);
+        await merchant.PutAsync("/api/v1/payments/payway/connection", Config());
+        // Con Mercado Pago conectado también: antes, todo reembolso iba ahí.
+        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        var (_, variantId) = await merchant.CreateProductAsync("Bolso Payway", priceMinor: 40_000_00);
+
+        var paymentId = Random.Shared.NextInt64(10_000_000, 99_999_999);
+        var checkoutId = await shopper.CheckoutAsync(variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments", Approved(paymentId, 40_000_00), HttpStatusCode.Created);
+        var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-payway", Card($"tok-dev-{paymentId}"));
+        var orderId = paid.GetProperty("orderId").GetGuid();
+
+        var refundsUrl = $"{Sandbox}/payments/{paymentId}/refunds";
+        _factory.ExternalHttp.On(HttpMethod.Post, refundsUrl, (_, body) => FakeHttp.Json(new
+        {
+            id = Random.Shared.Next(1, 1_000_000),
+            amount = body!.Contains("amount") ? 10_000_00L : 40_000_00L,
+            status = "approved",
+        }));
+
+        // Parcial: el monto en centavos, como lo cuenta Payway.
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = 10_000m, reason = "Cambio" });
+        Assert.Equal("PARTIALLYREFUNDED", await StatusAsync(shopper, orderId));
+
+        // El resto: con un parcial previo va con monto explícito.
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { reason = "Devolución total" });
+        Assert.Equal("REFUNDED", await StatusAsync(shopper, orderId));
+
+        var refunds = _factory.ExternalHttp.SentTo(refundsUrl);
+        Assert.Equal(2, refunds.Count);
+        Assert.Equal("priv-key", refunds[0].Headers["apikey"]);
+        Assert.Contains("\"amount\":1000000", refunds[0].Body);
+        Assert.Contains("\"amount\":3000000", refunds[1].Body);
+        Assert.Empty(_factory.ExternalHttp.SentTo($"https://api.mercadopago.com/v1/payments/{paymentId}"));
+
+        var history = await merchant.GetAsync($"/api/v1/orders/{orderId}/refunds");
+        Assert.Equal(2, history.GetProperty("items").GetArrayLength());
+
+        // Ya no queda nada: no se le vuelve a pedir a Payway.
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{orderId}/refund", new { })).StatusCode);
+        Assert.Equal(2, _factory.ExternalHttp.SentTo(refundsUrl).Count);
+
+        // Si Payway rechaza la devolución, la venta queda como estaba.
+        var otherPayment = paymentId + 1;
+        var otherCheckout = await shopper.CheckoutAsync(variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments", Approved(otherPayment, 40_000_00), HttpStatusCode.Created);
+        var other = (await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{otherCheckout}/pay-payway", Card($"tok-dev-{otherPayment}")))
+            .GetProperty("orderId").GetGuid();
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments/{otherPayment}/refunds", new { error = "x" }, HttpStatusCode.BadRequest);
+        Assert.False((await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{other}/refund", new { })).IsSuccessStatusCode);
+        Assert.Equal("PAID", await StatusAsync(shopper, other));
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private static async Task<string?> StatusAsync(Shopper shopper, Guid orderId) =>
+        (await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/orders/{orderId}/status")).GetProperty("status").GetString();
 }
