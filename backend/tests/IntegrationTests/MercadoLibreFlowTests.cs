@@ -344,7 +344,7 @@ public sealed class MercadoLibreFlowTests
         var refused = await merchant.SendAsync(HttpMethod.Post,
             $"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "MLA1" });
         Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
-        Assert.Contains("colchón", await refused.Content.ReadAsStringAsync());
+        Assert.Contains("colchón", JsonDocument.Parse(await refused.Content.ReadAsStringAsync()).RootElement.GetProperty("detail").GetString());
         Assert.Equal(publishes, _factory.ExternalHttp.SentTo($"{Api}/items").Count(r => r.Uri.AbsolutePath == "/items"));
     }
 
