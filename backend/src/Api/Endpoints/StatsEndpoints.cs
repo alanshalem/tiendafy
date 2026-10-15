@@ -601,12 +601,6 @@ public static class StatsEndpoints
     }
 
     /// <summary>
-    /// Ventana [since, until) del reporte: si viene from (y opcionalmente to),
-    /// manda el rango explícito (días completos de Argentina, como el filtro
-    /// del listado de ventas; tope 366); si no, los
-    /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
-    /// </summary>
-    /// <summary>
     /// Canal Mercado Libre del dashboard de rentabilidad: margen BRUTO (antes
     /// de la comisión de ML, que la API no persiste en el cache local) con el
     /// costo ACTUAL de las variantes vinculadas — no hay snapshot porque la
@@ -680,6 +674,12 @@ public static class StatsEndpoints
     private static DateTime LocalDay(DateTime utc) =>
         DateTime.SpecifyKind(ArgentinaTime.DateOf(utc).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
 
+    /// <summary>
+    /// Ventana [since, until) del reporte: si viene from (y opcionalmente to),
+    /// manda el rango explícito (días completos de Argentina, como el filtro
+    /// del listado de ventas; tope 366); si no, los
+    /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
+    /// </summary>
     private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
     {
         if (from is { } f)
