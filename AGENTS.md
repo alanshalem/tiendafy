@@ -94,5 +94,5 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
 - Nunca commitear `.env*` ni credenciales. Las del seed de desarrollo están en
   `docs/usuarios-de-prueba.md` y solo sirven en local.
 - El deploy es a mano, en el servidor: `./infra/deploy.sh prod sha-XXXXXXX`
-  (ver [docs/DEPLOY.md](docs/DEPLOY.md)). Las migraciones son un paso del
+  (ver [docs/despliegue.md](docs/despliegue.md)). Las migraciones son un paso del
   deploy, no corren al arrancar.

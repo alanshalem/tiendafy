@@ -89,5 +89,5 @@ servicios del stack, que escuchan solo en `127.0.0.1` (puertos en
 | https://api.puenteoriente.com.ar   | API; acá llegan los webhooks de Mercado Pago, Mercado Libre y Resend.                      | `127.0.0.1:5080` |
 | `https://<dominio-propio>`         | Dominio propio de una tienda: Caddy saca el certificado en la primera visita, si la API confirma que el dominio es de una tienda. | `127.0.0.1:3000` |
 
-Paso a paso del servidor: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
-Deploy y variables: [DEPLOY.md](./DEPLOY.md) y [CONFIGURACION.md](./CONFIGURACION.md).
+Paso a paso del servidor: [publicar-en-la-vps.md](./publicar-en-la-vps.md).
+Deploy y variables: [despliegue.md](./despliegue.md) y [configuracion.md](./configuracion.md).

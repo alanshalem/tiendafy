@@ -395,7 +395,7 @@ export const PLATAFORMA = {
         heading: 'Cómo leer esta guía',
         paragraphs: [
           'La columna “Dónde se carga” es la que importa. “Servidor” significa configuración del backend y reinicio de la API. “Panel” significa que lo carga el dueño de la tienda desde Configuración, sin ayuda técnica.',
-          'Los nombres exactos de cada variable viven en docs/CONFIGURACION.md del repositorio, que se actualiza junto con el código. Acá va el qué y el porqué.',
+          'Los nombres exactos de cada variable viven en docs/configuracion.md del repositorio, que se actualiza junto con el código. Acá va el qué y el porqué.',
         ],
       },
       {
@@ -749,7 +749,7 @@ export const PLATAFORMA = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Los comandos exactos están en docs/DEPLOY.md del repositorio, que se actualiza junto con el código. Acá va el orden y el porqué, que es lo que no cambia.',
+            text: 'Los comandos exactos están en docs/despliegue.md del repositorio, que se actualiza junto con el código. Acá va el orden y el porqué, que es lo que no cambia.',
           },
         ],
       },

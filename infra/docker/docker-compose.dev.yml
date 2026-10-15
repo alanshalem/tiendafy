@@ -16,7 +16,7 @@ services:
       # Desde la 18 la imagen guarda los datos en /var/lib/postgresql/<major>/docker
       # y el volumen se monta un nivel arriba. Volumen nuevo por major: el de la
       # 16 (tiendafy_postgres_data) no sirve para la 18. Pasar los datos:
-      # docs/DEPLOY.md → "Cambiar de major de Postgres" → Desarrollo.
+      # docs/despliegue.md → "Cambiar de major de Postgres" → Desarrollo.
       - postgres18_data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tiendafy']

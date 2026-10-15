@@ -8,7 +8,7 @@ ya corren **cking** y **ckinsight**, con **Caddy delante de todo**.
 > `/root/nginx-antes-de-caddy`). Falta: la app de Mercado Pago (1.7), apagar
 > `certbot.timer` (3.6), la Parte 4 (cuenta y tiendas reales) y, cuando
 > quieras, la 5 (deploy automático). El día a día del deploy está en
-> [DEPLOY.md](./DEPLOY.md).
+> [despliegue.md](./despliegue.md).
 
 ## Cómo queda
 
@@ -546,7 +546,7 @@ docker-compose.stack.yml --env-file .env.prod logs -f api`.
   servicio `backup-offsite` los sube cifrados a un bucket S3: un bucket nuevo de
   R2, o el mismo Backblaze B2 que usa cking por su API S3
   (`OFFSITE_PROVIDER=Other`, `OFFSITE_ENDPOINT=https://s3.<región>.backblazeb2.com`).
-  Pasos en `docs/DEPLOY.md` → "Copia fuera del servidor". Y el control semanal
+  Pasos en `docs/despliegue.md` → "Copia fuera del servidor". Y el control semanal
   de que se pueden restaurar: `infra/check-backup.sh` en el cron.
 - **Staging** (`stg.puenteoriente.com.ar`): cuando haga falta. Los puertos ya
   están separados en `.env.staging.example`.

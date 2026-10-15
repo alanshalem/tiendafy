@@ -201,7 +201,7 @@ docs contra el filesystem y el código real).
   (no Bearer + localStorage, que era el diseño viejo); payments/support-chat
   citan `RequirePermission` (no `RequireTenantMembership`); rbac-propuesta
   retitula sus secciones como registro histórico.
-- `docs/guides/adding-a-feature.md` y `adding-a-module.md` **borrados**:
+- `docs/guides/adding-a-feature.md` y `adding-a-module.md` **borrados** (la guía de hoy, `guias/agregar-un-modulo.md`, se escribió después):
   describían un stack que nunca se construyó así (MediatR, FluentValidation,
   NUnit+Moq, RabbitMQ, RLS) y enlazaban docs inexistentes — activamente
   dañinos para un dev nuevo.
@@ -228,7 +228,7 @@ scripts de setup y tooling raíz.
 - Exactitud menor: `edge.conf` anotado como sample no montado y su upstream
   corregido a `:5080`; `.dockerignore` raíz anotado como fallback (los
   `Dockerfile.dockerignore` por app lo reemplazan); referencia muerta a
-  `IMPLEMENTATION_CHECKLIST.md` en setup.ps1/sh → `START_HERE.md`; carpeta
+  `IMPLEMENTATION_CHECKLIST.md` en setup.ps1/sh → `START_HERE.md` (hoy `primeros-pasos.md`); carpeta
   personal fuera del repo quitada de `tiendafy.code-workspace`; comentario
   stale de `tokens.css` ("el admin usa los defaults" — los overridea todos).
 - **Reportado, sin tocar (decisiones)**: PgBouncer en dev compose sin ningún

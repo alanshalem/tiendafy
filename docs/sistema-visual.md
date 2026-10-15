@@ -1,4 +1,4 @@
-# DESIGN.md — Tiendafy
+# Sistema visual
 
 Las reglas de diseño. Leelas antes de armar un componente o una pantalla.
 

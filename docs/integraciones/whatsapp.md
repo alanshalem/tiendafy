@@ -36,7 +36,7 @@ Nada a nivel plataforma salvo la tarifa del panel de costos:
 |---|---|---|
 | `Notifications:WhatsAppCostUsdPerMessage` | Costo estimado por mensaje en el panel | 0.034 |
 
-Lo que carga cada tienda (ver [CONFIGURACION.md](../CONFIGURACION.md)):
+Lo que carga cada tienda (ver [configuracion.md](../configuracion.md)):
 
 1. Una app en [developers.facebook.com](https://developers.facebook.com) con el producto WhatsApp.
 2. El **Phone Number ID** del número (no es el teléfono, es un ID de la Cloud API).

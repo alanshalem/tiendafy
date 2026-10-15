@@ -125,8 +125,8 @@ El mapeo está en `infra/docker/docker-compose.stack.yml` y los placeholders en
 (`Social__Meta__AppId`, etc.).
 
 Qué pedir en cada consola (scopes, redirect) está en
-[CONFIGURACION.md](../CONFIGURACION.md); el resto del despliegue, en
-[DEPLOY.md](../DEPLOY.md). Scopes que pide el código:
+[configuracion.md](../configuracion.md); el resto del despliegue, en
+[despliegue.md](../despliegue.md). Scopes que pide el código:
 
 - Meta: `pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish`.
 - X: `tweet.read tweet.write users.read offline.access`.

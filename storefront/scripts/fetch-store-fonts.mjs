@@ -119,7 +119,7 @@ export const storeFontVariables = fonts.map((f) => f.variable).join(' ');
 `;
 await writeFile(join(root, 'src/app/store-fonts.ts'), ts);
 await writeFile(
-  join(fontsDir, 'LEEME.md'),
+  join(fontsDir, 'README.md'),
   `# Fuentes de la tienda
 
 Subconjunto latin de Google Fonts (https://fonts.google.com), en woff2. Todas

@@ -1,4 +1,4 @@
-# Arquitectura visual de Tiendafy
+# Arquitectura
 
 El sistema en diagramas: dónde corre cada pieza, qué hay adentro de la API, con
 qué servicios externos habla y cómo viaja una venta. GitHub y VS Code dibujan
@@ -133,10 +133,10 @@ Reglas que hacen cumplir los tests de arquitectura
   conoce a la Api (`ModuleBoundariesTests`).
 - Toda entidad con `TenantId` tiene `HasQueryFilter`, o figura en una lista de
   excepciones con su motivo (`TenantQueryFilterTests`). Ver
-  [ADR 0003](./adr/0003-postgres-rls.md).
+  [ADR 0003](./adr/0003-multi-tienda-con-rls.md).
 - Toda ruta exige un permiso de la matriz o está en una lista de excepciones
   con su motivo (`EndpointPermissionTests`, en los tests de integración). Ver
-  [rbac.md](./rbac.md).
+  [permisos.md](./permisos.md).
 
 ### Workers
 

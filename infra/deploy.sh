@@ -96,7 +96,7 @@ trap 'echo "DEPLOY FALLÓ." >&2; rollback_hint' ERR
 echo "==> $ENVIRONMENT: ${PREV_TAG:-(nada corriendo)} → $NEW_TAG"
 # Solo las imágenes de la app. Postgres usa un tag de major (postgres:18-alpine):
 # traerlo acá metería un cambio de versión de la base en cualquier deploy, con
-# reinicio incluido. Se actualiza a propósito (docs/DEPLOY.md).
+# reinicio incluido. Se actualiza a propósito (docs/despliegue.md).
 compose pull api storefront admin
 
 # Copia de la base justo antes de migrar: un rollback de imagen no deshace una

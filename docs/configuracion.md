@@ -177,14 +177,14 @@ lo que figura en las tablas de arriba, el `.env` de cada stack define
 `deploy.sh` exige un tag concreto), los puertos `API_PORT`, `WEB_PORT` y
 `ADMIN_PORT` (tienen que coincidir con `infra/edge/sites/tiendafy.caddy`), los
 techos `*_MEM_LIMIT`, `BACKUP_REPLICAS` y la copia fuera del servidor
-(`OFFSITE_*`, ver [DEPLOY.md](./DEPLOY.md#copia-fuera-del-servidor)).
+(`OFFSITE_*`, ver [despliegue.md](./despliegue.md#copia-fuera-del-servidor)).
 
 > El volumen `dpkeys` guarda las claves con las que están cifrados todos los
 > secretos de las tiendas (Mercado Pago, Payway, WhatsApp, carriers,
 > certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. El
 > backup diario (`pg-backup`) lo incluye.
 
-Paso a paso para levantar el servidor: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
+Paso a paso para levantar el servidor: [publicar-en-la-vps.md](./publicar-en-la-vps.md).
 Usuarios de desarrollo: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
 
 ## Pendientes
@@ -192,4 +192,4 @@ Usuarios de desarrollo: [usuarios-de-prueba.md](./usuarios-de-prueba.md).
 - Pendiente: `Cors:AllowedOrigins` no se pasa en `docker-compose.stack.yml` (un
   valor vacío podría leerse como un origen permitido). Hace falta recién con el
   primer dominio propio de una tienda, y ese trabajo incluye servir la API
-  desde el mismo dominio (ver [DEPLOY.md](./DEPLOY.md), Seguridad).
+  desde el mismo dominio (ver [despliegue.md](./despliegue.md), Seguridad).

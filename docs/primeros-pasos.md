@@ -1,4 +1,4 @@
-# Empezá acá
+# Primeros pasos
 
 Lo que necesitás el primer día para levantar Tiendafy, probarlo y saber dónde
 tocar. El índice de toda la documentación está en [README.md](./README.md).
@@ -32,7 +32,7 @@ Postgres levantado, fallan.
 
 > Si venís de antes del 15-oct-2026: el Postgres de dev pasó a la 18 con un
 > volumen nuevo (`postgres18_data`) y arranca vacío. Para traer tus datos de la
-> 16, seguí [DEPLOY.md → Cambiar de major de Postgres → Desarrollo](./DEPLOY.md#cambiar-de-major-de-postgres-16--18).
+> 16, seguí [despliegue.md → Cambiar de major de Postgres → Desarrollo](./despliegue.md#cambiar-de-major-de-postgres-16--18).
 
 ## 3. Día a día
 
@@ -68,7 +68,7 @@ cd admin && pnpm dev                      # http://localhost:5173
    rehace). La ruta existe solo en Development.
 4. La tienda se ve en `http://<subdominio>.localhost:3000`. `localhost:3000`
    pelado muestra la tienda de `PRIMARY_STORE_SUBDOMAIN` (ver
-   [CONFIGURACION.md](./CONFIGURACION.md#3-variables-de-los-frontends)); sin
+   [configuracion.md](./configuracion.md#3-variables-de-los-frontends)); sin
    esa variable, "tienda no encontrada".
 
 ## 5. Tests
@@ -80,7 +80,7 @@ pnpm verify --back       # solo backend
 pnpm test:e2e            # Playwright contra el stack levantado
 ```
 
-Qué hay, cómo correr cada suite y qué exige CI: [TESTING.md](./TESTING.md).
+Qué hay, cómo correr cada suite y qué exige CI: [tests.md](./tests.md).
 
 ## 6. Dónde vive cada cosa
 
@@ -116,11 +116,11 @@ a otros módulos, `.Contracts`. Un módulo solo puede referenciar el
   TS/CSS/JSON/YAML y `dotnet format --include` en C#. No reemplaza a
   `pnpm verify`: CI corre `dotnet format` sobre toda la solución y compila con
   `-warnaserror`.
-- Módulo nuevo: [guides/adding-a-module.md](./guides/adding-a-module.md).
-  Permisos: [rbac.md](./rbac.md) (fuente de verdad:
+- Módulo nuevo: [guias/agregar-un-modulo.md](./guias/agregar-un-modulo.md).
+  Permisos: [permisos.md](./permisos.md) (fuente de verdad:
   `backend/src/Modules/Identity/Identity.Infrastructure/Permissions.cs`).
-  UI: [DESIGN.md](./DESIGN.md). Decisiones de arquitectura: [adr/](./adr/).
-- Un bug arreglado lleva su test de regresión ([TESTING.md](./TESTING.md#convenciones)).
+  UI: [sistema-visual.md](./sistema-visual.md). Decisiones de arquitectura: [adr/](./adr/).
+- Un bug arreglado lleva su test de regresión ([tests.md](./tests.md#convenciones)).
 
 ## 8. Problemas comunes
 

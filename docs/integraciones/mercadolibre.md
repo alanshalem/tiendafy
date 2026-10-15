@@ -123,7 +123,7 @@ muestra "no configurada".
 - **En la app de ML:** Redirect URI como arriba y URL de notificaciones
   `https://api.TUDOMINIO/api/v1/webhooks/meli` con el topic `orders_v2`
   (los demás topics se aceptan pero se ignoran). Ver también
-  [CONFIGURACION.md](../CONFIGURACION.md).
+  [configuracion.md](../configuracion.md).
 - Los workers corren si `Workers:Enabled` es `true` (default).
 
 Por tienda (desde `/configuracion/mercadolibre`): sincronizar stock, buffer

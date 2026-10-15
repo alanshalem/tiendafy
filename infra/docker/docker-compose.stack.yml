@@ -78,7 +78,7 @@ services:
   # los backups de al lado se pierden con él. Va cifrada antes de salir
   # (rclone crypt): el dump y el keyring juntos abren todos los secretos, así
   # que nunca viajan ni quedan en claro. Apagado hasta configurarlo
-  # (OFFSITE_REPLICAS=1 y las variables OFFSITE_*; ver docs/DEPLOY.md).
+  # (OFFSITE_REPLICAS=1 y las variables OFFSITE_*; ver docs/despliegue.md).
   backup-offsite:
     image: rclone/rclone:1.75
     restart: unless-stopped

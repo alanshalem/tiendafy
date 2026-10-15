@@ -36,14 +36,14 @@ pocas tiendas, no el de una plataforma con miles.
   eventos. Los domain events de SharedKernel se levantan en algunos agregados
   pero nadie los despacha.
 - **El chat posventa y la bandeja usan polling corto desde el navegador**, no
-  SignalR (ver [support-chat.md](../support-chat.md)).
+  SignalR (ver [chat-posventa.md](../chat-posventa.md)).
 
 ## Consecuencias
 
 - Un solo proceso que desplegar y una sola fuente de verdad (la base); nada
   que se pierda en una cola en memoria de un broker.
 - La latencia de lo diferido es la del intervalo de cada worker (de 5 s a 1 h;
-  la tabla está en [ARQUITECTURA-VISUAL.md](../ARQUITECTURA-VISUAL.md#workers)).
+  la tabla está en [arquitectura.md](../arquitectura.md#workers)).
 - Escalar horizontalmente la API exige apagar los workers en las réplicas extra
   o confiar en los claims por fila; hoy corre una sola instancia.
 - Si algún día hace falta un bus, el lugar natural es reemplazar el loop de
@@ -58,6 +58,6 @@ escala de reintentos.
 
 ## Related ADRs
 
-- [0001](./0001-dotnet-monolith.md) — Monolito modular (este ADR reemplaza su
+- [0001](./0001-monolito-modular-en-dotnet.md) — Monolito modular (este ADR reemplaza su
   host Worker con RabbitMQ y Hangfire)
-- [0003](./0003-postgres-rls.md) — Los workers corren sin tenant en scope
+- [0003](./0003-multi-tienda-con-rls.md) — Los workers corren sin tenant en scope

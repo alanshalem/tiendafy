@@ -18,8 +18,8 @@ Estado al 15-oct-2026.
 | [WhatsApp](./whatsapp.md) | Avisos por WhatsApp Cloud API con plantillas aprobadas | Código completo. Falta probar con un número real |
 
 Las imágenes de las tiendas (Cloudflare R2) y los backups fuera del servidor
-están en [DEPLOY.md](../DEPLOY.md). Las variables de cada servicio, con qué
-conseguir y dónde, en [CONFIGURACION.md](../CONFIGURACION.md).
+están en [despliegue.md](../despliegue.md). Las variables de cada servicio, con qué
+conseguir y dónde, en [configuracion.md](../configuracion.md).
 
 ## Antes de prender cada una
 

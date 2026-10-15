@@ -59,7 +59,7 @@ Ojo: `PublicApiBaseUrl` va en la raíz, no adentro de `MercadoPago` (existe tamb
 
 En `.env.staging.example` `RESEND_API_KEY` queda vacía a propósito: staging no le manda mails a nadie.
 
-Del lado de Resend (detalle en [CONFIGURACION.md](../CONFIGURACION.md) y en la guía de publicación [PUBLICAR-EN-LA-VPS.md](../PUBLICAR-EN-LA-VPS.md) §1.6):
+Del lado de Resend (detalle en [configuracion.md](../configuracion.md) y en la guía de publicación [publicar-en-la-vps.md](../publicar-en-la-vps.md) §1.6):
 
 1. Dominio verificado (SPF y DKIM). Ver [Domains](https://resend.com/docs/dashboard/domains/introduction).
 2. API key con permiso de envío.

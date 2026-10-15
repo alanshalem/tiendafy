@@ -1,4 +1,4 @@
-# RBAC — roles y permisos por tienda
+# Permisos: roles y excepciones por tienda
 
 **Estado: implementado.** Matriz editable por tienda y excepciones por persona
 desde 2026-10-12 (antes era fija en código). Fuente de verdad:

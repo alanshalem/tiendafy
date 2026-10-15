@@ -92,17 +92,17 @@ unitarios (`backend/tests/UnitTests/Architecture/`):
    `RequireTenant()` y el permiso que corresponda, `RequirePermission(...)` o
    `RequirePermissionForWrites(...)` (`Api/Auth/AuthExtensions.cs`). Un
    permiso nuevo es una línea en el catálogo de
-   `Identity.Infrastructure/Permissions.cs` (ver [rbac.md](../rbac.md)).
+   `Identity.Infrastructure/Permissions.cs` (ver [permisos.md](../permisos.md)).
    `EndpointPermissionTests` falla si una ruta no exige permiso y no está en
    su lista de excepciones con motivo. Los errores de dominio salen como
    problem+json con `ToProblem()` (`Api/Endpoints/ErrorResults.cs`).
 
 8. **Tests**: unitarios en `backend/tests/UnitTests/Mimodulo/` (helpers en
    `TestData.cs`) y el flujo por HTTP en `backend/tests/IntegrationTests/`
-   con `Merchant` y `ApiFactory` (ver [TESTING.md](../TESTING.md)).
+   con `Merchant` y `ApiFactory` (ver [tests.md](../tests.md)).
 
-9. **Docs**: sumá el módulo a la lista de [START_HERE.md](../START_HERE.md) y
-   al diagrama de [ARQUITECTURA-VISUAL.md](../ARQUITECTURA-VISUAL.md).
+9. **Docs**: sumá el módulo a la lista de [primeros-pasos.md](../primeros-pasos.md) y
+   al diagrama de [arquitectura.md](../arquitectura.md).
 
 ## Antes de dar por terminado
 

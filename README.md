@@ -29,14 +29,14 @@ en `package.json`).
 ```
 
 En Linux/macOS: `./setup.sh` y después cada app a mano (ver
-[docs/START_HERE.md](./docs/START_HERE.md)).
+[docs/primeros-pasos.md](./docs/primeros-pasos.md)).
 
 - Panel: http://localhost:5173 — entrá con `admin@tiendafy.local` / `password123`
   ([usuarios de prueba](./docs/usuarios-de-prueba.md)).
 - Tiendas: `http://<subdominio>.localhost:3000` (`dev-up.ps1` lista las que hay).
 - API: http://localhost:5080 (docs navegables en `/scalar`, solo en Development).
 
-Todos los puertos: [docs/URLS.md](./docs/URLS.md).
+Todos los puertos: [docs/urls-y-puertos.md](./docs/urls-y-puertos.md).
 
 ## Comandos
 
@@ -52,7 +52,7 @@ pnpm test:smoke                      # solo los e2e @smoke
 
 ## Documentación
 
-- [docs/START_HERE.md](./docs/START_HERE.md) — primer día: setup, cómo correr, dónde vive cada cosa.
+- [docs/primeros-pasos.md](./docs/primeros-pasos.md) — primer día: setup, cómo correr, dónde vive cada cosa.
 - [docs/README.md](./docs/README.md) — índice de toda la documentación.
-- [docs/CONFIGURACION.md](./docs/CONFIGURACION.md) — variables de entorno y credenciales.
-- [docs/TESTING.md](./docs/TESTING.md) — tests y CI.
+- [docs/configuracion.md](./docs/configuracion.md) — variables de entorno y credenciales.
+- [docs/tests.md](./docs/tests.md) — tests y CI.

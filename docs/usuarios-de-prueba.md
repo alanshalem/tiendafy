@@ -20,7 +20,7 @@ a **todas** las tiendas de la base, para ver el panel como lo ve cada uno.
 
 La matriz completa está en
 `backend/src/Modules/Identity/Identity.Infrastructure/Permissions.cs` (ver
-[rbac.md](./rbac.md)). Si cambiás qué puede un rol desde Configuración → Roles y permisos,
+[permisos.md](./permisos.md)). Si cambiás qué puede un rol desde Configuración → Roles y permisos,
 estas cuentas lo reflejan al toque.
 
 El sembrado crea lo que falta y no pisa nada:

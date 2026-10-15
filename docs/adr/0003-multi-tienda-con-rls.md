@@ -199,5 +199,5 @@ Por qué transaction mode:
 4. **Logging**: Audit log de todas las operaciones (quién, qué, cuándo, de qué tenant)
 
 ## Related ADRs
-- [0001](./0001-dotnet-monolith.md) — Backend
+- [0001](./0001-monolito-modular-en-dotnet.md) — Backend
 - [0005](./0005-segundo-plano-con-polling-a-postgres.md) — Workers que recorren todas las tiendas

@@ -125,6 +125,6 @@ Cada módulo:
 Si en año 3 necesitamos extraer un módulo, la frontera ya existe + tiene Contracts. Cambio mecánico.
 
 ## Related ADRs
-- [0002](./0002-next-and-vite.md) — Frontend stack
-- [0003](./0003-postgres-rls.md) — Multi-tenancy
+- [0002](./0002-next-y-vite.md) — Frontend stack
+- [0003](./0003-multi-tienda-con-rls.md) — Multi-tenancy
 - [0005](./0005-segundo-plano-con-polling-a-postgres.md) — Segundo plano y consistencia async

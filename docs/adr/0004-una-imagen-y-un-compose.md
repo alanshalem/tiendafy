@@ -57,4 +57,4 @@ servidor (`docker-release.yml` lo saltea mientras no esté la variable
 
 ## Related ADRs
 
-- [0002](./0002-next-and-vite.md) — Por qué dos frontends
+- [0002](./0002-next-y-vite.md) — Por qué dos frontends

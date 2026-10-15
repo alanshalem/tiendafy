@@ -14,7 +14,7 @@ namespace Api.Endpoints;
 /// <summary>
 /// Chat posventa: conversación por orden entre el comprador logueado y el staff.
 /// Adjuntos PDF/JPG/PNG en bucket privado; acceso solo por URL firmada de vida
-/// corta generada al listar. Tiempo real por polling corto (ver docs/support-chat.md).
+/// corta generada al listar. Tiempo real por polling corto (ver docs/chat-posventa.md).
 /// </summary>
 public static class SupportEndpoints
 {

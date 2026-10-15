@@ -157,6 +157,6 @@ Write-Host @"
   Type-check FE:    pnpm --filter "./shared/**" run type-check
   Bajar infra:      docker compose -f infra/docker/docker-compose.dev.yml down
 
-  Mapa de la documentación: docs/START_HERE.md
+  Mapa de la documentación: docs/primeros-pasos.md
 ============================================================
 "@ -ForegroundColor Green

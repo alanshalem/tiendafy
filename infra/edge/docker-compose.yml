@@ -14,7 +14,7 @@
 # Se levanta una vez y no se toca en cada deploy: los deploys cambian
 # contenedores de aplicación, no el borde.
 #
-# Guía completa: docs/PUBLICAR-EN-LA-VPS.md
+# Guía completa: docs/publicar-en-la-vps.md
 # ============================================================
 
 name: edge

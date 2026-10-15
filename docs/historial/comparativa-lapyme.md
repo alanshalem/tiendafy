@@ -39,7 +39,7 @@ recién aparece en Pro; la contabilidad completa está en todos.
 >   altas, bajas, roles, excepciones y la matriz de permisos, desde el
 >   12-oct). Del resto de las entidades no hay registro.
 > - **Roles y permisos**: la matriz pasó a ser editable por tienda, con
->   excepciones por persona (ver `docs/rbac.md`).
+>   excepciones por persona (ver `docs/permisos.md`).
 > - Siguen sin hacerse: turno y arqueo de caja, lector de barras en la venta
 >   manual, ticket térmico, carga masiva de
 >   compras por Excel, importar comprobantes desde ARCA, tipo de cambio en

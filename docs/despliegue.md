@@ -1,4 +1,4 @@
-# Deploy: staging y producción
+# Despliegue y operación
 
 Guía de variables de entorno e infraestructura. **En dev no necesitás nada de
 esto** — todo cae a `localhost` por defecto.
@@ -30,7 +30,7 @@ un archivo por sistema en `infra/edge/sites/`. Cada stack publica sus puertos
 solo en `127.0.0.1` (`API_PORT`, `WEB_PORT`, `ADMIN_PORT` de su `.env`) y Caddy
 los distingue por dominio. Para un servidor que ya tiene otros sistemas
 andando, la guía paso a paso (con vuelta atrás) es
-[PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
+[publicar-en-la-vps.md](./publicar-en-la-vps.md).
 
 ```bash
 # Una sola vez
@@ -86,7 +86,7 @@ común de mandarle un email a un cliente real desde un ambiente de prueba.
 ### Backend (`ASPNETCORE_ENVIRONMENT=Production`)
 Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Production.json`.
 En el stack ya están mapeadas desde `.env.prod` (`infra/docker/docker-compose.stack.yml`);
-la referencia completa, con qué conseguir y dónde, es [CONFIGURACION.md](./CONFIGURACION.md).
+la referencia completa, con qué conseguir y dónde, es [configuracion.md](./configuracion.md).
 
 | Variable | Ejemplo | Notas |
 |----------|---------|-------|
@@ -151,7 +151,7 @@ Integraciones opcionales de plataforma (vacío = apagado, el panel lo dice):
 `MercadoLibre__*` (canal Mercado Libre), `MetaAds__*` (ROAS real) y `Social__Meta__*` /
 `Social__X__*` (redes sociales; Telegram no necesita credenciales). El detalle
 de cada una — qué conseguir y dónde — está en
-[CONFIGURACION.md](./CONFIGURACION.md); el compose de prod ya mapea todas desde
+[configuracion.md](./configuracion.md); el compose de prod ya mapea todas desde
 `.env.prod`.
 
 ### Storefront (Next.js)

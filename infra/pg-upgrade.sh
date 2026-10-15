@@ -107,7 +107,7 @@ done
 if ! docker exec -i "$TRIAL" pg_restore -U tiendafy -d tiendafy --exit-on-error < "$WORK/ensayo.dump"; then
   echo >&2
   echo "El ensayo falló (arriba, el error): la base no entra tal cual en Postgres $NEW_MAJOR." >&2
-  echo "No se cortó nada: todo sigue andando con la $OLD_MAJOR. Ver docs/DEPLOY.md → Cambiar de major de Postgres." >&2
+  echo "No se cortó nada: todo sigue andando con la $OLD_MAJOR. Ver docs/despliegue.md → Cambiar de major de Postgres." >&2
   exit 1
 fi
 docker rm -f "$TRIAL" > /dev/null

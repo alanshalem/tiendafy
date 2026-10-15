@@ -162,6 +162,6 @@ Types:
 - Sincronización manual de types/components
 
 ## Related ADRs
-- [0001](./0001-dotnet-monolith.md) — Backend stack
-- [0003](./0003-postgres-rls.md) — Multi-tenancy patterns
+- [0001](./0001-monolito-modular-en-dotnet.md) — Backend stack
+- [0003](./0003-multi-tienda-con-rls.md) — Multi-tenancy patterns
 - [0004](./0004-una-imagen-y-un-compose.md) — Una imagen para todos los ambientes
