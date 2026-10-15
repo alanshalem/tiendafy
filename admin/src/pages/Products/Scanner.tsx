@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Camera, Check, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Tabs, useToast, Spinner, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -212,7 +213,7 @@ function BuscarTab() {
         expectedAvailable: seen.available,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
       toast('Stock actualizado', { variant: 'success' });
       if (hit) setHit({ ...hit, available: Number(stockDraft) });
     },
@@ -630,7 +631,7 @@ function ConteoTab() {
           }
           return next;
         });
-        if (applied.size > 0) queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+        if (applied.size > 0) queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
       }
       return { applied: applied.size, changed };
     },

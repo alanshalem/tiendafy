@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { ArrowLeft, Ban, Plus, Receipt, Scale, Users } from 'lucide-react';
 import {
   Badge,
@@ -184,7 +185,7 @@ function BalancesList({
 
   // De a una página: antes llegaban todos los saldos juntos.
   const { data } = useQuery({
-    queryKey: ['finance-balances', store?.id, kind, page],
+    queryKey: qk.financeBalances(store?.id, kind, page),
     queryFn: () =>
       api.get<BalancesResponse>(
         `/api/v1/finance/balances?partyKind=${kind}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
@@ -345,7 +346,7 @@ function PartyStatement({
   // De a una página y del más nuevo al más viejo: lo que se viene a mirar es
   // lo último que pasó, y un cliente de años no trae su historia entera.
   const { data } = useQuery({
-    queryKey: ['finance-ledger', store?.id, partyKind, partyId, page],
+    queryKey: qk.financeLedger(store?.id, partyKind, partyId, page),
     queryFn: () =>
       api.get<LedgerResponse>(
         `/api/v1/finance/ledger?partyKind=${partyKind}&partyId=${partyId}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
@@ -482,7 +483,7 @@ function ReceiptsList({ kind }: { kind: PartyKind }) {
   const receiptKind = kind === 'customer' ? 'collection' : 'payment';
 
   const { data } = useQuery({
-    queryKey: ['finance-receipts', store?.id, receiptKind],
+    queryKey: qk.financeReceipts(store?.id, receiptKind),
     queryFn: () =>
       api.get<{ items: ReceiptRow[]; total: number }>(
         `/api/v1/finance/receipts?kind=${receiptKind}&limit=25`,
@@ -494,10 +495,10 @@ function ReceiptsList({ kind }: { kind: PartyKind }) {
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       api.post(`/api/v1/finance/receipts/${id}/void`, { reason }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance-receipts', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-balances', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-ledger', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-accounts', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeReceipts(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeBalances(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeLedger(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeAccounts(store?.id) });
       toast('Comprobante anulado', { variant: 'success' });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo anular'), { variant: 'error' }),
@@ -618,7 +619,7 @@ function ReceiptModal({
   );
 
   const { data: parties } = useQuery({
-    queryKey: ['finance-parties', store?.id, partyKind, debounced],
+    queryKey: qk.financeParties(store?.id, partyKind, debounced),
     queryFn: () =>
       api.get<{ items: PartyOption[] }>(
         `/api/v1/finance/parties?partyKind=${partyKind}&q=${encodeURIComponent(debounced)}`,
@@ -627,13 +628,13 @@ function ReceiptModal({
   });
 
   const { data: accounts } = useQuery({
-    queryKey: ['finance-accounts', store?.id],
+    queryKey: qk.financeAccounts(store?.id),
     queryFn: () => api.get<{ items: FinanceAccount[] }>('/api/v1/finance/accounts'),
     enabled: !!store,
   });
 
   const { data: pending } = useQuery({
-    queryKey: ['finance-pending', store?.id, partyKind, party?.id],
+    queryKey: qk.financePending(store?.id, partyKind, party?.id),
     queryFn: () =>
       api.get<{ items: PendingRow[] }>(
         `/api/v1/finance/ledger/pending?partyKind=${partyKind}&partyId=${party!.id}`,
@@ -691,11 +692,11 @@ function ReceiptModal({
           .filter((a) => Number.isFinite(a.amountMinor) && a.amountMinor > 0),
       }),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['finance-balances', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-ledger', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-receipts', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-accounts', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-movements', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeBalances(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeLedger(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeReceipts(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeAccounts(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeMovements(store?.id) });
       toast(`${res.number} registrado`, { variant: 'success' });
       onClose();
     },
@@ -910,7 +911,7 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
   );
 
   const { data: parties } = useQuery({
-    queryKey: ['finance-parties', store?.id, partyKind, debounced],
+    queryKey: qk.financeParties(store?.id, partyKind, debounced),
     queryFn: () =>
       api.get<{ items: PartyOption[] }>(
         `/api/v1/finance/parties?partyKind=${partyKind}&q=${encodeURIComponent(debounced)}`,
@@ -933,8 +934,8 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
         reason: reason.trim(),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance-balances', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-ledger', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeBalances(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeLedger(store?.id) });
       toast('Ajuste registrado', { variant: 'success' });
       onClose();
     },

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Check, Download, Upload, X } from 'lucide-react';
 import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -48,7 +49,7 @@ export function ImportTab() {
   // Al terminar: refrescar el listado de productos y avisar.
   useEffect(() => {
     if (job?.status === 'completed') {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast(`Importación lista: +${job.created} nuevos · ${job.updated} actualizados`, {
         variant: 'success',
       });

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../../lib/queryKeys';
 import { categoryLink, SECTION_REGISTRY, type CategoryBannerItem } from '@tiendafy/types';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
@@ -28,7 +29,7 @@ interface ProductDto {
 function useCategories() {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
     enabled: !!store,
   });

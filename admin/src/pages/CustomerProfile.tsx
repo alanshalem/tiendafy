@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { ArrowLeft, Mail, MessageCircle, Pencil, Phone, Plus, ShoppingBag, X } from 'lucide-react';
 import { Badge, Button, Card, badgeVariantClass, cn, useToast } from '@tiendafy/ui';
 import { whatsappLink } from '@tiendafy/types';
@@ -79,7 +80,7 @@ export function CustomerProfilePage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
 
-  const key = ['customer-profile', store?.id, id];
+  const key = qk.customerProfile(store?.id, id);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: key,
     queryFn: () =>
@@ -93,7 +94,7 @@ export function CustomerProfilePage() {
   // sección no aparece (no es "sin deuda").
   const canFinance = can('finance.manage');
   const ledger = useQuery({
-    queryKey: ['finance-ledger', store?.id, 'customer', id],
+    queryKey: qk.financeLedger(store?.id, 'customer', id),
     // Solo los últimos movimientos (vienen del más nuevo al más viejo): el
     // estado de cuenta entero vive en Cuentas corrientes.
     queryFn: () => api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=customer&partyId=${id}&limit=5`),
@@ -131,7 +132,7 @@ export function CustomerProfilePage() {
   const canEdit = can('customers.write');
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: key });
-    queryClient.invalidateQueries({ queryKey: ['customers', store.id] });
+    queryClient.invalidateQueries({ queryKey: qk.customers(store.id) });
   };
   const firstName = c.name.split(' ')[0];
   const wa = customerWhatsappHref(c.phone, `Hola ${firstName}!`);
@@ -339,7 +340,7 @@ function NotesAndTags({
   const [tagDraft, setTagDraft] = useState('');
 
   const { data: tagData } = useQuery({
-    queryKey: ['customer-tags', store?.id],
+    queryKey: qk.customerTags(store?.id),
     queryFn: () => api.get<{ items: { tag: string; count: number }[] }>('/api/v1/customers/tags'),
     enabled: !!store && canEdit,
   });
@@ -350,7 +351,7 @@ function NotesAndTags({
       api.patch<Customer>(`/api/v1/customers/${customer.id}`, body),
     onSuccess: (_, body) => {
       onSaved();
-      queryClient.invalidateQueries({ queryKey: ['customer-tags', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.customerTags(store?.id) });
       if (body.notes !== undefined) toast('Notas guardadas', { variant: 'success' });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo guardar.'), { variant: 'error' }),

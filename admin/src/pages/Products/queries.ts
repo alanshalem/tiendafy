@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { useStore } from '../../context/StoreContext';
 import { fetchStockChunked, type StockItem } from '../../lib/products';
 import { api } from '../../lib/api';
@@ -15,7 +16,7 @@ export function useVariantStock(products: { variants: { id: string }[] }[]): Map
   const { data: stock } = useQuery({
     // La clave lleva los IDs (no la cantidad): dos búsquedas con el mismo
     // total de variantes son consultas DISTINTAS y deben refetchear.
-    queryKey: ['inventory', store?.id, variantIds.join(',')],
+    queryKey: qk.inventoryOf(store?.id, variantIds.join(',')),
     queryFn: () => fetchStockChunked(variantIds),
     enabled: !!store && variantIds.length > 0,
   });
@@ -49,7 +50,7 @@ export interface CatalogHealth {
 export function useCatalogHealth(enabled = true) {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['catalog-health', store?.id],
+    queryKey: qk.catalogHealth(store?.id),
     queryFn: () => api.get<CatalogHealth>('/api/v1/products/health'),
     enabled: !!store && enabled,
   });

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { AlertTriangle, Check } from 'lucide-react';
 import { Badge, Card, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
@@ -34,7 +35,7 @@ export function HomePage() {
   const canStats = can('stats.read');
 
   const { data: products } = useQuery({
-    queryKey: ['products', store?.id, 'count'],
+    queryKey: qk.productsCount(store?.id),
     queryFn: () => api.get<ProductsResponse>('/api/v1/products?limit=1'),
     enabled: !!store,
   });
@@ -309,7 +310,7 @@ function AvisosCard() {
   const canSocial = can('social.publish');
 
   const { data: reorder } = useQuery({
-    queryKey: ['reorder-suggestions', store?.id, ''],
+    queryKey: qk.reorderSuggestions(store?.id, ''),
     queryFn: () => api.get<{ items: unknown[] }>('/api/v1/purchasing/reorder-suggestions'),
     enabled: !!store && canPurchasing,
   });

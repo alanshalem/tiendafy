@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../../lib/queryKeys';
 import {
   BEST_SELLERS_DAYS,
   PRODUCT_SOURCE_LIMIT,
@@ -59,7 +60,7 @@ interface CategoryDto {
 function useCategories(enabled: boolean) {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
     enabled: enabled && !!store,
   });

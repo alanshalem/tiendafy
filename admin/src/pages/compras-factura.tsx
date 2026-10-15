@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { FileSpreadsheet, Sparkles, Upload } from 'lucide-react';
 import { Badge, Button, Card, FormField, Input, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -86,7 +87,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
     onSuccess: () => {
       toast('Comprobante guardado. Ya entra en el libro de IVA compras.', { variant: 'success' });
       // La misma clave que el detalle (Compras.tsx): sin la tienda no coincidía y no se refrescaba.
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, po.id] });
+      queryClient.invalidateQueries({ queryKey: qk.purchaseOrder(store?.id, po.id) });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo guardar el comprobante.'), { variant: 'error' }),
   });

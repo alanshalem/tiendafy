@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
 import {
@@ -168,7 +169,7 @@ export function OrdersPage() {
   params.set('limit', String(PAGE_SIZE));
   params.set('offset', String((page - 1) * PAGE_SIZE));
   const ordersQuery = useQuery({
-    queryKey: ['orders', store?.id, 'list', params.toString()],
+    queryKey: qk.ordersList(store?.id, params.toString()),
     queryFn: () => api.get<{ items: Order[]; total: number }>(`/api/v1/orders?${params}`),
     enabled: !!store,
     placeholderData: keepPreviousData,
@@ -179,7 +180,7 @@ export function OrdersPage() {
 
   /** Después de una acción (despachar, reembolsar…): el listado, el contador y la venta abierta por link. */
   const load = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ['orders', store?.id] }),
+    () => queryClient.invalidateQueries({ queryKey: qk.orders(store?.id) }),
     [queryClient, store?.id],
   );
 
@@ -196,7 +197,7 @@ export function OrdersPage() {
   // historia. Sale del mismo listado (orders.read), así que la ve todo el que
   // ve las ventas — antes vivía adentro de las métricas y Soporte la perdía.
   const { data: pending } = useQuery({
-    queryKey: ['orders', store?.id, 'pending-fulfillment'],
+    queryKey: qk.ordersPendingFulfillment(store?.id),
     queryFn: () => api.get<{ total: number }>('/api/v1/orders?status=PAID&limit=1&offset=0'),
     enabled: !!store,
     retry: false,
@@ -345,7 +346,7 @@ export function OrdersPage() {
   // un filtro puesto): entonces se pide sola y se muestra arriba de la tabla.
   const focusInPage = !!focusOrder && orders.some((o) => o.id === focusOrder);
   const focusQuery = useQuery({
-    queryKey: ['orders', store?.id, 'one', focusOrder],
+    queryKey: qk.order(store?.id, focusOrder),
     queryFn: () => api.get<Order>(`/api/v1/orders/${focusOrder}`),
     enabled: !!store && !!focusOrder && ordersQuery.isSuccess && !focusInPage,
     retry: false,

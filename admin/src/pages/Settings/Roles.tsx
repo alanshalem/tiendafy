@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Lock, RotateCcw } from 'lucide-react';
 import { Checkbox, cn, Tooltip, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -8,7 +9,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
-import { canChange, matrixKey, OWNER, useAccessMatrix, type AccessMatrix, type RoleRow } from './team-access';
+import { canChange, OWNER, useAccessMatrix, type AccessMatrix, type RoleRow } from './team-access';
 import { TableSkeleton } from '../../components/Skeleton';
 import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
@@ -36,7 +37,7 @@ export function RolesPage() {
   const { role: myRole, can } = usePermissions();
   const { data: matrix, isLoading, isError, error } = useAccessMatrix();
   const { store } = useStore();
-  const accessKey = matrixKey(store?.id);
+  const accessKey = qk.accessMatrix(store?.id);
 
   const isOwner = myRole === OWNER;
   const myRank = matrix?.roles.find((r) => r.role === myRole)?.rank ?? 0;
@@ -66,8 +67,8 @@ export function RolesPage() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: accessKey });
-      qc.invalidateQueries({ queryKey: ['members'] });
-      qc.invalidateQueries({ queryKey: ['team-activity'] });
+      qc.invalidateQueries({ queryKey: qk.members() });
+      qc.invalidateQueries({ queryKey: qk.teamActivity() });
     },
   });
 
@@ -77,8 +78,8 @@ export function RolesPage() {
     onError: (e) => toast(errMsg(e, 'No se pudo restaurar el rol.'), { variant: 'error' }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: accessKey });
-      qc.invalidateQueries({ queryKey: ['members'] });
-      qc.invalidateQueries({ queryKey: ['team-activity'] });
+      qc.invalidateQueries({ queryKey: qk.members() });
+      qc.invalidateQueries({ queryKey: qk.teamActivity() });
     },
   });
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Check, Copy, ExternalLink, Globe, Lock, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge, Button, FormField, Input, Modal, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -57,7 +58,7 @@ export function DomainsPage() {
     onSuccess: () => {
       toast('Dominio propio quitado', { variant: 'success' });
       qc.invalidateQueries({ queryKey: ['domain-status'] });
-      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: qk.tenants() });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo quitar el dominio.'), { variant: 'error' }),
   });
@@ -291,7 +292,7 @@ export function DomainsPage() {
           onSaved={() => {
             setEditing(false);
             qc.invalidateQueries({ queryKey: ['domain-status'] });
-            qc.invalidateQueries({ queryKey: ['tenants'] });
+            qc.invalidateQueries({ queryKey: qk.tenants() });
           }}
         />
       )}

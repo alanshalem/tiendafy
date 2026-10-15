@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Badge, Button, Card, Input, useToast, PageHeader, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -85,7 +86,7 @@ export function InventoryPage() {
   // traía el catálogo COMPLETO para filtrar y paginar en el navegador (y con
   // él, el stock de todas las variantes).
   const { data, isLoading } = useQuery({
-    queryKey: ['products-page', store?.id, q, page, stockFilter],
+    queryKey: qk.productsPage(store?.id, q, page, stockFilter),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -131,7 +132,7 @@ export function InventoryPage() {
         expectedAvailable,
       }),
     onSuccess: (_, { variantId }) => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
       setDrafts((d) => {
         const next = { ...d };
         delete next[variantId];
@@ -145,7 +146,7 @@ export function InventoryPage() {
       // Se vendió o entró mercadería mientras se tipeaba: la fila se refresca
       // y lo tipeado queda, ahora contra el stock actual, para que la persona
       // lo revise y el segundo "Guardar" entre.
-      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
       const now = await fetchStock(variantId);
       if (now)
         setDrafts((d) =>

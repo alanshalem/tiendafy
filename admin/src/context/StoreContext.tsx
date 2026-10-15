@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import type { Tenant } from '@tiendafy/types';
 import { api, setActiveTenant } from '../lib/api';
 
@@ -33,7 +34,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chosenId, setChosenId] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['tenants'],
+    queryKey: qk.tenants(),
     // El selector las quiere todas: 200 es el techo de la API (antes se pedían
     // 50 y el servidor igual mandaba todas).
     queryFn: () => api.get<{ items: Tenant[] }>('/api/v1/tenants?limit=200'),

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../../lib/queryKeys';
 import { Plus, X } from 'lucide-react';
 import {
   argentinaLocalToIso,
@@ -126,7 +127,7 @@ interface CategoryDto {
 export function useStoreCategories() {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
     enabled: !!store,
   });

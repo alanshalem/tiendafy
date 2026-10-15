@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Trash2, GripVertical } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, useToast, PageHeader } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
@@ -71,7 +72,7 @@ export function EditProductPage() {
   const { toast } = useToast();
 
   const productQ = useQuery({
-    queryKey: ['product', store?.id, id],
+    queryKey: qk.product(store?.id, id),
     queryFn: () => api.get<ProductDto>(`/api/v1/products/${id}`),
     enabled: !!id && !!store,
     meta: ERROR_SHOWN,
@@ -80,7 +81,7 @@ export function EditProductPage() {
 
   const variantIds = useMemo(() => product?.variants.map((v) => v.id) ?? [], [product]);
   const stockQ = useQuery({
-    queryKey: ['inventory', store?.id, 'product', variantIds.join(',')],
+    queryKey: qk.inventoryOfProduct(store?.id, variantIds.join(',')),
     queryFn: () => api.get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantIds.join(',')}`),
     enabled: variantIds.length > 0,
     meta: ERROR_SHOWN,
@@ -199,8 +200,8 @@ export function EditProductPage() {
   const leave = useUnsavedChanges(dirty);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
-    queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+    queryClient.invalidateQueries({ queryKey: qk.product(store?.id, id) });
+    queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
   };
 
   // Imágenes: alta/baja inmediata (manager de medios). Cada foto sube con
@@ -210,20 +211,20 @@ export function EditProductPage() {
     const url = await uploadMedia(file, progress);
     await api.post(`/api/v1/products/${id}/images`, { url, altText: name });
     // La miniatura nueva aparece justo cuando se va la que estaba subiendo.
-    await queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
+    await queryClient.invalidateQueries({ queryKey: qk.product(store?.id, id) });
     return url;
   });
   const addImages = async (files: File[]) => {
     const added = await uploads.run(files, () => {}, product?.images.length ?? 0);
     if (added === 0) return;
-    queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+    queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
     toast(added === 1 ? 'Foto agregada' : `${added} fotos agregadas`, { variant: 'success' });
   };
   const reorder = useMutation({
     mutationFn: (imageIds: string[]) => api.put(`/api/v1/products/${id}/images/reorder`, { imageIds }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.product(store?.id, id) });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
@@ -334,7 +335,7 @@ export function EditProductPage() {
     },
     onError: (e) => {
       // Si alguna foto se borró antes del error, que deje de verse.
-      if (pendingRemoval.length > 0) queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
+      if (pendingRemoval.length > 0) queryClient.invalidateQueries({ queryKey: qk.product(store?.id, id) });
       // El choque de stock se marca en su campo (y en un aviso, porque el
       // campo puede estar lejos del botón); lo demás, donde siempre.
       if (isStockChanged(e)) toast(e.message, { variant: 'error' });
@@ -355,7 +356,7 @@ export function EditProductPage() {
   const del = useMutation({
     mutationFn: () => api.delete(`/api/v1/products/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast('Producto eliminado', { variant: 'success' });
       leave(() => navigate('/productos'));
     },

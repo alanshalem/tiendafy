@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast, SearchInput } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
@@ -145,7 +146,7 @@ export function ProductsPage() {
   const { data, isLoading } = useQuery({
     // Bajo ['products', tienda]: así lo refresca todo lo que invalida productos
     // (antes la clave era otra y publicar o borrar no actualizaba la lista).
-    queryKey: ['products', store?.id, 'admin', debouncedSearch, filters, sort, page],
+    queryKey: qk.productsAdmin(store?.id, debouncedSearch, filters, sort, page),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -175,7 +176,7 @@ export function ProductsPage() {
   const { data: health } = useCatalogHealth(canEdit);
 
   const { data: cats } = useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
     enabled: !!store,
   });
@@ -184,7 +185,7 @@ export function ProductsPage() {
     mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>
       api.post(`/api/v1/products/${id}/${publish ? 'publish' : 'archive'}`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast('Producto actualizado', { variant: 'success' });
     },
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
@@ -193,7 +194,7 @@ export function ProductsPage() {
   const deleteProduct = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/products/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast('Producto eliminado', { variant: 'success' });
     },
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
@@ -204,7 +205,7 @@ export function ProductsPage() {
   const deleteAll = useMutation({
     mutationFn: () => api.delete<{ deleted: number }>('/api/v1/products'),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       setDeleteAllOpen(false);
       setConfirmText('');
       toast(`${res.deleted} productos eliminados`, { variant: 'success' });
@@ -215,7 +216,7 @@ export function ProductsPage() {
   const duplicateProduct = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/products/${id}/duplicate`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast('Producto duplicado', { variant: 'success' });
     },
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
@@ -256,8 +257,8 @@ export function ProductsPage() {
       };
     },
     onSuccess: ({ action, done, failed }) => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['catalog-health', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
+      queryClient.invalidateQueries({ queryKey: qk.catalogHealth(store?.id) });
       setBulkDeleteOpen(false);
       const names = new Map(selected);
       // Los que salieron dejan de estar elegidos; los que fallaron quedan,

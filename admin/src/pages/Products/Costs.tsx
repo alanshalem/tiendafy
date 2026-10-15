@@ -1,6 +1,7 @@
 import { useState, useId } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import {
   Button,
   Card,
@@ -73,7 +74,7 @@ export function CostsPage() {
   // antes se traía el catálogo COMPLETO (de a 100 por request) para filtrar y
   // paginar en el navegador.
   const { data, isLoading } = useQuery({
-    queryKey: ['products-page', store?.id, q, page, onlyMissing],
+    queryKey: qk.productsPage(store?.id, q, page, onlyMissing),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -94,7 +95,7 @@ export function CostsPage() {
   // Costos de los productos visibles en UN request (endpoint admin bulk con
   // permiso — el DTO público del catálogo no trae costo a propósito).
   const { data: costRows } = useQuery({
-    queryKey: ['variant-costs', store?.id, pageIds],
+    queryKey: qk.variantCosts(store?.id, pageIds),
     queryFn: async () => {
       const r = await api.get<{ items: VariantCost[] }>(`/api/v1/products/costs?ids=${pageIds}`);
       return new Map(r.items.map((c) => [c.variantId, c]));
@@ -113,7 +114,7 @@ export function CostsPage() {
       costAmount: number | null;
     }) => api.put(`/api/v1/products/${productId}/costs`, { costs: [{ variantId, costAmount }] }),
     onSuccess: (_, { variantId }) => {
-      queryClient.invalidateQueries({ queryKey: ['variant-costs', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.variantCosts(store?.id) });
       setDrafts((d) => {
         const next = { ...d };
         delete next[variantId];
@@ -331,7 +332,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
   const { dirty, close } = useModalFormGuard({ percent, categoryId, rounding }, onClose);
 
   const { data: cats } = useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/categories'),
     enabled: !!store,
   });
@@ -357,8 +358,8 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
         rounding,
       });
       toast(`Listo: ${r.variants} precios actualizados en ${r.products} productos.`, { variant: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['variant-costs', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
+      queryClient.invalidateQueries({ queryKey: qk.variantCosts(store?.id) });
       onClose();
     } catch (err) {
       toast(errMsg(err, 'No se pudo repreciar.'), { variant: 'error' });

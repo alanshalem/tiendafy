@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import {
@@ -58,7 +59,7 @@ export function PagesPage() {
   const page = list.values.pagina;
   const q = list.values.q.trim();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['pages', store?.id, page, q],
+    queryKey: qk.pages(store?.id, page, q),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -75,7 +76,7 @@ export function PagesPage() {
   const total = data?.total ?? pages.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['pages', store?.id] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: qk.pages(store?.id) });
 
   const remove = useMutation({
     mutationFn: (p: PageDto) => api.delete(`/api/v1/pages/${p.id}`),

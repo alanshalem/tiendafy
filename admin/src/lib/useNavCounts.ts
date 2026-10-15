@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { qk } from './queryKeys';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { ERROR_SHOWN } from '../components/LoadError';
@@ -22,7 +23,7 @@ export function useNavCounts(): Record<NavBadge, number> {
   const canStock = can('inventory.read');
 
   const inbox = useQuery({
-    queryKey: ['inbox-counts', store?.id],
+    queryKey: qk.inboxCounts(store?.id),
     queryFn: () => api.get<InboxCounts>('/api/v1/inbox/counts'),
     enabled: !!store && canInbox,
     refetchInterval: COUNTERS_POLL_MS,
@@ -30,7 +31,7 @@ export function useNavCounts(): Record<NavBadge, number> {
     meta: ERROR_SHOWN,
   });
   const stock = useQuery({
-    queryKey: ['stock-alerts-count', store?.id],
+    queryKey: qk.stockAlertsCount(store?.id),
     queryFn: () => api.get<{ count: number }>('/api/v1/stock-alerts/count'),
     enabled: !!store && canStock,
     refetchInterval: COUNTERS_POLL_MS,

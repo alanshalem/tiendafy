@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import {
   ChevronRight,
   Copy,
@@ -111,7 +112,7 @@ export function CategoriesPage() {
   }
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<CategoriesResponse>('/api/v1/categories'),
     enabled: !!store,
     meta: ERROR_SHOWN,
@@ -161,7 +162,7 @@ export function CategoriesPage() {
     toast('Orden de categorías guardado', { variant: 'success' });
   };
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['categories', store?.id] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: qk.categories(store?.id) });
 
   const renameMut = useMutation({
     mutationFn: (p: { id: string; name: string }) => api.put(`/api/v1/categories/${p.id}`, { name: p.name }),
@@ -562,7 +563,7 @@ function CreateCategoryModal({
   const createCategory = useMutation({
     mutationFn: () => api.post<CategoryDto>('/api/v1/categories', { name, parentId: parentId || null }),
     onSuccess: (category) => {
-      queryClient.invalidateQueries({ queryKey: ['categories', storeId] });
+      queryClient.invalidateQueries({ queryKey: qk.categories(storeId) });
       toast(`Categoría "${category.name}" creada`, { variant: 'success' });
       setName('');
       setParentId('');

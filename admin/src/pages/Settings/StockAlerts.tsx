@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Trash2 } from 'lucide-react';
 import { Badge, Button, Input, Radio, RadioGroup, Select, Switch, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -39,7 +40,7 @@ export function StockAlertsPage() {
   const [saving, setSaving] = useState(false);
 
   const settingsQuery = useQuery({
-    queryKey: ['stock-alert-settings', store?.id],
+    queryKey: qk.stockAlertSettings(store?.id),
     queryFn: () => api.get<StockAlertSettings>('/api/v1/stock-alerts/settings'),
     enabled: !!store,
     meta: ERROR_SHOWN,
@@ -61,8 +62,8 @@ export function StockAlertsPage() {
     setSaving(true);
     try {
       await api.put('/api/v1/stock-alerts/settings', { mode: currentMode, digestHour: currentHour });
-      await queryClient.invalidateQueries({ queryKey: ['stock-alert-settings', store?.id] });
-      void queryClient.invalidateQueries({ queryKey: ['stock-alerts', store?.id] });
+      await queryClient.invalidateQueries({ queryKey: qk.stockAlertSettings(store?.id) });
+      void queryClient.invalidateQueries({ queryKey: qk.stockAlerts(store?.id) });
       setMode(null);
       setHour(null);
       toast('Alertas guardadas', { variant: 'success' });
@@ -77,8 +78,8 @@ export function StockAlertsPage() {
     try {
       await api.put(`/api/v1/stock-alerts/rules/${variantId}`, { minUnits, muted });
       void queryClient.invalidateQueries({ queryKey: ['stock-alert-rules', store?.id] });
-      void queryClient.invalidateQueries({ queryKey: ['stock-alerts', store?.id] });
-      void queryClient.invalidateQueries({ queryKey: ['stock-alerts-count', store?.id] });
+      void queryClient.invalidateQueries({ queryKey: qk.stockAlerts(store?.id) });
+      void queryClient.invalidateQueries({ queryKey: qk.stockAlertsCount(store?.id) });
     } catch (err) {
       toast(errMsg(err, 'No se pudo guardar.'), { variant: 'error' });
     }

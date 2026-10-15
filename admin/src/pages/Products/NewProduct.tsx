@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Plus, X } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, Radio, RadioGroup, useToast, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -277,7 +278,7 @@ export function NewProductPage() {
       return product;
     },
     onSuccess: (product) => {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast(`"${product.name}" creado`, { variant: 'success' });
       leave(() => navigate('/productos'));
     },

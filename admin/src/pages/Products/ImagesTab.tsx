@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Check, Upload, X } from 'lucide-react';
 import { Button, Card, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -42,7 +43,7 @@ export function ImagesTab() {
 
   useEffect(() => {
     if (job?.status === 'completed') {
-      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.products(store?.id) });
       toast(`${job.imagesAdded} imágenes subidas a ${job.matchedProducts} productos`, { variant: 'success' });
     } else if (job?.status === 'failed') {
       toast(job.failureMessage ?? 'La importación de imágenes falló', { variant: 'error' });

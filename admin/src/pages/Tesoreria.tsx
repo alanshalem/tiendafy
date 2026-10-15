@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { ArrowLeftRight, Banknote, Landmark, Plus, Wallet } from 'lucide-react';
 import {
   Badge,
@@ -66,7 +67,7 @@ export function TesoreriaPage() {
   const [movement, setMovement] = useState(false);
 
   const { data } = useQuery({
-    queryKey: ['finance-accounts', store?.id],
+    queryKey: qk.financeAccounts(store?.id),
     queryFn: () => api.get<AccountsResponse>('/api/v1/finance/accounts'),
     enabled: !!store,
   });
@@ -199,7 +200,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
             detail: detail || null,
           }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance-accounts', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeAccounts(store?.id) });
       toast(editing ? 'Cuenta actualizada' : 'Cuenta creada', { variant: 'success' });
       onClose();
     },
@@ -293,7 +294,7 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
   const setPage = (p: number) => list.set({ pagina: p });
 
   const { data } = useQuery({
-    queryKey: ['finance-movements', store?.id, accountId, page],
+    queryKey: qk.financeMovements(store?.id, accountId, page),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(MOVEMENTS_PAGE_SIZE),
@@ -416,8 +417,8 @@ function MovementModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
         reference: reference.trim() || null,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance-accounts', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-movements', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeAccounts(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeMovements(store?.id) });
       toast('Movimiento registrado', { variant: 'success' });
       onClose();
     },
@@ -510,8 +511,8 @@ function TransferModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
         concept: concept.trim() || null,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance-accounts', store?.id] });
-      qc.invalidateQueries({ queryKey: ['finance-movements', store?.id] });
+      qc.invalidateQueries({ queryKey: qk.financeAccounts(store?.id) });
+      qc.invalidateQueries({ queryKey: qk.financeMovements(store?.id) });
       toast('Transferencia registrada', { variant: 'success' });
       onClose();
     },

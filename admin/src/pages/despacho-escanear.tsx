@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { Check, CheckCircle2, PackageCheck, Truck, XCircle } from 'lucide-react';
 import { Button, Card, cn, Input, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -112,7 +113,7 @@ export function ScanDispatch({ initialCode }: { initialCode: string | null }) {
       });
       setLog((l) => [{ number: order.number, ok: true, message: 'Despachado' }, ...l]);
       toast(`${order.number} despachado. El comprador ya recibió el aviso.`, { variant: 'success' });
-      void queryClient.invalidateQueries({ queryKey: ['fulfillment-queue'] });
+      void queryClient.invalidateQueries({ queryKey: qk.fulfillmentQueue() });
       reset();
     } catch (err) {
       const message = errMsg(err, 'No se pudo despachar.');

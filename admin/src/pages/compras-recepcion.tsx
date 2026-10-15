@@ -1,5 +1,6 @@
 import { useCallback, useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
@@ -66,9 +67,9 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
         })),
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['variant-costs', store?.id] });
+      queryClient.invalidateQueries({ queryKey: qk.purchaseOrders(store?.id) });
+      queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
+      queryClient.invalidateQueries({ queryKey: qk.variantCosts(store?.id) });
       toast('Compra recibida: stock actualizado y costos fijados al landed cost', { variant: 'success' });
       setOpen(false);
       // Loop costo→precio: si el landed nuevo aplastó márgenes, se avisa ACÁ

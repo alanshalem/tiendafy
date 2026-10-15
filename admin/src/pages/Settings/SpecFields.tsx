@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Badge,
@@ -88,7 +89,7 @@ export function SpecFieldsPage() {
   );
 
   const categoriesQ = useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
     enabled: !!store,
   });

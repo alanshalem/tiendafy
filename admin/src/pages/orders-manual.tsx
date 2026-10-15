@@ -1,5 +1,6 @@
 import { useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { Link } from 'react-router-dom';
 import { Copy, ExternalLink, Plus, Trash2, UserPlus, UserRound, X } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast, Spinner } from '@tiendafy/ui';
@@ -404,7 +405,7 @@ function CustomerField({
   // Solo para mostrar de qué lista salen los precios: el que los aplica es el
   // backend, con la lista guardada en la ficha.
   const { data: lists } = useQuery({
-    queryKey: ['price-lists-picker', store?.id],
+    queryKey: qk.priceListsPicker(store?.id),
     queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/price-lists'),
   });
   const nameOfList = (id: string | null) =>

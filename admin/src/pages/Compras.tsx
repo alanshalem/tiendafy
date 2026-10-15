@@ -1,6 +1,7 @@
 import { useState, useId } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { ArrowLeft, Package, Plus, Ship } from 'lucide-react';
 import {
   Badge,
@@ -108,7 +109,7 @@ function ComprasList({
   // Búsqueda, estado y grupo se resuelven en la base: filtrar en el navegador
   // solo alcanzaba a las 25 órdenes de la página visible.
   const { data } = useQuery({
-    queryKey: ['purchase-orders', store?.id, page, debouncedSearch, statusFilter, group],
+    queryKey: qk.purchaseOrders(store?.id, page, debouncedSearch, statusFilter, group),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PO_PAGE_SIZE),
@@ -330,7 +331,7 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
   const leadParam = leadInput !== '' && Number.isFinite(lead) && lead > 0 ? `?leadTimeDays=${lead}` : '';
 
   const { data } = useQuery({
-    queryKey: ['reorder-suggestions', store?.id, leadParam],
+    queryKey: qk.reorderSuggestions(store?.id, leadParam),
     queryFn: () =>
       api.get<{ leadTimeDays: number; items: Suggestion[] }>(
         `/api/v1/purchasing/reorder-suggestions${leadParam}`,
@@ -510,7 +511,7 @@ function PoEditor({
   const confirm = useConfirm();
 
   const { data: po } = useQuery({
-    queryKey: ['purchase-order', store?.id, poId],
+    queryKey: qk.purchaseOrder(store?.id, poId),
     queryFn: () => api.get<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}`),
     enabled: !!store && !!poId,
   });
@@ -541,9 +542,9 @@ function PoEditor({
    * mostrando lo que se había tipeado como si fuera suyo.
    */
   const showServerTruth = async () => {
-    queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
-    await queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, poId] });
-    const fresh = queryClient.getQueryData<PoDetail>(['purchase-order', store?.id, poId]);
+    queryClient.invalidateQueries({ queryKey: qk.purchaseOrders(store?.id) });
+    await queryClient.invalidateQueries({ queryKey: qk.purchaseOrder(store?.id, poId) });
+    const fresh = queryClient.getQueryData<PoDetail>(qk.purchaseOrder(store?.id, poId));
     if (fresh?.items) {
       setForm(toForm(fresh));
       setSaved(toForm(fresh));
@@ -558,7 +559,7 @@ function PoEditor({
     onSuccess: async () => {
       toast('Compra guardada', { variant: 'success' });
       if (poId === null) {
-        queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
+        queryClient.invalidateQueries({ queryKey: qk.purchaseOrders(store?.id) });
         leave(onBack);
         return;
       }

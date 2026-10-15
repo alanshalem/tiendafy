@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { BellOff, PackageCheck, Plus, Settings2 } from 'lucide-react';
 import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast, Spinner, PageHeader } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
@@ -37,13 +38,13 @@ export function StockBajoPage() {
   const [saving, setSaving] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['stock-alerts', store?.id],
+    queryKey: qk.stockAlerts(store?.id),
     queryFn: () => api.get<LowStockResponse>('/api/v1/stock-alerts'),
     enabled: !!store,
     meta: ERROR_SHOWN,
   });
   const { data: settings } = useQuery({
-    queryKey: ['stock-alert-settings', store?.id],
+    queryKey: qk.stockAlertSettings(store?.id),
     queryFn: () => api.get<StockAlertSettings>('/api/v1/stock-alerts/settings'),
     enabled: !!store,
     meta: ERROR_SHOWN,
@@ -58,8 +59,8 @@ export function StockBajoPage() {
   const forOrder = chosen.length > 0 ? chosen : items;
 
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['stock-alerts', store.id] });
-    void queryClient.invalidateQueries({ queryKey: ['stock-alerts-count', store.id] });
+    void queryClient.invalidateQueries({ queryKey: qk.stockAlerts(store.id) });
+    void queryClient.invalidateQueries({ queryKey: qk.stockAlertsCount(store.id) });
   };
 
   const setRule = async (item: LowStockItem, minUnits: number | null, muted: boolean) => {
@@ -95,7 +96,7 @@ export function StockBajoPage() {
   const setOptOut = async (optOut: boolean) => {
     try {
       await api.put('/api/v1/stock-alerts/settings/me', { optOut });
-      void queryClient.invalidateQueries({ queryKey: ['stock-alert-settings', store.id] });
+      void queryClient.invalidateQueries({ queryKey: qk.stockAlertSettings(store.id) });
       toast(optOut ? 'Listo: no te mandamos más estos emails.' : 'Listo: te vamos a avisar por email.', {
         variant: 'success',
       });

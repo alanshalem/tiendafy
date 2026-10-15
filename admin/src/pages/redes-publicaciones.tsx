@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { AlignLeft, CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { Badge, Button, EmptyList, Select, Spinner, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -19,9 +20,6 @@ import { LoadError } from '../components/LoadError';
 
 const PAGE_SIZE = 20;
 const LIST_DEFAULTS = { estado: '', 'pagina-posts': 1 };
-
-/** La clave de la bandeja: invalidarla la vuelve a pedir (después de guardar un post). */
-export const SOCIAL_POSTS_KEY = 'social-posts';
 
 const STATUS_FILTER = [
   { value: '', label: 'Todos los estados' },
@@ -52,7 +50,7 @@ export function PublicacionesTab({
   const page = list.values['pagina-posts'];
 
   const { data, error, isError, refetch, isFetching } = useQuery({
-    queryKey: [SOCIAL_POSTS_KEY, store?.id, status, page],
+    queryKey: qk.socialPosts(store?.id, status, page),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -68,7 +66,7 @@ export function PublicacionesTab({
   const total = data?.total ?? posts?.length ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const changed = () => {
-    void queryClient.invalidateQueries({ queryKey: [SOCIAL_POSTS_KEY, store?.id] });
+    void queryClient.invalidateQueries({ queryKey: qk.socialPosts(store?.id) });
     onChanged();
   };
 

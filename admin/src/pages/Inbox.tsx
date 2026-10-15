@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { Inbox as InboxIcon, MessagesSquare } from 'lucide-react';
 import { cn, Select, Spinner, PageHeader, Tabs, SearchInput } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
@@ -93,7 +94,7 @@ export function InboxPage() {
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['inbox', store?.id] });
-    void queryClient.invalidateQueries({ queryKey: ['inbox-counts', store?.id] });
+    void queryClient.invalidateQueries({ queryKey: qk.inboxCounts(store?.id) });
   };
 
   const open = async (thread: InboxThread) => {

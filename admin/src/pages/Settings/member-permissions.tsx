@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Button, Checkbox, cn, Modal, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { togglePermission, type Perm } from '../../lib/access';
@@ -45,8 +46,8 @@ export function MemberPermissionsModal({
 
   const done = (message: string) => {
     toast(message, { variant: 'success' });
-    qc.invalidateQueries({ queryKey: ['members'] });
-    qc.invalidateQueries({ queryKey: ['team-activity'] });
+    qc.invalidateQueries({ queryKey: qk.members() });
+    qc.invalidateQueries({ queryKey: qk.teamActivity() });
     onClose();
   };
   const onError = (e: unknown) =>

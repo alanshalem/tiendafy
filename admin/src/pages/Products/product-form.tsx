@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Check, Sparkles } from 'lucide-react';
 import { FormField, Input, Textarea, useToast, Spinner, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -100,7 +101,7 @@ export function CategoriesSection({
 }) {
   const { store } = useStore();
   const { data: cats } = useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
     enabled: !!store,
   });

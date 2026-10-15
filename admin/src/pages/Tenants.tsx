@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import {
   Badge,
@@ -106,7 +107,7 @@ export function TenantsPage() {
   const page = list.values.pagina;
   const q = list.values.q.trim();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['tenants', 'pagina', page, q],
+    queryKey: qk.tenantsPage(page, q),
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -140,7 +141,7 @@ export function TenantsPage() {
   const selling = all.filter((m) => m.orders > 0).length;
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['tenants'] });
+    queryClient.invalidateQueries({ queryKey: qk.tenants() });
   };
 
   const archiveMut = useMutation({

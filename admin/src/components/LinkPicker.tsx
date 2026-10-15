@@ -1,5 +1,6 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import {
   FileText,
   FolderTree,
@@ -114,7 +115,7 @@ interface PageDto {
 function useCategories(enabled: boolean) {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['categories', store?.id],
+    queryKey: qk.categories(store?.id),
     queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
     enabled: enabled && !!store,
   });
@@ -124,7 +125,7 @@ function useCategories(enabled: boolean) {
 function usePages(enabled: boolean) {
   const { store } = useStore();
   return useQuery({
-    queryKey: ['pages', store?.id],
+    queryKey: qk.pages(store?.id),
     queryFn: () => api.get<{ items: PageDto[] }>('/api/v1/pages'),
     enabled: enabled && !!store,
   });

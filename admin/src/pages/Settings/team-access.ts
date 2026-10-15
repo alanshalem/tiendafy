@@ -1,5 +1,6 @@
 import { badgeVariantClass } from '@tiendafy/ui';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import type { Perm, PermissionInfo } from '../../lib/access';
@@ -23,9 +24,6 @@ export interface AccessMatrix {
 
 export const OWNER = 'owner';
 
-/** La matriz es de cada tienda: con la tienda en la clave, cambiar de tienda la vuelve a pedir. */
-export const matrixKey = (storeId: string | undefined) => ['access-matrix', storeId] as const;
-
 /**
  * La matriz de la tienda activa, tal cual la usa el backend en cada request.
  * La pantalla de roles la edita: cada cambio la invalida.
@@ -33,7 +31,7 @@ export const matrixKey = (storeId: string | undefined) => ['access-matrix', stor
 export function useAccessMatrix() {
   const { store } = useStore();
   return useQuery({
-    queryKey: matrixKey(store?.id),
+    queryKey: qk.accessMatrix(store?.id),
     queryFn: () => api.get<AccessMatrix>('/api/v1/members/roles'),
     retry: false,
   });

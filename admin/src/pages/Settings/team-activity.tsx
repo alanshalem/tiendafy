@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { History } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -26,7 +27,7 @@ export function TeamActivity() {
   const { store } = useStore();
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['team-activity', store?.id, page],
+    queryKey: qk.teamActivity(store?.id, page),
     queryFn: () =>
       api.get<{ items: ActivityItem[]; total: number }>(
         `/api/v1/members/activity?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,

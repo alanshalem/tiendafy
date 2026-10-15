@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { Plus } from 'lucide-react';
 import { Button, Tabs, useToast, PageHeader } from '@tiendafy/ui';
 import { api } from '../lib/api';
@@ -10,7 +11,7 @@ import { LoadError } from '../components/LoadError';
 import { ListStats } from '../components/stats/ListStats';
 import { formatMoney, formatNumber } from '../lib/format';
 import { CalendarioTab } from './redes-calendario';
-import { PublicacionesTab, SOCIAL_POSTS_KEY } from './redes-publicaciones';
+import { PublicacionesTab } from './redes-publicaciones';
 import { CuentasTab } from './redes-cuentas';
 import { ComposerModal } from './redes-composer';
 import { postDate, type SocialAccountDto, type SocialChannelsDto, type SocialPostDto } from './redes-shared';
@@ -117,7 +118,7 @@ export function RedesPage() {
 
   const onSaved = () => {
     loadPosts();
-    void queryClient.invalidateQueries({ queryKey: [SOCIAL_POSTS_KEY, store.id] });
+    void queryClient.invalidateQueries({ queryKey: qk.socialPosts(store.id) });
   };
 
   // Del mes que se está mirando en el calendario, no de toda la historia: es

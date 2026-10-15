@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Download } from 'lucide-react';
 import { Button, Card, Checkbox, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -17,7 +18,7 @@ export function ExportTab() {
   // Una fila alcanza: el modo página devuelve el total. Antes traía cien
   // productos enteros para contarlos, y pasados los cien mostraba "100+".
   const { data } = useQuery({
-    queryKey: ['products', store?.id, 'export-count'],
+    queryKey: qk.productsExportCount(store?.id),
     queryFn: () => api.get<{ total: number }>('/api/v1/products?limit=1&offset=0'),
     enabled: !!store,
   });

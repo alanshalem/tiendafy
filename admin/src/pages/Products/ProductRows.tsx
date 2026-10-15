@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Badge, Button, Checkbox, Dropdown, Modal, useConfirm, useToast } from '@tiendafy/ui';
 import { MoreVertical } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
@@ -49,7 +50,7 @@ function useSavePrice(product: ProductDto, storeId: string) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products', storeId] });
+      queryClient.invalidateQueries({ queryKey: qk.products(storeId) });
       toast('Precio actualizado', { variant: 'success' });
     },
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),

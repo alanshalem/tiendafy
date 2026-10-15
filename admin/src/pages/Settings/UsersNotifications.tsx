@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../../lib/queryKeys';
 import { Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
 import { cn, useToast, useConfirm, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -64,7 +65,7 @@ export function UsersNotificationsPage() {
 
   const [page, setPage] = useState(1);
   const membersQ = useQuery({
-    queryKey: ['members', store?.id, page],
+    queryKey: qk.members(store?.id, page),
     queryFn: () =>
       api.get<{ items: Member[]; total: number }>(
         `/api/v1/members?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
@@ -82,8 +83,8 @@ export function UsersNotificationsPage() {
   useUnsavedInScope(adding && (email.trim() !== '' || name.trim() !== '' || role !== 'vendedor'));
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['members'] });
-    qc.invalidateQueries({ queryKey: ['team-activity'] });
+    qc.invalidateQueries({ queryKey: qk.members() });
+    qc.invalidateQueries({ queryKey: qk.teamActivity() });
   };
   // El backend valida jerarquía y devuelve mensajes en español: se muestran tal cual.
   const onError = (e: unknown) => toast(errMsg(e, 'No se pudo completar la acción.'), { variant: 'error' });

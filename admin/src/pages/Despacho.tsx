@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import { ClipboardList, FileText, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
 import {
   Badge,
@@ -102,7 +103,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
   if (to) query.set('to', `${to}T23:59:59-03:00`);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['fulfillment-queue', store?.id, carrier, from, to],
+    queryKey: qk.fulfillmentQueue(store?.id, carrier, from, to),
     queryFn: () => api.get<QueueResponse>(`/api/v1/fulfillment/queue?${query}`),
     enabled: !!store,
     meta: ERROR_SHOWN,

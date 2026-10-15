@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../lib/queryKeys';
 import {
   ArrowDown,
   ArrowUp,
@@ -133,7 +134,7 @@ export function CustomersPage() {
   // el orden los resuelve la base, no el navegador.
   const query = listQuery(list.values);
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', store?.id, query.toString(), page],
+    queryKey: qk.customers(store?.id, query.toString(), page),
     queryFn: () => {
       const params = new URLSearchParams(query);
       params.set('limit', String(PAGE_SIZE));
@@ -151,13 +152,13 @@ export function CustomersPage() {
 
   // Las etiquetas que ya usa la tienda: sin ninguna, el filtro no aparece.
   const { data: tagData } = useQuery({
-    queryKey: ['customer-tags', store?.id],
+    queryKey: qk.customerTags(store?.id),
     queryFn: () => api.get<{ items: { tag: string; count: number }[] }>('/api/v1/customers/tags'),
     enabled: !!store,
   });
   const tags = tagData?.items ?? [];
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: qk.customers(store?.id) });
   const open = (c: Customer) => navigate(`/clientes/${c.id}`);
 
   // La agenda entera (con la búsqueda y el segmento puestos) como planilla: la
@@ -523,7 +524,7 @@ export function CustomerModal({
   // Las listas se piden solo con el modal abierto: la mayoría de las tiendas no
   // tiene ninguna y el campo entero desaparece.
   const { data: priceLists } = useQuery({
-    queryKey: ['price-lists-picker', store?.id],
+    queryKey: qk.priceListsPicker(store?.id),
     queryFn: () => api.get<{ items: { id: string; name: string; active: boolean }[] }>('/api/v1/price-lists'),
     enabled: open,
   });
