@@ -107,7 +107,7 @@ la referencia completa, con qué conseguir y dónde, es [configuracion.md](./con
 | `MercadoPago__AdminReturnUrl` | `https://admin.tudominio.com/configuracion/medios-de-pago` | Vuelta tras OAuth |
 | `Email__ResendApiKey` | `re_...` | Sin esto, los emails solo se loguean (reset de contraseña, verificación, pedidos) |
 | `Database__MigrateOnStartup` | `false` | Multi-instancia: desactivá las migraciones en boot y corrélas como paso de deploy |
-| `Sentry__Dsn` | `https://…@…ingest.sentry.io/…` | Error-tracking backend. Vacío = Sentry desactivado |
+| `Sentry__Dsn` | `https://…@…ingest.sentry.io/…` | Error-tracking backend. Vacío = Sentry desactivado. Los secretos de las URLs (token del bot de Telegram, `access_token`, `?t=` de los links firmados, headers de autorización) se tapan antes de mandar nada: `Api/Startup/SentryScrubber.cs`, y en el panel y la tienda `@tiendafy/types/sentry-scrub.ts`. Un parámetro secreto nuevo se suma en los dos |
 | `Email__From` | `Tienda <hola@tudominio.com>` | Remitente verificado en Resend |
 | `Authentication__Google__ClientId` / `__ClientSecret` | — | Opcional (login Google del comprador) |
 | `Captcha__Turnstile__SiteKey` / `__Secret` | — | Opcional. Cloudflare Turnstile anti-bots en contacto y login/signup. Vacío = sin captcha |

@@ -114,6 +114,9 @@ pedido devuelve el alta que hay sin llamar. Dos pedidos simultáneos los frena
 la reserva previa en `shipment_claims` (409 "Ya hay un envío en curso para
 esta venta"); el mecanismo es el mismo que el de Andreani y Zipnova
 (`backend/src/Api/Shipping/ShipmentWriteAhead.cs`, ver [andreani.md](andreani.md)).
+Si el alta quedó a revisar, "Se creó: registrarlo" la anota sin número
+(MiCorreo no devuelve uno al dar de alta); el número de seguimiento se carga,
+como siempre, con "Marcar enviada".
 
 ### Seguimiento en el panel
 

@@ -184,8 +184,9 @@ panel pide reconectar y el worker la saltea en los próximos posts);
 IHttpClientFactory escribe la URL en Information (.NET redacta la query desde
 la versión 9, el path no), así que esos clientes (Telegram, los tres de redes
 de Meta y Meta Ads) loguean solo método, host, status y duración
-(`SecretUrlHttpLogging`, probado en `SecretUrlLoggingTests`). Ojo: si se
-prende Sentry, sus breadcrumbs HTTP llevan la URL entera.
+(`SecretUrlHttpLogging`, probado en `SecretUrlLoggingTests`). Con Sentry
+prendido, el token del bot en el path y el `access_token` de Meta se tapan
+antes de mandar nada (`SentryScrubber`, ver [despliegue.md](../despliegue.md)).
 
 ## Lo que aprendimos de la API real
 

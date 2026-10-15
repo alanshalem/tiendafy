@@ -120,7 +120,12 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
      haberse creado y que hay que mirarlo en su panel antes de reintentar; la
      reserva se suelta.
    - Andreani lo creó pero no se pudo guardar: la reserva queda `needs_review`
-     (log crítico con el número) y la venta no deja crear otro.
+     (log crítico con el número) y la venta no deja crear otro. La venta lo
+     avisa en lugar de "Crear envío", con dos salidas (permiso de despacho,
+     quedan en la actividad del equipo): **"Se creó: cargar el número"** (se
+     registra el envío con el número de Andreani; sin etiqueta, el seguimiento
+     anda) o **"Ya lo revisé: no se creó"** (suelta la reserva y se puede
+     crear de nuevo). Lógica en `Api/Shipping/ShipmentReview.cs`.
    - El proceso murió a mitad de camino: la reserva vence a los 5 minutos.
 3. Login (`POST /login`, Basic) → token en el header de respuesta
    `x-authorization-token`, que se reenvía en ese mismo header (no Bearer).
@@ -218,9 +223,7 @@ de QA y después las de producción.
   sucursal, el operador carga el id de sucursal al despachar.
 - No hay seguimiento automático ni avisos al comprador por cambio de estado
   (el seguimiento se consulta a pedido desde el panel).
-- Una reserva `needs_review` (Andreani creó el envío y no se guardó) se
-  destraba a mano en la base, después de cargar el envío que ya existe. Si el
-  proceso muere justo después de que Andreani creó el envío, la reserva vence
-  a los 5 minutos y un reintento podría duplicarlo: sin idempotencia del lado
-  de Andreani no hay forma de saberlo.
+- Si el proceso muere justo después de que Andreani creó el envío, la reserva
+  vence a los 5 minutos y un reintento podría duplicarlo: sin idempotencia del
+  lado de Andreani no hay forma de saberlo.
 - Cancelaciones: se gestionan por fuera, con el ejecutivo de Andreani.

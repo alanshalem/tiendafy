@@ -99,7 +99,9 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
    para esta venta" sin llamar. Si Zipnova rechaza, la reserva se suelta; si
    no responde, 502 avisando que hay que revisar su panel antes de reintentar.
    El detalle está en [andreani.md](andreani.md) (mismo mecanismo,
-   `backend/src/Api/Shipping/ShipmentWriteAhead.cs`).
+   `backend/src/Api/Shipping/ShipmentWriteAhead.cs`). Si quedó a revisar,
+   "Se creó: cargar el número" pide el id numérico del envío en Zipnova
+   (`#123` también vale) y con eso andan la etiqueta y el seguimiento.
 2. Se exigen nombre, documento, email, teléfono y dirección completa.
 3. `POST /shipments` con `external_id` = `TF-` + 16 hex de la venta (Zipnova
    acepta hasta 30 caracteres alfanuméricos y guiones), `service_type`
