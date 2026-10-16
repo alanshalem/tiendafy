@@ -17,7 +17,7 @@ namespace MercadoLibre.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -311,6 +311,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                     b.Property<bool>("StockApplied")
                         .HasColumnType("boolean")
                         .HasColumnName("stock_applied");
+
+                    b.Property<string>("StockDeductionsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("stock_deductions_json");
 
                     b.Property<bool>("StockReverted")
                         .HasColumnType("boolean")

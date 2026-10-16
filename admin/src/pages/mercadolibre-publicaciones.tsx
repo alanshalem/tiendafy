@@ -198,7 +198,7 @@ export function PublicacionesTab() {
                     <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-fg-muted">
                       <span
                         className="inline-flex items-center gap-2"
-                        title="Empujar el stock de tu tienda a esta publicación (si la sincronización de stock está prendida en la configuración)"
+                        title="El stock de tu tienda viaja a esta publicación y cada venta suya descuenta el tuyo (si la sincronización de stock está prendida en la configuración). Apagado, Mercado Libre maneja este stock por su lado."
                       >
                         <Switch
                           checked={item.link.syncStock}

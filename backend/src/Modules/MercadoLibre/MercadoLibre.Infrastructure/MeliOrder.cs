@@ -1,4 +1,9 @@
+using System.Text.Json;
+
 namespace MercadoLibre.Infrastructure;
+
+/// <summary>Unidades de una variante que una venta de ML descontó del stock local.</summary>
+public sealed record MeliStockDeduction(Guid VariantId, int Quantity);
 
 /// <summary>
 /// Cache local de una venta de Mercado Libre (se alimenta por webhook
@@ -33,8 +38,21 @@ public sealed class MeliOrder
     public long? ShipmentId { get; private set; }
     public string? ShipmentStatus { get; private set; }
 
-    /// <summary>Idempotencia del descuento de stock local: se aplica UNA sola vez por orden.</summary>
+    /// <summary>
+    /// Idempotencia del stock local: la venta cobrada ya pasó por la decisión
+    /// de descontar, UNA sola vez por orden. Que haya pasado no quiere decir
+    /// que haya descontado algo: eso lo dice <see cref="StockDeductionsJson"/>.
+    /// </summary>
     public bool StockApplied { get; private set; }
+
+    /// <summary>
+    /// Lo que esta venta descontó de verdad (variante y unidades), con la
+    /// sincronización de stock como estaba en ese momento. La cancelación
+    /// devuelve exactamente esto: lo que no se descontó no se repone, aunque
+    /// después alguien prenda la sincronización o cambie el vínculo.
+    /// Null en las ventas procesadas antes de guardar el detalle (oct-2026).
+    /// </summary>
+    public string? StockDeductionsJson { get; private set; }
 
     /// <summary>
     /// La venta se canceló y el stock que había descontado ya volvió al
@@ -115,15 +133,38 @@ public sealed class MeliOrder
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void MarkStockApplied() => StockApplied = true;
+    private static readonly JsonSerializerOptions DeductionsJson = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Lo que descontó esta venta. Null = venta procesada antes de guardar el
+    /// detalle: se sabe que pasó por el descuento, no qué descontó.
+    /// </summary>
+    public IReadOnlyList<MeliStockDeduction>? StockDeductions => StockDeductionsJson is null
+        ? null
+        : JsonSerializer.Deserialize<List<MeliStockDeduction>>(StockDeductionsJson, DeductionsJson) ?? [];
+
+    /// <summary>
+    /// La venta se llevó stock local. Falso si se procesó con la sincronización
+    /// de stock apagada o con publicaciones sin vincular. Las ventas viejas sin
+    /// detalle cuentan como descontadas: es lo que el panel decía de ellas.
+    /// </summary>
+    public bool StockDiscounted => StockApplied && StockDeductions is not { Count: 0 };
+
+    /// <summary>Registra el descuento (vacío si no se descontó nada). Una sola vez por venta.</summary>
+    public void MarkStockApplied(IReadOnlyCollection<MeliStockDeduction> deductions)
+    {
+        StockApplied = true;
+        StockDeductionsJson = JsonSerializer.Serialize(deductions, DeductionsJson);
+    }
 
     public void MarkStockReverted() => StockReverted = true;
 
     /// <summary>
     /// Venta cancelada cuya mercadería nunca salió: corresponde devolver el
-    /// stock. Solo "cancelled" — un "refunded" es una devolución después del
-    /// envío y ahí la mercadería puede estar en viaje, dañada o perdida; esa
-    /// decisión es del humano, como en la tienda propia.
+    /// stock que descontó. Solo "cancelled" — un "refunded" es una devolución
+    /// después del envío y ahí la mercadería puede estar en viaje, dañada o
+    /// perdida; esa decisión es del humano, como en la tienda propia. La que
+    /// no descontó nada (sincronización apagada) no tiene nada que devolver.
     /// </summary>
-    public bool NeedsStockReversal => StockApplied && !StockReverted && Status is "cancelled";
+    public bool NeedsStockReversal => StockDiscounted && !StockReverted && Status is "cancelled";
 }

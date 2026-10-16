@@ -103,6 +103,14 @@ public sealed class MeliConnection
     /// <summary>Marca la conexión como de demostración (solo el seeder de desarrollo).</summary>
     public void MarkDemo() => IsDemo = true;
 
+    /// <summary>
+    /// El interruptor efectivo del stock de una publicación vinculada: el de la
+    /// cuenta Y el de la publicación. Una sola regla para los dos sentidos —
+    /// empujar el stock a ML y descontar el local cuando ML vende—: si cada
+    /// lado mirara otra cosa, una venta descontaría stock que nunca se publicó.
+    /// </summary>
+    public bool SyncsStockOf(MeliItemLink link) => StockSyncEnabled && link.SyncStock;
+
     public void SetStockSync(bool enabled, int? bufferUnits = null, bool? autoInvoice = null)
     {
         StockSyncEnabled = enabled;

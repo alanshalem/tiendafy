@@ -2,7 +2,10 @@ using System.Net;
 using System.Text.Json;
 using System.Web;
 using Api.Meli;
+using Catalog.Infrastructure;
+using Catalog.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -101,7 +104,9 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post,
             $"/api/v1/admin/meli/items/{itemId}/link", new { productId = Guid.NewGuid(), variantId = Guid.NewGuid() })).StatusCode);
 
-        // 3. Llega el aviso de una venta nueva: el worker la trae y descuenta.
+        // 3. Con "Sincronizar stock" prendido, llega el aviso de una venta
+        //    nueva: el worker la trae y descuenta.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = false });
         var saleId = userId * 10 + 2;
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "paid", itemId, 3));
         await NotifyAsync(userId, $"/orders/{saleId}");
@@ -279,6 +284,110 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, answered.StatusCode);
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/questions/search", new { message = "forbidden" }, HttpStatusCode.Forbidden);
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Get, "/api/v1/admin/meli/questions")).StatusCode);
+    }
+
+    /// <summary>
+    /// Una venta de ML descuenta stock local solo si el stock de esa
+    /// publicación se sincroniza (el interruptor de la cuenta y el de la
+    /// publicación, los mismos que deciden si el stock viaja a ML). Apagado,
+    /// la venta se registra igual pero no toca el stock, y su cancelación
+    /// tampoco: lo que no se descontó no se repone.
+    /// </summary>
+    [Fact]
+    public async Task Con_la_sincronizacion_de_stock_apagada_la_venta_no_toca_el_stock()
+    {
+        var (merchant, userId) = await ConnectedAsync("mlo");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var (productId, variantId) = await merchant.CreateProductAsync("Gorro ML", priceMinor: 8_000_00, stock: 10);
+        await merchant.PostAsync($"/api/v1/admin/meli/items/{itemId}/link",
+            new { productId, variantId, meliVariationId = (long?)null, title = "Gorro ML" });
+        async Task SaleAsync(long id, string status, int quantity)
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{id}", Order(id, status, itemId, quantity));
+            await NotifyAsync(userId, $"/orders/{id}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+        async Task<JsonElement> ListedAsync(long id) =>
+            (await merchant.GetAsync("/api/v1/admin/meli/orders?limit=25")).GetProperty("items").EnumerateArray()
+                .Single(o => o.GetProperty("meliOrderId").GetInt64() == id);
+
+        // 1. Cuenta con la sincronización apagada (como nace): la venta queda
+        //    registrada y cobrada, pero el stock de la tienda no se mueve.
+        var off = userId * 10 + 1;
+        await SaleAsync(off, "paid", 3);
+        Assert.Equal(10, await merchant.AvailableAsync(variantId));
+        var listed = await ListedAsync(off);
+        Assert.Equal("paid", listed.GetProperty("status").GetString());
+        Assert.False(listed.GetProperty("stockDiscounted").GetBoolean());
+
+        // Su cancelación no devuelve nada: no había descontado.
+        await SaleAsync(off, "cancelled", 3);
+        Assert.Equal(10, await merchant.AvailableAsync(variantId));
+        Assert.False((await ListedAsync(off)).GetProperty("stockReturned").GetBoolean());
+
+        // 2. Cuenta prendida pero esta publicación con su stock apagado: tampoco.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = false });
+        await merchant.PutAsync($"/api/v1/admin/meli/items/{itemId}/sync", new { syncStock = false });
+        await SaleAsync(userId * 10 + 2, "paid", 1);
+        Assert.Equal(10, await merchant.AvailableAsync(variantId));
+
+        // 3. Los dos prendidos: descuenta.
+        await merchant.PutAsync($"/api/v1/admin/meli/items/{itemId}/sync", new { syncStock = true });
+        var on = userId * 10 + 3;
+        await SaleAsync(on, "paid", 2);
+        Assert.Equal(8, await merchant.AvailableAsync(variantId));
+        Assert.True((await ListedAsync(on)).GetProperty("stockDiscounted").GetBoolean());
+
+        // Apagar la sincronización después no cambia lo que esa venta se llevó:
+        // si se cancela, devuelve lo que descontó.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false });
+        await SaleAsync(on, "cancelled", 2);
+        Assert.Equal(10, await merchant.AvailableAsync(variantId));
+        Assert.True((await ListedAsync(on)).GetProperty("stockReturned").GetBoolean());
+
+        // El aviso repetido no devuelve dos veces.
+        await SaleAsync(on, "cancelled", 2);
+        Assert.Equal(10, await merchant.AvailableAsync(variantId));
+    }
+
+    /// <summary>
+    /// Una publicación vinculada a un kit descuenta el kit y sus piezas, como
+    /// una venta de la tienda, y la cancelación devuelve las dos cosas.
+    /// </summary>
+    [Fact]
+    public async Task Vender_un_kit_en_ML_descuenta_sus_piezas_y_la_cancelacion_las_devuelve()
+    {
+        var (merchant, userId) = await ConnectedAsync("mlk");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var (kitProductId, kitVariantId) = await merchant.CreateProductAsync("Kit ML", priceMinor: 30_000_00, stock: 5);
+        var (_, pieceA) = await merchant.CreateProductAsync("Pieza A", priceMinor: 5_000_00, stock: 10);
+        var (_, pieceB) = await merchant.CreateProductAsync("Pieza B", priceMinor: 5_000_00, stock: 10);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var catalog = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+            catalog.KitComponents.AddRange(
+                new KitComponent(merchant.TenantId, kitVariantId, pieceA, 2),
+                new KitComponent(merchant.TenantId, kitVariantId, pieceB, 1));
+            await catalog.SaveChangesAsync();
+        }
+        await merchant.PostAsync($"/api/v1/admin/meli/items/{itemId}/link",
+            new { productId = kitProductId, variantId = kitVariantId, meliVariationId = (long?)null, title = "Kit ML" });
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = false });
+
+        var saleId = userId * 10 + 1;
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "paid", itemId, 2));
+        await NotifyAsync(userId, $"/orders/{saleId}");
+        await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        Assert.Equal(3, await merchant.AvailableAsync(kitVariantId));
+        Assert.Equal(6, await merchant.AvailableAsync(pieceA));
+        Assert.Equal(8, await merchant.AvailableAsync(pieceB));
+
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "cancelled", itemId, 2));
+        await NotifyAsync(userId, $"/orders/{saleId}");
+        await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        Assert.Equal(5, await merchant.AvailableAsync(kitVariantId));
+        Assert.Equal(10, await merchant.AvailableAsync(pieceA));
+        Assert.Equal(10, await merchant.AvailableAsync(pieceB));
     }
 
     [Fact]

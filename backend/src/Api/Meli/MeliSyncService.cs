@@ -22,12 +22,13 @@ public sealed record MeliOrderItemSnapshot(
 
 /// <summary>
 /// Sincroniza ventas de Mercado Libre al cache local y aplica el descuento de
-/// stock a las variantes vinculadas (una sola vez por orden — idempotente vía
-/// StockApplied, porque los webhooks llegan repetidos).
+/// stock a las variantes vinculadas que sincronizan stock (una sola vez por
+/// orden — idempotente vía StockApplied, porque los webhooks llegan repetidos).
 /// </summary>
 public sealed class MeliSyncService(
     MeliDbContext db, MeliClient client, MeliTokenService tokens,
-    IStockRepository stock, global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter,
+    IStockRepository stock, Api.Orders.KitStockService kits,
+    global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter,
     global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
     ILogger<MeliSyncService> logger)
 {
@@ -94,14 +95,14 @@ public sealed class MeliSyncService(
 
         if (row.IsPaid && !row.StockApplied)
         {
-            await MoveStockAsync(tenantId, meliOrderId, items, reverse: false, ct);
-            row.MarkStockApplied();
+            row.MarkStockApplied(await DiscountStockAsync(tenantId, meliOrderId, items, ct));
         }
         else if (row.NeedsStockReversal)
         {
-            // La venta se canceló: la mercadería que se había descontado vuelve
-            // al disponible. Idempotente por el flag, igual que la ida.
-            await MoveStockAsync(tenantId, meliOrderId, items, reverse: true, ct);
+            // La venta se canceló: vuelve al disponible lo que ESTA venta había
+            // descontado, ni más ni menos. Idempotente por el flag, igual que la ida.
+            var deductions = row.StockDeductions ?? await LegacyDeductionsAsync(tenantId, items, ct);
+            await ReturnStockAsync(tenantId, meliOrderId, deductions, ct);
             row.MarkStockReverted();
         }
 
@@ -163,37 +164,82 @@ public sealed class MeliSyncService(
     }
 
     /// <summary>
-    /// Mueve el stock local de los items vinculados: lo descuenta al venderse
-    /// y lo devuelve si la venta se cancela. Un solo camino para los dos
-    /// sentidos — con dos copias, la vuelta se olvida (y se olvidó).
-    /// Best-effort por item: una publicación sin vincular no toca stock.
+    /// Descuenta el stock local de lo vendido, solo en las publicaciones cuyo
+    /// stock se sincroniza (el interruptor de la cuenta Y el de la publicación,
+    /// el mismo que decide si se empuja el stock a ML): con la sincronización
+    /// apagada, ML maneja su stock por su lado y la venta no se lleva el de la
+    /// tienda. Devuelve lo descontado, que es lo que una cancelación repone.
+    /// Los kits descuentan además sus componentes, como una venta de la tienda.
     /// </summary>
-    private async Task MoveStockAsync(
-        Guid tenantId, long meliOrderId, IReadOnlyList<MeliOrderItemSnapshot> items,
-        bool reverse, CancellationToken ct)
+    private async Task<List<MeliStockDeduction>> DiscountStockAsync(
+        Guid tenantId, long meliOrderId, IReadOnlyList<MeliOrderItemSnapshot> items, CancellationToken ct)
     {
-        foreach (var item in items)
-        {
-            var link = await db.ItemLinks.IgnoreQueryFilters().AsNoTracking()
-                .FirstOrDefaultAsync(l => l.TenantId == tenantId && l.MeliItemId == item.ItemId
-                    && l.MeliVariationId == item.VariationId, ct);
-            // Publicación con variaciones vendida pero vinculada a nivel item: fallback.
-            link ??= await db.ItemLinks.IgnoreQueryFilters().AsNoTracking()
-                .FirstOrDefaultAsync(l => l.TenantId == tenantId && l.MeliItemId == item.ItemId
-                    && l.MeliVariationId == null, ct);
-            if (link is null || !link.SyncStock) continue;
+        var deductions = new List<MeliStockDeduction>();
+        var connection = await db.Connections.IgnoreQueryFilters().AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
+        if (connection is not { StockSyncEnabled: true }) return deductions;
 
-            var tenant = TenantId.From(tenantId);
-            var delta = reverse ? item.Quantity : -item.Quantity;
-            var reason = reverse
-                ? $"Cancelación Mercado Libre #{meliOrderId}"
-                : $"Venta Mercado Libre #{meliOrderId}";
-            var after = await stock.AdjustAvailableAsync(tenant, link.VariantId, delta, reason, ct);
+        foreach (var item in items.Where(i => i.Quantity > 0))
+        {
+            var link = await LinkOfAsync(tenantId, item, ct);
+            if (link is null || !connection.SyncsStockOf(link)) continue;
+            deductions.Add(new MeliStockDeduction(link.VariantId, item.Quantity));
+        }
+
+        await MoveAsync(tenantId, deductions, reverse: false, $"Venta Mercado Libre #{meliOrderId}", ct);
+        return deductions;
+    }
+
+    /// <summary>La cancelación devuelve lo que la venta descontó (y los componentes de kit).</summary>
+    private Task ReturnStockAsync(
+        Guid tenantId, long meliOrderId, IReadOnlyList<MeliStockDeduction> deductions, CancellationToken ct) =>
+        MoveAsync(tenantId, deductions, reverse: true, $"Cancelación Mercado Libre #{meliOrderId}", ct);
+
+    /// <summary>
+    /// Un solo camino para los dos sentidos — con dos copias, la vuelta se
+    /// olvida (y se olvidó).
+    /// </summary>
+    private async Task MoveAsync(
+        Guid tenantId, IReadOnlyList<MeliStockDeduction> deductions, bool reverse, string reason, CancellationToken ct)
+    {
+        if (deductions.Count == 0) return;
+        var tenant = TenantId.From(tenantId);
+        foreach (var d in deductions)
+        {
+            var delta = reverse ? d.Quantity : -d.Quantity;
+            var after = await stock.AdjustAvailableAsync(tenant, d.VariantId, delta, reason, ct);
             logger.LogInformation(
                 "Stock ML {Action}: tenant {TenantId}, variante {VariantId}, {Delta} → queda {After}.",
-                reverse ? "devuelto" : "aplicado", tenantId, link.VariantId, delta, after);
+                reverse ? "devuelto" : "aplicado", tenantId, d.VariantId, delta, after);
         }
+        await kits.MoveAsync(tenantId, [.. deductions.Select(d => (d.VariantId, d.Quantity))], reverse, reason, ct);
     }
+
+    /// <summary>
+    /// Ventas procesadas antes de guardar qué descontaron: se reconstruye con
+    /// la regla de entonces (vínculo con el stock de la publicación prendido).
+    /// </summary>
+    private async Task<List<MeliStockDeduction>> LegacyDeductionsAsync(
+        Guid tenantId, IReadOnlyList<MeliOrderItemSnapshot> items, CancellationToken ct)
+    {
+        var deductions = new List<MeliStockDeduction>();
+        foreach (var item in items)
+        {
+            var link = await LinkOfAsync(tenantId, item, ct);
+            if (link is { SyncStock: true }) deductions.Add(new MeliStockDeduction(link.VariantId, item.Quantity));
+        }
+        return deductions;
+    }
+
+    /// <summary>Vínculo exacto (publicación + variación) o, si no hay, el de la publicación entera.</summary>
+    private async Task<MeliItemLink?> LinkOfAsync(Guid tenantId, MeliOrderItemSnapshot item, CancellationToken ct) =>
+        await db.ItemLinks.IgnoreQueryFilters().AsNoTracking()
+            .FirstOrDefaultAsync(l => l.TenantId == tenantId && l.MeliItemId == item.ItemId
+                && l.MeliVariationId == item.VariationId, ct)
+        // Publicación con variaciones vendida pero vinculada a nivel item: fallback.
+        ?? await db.ItemLinks.IgnoreQueryFilters().AsNoTracking()
+            .FirstOrDefaultAsync(l => l.TenantId == tenantId && l.MeliItemId == item.ItemId
+                && l.MeliVariationId == null, ct);
 
     public static List<MeliOrderItemSnapshot> ParseItems(JsonElement order)
     {

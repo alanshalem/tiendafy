@@ -542,7 +542,7 @@ export const CATALOGO = {
         heading: 'Cómo funciona',
         paragraphs: [
           'En la ficha de una variante agotada, en lugar de un botón de compra muerto, el comprador ve “Avisame cuando ingrese”: deja su email (no hace falta cuenta) y listo.',
-          'Cuando esa variante vuelve a tener stock —por un ajuste en Inventario, una compra recibida, una reserva que venció o Mercado Libre—, le llega un solo email con el link al producto. Cada pedido de aviso se usa una vez, y el email trae un link para dejar de esperar.',
+          'Cuando esa variante vuelve a tener stock —por un ajuste en Inventario, una compra recibida, una reserva que venció o una venta de Mercado Libre que se canceló—, le llega un solo email con el link al producto. Cada pedido de aviso se usa una vez, y el email trae un link para dejar de esperar.',
         ],
         blocks: [
           {

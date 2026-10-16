@@ -18,6 +18,27 @@ public class MeliConnectionTests
         Assert.False(result.Value.StockSyncEnabled);
     }
 
+    /// <summary>
+    /// El stock de una publicación se sincroniza (se empuja a ML y una venta
+    /// de ML descuenta el local) solo con los DOS interruptores prendidos: el
+    /// de la cuenta y el de la publicación.
+    /// </summary>
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void SyncsStockOf_PideLosDosInterruptores(bool account, bool item, bool expected)
+    {
+        var connection = MeliConnection.Create(
+            Guid.NewGuid(), 123456, "TIENDA", "MLA", "enc-access", "enc-refresh", DateTime.UtcNow.AddHours(6)).Value;
+        connection.SetStockSync(account);
+        var link = MeliItemLink.Create(connection.TenantId, "MLA1", null, Guid.NewGuid(), Guid.NewGuid(), "Remera").Value;
+        link.SetSyncStock(item);
+
+        Assert.Equal(expected, connection.SyncsStockOf(link));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
@@ -185,8 +206,29 @@ public class MeliOrderTests
         Assert.Equal(999, order.PackId);
         Assert.Equal("COMPRADOR", order.BuyerNickname);
 
-        order.MarkStockApplied();
+        order.MarkStockApplied([new MeliStockDeduction(Guid.NewGuid(), 2)]);
         Assert.True(order.StockApplied);
+        Assert.True(order.StockDiscounted);
+        Assert.Equal(2, Assert.Single(order.StockDeductions!).Quantity);
+    }
+
+    /// <summary>
+    /// Con la sincronización de stock apagada la venta se procesa igual, pero
+    /// no se lleva stock: no dice que descontó, y si se cancela no hay nada que
+    /// devolver (lo que no se descontó no se repone).
+    /// </summary>
+    [Fact]
+    public void VentaSinDescuento_NoDiceQueDesconto_NiDevuelveAlCancelarse()
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 1);
+        order.Apply("paid", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        order.MarkStockApplied([]);
+
+        Assert.True(order.StockApplied);
+        Assert.False(order.StockDiscounted);
+
+        order.Apply("cancelled", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        Assert.False(order.NeedsStockReversal);
     }
 
     [Theory]
@@ -207,7 +249,7 @@ public class MeliOrderTests
     {
         var order = MeliOrder.Create(Guid.NewGuid(), 1);
         order.Apply("paid", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
-        order.MarkStockApplied();
+        order.MarkStockApplied([new MeliStockDeduction(Guid.NewGuid(), 1)]);
         order.Apply(status, DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
         return order;
     }

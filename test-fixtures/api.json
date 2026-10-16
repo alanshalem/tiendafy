@@ -346,7 +346,8 @@
             }
           ],
           "shipmentId": 41000000013,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -371,7 +372,8 @@
             }
           ],
           "shipmentId": 41000000001,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -396,7 +398,8 @@
             }
           ],
           "shipmentId": 41000000002,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -421,7 +424,8 @@
             }
           ],
           "shipmentId": 41000000033,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -446,7 +450,8 @@
             }
           ],
           "shipmentId": 41000000000,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -471,7 +476,8 @@
             }
           ],
           "shipmentId": 41000000017,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -496,7 +502,8 @@
             }
           ],
           "shipmentId": 41000000032,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -521,7 +528,8 @@
             }
           ],
           "shipmentId": 41000000007,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -546,7 +554,8 @@
             }
           ],
           "shipmentId": 41000000008,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -571,7 +580,8 @@
             }
           ],
           "shipmentId": 41000000003,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -596,7 +606,8 @@
             }
           ],
           "shipmentId": 41000000012,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -621,7 +632,8 @@
             }
           ],
           "shipmentId": 41000000030,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -646,7 +658,8 @@
             }
           ],
           "shipmentId": 41000000034,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -671,7 +684,8 @@
             }
           ],
           "shipmentId": null,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -696,7 +710,8 @@
             }
           ],
           "shipmentId": 41000000010,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -721,7 +736,8 @@
             }
           ],
           "shipmentId": 41000000023,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -746,7 +762,8 @@
             }
           ],
           "shipmentId": 41000000009,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -771,7 +788,8 @@
             }
           ],
           "shipmentId": 41000000014,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -796,7 +814,8 @@
             }
           ],
           "shipmentId": 41000000018,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -821,7 +840,8 @@
             }
           ],
           "shipmentId": 41000000016,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -846,7 +866,8 @@
             }
           ],
           "shipmentId": 41000000021,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -871,7 +892,8 @@
             }
           ],
           "shipmentId": 41000000019,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -896,7 +918,8 @@
             }
           ],
           "shipmentId": 41000000004,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -921,7 +944,8 @@
             }
           ],
           "shipmentId": 41000000025,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         },
         {
@@ -946,7 +970,8 @@
             }
           ],
           "shipmentId": 41000000036,
-          "stockApplied": false,
+          "stockDiscounted": false,
+          "stockReturned": false,
           "fiscalDocumentId": null
         }
       ]

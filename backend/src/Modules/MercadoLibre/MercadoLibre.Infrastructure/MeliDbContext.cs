@@ -46,6 +46,8 @@ public sealed class MeliDbContext : DbContext
         order.Property(o => o.BuyerNickname).HasMaxLength(100);
         order.Property(o => o.ShipmentStatus).HasMaxLength(40);
         order.Property(o => o.ItemsJson).HasColumnType("jsonb");
+        order.Property(o => o.StockDeductionsJson).HasColumnType("jsonb");
+        order.Ignore(o => o.StockDeductions); // se lee de StockDeductionsJson
 
         var link = modelBuilder.Entity<MeliItemLink>();
         link.ToTable("meli_item_links");

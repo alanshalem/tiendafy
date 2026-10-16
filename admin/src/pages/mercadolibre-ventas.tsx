@@ -54,7 +54,10 @@ interface MeliOrder {
   buyerNickname: string;
   buyerId: number;
   items: MeliOrderItem[];
-  stockApplied: boolean;
+  /** La venta se llevó stock de la tienda (solo con la sincronización de stock prendida). */
+  stockDiscounted: boolean;
+  /** Se canceló y ese stock ya volvió al disponible. */
+  stockReturned: boolean;
   fiscalDocumentId: string | null;
 }
 
@@ -67,8 +70,8 @@ interface MeliStats {
 }
 
 // Verde = cobrada · amarillo = esperando el pago · azul = confirmada sin
-// cobrar · rojo = cancelada. "Stock aplicado" NO es un estado del pago: va
-// aparte en gris con tilde (antes compartía el azul con "Pago en proceso").
+// cobrar · rojo = cancelada. Lo del stock NO es un estado del pago: va
+// aparte en gris (antes compartía el azul con "Pago en proceso").
 const ORDER_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
   paid: { label: 'Pagada', variant: 'success' },
   partially_refunded: { label: 'Reembolso parcial', variant: 'warning' },
@@ -83,7 +86,7 @@ const LEGEND = [
   { dot: 'bg-success', text: 'Pagada: la plata ya está' },
   { dot: 'bg-warning', text: 'Amarillo: esperando el pago' },
   { dot: 'bg-danger', text: 'Cancelada' },
-  { dot: 'bg-fg-subtle', text: '✓ Stock aplicado: ya descontó stock local' },
+  { dot: 'bg-fg-subtle', text: '✓ Stock descontado: la venta se llevó stock de tu tienda' },
 ];
 
 /** Los mismos valores que entiende la API (MeliOrderFilters). */
@@ -103,6 +106,25 @@ const isInvoiceable = (o: MeliOrder) =>
   (o.paidAmount > 0 || o.totalAmount > 0);
 
 const amountOf = (o: MeliOrder) => (o.paidAmount > 0 ? o.paidAmount : o.totalAmount);
+
+/**
+ * Qué pasó con el stock de la tienda, sin adornar: una venta cobrada con la
+ * sincronización de stock apagada (o de una publicación sin vincular) no
+ * descontó nada, y lo dice. Antes decía "Stock aplicado" igual.
+ */
+function stockBadge(o: MeliOrder) {
+  if (o.stockReturned) return <Badge variant="neutral">Stock devuelto</Badge>;
+  if (o.stockDiscounted) return <Badge variant="neutral">✓ Stock descontado</Badge>;
+  if (o.status !== 'paid' && o.status !== 'partially_refunded') return null;
+  return (
+    <span
+      className="text-xs text-fg-muted"
+      title="La publicación no está vinculada a tu catálogo o tiene la sincronización de stock apagada: Mercado Libre maneja ese stock por su lado."
+    >
+      No descontó stock
+    </span>
+  );
+}
 
 // ---- Ventas ------------------------------------------------------------------
 
@@ -273,7 +295,7 @@ export function VentasTab() {
     return (
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge variant={st.variant}>{st.label}</Badge>
-        {o.stockApplied && <Badge variant="neutral">✓ Stock aplicado</Badge>}
+        {stockBadge(o)}
         {row?.state === 'failed' && (
           <span className="text-xs text-danger" title={row.reason}>
             No se facturó: {row.reason}

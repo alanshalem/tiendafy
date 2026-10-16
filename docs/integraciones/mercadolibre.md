@@ -19,9 +19,12 @@ Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre
   webhook `orders_v2` y por un backfill de las últimas 50 al conectar o al
   tocar "Actualizar". Se listan con búsqueda y filtros (sin facturar,
   facturadas, pagadas, pendientes, canceladas).
-- **Stock unificado.** Una venta cobrada descuenta stock local de la variante
-  vinculada (una sola vez por orden); una cancelación lo devuelve. En la otra
-  dirección, un worker empuja stock y precio locales a ML.
+- **Stock unificado.** Con "Sincronizar stock" prendido (en la cuenta y en la
+  publicación), una venta cobrada descuenta stock local de la variante
+  vinculada (una sola vez por orden; si es un kit, también sus piezas) y una
+  cancelación devuelve exactamente lo que descontó. Apagado, la venta se
+  registra igual (listado, rentabilidad, facturación) pero no toca el stock.
+  En la otra dirección, un worker empuja stock y precio locales a ML.
 - **Precio con recargo del canal.** `PriceMarkupPct` (acotado a -50 % / +200 %)
   cubre la comisión de ML. Se aplica **solo con la sincronización de precios
   prendida**, tanto en el worker como al publicar.
@@ -57,7 +60,7 @@ orquestación en la Api.
 | `backend/src/Modules/MercadoLibre/MercadoLibre.Infrastructure/MeliOptions.cs` | Config de la app de plataforma (sección `MercadoLibre`). `Configured` = ClientId y ClientSecret cargados. |
 | `.../MercadoLibre.Infrastructure/MeliClient.cs` | Cliente HTTP (timeout 20 s): URL de autorización, intercambio y refresh de tokens, GET/POST/PUT que devuelven `JsonDocument` crudo (sin DTOs espejo). Errores como `MeliException`. |
 | `.../MercadoLibre.Infrastructure/MeliConnection.cs` | Conexión OAuth por tenant: tokens cifrados, switches de stock/precio/auto-factura, buffer, recargo, `IsDemo`. |
-| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `FiscalDocumentId`, `CreditNoteIssued`. |
+| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `StockDeductionsJson` (qué descontó de verdad), `FiscalDocumentId`, `CreditNoteIssued`. |
 | `.../MercadoLibre.Infrastructure/MeliItemLink.cs` | Publicación (+ variación opcional) ↔ variante local, con `LastPushedQty` y `LastPushedPriceMinor`. |
 | `.../MercadoLibre.Infrastructure/MeliNotification.cs` | Inbox durable de webhooks (hereda `InboxEntry`: reintentos con backoff, estado `dead`). |
 | `.../MercadoLibre.Infrastructure/MeliPricing.cs` | Función pura del precio del canal (redondeo `AwayFromZero`, piso de 1 centavo). |
@@ -136,7 +139,10 @@ apagados al conectar.
 
 Por publicación (en `/mercadolibre`, pestaña Publicaciones): los switches
 "Stock" y "Precio" de cada publicación vinculada. Nacen prendidos; el de la
-conexión manda sobre ellos (apagado allá, no viaja nada). Sirven para dejar
+conexión manda sobre ellos (apagado allá, no viaja nada). El interruptor
+efectivo del stock (`MeliConnection.SyncsStockOf`: cuenta Y publicación) vale
+para los dos sentidos: decide si el stock viaja a ML y si una venta de ML
+descuenta el local. Sirven para dejar
 afuera una publicación puntual, por ejemplo una con precio promocional
 cargado a mano en ML. Al volver a prender uno se olvida lo último empujado y
 la próxima pasada manda el valor de la tienda aunque coincida con el de antes.
@@ -166,10 +172,20 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
 1. Upsert del cache (ítems con `sale_fee` por unidad, pack, id del envío; el
    estado del envío no se trae).
 2. Si está cobrada y `!StockApplied`: descuenta stock de cada ítem vinculado
-   con `SyncStock` (vínculo exacto ítem + variación, o fallback a nivel ítem).
-3. Si pasó a `cancelled` con stock aplicado: lo devuelve (`StockReverted`).
-   Un `refunded` **no** devuelve stock: la mercadería puede estar en viaje o
-   dañada, decide una persona.
+   cuyo stock se sincroniza (`SyncsStockOf`; vínculo exacto ítem + variación,
+   o fallback a nivel ítem), y los componentes si la variante es un kit
+   (`KitStockService.MoveAsync`, el mismo de las ventas de la tienda). Lo
+   descontado queda en `StockDeductionsJson`; con la sincronización apagada
+   queda vacío y la venta se marca procesada igual: prender la sincronización
+   después no descuenta ventas viejas (tampoco las del backfill al conectar).
+3. Si pasó a `cancelled` y había descontado algo: devuelve exactamente
+   `StockDeductionsJson` (`StockReverted`), aunque después hayan cambiado los
+   interruptores o el vínculo. Lo que no se descontó no se repone. Un
+   `refunded` **no** devuelve stock: la mercadería puede estar en viaje o
+   dañada, decide una persona (ajuste manual en Inventario; las ventas de ML
+   no pasan por el reembolso con reingreso de la tienda). Las ventas
+   procesadas antes de oct-2026 no tienen el detalle (`null`): se reconstruye
+   con la regla de entonces (vínculo con el switch de la publicación).
 4. Fiscal (best-effort, ARCA caído no frena la importación): si estaba
    facturada y quedó `cancelled` o `refunded`, encola la nota de crédito; si
    está cobrada, sin comprobante y con auto-factura prendida, emite a
@@ -229,7 +245,8 @@ real (ver Pendiente).
 ## Cómo probar
 
 - **Tests.** `backend/tests/IntegrationTests/MercadoLibreFlowTests.cs` recorre
-  OAuth, backfill, venta → descuento, cancelación → devolución, sync de stock y
+  OAuth, backfill, venta → descuento, cancelación → devolución, venta con la
+  sincronización de stock apagada (no descuenta ni repone), kits, sync de stock y
   precio, preguntas, mensajes, reclamos, publicar, facturar, demo de solo
   lectura y devolución parcial, contra la API simulada (`FakeHttp`). Unitarios
   en `backend/tests/UnitTests/Meli/`. Desde `backend/`:

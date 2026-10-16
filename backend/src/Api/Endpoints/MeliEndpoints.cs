@@ -261,7 +261,12 @@ public static class MeliEndpoints
                     o.BuyerId,
                     items = MeliSyncService.ParseSnapshot(o.ItemsJson),
                     o.ShipmentId,
-                    o.StockApplied,
+                    // Lo que pasó de verdad con el stock local: descontado (con
+                    // la sincronización de stock prendida) y, si se canceló,
+                    // devuelto. Una venta procesada con la sincronización
+                    // apagada no descontó nada y no dice que sí.
+                    stockDiscounted = o.StockDiscounted,
+                    stockReturned = o.StockReverted,
                     o.FiscalDocumentId,
                 }),
             });

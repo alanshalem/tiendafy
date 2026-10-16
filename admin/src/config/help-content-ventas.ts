@@ -651,14 +651,19 @@ export const VENTAS = {
         steps: [
           'En la pestaña Publicaciones, tocá “Vincular” en cada publicación y elegí el producto (y variante) de tu catálogo que le corresponde.',
           'Activá “Sincronizar stock” en Configuración → Mercado Libre.',
-          'Desde ahí: cada venta en ML descuenta el stock local automáticamente (y lo devuelve si la venta se cancela), y los cambios de stock locales se empujan a las publicaciones cada ~5 minutos.',
+          'Desde ahí: cada venta en ML descuenta el stock local automáticamente (si el producto es un kit, también sus piezas), y los cambios de stock locales se empujan a las publicaciones cada ~5 minutos. Si la venta se cancela, vuelve a tu stock lo que se había descontado.',
           'Cada publicación vinculada tiene sus propios interruptores “Stock” y “Precio” en la pestaña Publicaciones: apagalos en la que quieras manejar a mano sin cortar la sincronización del resto.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Una publicación SIN vincular no sincroniza nada: la venta de ML aparece en el panel igual, pero no descuenta tu stock. Vinculá todo lo que vendas en los dos canales para no sobrevender.',
+            text: 'Con “Sincronizar stock” apagado, o en una publicación SIN vincular o con su interruptor “Stock” apagado, Mercado Libre maneja su stock por su lado: la venta aparece en el panel igual (con su ganancia y para facturar), pero no descuenta tu stock, y si se cancela tampoco te suma nada. En la pestaña Ventas cada venta te dice “✓ Stock descontado” o “No descontó stock”. Vinculá y sincronizá todo lo que vendas en los dos canales para no sobrevender.',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Prender la sincronización no descuenta las ventas que ya habían entrado: cuenta desde ese momento. Y apagarla no cambia lo que ya se descontó: si una de esas ventas se cancela, el stock vuelve igual. Una venta reembolsada después del envío no devuelve el stock sola (la mercadería puede no haber vuelto): si volvió, sumala a mano en Inventario.',
           },
           {
             type: 'callout',

@@ -51,7 +51,9 @@ public sealed class MeliStockSyncWorker(
         IServiceProvider sp, MeliDbContext db, MeliConnection connection, CancellationToken ct)
     {
         // Cada vínculo empuja solo lo que la tienda tiene prendido: el
-        // interruptor de la conexión manda sobre el de la publicación.
+        // interruptor de la conexión manda sobre el de la publicación (la
+        // misma regla que decide si una venta de ML descuenta stock local:
+        // MeliConnection.SyncsStockOf; la consulta la repite porque EF no la traduce).
         var syncStock = connection.StockSyncEnabled;
         var syncPrice = connection.PriceSyncEnabled;
         var links = await db.ItemLinks.IgnoreQueryFilters()
@@ -75,7 +77,7 @@ public sealed class MeliStockSyncWorker(
             // venta, así que se publica stock − buffer para absorber la ventana.
             var available = Math.Max(
                 0, availableByVariant.GetValueOrDefault(link.VariantId, 0) - connection.StockBufferUnits);
-            var pushStock = syncStock && link.SyncStock && link.LastPushedQty != available;
+            var pushStock = connection.SyncsStockOf(link) && link.LastPushedQty != available;
 
             long? priceMinor = null;
             if (syncPrice && link.SyncPrice && priceByVariant.TryGetValue(link.VariantId, out var localMinor) && localMinor > 0)
