@@ -78,9 +78,6 @@ public sealed class FiscalFlowTests
         var pos = await merchant.PostAsync("/api/v1/fiscal/points-of-sale", new { number = 3, label = "Web" });
         Assert.Single((await merchant.GetAsync("/api/v1/fiscal/points-of-sale")).GetProperty("items").EnumerateArray());
 
-        var health = await merchant.PostAsync("/api/v1/fiscal/health", new { });
-        Assert.True(health.GetProperty("ok").GetBoolean());
-
         var diagnosis = await merchant.PostAsync("/api/v1/fiscal/test-connection", new { });
         Assert.True(diagnosis.GetProperty("ok").GetBoolean(), diagnosis.ToString());
         Assert.Equal(5, diagnosis.GetProperty("steps").GetArrayLength());
@@ -197,10 +194,15 @@ public sealed class FiscalFlowTests
         arca.PadronFault = "No existe persona con ese Id";
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Get, $"/api/v1/fiscal/padron/{Cuit}")).StatusCode);
 
-        // ARCA caído: el health lo dice.
+        arca.PadronFault = null;
+
+        // ARCA caído: el diagnóstico lo dice (la conexión no queda en verde).
         arca.Down = true;
-        var down = await merchant.SendAsync(HttpMethod.Post, "/api/v1/fiscal/health");
-        Assert.False(down.IsSuccessStatusCode && (await down.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("ok").GetBoolean());
+        var down = await merchant.PostAsync("/api/v1/fiscal/test-connection", new { });
+        Assert.False(down.GetProperty("ok").GetBoolean(), down.ToString());
+        Assert.Contains(down.GetProperty("steps").EnumerateArray(),
+            s => s.GetProperty("key").GetString() == "wsfe" && s.GetProperty("status").GetString() == "error");
+        arca.Down = false;
     }
 
     [Fact]

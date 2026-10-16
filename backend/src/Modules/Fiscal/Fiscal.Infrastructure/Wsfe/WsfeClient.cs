@@ -19,20 +19,6 @@ public sealed class WsfeClient(
     private static readonly XNamespace Ar = "http://ar.gov.afip.dif.FEV1/";
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
 
-    public async Task<Result<FiscalHealth>> CheckHealthAsync(FiscalEnvironment environment, CancellationToken ct = default)
-    {
-        var body = new XElement(Ar + "FEDummy");
-        var resp = await CallAsync(environment, "FEDummy", body, ct);
-        if (resp.IsFailure) return Result.Failure<FiscalHealth>(resp.Error);
-
-        var r = resp.Value.Descendants().FirstOrDefault(e => e.Name.LocalName == "FEDummyResult");
-        string Val(string name) => r?.Descendants().FirstOrDefault(e => e.Name.LocalName == name)?.Value ?? "";
-        return new FiscalHealth(
-            AppOk: Val("AppServer").Equals("OK", StringComparison.OrdinalIgnoreCase),
-            DbOk: Val("DbServer").Equals("OK", StringComparison.OrdinalIgnoreCase),
-            AuthOk: Val("AuthServer").Equals("OK", StringComparison.OrdinalIgnoreCase));
-    }
-
     public async Task<Result<long>> GetLastAuthorizedAsync(
         FiscalTicket auth, Cuit cuit, FiscalEnvironment environment, int ptoVta, CbteTipo cbteTipo, CancellationToken ct = default)
     {

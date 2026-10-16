@@ -447,9 +447,6 @@ public sealed class FiscalEmissionTests
 
         public string CaeOf(long number) => _authorized[number].Cae;
 
-        public Task<Result<FiscalHealth>> CheckHealthAsync(FiscalEnvironment environment, CancellationToken ct = default) =>
-            Task.FromResult(Result.Success(new FiscalHealth(true, true, true)));
-
         public Task<Result<long>> GetLastAuthorizedAsync(
             FiscalTicket auth, Cuit cuit, FiscalEnvironment environment, int ptoVta, CbteTipo cbteTipo, CancellationToken ct = default)
         {

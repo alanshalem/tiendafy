@@ -73,6 +73,8 @@ public sealed partial class FakeArca
     /// <summary>El servicio de cada TRA que llegó a WSAA, en orden.</summary>
     public List<string> WsaaServices { get; } = [];
     public bool RejectNext { get; set; }
+
+    /// <summary>WSFEv1 caído: contesta 503 sin SOAP, como un balanceador sin servidores atrás.</summary>
     public bool Down { get; set; }
     public (string Code, string Message)? LastAuthorizedError { get; set; }
 
@@ -110,11 +112,9 @@ public sealed partial class FakeArca
 
     private HttpResponseMessage HandleWsfe(string action, string body)
     {
-        if (action.EndsWith("FEDummy\"") || action.EndsWith("FEDummy"))
-        {
-            var ok = Down ? "ERROR" : "OK";
-            return Xml($"<FEDummyResponse xmlns=\"http://ar.gov.afip.dif.FEV1/\"><FEDummyResult><AppServer>{ok}</AppServer><DbServer>{ok}</DbServer><AuthServer>{ok}</AuthServer></FEDummyResult></FEDummyResponse>");
-        }
+        // Caído: lo que contesta un balanceador sin nadie atrás (503 sin SOAP).
+        if (Down)
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent("<html>Service Unavailable</html>") };
 
         var ptoVta = Tag(body, "PtoVta");
         var tipo = Tag(body, "CbteTipo");

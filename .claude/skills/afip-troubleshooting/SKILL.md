@@ -17,8 +17,8 @@ description: Diagnóstico de fallas contra ARCA (TLS dh key too small, faults de
 ```
 
 En Tiendafy: `POST /api/v1/fiscal/test-connection` corre los pasos
-(certificado, WSAA, `FECompUltimoAutorizado`, puntos de venta y padrón) y
-`POST /fiscal/health` hace `FEDummy`. Los mensajes de ARCA se muestran tal
+(certificado, WSAA, `FECompUltimoAutorizado`, puntos de venta y padrón); con
+ARCA caído, el paso de WSFEv1 queda en error. Los mensajes de ARCA se muestran tal
 cual más una explicación si está en `Fiscal.Core/Domain/ArcaErrorCatalog.cs`
 (hoy: 600, 10016, `alreadyAuthenticated`, `notAuthorized`). Solo se agregan
 entradas que se conocen con certeza.

@@ -23,21 +23,6 @@ public class WsfeClientTests
     }
 
     [Fact]
-    public async Task CheckHealth_ParsesFeDummy()
-    {
-        var (client, _) = Make("""
-            <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-             <soap:Body><FEDummyResponse xmlns="http://ar.gov.afip.dif.FEV1/"><FEDummyResult>
-               <AppServer>OK</AppServer><DbServer>OK</DbServer><AuthServer>OK</AuthServer>
-             </FEDummyResult></FEDummyResponse></soap:Body></soap:Envelope>
-            """);
-
-        var r = await client.CheckHealthAsync(FiscalEnvironment.Homologacion);
-        Assert.True(r.IsSuccess);
-        Assert.True(r.Value.AllOk);
-    }
-
-    [Fact]
     public async Task GetLastAuthorized_ParsesCbteNro()
     {
         var (client, handler) = Make("""
@@ -186,7 +171,7 @@ public class WsfeClientTests
             </soap:Body></soap:Envelope>
             """, HttpStatusCode.InternalServerError);
 
-        var r = await client.CheckHealthAsync(FiscalEnvironment.Homologacion);
+        var r = await client.GetLastAuthorizedAsync(Ticket, Emisor, FiscalEnvironment.Homologacion, 1, CbteTipo.FacturaC);
         Assert.True(r.IsFailure);
         Assert.Contains("Internal Error", r.Error.Message);
     }

@@ -270,18 +270,6 @@ public static class FiscalEndpoints
             return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
         });
 
-        // Chequeo de salud de WSFEv1 (FEDummy, no autenticado): ¿ARCA está arriba?
-        fiscal.MapPost("/health", async (
-            ITenantContext tenant, FiscalDbContext db, IFiscalGateway gateway, CancellationToken ct) =>
-        {
-            var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
-            var env = cfg?.Environment ?? FiscalEnvironment.Homologacion;
-            var health = await gateway.CheckHealthAsync(env, ct);
-            return health.IsSuccess
-                ? Results.Ok(new { ok = health.Value.AllOk, app = health.Value.AppOk, db = health.Value.DbOk, auth = health.Value.AuthOk, environment = env.ToString().ToUpperInvariant() })
-                : health.Error.ToProblem();
-        });
-
         // --- Emisión manual -----------------------------------------------------------
         // Libro IVA ventas del mes en CSV (para el contador): comprobantes
         // APROBADOS con neto/IVA/total, separador ; y BOM (Excel argentino).

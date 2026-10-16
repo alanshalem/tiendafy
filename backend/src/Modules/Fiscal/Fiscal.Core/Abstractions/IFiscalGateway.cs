@@ -22,12 +22,6 @@ public static class FiscalGatewayErrors
     public static bool IsAmbiguous(Error error) => error.Code is Network or BadResponse or NoFault;
 }
 
-/// <summary>Salud de WSFEv1 (FEDummy, no requiere autenticación).</summary>
-public sealed record FiscalHealth(bool AppOk, bool DbOk, bool AuthOk)
-{
-    public bool AllOk => AppOk && DbOk && AuthOk;
-}
-
 /// <summary>Resultado de autorizar un comprobante (FECAESolicitar).</summary>
 public sealed record CaeOutcome(
     string Resultado,                 // "A" aprobado | "R" rechazado | "P" parcial
@@ -78,9 +72,6 @@ public sealed record ArcaPointOfSale(int Number, string EmisionTipo, bool Blocke
 /// </summary>
 public interface IFiscalGateway
 {
-    /// <summary>Chequeo de salud del servicio (no autenticado).</summary>
-    Task<Result<FiscalHealth>> CheckHealthAsync(FiscalEnvironment environment, CancellationToken ct = default);
-
     /// <summary>Último número autorizado para (ptoVta, cbteTipo). 0 = ninguno aún.</summary>
     Task<Result<long>> GetLastAuthorizedAsync(
         FiscalTicket auth, Cuit cuit, FiscalEnvironment environment, int ptoVta, CbteTipo cbteTipo, CancellationToken ct = default);

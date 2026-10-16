@@ -127,8 +127,8 @@ Del servidor:
 (4) los puntos de venta existen en ARCA como web services, no bloqueados ni
 dados de baja, (5) el padrón da acceso y devuelve la constancia del propio
 CUIT. El paso 5 es opcional: sin acceso, o con acceso solo por el servicio
-viejo, avisa (`warning`) pero no deja `ok` en falso. `POST /fiscal/health` es
-`FEDummy`, sin autenticación.
+viejo, avisa (`warning`) pero no deja `ok` en falso. Con ARCA caído, el paso 3
+queda en error y `ok` en falso.
 
 **Padrón.** `GET /fiscal/padron/{cuit}` llama a `getPersona_v2` de
 `personaServiceA5` con un TA de `ws_sr_constancia_inscripcion`. Si WSAA
