@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
   security-events: write
-  actions: read # repos privados: analyze consulta el workflow run al subir el SARIF
+  actions: read # analyze consulta el workflow run al subir el SARIF
 
 # Un push nuevo al mismo PR deja sin sentido la corrida anterior. En main cada
 # commit tiene su propio grupo (el sha): ninguno se cancela ni queda en espera.
@@ -45,14 +45,14 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-      # upload: never — code scanning (la pestaña Security) requiere GitHub
-      # Advanced Security, que no está disponible en repos privados del plan
-      # Free. El análisis corre igual: el SARIF se evalúa acá abajo y el
-      # workflow FALLA si hay hallazgos de severidad error/warning.
+      # El repo es público: code scanning es gratis y los hallazgos se suben
+      # a la pestaña Security (con historial, se cierran solos al arreglarse).
+      # Además se guarda el SARIF para evaluarlo acá abajo: los `error` rompen
+      # el build. Ojo: con el "default setup" de code scanning prendido en la
+      # configuración del repo, esta subida choca con la suya; es uno o el otro.
       - uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
-          upload: never
           output: sarif-results
       # Política: los hallazgos de nivel `error` ROMPEN el build; los `warning`
       # (heurísticos, con falsos positivos) se anotan en el run y en el SARIF

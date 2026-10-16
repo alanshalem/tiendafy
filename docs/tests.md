@@ -193,7 +193,7 @@ que alimenta el sorteo lleva `OrderBy`). Por eso, en los tests:
 | `backend-ci.yml` | Push a `main` y PR que tocan `backend/` | Build Release con `-warnaserror`, `dotnet format --verify-no-changes`, unitarios e integración (Postgres 18 como servicio), pisos de cobertura |
 | `frontend-ci.yml` | Push a `main` y PR que tocan frontends, `shared/`, `e2e/`, `test-fixtures/` o la config de pnpm/Node | `pnpm format:check`, `pnpm -r run type-check`, ESLint de panel y tienda, builds de producción, vitest con cobertura |
 | `e2e.yml` | Push a `main` y PR que tocan backend o frontends | API en Development + builds de producción de tienda y panel sobre una base vacía (`E2E_SEED=1`, tienda `e2etienda`), Playwright |
-| `codeql.yml` | Push a `main`, PR a `main` y los lunes | CodeQL JS/TS y C#. El SARIF se evalúa en el workflow (`upload: never`): un hallazgo `error` rompe el build, un `warning` se anota |
+| `codeql.yml` | Push a `main`, PR a `main` y los lunes | CodeQL JS/TS y C#. Los hallazgos se suben a la pestaña Security del repo y el SARIF se evalúa en el workflow: un hallazgo `error` rompe el build, un `warning` se anota |
 | `gitleaks.yml` | Push a `main` y PR | Secretos en todo el historial |
 | `docker-release.yml` | Push a `main` y tags `v*` | Imágenes de API, tienda y panel a GHCR (tag `sha-XXXXXXX`, `GIT_SHA` adentro); deploy a staging si existe la variable `STAGING_DOMAIN` y a producción con aprobación si existe `PLATFORM_DOMAIN` |
 
