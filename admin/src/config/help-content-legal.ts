@@ -47,6 +47,15 @@ export const LEGAL = {
           'Entrá a ARCA con tu clave fiscal → “Administración de Certificados Digitales” → creá un alias y subí el CSR. En Homologación el trámite se hace en el WSASS, el autoservicio de prueba de ARCA, no en el portal de producción.',
           'ARCA te devuelve el certificado firmado (un archivo .pem o .crt): abrilo con un editor, copiá todo, pegalo en “Pegá acá el certificado firmado por ARCA” y tocá “Activar certificado”.',
           'Después, en “Administrador de Relaciones de Clave Fiscal”, autorizá al servicio “Facturación Electrónica” (wsfe) para ese alias.',
+          'Para que “Consultar en ARCA” traiga los datos de un CUIT al facturar, asociale al mismo alias el servicio de la constancia de inscripción (ws_sr_constancia_inscripcion). Es opcional: sin él se factura igual. En Homologación, los dos servicios se asocian desde WSASS.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'El servicio del padrón cambió de nombre',
+            text: 'ARCA dio de baja el nombre viejo del padrón (ws_sr_padron_a5) y lo reemplazó por ws_sr_constancia_inscripcion. Si tu certificado solo tiene el viejo, la consulta todavía anda, pero “Probar la conexión” te avisa: asociale el nuevo antes de que ARCA lo corte.',
+          },
         ],
       },
       {
@@ -80,7 +89,7 @@ export const LEGAL = {
       {
         heading: 'Paso 4 — Probar la conexión',
         paragraphs: [
-          'El botón “Probar conexión con ARCA” revisa, sin emitir nada, todo lo que se puede revisar antes de la primera factura: que el certificado esté cargado y de quién es, que ARCA entregue el ticket de acceso, que acepte al CUIT que factura y que los puntos de venta sean de Web Services.',
+          'El botón “Probar conexión con ARCA” revisa, sin emitir nada, todo lo que se puede revisar antes de la primera factura: que el certificado esté cargado y de quién es, que ARCA entregue el ticket de acceso, que acepte al CUIT que factura y que los puntos de venta sean de Web Services. Al final prueba el padrón (la constancia de inscripción): si no está asociado, avisa, pero no frena la facturación.',
           'Lo que NO puede ver: si ARCA te deja emitir. La situación fiscal del contribuyente se valida recién al facturar, así que alguien con el monotributo dado de baja pasa todos los pasos en verde y falla con la primera factura. La prueba final siempre es una factura real.',
         ],
       },

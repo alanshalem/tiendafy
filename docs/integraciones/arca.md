@@ -24,7 +24,9 @@ homologación, después de producción) para emitir el primer CAE de verdad.
 - **Ventas de Mercado Libre**: se facturan a consumidor final, con el botón
   "Facturar" o solas si la conexión de Mercado Libre tiene la auto-factura
   prendida (es otra opción, aparte de la de la tienda).
-- **Consulta al padrón A5**: quién es un CUIT y su condición frente al IVA.
+- **Consulta al padrón** (constancia de inscripción,
+  `ws_sr_constancia_inscripcion`, ex padrón A5): quién es un CUIT y su
+  condición frente al IVA.
 - **PDF** del comprobante con el QR de ARCA (adjunto en el email "factura" si
   la tienda prendió esa plantilla), **libro IVA ventas** del mes en CSV y un
   **diagnóstico de conexión** por pasos.
@@ -52,7 +54,7 @@ del 21% (el envío se factura como ítem gravado al 21%).
 | Hosts por ambiente | `Fiscal.Infrastructure/Wsaa/WsaaOptions.cs` (`FiscalEndpointsOptions`) |
 | WSFEv1 | `Fiscal.Infrastructure/Wsfe/WsfeClient.cs` |
 | Emisión con lock, write-ahead y reconciliación | `Fiscal.Infrastructure/Emission/EmitInvoiceHandler.cs` |
-| Padrón A5 | `Fiscal.Infrastructure/Padron/PadronA5Client.cs` |
+| Padrón (constancia de inscripción) | `Fiscal.Infrastructure/Padron/ConstanciaInscripcionClient.cs`, `ConstanciaInscripcionResponse.cs` |
 | PDF con QR | `Fiscal.Infrastructure/Pdf/ComprobantePdfRenderer.cs` |
 | TLS de los clientes de ARCA | `Fiscal.Infrastructure/FiscalModule.cs` |
 | Worker de la cola | `backend/src/Api/Fiscal/FiscalEmissionWorker.cs` |
@@ -93,8 +95,8 @@ Del servidor:
 - `Workers:Enabled=true` en una sola instancia (corre `FiscalEmissionWorker`).
 - `Fiscal:Endpoints:*` (opcional) pisa los hosts por defecto: `WsaaHomologacion`,
   `WsaaProduccion`, `WsfeHomologacion`, `WsfeProduccion`,
-  `PadronA5Homologacion`, `PadronA5Produccion`. Hoy no se setea en ningún
-  ambiente.
+  `ConstanciaInscripcionHomologacion`, `ConstanciaInscripcionProduccion`. Hoy
+  no se setea en ningún ambiente.
 
 ## Flujos
 
@@ -107,8 +109,9 @@ Del servidor:
 2. Subí el CSR a ARCA con clave fiscal: en homologación por WSASS, en
    producción por "Administración de Certificados Digitales". Descargá el
    certificado.
-3. En el Administrador de Relaciones, autorizá ese certificado al servicio
-   `wsfe` (y a `ws_sr_padron_a5` si vas a consultar el padrón).
+3. En el Administrador de Relaciones (en homologación, en WSASS), autorizá
+   ese certificado al servicio `wsfe` y, si vas a consultar el padrón, a
+   `ws_sr_constancia_inscripcion`.
 4. Pegá el certificado en el panel: `activate` verifica que sea X.509, que
    corresponda a la clave generada y lee el CUIT del titular. Si el ambiente
    coincide con el de la configuración, habilita la facturación.
@@ -120,7 +123,22 @@ Del servidor:
 (avisa si el titular no es el CUIT que factura), (2) WSAA entrega el ticket,
 (3) WSFEv1 acepta el CUIT (`FECompUltimoAutorizado`, solo lectura),
 (4) los puntos de venta existen en ARCA como web services, no bloqueados ni
-dados de baja. `POST /fiscal/health` es `FEDummy`, sin autenticación.
+dados de baja, (5) el padrón da acceso y devuelve la constancia del propio
+CUIT. El paso 5 es opcional: sin acceso, o con acceso solo por el servicio
+viejo, avisa (`warning`) pero no deja `ok` en falso. `POST /fiscal/health` es
+`FEDummy`, sin autenticación.
+
+**Padrón.** `GET /fiscal/padron/{cuit}` llama a `getPersona_v2` de
+`personaServiceA5` con un TA de `ws_sr_constancia_inscripcion`. Si WSAA
+rechaza ese servicio (el certificado solo se asoció al nombre viejo), prueba
+con `ws_sr_padron_a5`: las tiendas configuradas antes siguen andando y el
+diagnóstico les pide asociar el nuevo. Cada servicio tiene su TA en
+`fiscal_access_tokens`; el del servicio viejo queda ahí hasta vencer y no se
+usa más. La condición sale de `datosMonotributo` (Monotributo), del impuesto 30
+(RI) o 32 (exento) de `datosRegimenGeneral`, o consumidor final; si ARCA no
+manda un régimen porque no puede emitir esa parte de la constancia
+(`errorRegimenGeneral` / `errorMonotributo`), contesta `Padron.NoCondition` en
+vez de adivinar.
 
 **Autenticación (WSAA).** El TRA va con generación 10 minutos atrás y
 vencimiento 10 adelante, firmado como CMS con el certificado. El TA (dura hasta
@@ -235,9 +253,15 @@ ambiente actual.
   `DH_KEY_TOO_SMALL`: por eso el cliente ofrece solo ECDHE (ver abajo).
 - En Windows un certificado armado desde PEM no firma CMS: hay que pasar por
   PKCS#12 (`TraSigner.LoadForSigning`).
-- Padrón A5: los hijos de `getPersona_v2` van sin namespace, un CUIT
-  inexistente vuelve como SOAP Fault y el certificado necesita autorización
-  aparte para `ws_sr_padron_a5`.
+- Padrón: `ws_sr_padron_a5` está deprecado; el servicio es
+  `ws_sr_constancia_inscripcion` (manual v4.1, mar-2026), con la misma URL
+  (`personaServiceA5`), el mismo namespace (`http://a5.soap.ws.server.puc.sr/`)
+  y el mismo `getPersona_v2`. Los hijos de la respuesta van sin namespace, un
+  CUIT inexistente vuelve como SOAP Fault ("No existe persona con ese Id"; en
+  `getPersonaList_v2`, como `errorConstancia`) y el certificado necesita
+  autorización aparte para el servicio. El manual ya da las URL en
+  `arca.gob.ar`, pero el 16-oct-2026 `awshomo.arca.gob.ar` no resolvía: se
+  usan las de `afip.gov.ar`, que andan en los dos ambientes.
 - ARCA no deja facturarse a uno mismo, y su mensaje no lo dice claro: pasa al
   probar con el CUIT de la propia empresa.
 

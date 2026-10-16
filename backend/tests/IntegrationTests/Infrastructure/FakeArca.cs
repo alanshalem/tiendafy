@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -62,6 +63,15 @@ public sealed partial class FakeArca
 
     public string? WsaaFault { get; set; }
     public string? PadronFault { get; set; }
+
+    /// <summary>
+    /// Servicios a los que el certificado NO está asociado: WSAA contesta
+    /// coe.notAuthorized cuando el TRA los pide (el resto sigue andando).
+    /// </summary>
+    public HashSet<string> WsaaUnauthorizedServices { get; } = [];
+
+    /// <summary>El servicio de cada TRA que llegó a WSAA, en orden.</summary>
+    public List<string> WsaaServices { get; } = [];
     public bool RejectNext { get; set; }
     public bool Down { get; set; }
     public (string Code, string Message)? LastAuthorizedError { get; set; }
@@ -78,11 +88,24 @@ public sealed partial class FakeArca
     public FakeArca(FakeHttp http)
     {
         foreach (var wsaa in new[] { Wsaa, WsaaProduccion })
-            http.On(HttpMethod.Post, wsaa, (_, _) => WsaaFault is { } fault ? Fault(fault) : Xml(LoginTicket()));
+            http.On(HttpMethod.Post, wsaa, (_, body) => HandleWsaa(body!));
         foreach (var wsfe in new[] { Wsfe, WsfeProduccion })
             http.On(HttpMethod.Post, wsfe, (req, body) => HandleWsfe(req.Headers.GetValues("SOAPAction").First(), body!));
         foreach (var padron in new[] { Padron, PadronProduccion })
             http.On(HttpMethod.Post, padron, (_, _) => PadronFault is { } fault ? Fault(fault) : Xml(Persona()));
+    }
+
+    private HttpResponseMessage HandleWsaa(string body)
+    {
+        if (WsaaFault is { } fault) return Fault(fault);
+
+        // El servicio va dentro del TRA firmado (CMS en base64): se abre como
+        // lo haría ARCA, sin verificar la firma.
+        var cms = new SignedCms();
+        cms.Decode(Convert.FromBase64String(Tag(body, "in0")));
+        var service = Tag(Encoding.UTF8.GetString(cms.ContentInfo.Content), "service");
+        WsaaServices.Add(service);
+        return WsaaUnauthorizedServices.Contains(service) ? Fault("coe.notAuthorized") : Xml(LoginTicket());
     }
 
     private HttpResponseMessage HandleWsfe(string action, string body)

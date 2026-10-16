@@ -3,6 +3,7 @@ using Api.Fiscal;
 using Fiscal.Contracts;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
+using Fiscal.Infrastructure.Padron;
 using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -148,11 +149,15 @@ public static class FiscalEndpoints
         //   1. certificado activo y de quién es (el titular no siempre factura);
         //   2. WSAA entrega el ticket (certificado bien cargado y autorizado a wsfe);
         //   3. WSFEv1 acepta el CUIT que factura (el error 600 aparece acá, no en 2);
-        //   4. los puntos de venta existen en ARCA como Web Services.
+        //   4. los puntos de venta existen en ARCA como Web Services;
+        //   5. el padrón (constancia de inscripción) contesta. Es opcional —solo
+        //      lo usa "Consultar en ARCA" al facturar—, así que avisa pero no
+        //      deja la conexión en rojo.
         // Y dice lo que NO prueba: ARCA valida más cosas al emitir que al consultar.
         fiscal.MapPost("/test-connection", async (
             ITenantContext tenant, FiscalDbContext db, IFiscalAuthenticator auth, IFiscalGateway gateway,
-            IFiscalCertificateFactory factory, IFiscalSecretProtector protector, CancellationToken ct) =>
+            IFiscalCertificateFactory factory, IFiscalSecretProtector protector,
+            ConstanciaInscripcionClient padron, CancellationToken ct) =>
         {
             var tid = tenant.TenantId.Value;
             var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tid, ct);
@@ -259,6 +264,9 @@ public static class FiscalEndpoints
                 }
             }
 
+            // 5) Padrón: la constancia de inscripción del propio CUIT, de solo lectura.
+            steps.Add(await PadronStepAsync(padron, tid, cuit.Value, cfg.Environment, ct));
+
             return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
         });
 
@@ -327,8 +335,8 @@ public static class FiscalEndpoints
         var emit = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalEmit);
 
         // Quién es un CUIT y cuál es su condición frente al IVA, según ARCA
-        // (padrón A5). Es lo que permite facturar A a un Responsable Inscripto
-        // persona física sin adivinar: el número solo no lo dice.
+        // (constancia de inscripción). Es lo que permite facturar A a un
+        // Responsable Inscripto persona física sin adivinar: el número solo no lo dice.
         emit.MapGet("/padron/{cuit}", async (
             string cuit, ITenantContext tenant, ITaxpayerRegistry registry, CancellationToken ct) =>
         {
@@ -417,9 +425,43 @@ public static class FiscalEndpoints
         return group;
     }
 
+    private const string PadronStep = "padron";
+    private const string PadronLabel = "Padrón (constancia de inscripción)";
+
+    /// <summary>
+    /// El paso del padrón: que ARCA dé acceso a la constancia de inscripción y
+    /// la devuelva. Avisa si el certificado solo está asociado al nombre viejo
+    /// del servicio (ws_sr_padron_a5), que ARCA dio de baja.
+    /// </summary>
+    private static async Task<DiagnosticStep> PadronStepAsync(
+        ConstanciaInscripcionClient padron,
+        Guid tenantId, Cuit cuit, FiscalEnvironment env, CancellationToken ct)
+    {
+        var access = await padron.AuthorizeAsync(tenantId, cuit, env, ct);
+        if (access.IsFailure)
+            return DiagnosticStep.Warning(PadronStep, PadronLabel,
+                "ARCA no da acceso al padrón. Solo hace falta para “Consultar en ARCA” al facturar. "
+                + ConstanciaInscripcionClient.NotAuthorizedHint);
+        if (access.Value.Legacy)
+            return DiagnosticStep.Warning(PadronStep, PadronLabel,
+                $"Anda con el servicio viejo (“{ConstanciaInscripcionClient.LegacyService}”), "
+                + "que ARCA dio de baja y puede dejar de funcionar. "
+                + ConstanciaInscripcionClient.NotAuthorizedHint);
+
+        var self = await padron.LookupAsync(tenantId, cuit, ct);
+        if (self.IsSuccess)
+            return DiagnosticStep.Ok(PadronStep, PadronLabel, $"ARCA devuelve la constancia de {cuit.Value}: {self.Value.Name}.");
+        // Contestó, pero sin la persona: en homologación es lo normal (tiene
+        // datos de prueba), y el acceso ya está probado.
+        if (self.Error.Code is "Padron.NotFound" or "Padron.NoCondition")
+            return DiagnosticStep.Ok(PadronStep, PadronLabel, $"ARCA da acceso al padrón. Sobre el CUIT {cuit.Value} contestó: {self.Error.Message}");
+        return DiagnosticStep.Warning(PadronStep, PadronLabel, self.Error.Message);
+    }
+
     private static object DiagnosticDto(FiscalConfig cfg, List<DiagnosticStep> steps, DateTime? expiresAtUtc) => new
     {
-        ok = steps.TrueForAll(st => st.Status is "ok" or "skipped"),
+        // El padrón es opcional: un aviso ahí no deja la conexión en rojo.
+        ok = steps.TrueForAll(st => st.Status is "ok" or "skipped" || (st.Key == PadronStep && st.Status == "warning")),
         environment = cfg.Environment.ToString().ToUpperInvariant(),
         expiresAtUtc,
         steps = steps.Select(st => new { key = st.Key, label = st.Label, status = st.Status, detail = st.Detail }),

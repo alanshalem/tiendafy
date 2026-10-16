@@ -621,8 +621,9 @@ export function CertificateStep({
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
           <span>
             Recordá que en ARCA además hay que <strong>delegar el servicio “wsfe”</strong> (factura
-            electrónica) a este certificado: es un paso manual en el portal. Te mostramos cómo en el centro de
-            ayuda.
+            electrónica) a este certificado: es un paso manual en el portal. Si querés usar “Consultar en
+            ARCA” al facturar, asociale también <strong>“ws_sr_constancia_inscripcion”</strong> (la constancia
+            de inscripción). Te mostramos cómo en el centro de ayuda.
           </span>
         </div>
 

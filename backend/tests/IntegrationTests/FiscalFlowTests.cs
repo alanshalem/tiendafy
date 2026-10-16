@@ -83,7 +83,8 @@ public sealed class FiscalFlowTests
 
         var diagnosis = await merchant.PostAsync("/api/v1/fiscal/test-connection", new { });
         Assert.True(diagnosis.GetProperty("ok").GetBoolean(), diagnosis.ToString());
-        Assert.Equal(4, diagnosis.GetProperty("steps").GetArrayLength());
+        Assert.Equal(5, diagnosis.GetProperty("steps").GetArrayLength());
+        Assert.Equal("ok", diagnosis.GetProperty("steps")[4].GetProperty("status").GetString());
         // El TRA viajó firmado en CMS (base64) dentro del SOAP de WSAA.
         Assert.Contains("<wsaa:in0>MI", _factory.ExternalHttp.SentTo(Wsaa).Last().Body);
 
@@ -200,6 +201,46 @@ public sealed class FiscalFlowTests
         arca.Down = true;
         var down = await merchant.SendAsync(HttpMethod.Post, "/api/v1/fiscal/health");
         Assert.False(down.IsSuccessStatusCode && (await down.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("ok").GetBoolean());
+    }
+
+    [Fact]
+    public async Task El_padron_pide_acceso_a_la_constancia_de_inscripcion_y_si_no_al_servicio_viejo()
+    {
+        const string constancia = "ws_sr_constancia_inscripcion";
+        const string viejo = "ws_sr_padron_a5";
+        var arca = new FakeArca(_factory.ExternalHttp);
+
+        // El servicio vigente: el ticket se pide para la constancia y nada más.
+        var merchant = await Merchant.CreateAsync(_factory, "fpc");
+        await merchant.ConfigureFiscalAsync();
+        Assert.Equal("PUENTE ORIENTE SA", (await merchant.GetAsync($"/api/v1/fiscal/padron/{Cuit}")).GetProperty("name").GetString());
+        Assert.Contains(constancia, arca.WsaaServices);
+        Assert.DoesNotContain(viejo, arca.WsaaServices);
+        Assert.Contains(_factory.ExternalHttp.SentTo(FakeArca.Padron), r => r.Body!.Contains("<a5:getPersona_v2>"));
+
+        // Una tienda cuyo certificado solo se asoció al nombre viejo sigue
+        // andando, y el diagnóstico le avisa que asocie el nuevo (sin dejar la
+        // conexión en rojo: el padrón es opcional).
+        arca.WsaaUnauthorizedServices.Add(constancia);
+        var legacy = await Merchant.CreateAsync(_factory, "fpv");
+        await legacy.ConfigureFiscalAsync();
+        Assert.Equal("PUENTE ORIENTE SA", (await legacy.GetAsync($"/api/v1/fiscal/padron/{Cuit}")).GetProperty("name").GetString());
+        Assert.Contains(viejo, arca.WsaaServices);
+        var diagnosis = await legacy.PostAsync("/api/v1/fiscal/test-connection", new { });
+        var step = diagnosis.GetProperty("steps").EnumerateArray().Single(s => s.GetProperty("key").GetString() == "padron");
+        Assert.Equal("warning", step.GetProperty("status").GetString());
+        Assert.Contains(viejo, step.GetProperty("detail").GetString());
+        Assert.Contains(constancia, step.GetProperty("detail").GetString());
+        Assert.True(diagnosis.GetProperty("ok").GetBoolean(), diagnosis.ToString());
+
+        // Sin ninguno de los dos: el mensaje dice qué servicio asociar.
+        arca.WsaaUnauthorizedServices.Add(viejo);
+        var none = await Merchant.CreateAsync(_factory, "fpn");
+        await none.ConfigureFiscalAsync();
+        var denied = await none.SendAsync(HttpMethod.Get, $"/api/v1/fiscal/padron/{Cuit}");
+        Assert.Equal(HttpStatusCode.Conflict, denied.StatusCode);
+        Assert.Contains(constancia, await denied.Content.ReadAsStringAsync());
+        Assert.True((await none.PostAsync("/api/v1/fiscal/test-connection", new { })).GetProperty("ok").GetBoolean());
     }
 
     [Fact]

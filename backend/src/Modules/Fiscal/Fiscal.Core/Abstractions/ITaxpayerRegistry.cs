@@ -16,7 +16,7 @@ namespace Fiscal.Core.Abstractions;
 /// <param name="Address">Domicilio fiscal, si ARCA lo devuelve.</param>
 public sealed record TaxpayerInfo(long Cuit, string Name, bool IsCompany, CondicionIvaReceptor Condicion, string? Address);
 
-/// <summary>Consulta del padrón de ARCA (servicio ws_sr_padron_a5, constancia de inscripción).</summary>
+/// <summary>Consulta del padrón de ARCA: la constancia de inscripción (servicio ws_sr_constancia_inscripcion, ex padrón A5).</summary>
 public interface ITaxpayerRegistry
 {
     /// <summary>

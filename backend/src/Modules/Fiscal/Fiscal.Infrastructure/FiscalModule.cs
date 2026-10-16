@@ -32,8 +32,8 @@ public static class FiscalModule
         services.AddHttpClient<WsfeClient>().ConfigurePrimaryHttpMessageHandler(ArcaHandler);
         services.AddScoped<IFiscalGateway>(sp => sp.GetRequiredService<WsfeClient>());
 
-        services.AddHttpClient<PadronA5Client>().ConfigurePrimaryHttpMessageHandler(ArcaHandler);
-        services.AddScoped<ITaxpayerRegistry>(sp => sp.GetRequiredService<PadronA5Client>());
+        services.AddHttpClient<ConstanciaInscripcionClient>().ConfigurePrimaryHttpMessageHandler(ArcaHandler);
+        services.AddScoped<ITaxpayerRegistry>(sp => sp.GetRequiredService<ConstanciaInscripcionClient>());
         services.AddScoped<IInvoiceEmitter, EmitInvoiceHandler>();
         services.AddScoped<IFiscalEmissionQueue, FiscalEmissionQueue>();
 

@@ -20,6 +20,13 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
     /// </summary>
     public const string AlreadyAuthenticatedCode = "Wsaa.AlreadyAuthenticated";
 
+    /// <summary>
+    /// WSAA rechazó el login por otro motivo (certificado no asociado al
+    /// servicio, firma inválida…). Lo usa el padrón para probar con el nombre
+    /// viejo del servicio.
+    /// </summary>
+    public const string RejectedCode = "Wsaa.Rejected";
+
     public async Task<Result<WsaaCredentials>> LoginCmsAsync(string endpoint, string cmsBase64, CancellationToken ct)
     {
         var soap =
@@ -62,7 +69,7 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
             var code = both.Contains("alreadyAuthenticated", StringComparison.OrdinalIgnoreCase)
                        || fault.Contains("ya posee un TA valido", StringComparison.OrdinalIgnoreCase)
                 ? AlreadyAuthenticatedCode
-                : "Wsaa.Rejected";
+                : RejectedCode;
             return Result.Failure<WsaaCredentials>(Error.Conflict(code,
                 why is null ? $"ARCA rechazó la autenticación: {fault}" : $"ARCA rechazó la autenticación: {fault} — {why}"));
         }

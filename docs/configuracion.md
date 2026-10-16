@@ -113,7 +113,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Social:X:ClientId` / `:ClientSecret` | X | Vacío | `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` |
 | `Social:Meta:RedirectUri`, `Social:X:RedirectUri`, `Social:AdminReturnUrl` | OAuth y vuelta | Vacío / vacío / `http://localhost:5173/redes` | Derivadas de `STACK_DOMAIN` |
 | `Ai:ApiKey` / `Ai:Model` | Sugerencias con Claude. Sin key, apagado | Vacío / `claude-sonnet-5` | `AI_API_KEY` / `AI_MODEL` |
-| `Fiscal:Endpoints:*` | URLs de WSAA, WSFEv1 y padrón A5 de ARCA, en homologación y producción (cada tienda elige su ambiente) | Las oficiales, en el código | No hace falta tocarlas |
+| `Fiscal:Endpoints:*` | URLs de WSAA, WSFEv1 y padrón (constancia de inscripción) de ARCA, en homologación y producción (cada tienda elige su ambiente) | Las oficiales, en el código | No hace falta tocarlas |
 
 ### Imágenes (storage S3)
 

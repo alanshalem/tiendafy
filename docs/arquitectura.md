@@ -93,7 +93,7 @@ flowchart LR
     end
 
     subgraph Gestion["Gestión"]
-        Fiscal["Fiscal<br/>ARCA: WSAA, WSFEv1, padrón A5,<br/>outbox de emisión, PDF con QR"]
+        Fiscal["Fiscal<br/>ARCA: WSAA, WSFEv1, padrón,<br/>outbox de emisión, PDF con QR"]
         Purchasing["Purchasing<br/>órdenes de compra, proveedores,<br/>landed cost, alertas de stock"]
         Finance["Finance<br/>cajas y bancos, cuentas<br/>corrientes, recibos"]
         MercadoLibre["MercadoLibre<br/>ventas, preguntas, mensajes,<br/>vínculos de publicaciones"]
@@ -193,7 +193,7 @@ flowchart LR
         WA["WhatsApp Cloud API"]
     end
     subgraph Fisco
-        ARCA["ARCA<br/>WSAA, WSFEv1, padrón A5"]
+        ARCA["ARCA<br/>WSAA, WSFEv1, padrón"]
     end
     subgraph Otros
         AI["Claude API<br/>(Anthropic)"]
@@ -217,7 +217,7 @@ flowchart LR
 | Cobros | Transferencia / efectivo | Sin proveedor: la orden queda pendiente con instrucciones de pago y vence sola. | — |
 | Email | Resend | 13 plantillas automáticas editables por tienda (`EmailTemplateCatalog`) y campañas; layout con logo y color de la tienda. Sin API key, se escriben en el log. | API key + secreto del webhook |
 | WhatsApp | Cloud API de Meta | Conexión por tienda, mensajes por plantilla espejo de los emails. | Token por tienda, cifrado |
-| Facturación | ARCA | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE) + padrón A5 (condición de IVA del receptor). Certificado por tienda: CSR generado en el panel. | Clave privada y certificado cifrados; nunca salen por la API |
+| Facturación | ARCA | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE) + padrón (constancia de inscripción: condición de IVA del receptor). Certificado por tienda: CSR generado en el panel. | Clave privada y certificado cifrados; nunca salen por la API |
 | Envíos | Correo Argentino, Andreani, Zipnova | Cotización en el checkout con precio firmado (TTL 30 min), alta de envíos y etiquetas desde la venta. | Credenciales por tienda, cifradas |
 | Canal | Mercado Libre | OAuth por tienda; ventas, preguntas, mensajes, stock unificado, publicar. Sin app configurada, el canal está apagado; la conexión de demo (`POST /dev/demo-seed`) contesta con datos fijos (`MeliDemoFeed`) sin salir a la red. | Tokens cifrados; refresh serializado por tienda |
 | Redes | Meta (Facebook/Instagram), X, Telegram | Posts multi-red programados. | Tokens cifrados |

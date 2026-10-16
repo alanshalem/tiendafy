@@ -22,8 +22,9 @@ namespace Fiscal.Core.Domain;
 /// distingue persona jurídica de persona física. Una sociedad es Responsable
 /// Inscripto salvo rareza; una persona física puede ser cualquier cosa, así
 /// que se la trata como consumidor final mientras nadie diga lo contrario.
-/// Para saberlo de verdad hay que preguntarle al padrón A5 de ARCA; mientras
-/// tanto, quien conoce la condición la pasa en <paramref name="declared"/>.
+/// Para saberlo de verdad hay que preguntarle al padrón de ARCA (la
+/// constancia de inscripción, <c>ITaxpayerRegistry</c>): el panel lo consulta
+/// y quien conoce la condición la pasa en <paramref name="declared"/>.
 /// </para>
 /// </summary>
 public static class ReceptorResolver
