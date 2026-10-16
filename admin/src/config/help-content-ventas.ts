@@ -233,7 +233,7 @@ export const VENTAS = {
           'Elegí “Cuánto te guardamos el stock” esperando el pago (de 12 horas a una semana).',
           'En el checkout el comprador elige Transferencia, ve el total con descuento y toca “Confirmar pedido”. Le mostramos los datos de tu cuenta en la pantalla final y se los mandamos por email (plantilla “Instrucciones de pago”). Los datos de la cuenta no se publican en la tienda.',
           'El pedido queda en Ventas como Pendiente, con el aviso “falta registrar el pago” y hasta cuándo. Cuando ves la plata en tu cuenta, abrí la venta y tocá “Registrar pago”: pasa a Pagada, descuenta el stock, le avisa al comprador y, si facturás al cobrar, se factura.',
-          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta (al comprador le avisamos solo si tenés prendida la plantilla “Cancelación de compra”). También podés cancelarla vos con “Cancelar venta”.',
+          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta (al comprador siempre le avisamos por email que se canceló porque venció el plazo: con tu texto si prendiste la plantilla “Cancelación de compra”; si no, con uno estándar que le dice qué hacer si ya había pagado). También podés cancelarla vos con “Cancelar venta”.',
         ],
         blocks: [
           {

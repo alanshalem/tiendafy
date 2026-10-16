@@ -193,11 +193,19 @@ public sealed class OfflinePaymentService(
         }
     }
 
+    /// <summary>
+    /// El comprador se entera siempre, como cuando el comercio la cancela a
+    /// mano: con la plantilla "Cancelación de compra" si la tienda la prendió
+    /// y, si no, con un texto que dice por qué (el genérico "fue cancelado" no
+    /// le avisa que se le pasó el plazo ni qué hacer si ya transfirió). Una
+    /// sola vez: solo llega acá quien ganó el UPDATE que la canceló.
+    /// </summary>
     private async Task NotifyCancelledAsync(Order order, CancellationToken ct)
     {
         try
         {
-            await notifier.NotifyAsync(order, "cancelacion-compra", ct);
+            await notifier.NotifyWithDefaultAsync(order, RefundedOrderSideEffects.Template, null, ct,
+                OfflinePaymentEmail.Expired);
         }
         catch (Exception ex)
         {
@@ -327,6 +335,20 @@ public static class OfflinePaymentEmail
             lines.Add(options.Instructions);
         return new { title, text = string.Join('\n', lines) };
     }
+
+    /// <summary>
+    /// El aviso de que la venta se canceló sola porque no se registró el pago a
+    /// tiempo, cuando la tienda no prendió su plantilla de cancelación. Es el
+    /// texto de fábrica de este caso, no una plantilla aparte: la tienda que
+    /// quiere su propio texto edita "Cancelación de compra", que es la que sale
+    /// para toda cancelación.
+    /// </summary>
+    public static readonly DefaultEmailText Expired = new(
+        "Se venció el plazo para pagar tu pedido #{{order_id}}",
+        "<h2 style=\"margin:0 0 12px;font-size:20px\">Pedido cancelado</h2>" +
+        "<p>Cancelamos tu pedido #{{order_id}} porque no registramos el pago dentro del plazo, y los productos volvieron a la venta.</p>" +
+        "<p>Si ya pagaste, escribinos con el comprobante y lo resolvemos. Si todavía lo querés, podés volver a comprarlo en {{store}}.</p>" +
+        "{{items}}");
 
     /// <summary>Lo que muestra la vista previa del editor de emails.</summary>
     public static string Sample() =>

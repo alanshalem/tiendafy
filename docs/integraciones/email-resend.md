@@ -83,7 +83,7 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `confirmacion-envio` / `lista-para-retirar` | prendidas | `Api/Orders/OrderFulfillment.cs` (según sea envío o retiro) |
 | `pedir-resena` | prendida | `ReviewRequestWorker` (días después del despacho) |
 | `aviso-stock` | prendida | `BackInStockWorker` (los pedidos de "Avisame cuando ingrese") |
-| `cancelacion-compra` | apagada | `RefundedOrderSideEffects` (reembolso total), `OrderRefundService.CancelAsync` (cancelación a mano) y `OfflinePayments` (venció el plazo de una transferencia o efectivo). Apagada, el reembolso total avisa igual con un texto genérico (`OrderEmail.Refund`) y la cancelación a mano con el texto de fábrica de la plantilla; la que vence sola, no |
+| `cancelacion-compra` | apagada | `RefundedOrderSideEffects` (reembolso total), `OrderRefundService.CancelAsync` (cancelación a mano) y `OfflinePayments` (venció el plazo de una transferencia o efectivo). Apagada, el reembolso total avisa igual con un texto genérico (`OrderEmail.Refund`), la cancelación a mano con el texto de fábrica de la plantilla y la que vence sola con un texto propio de ese caso (`OfflinePaymentEmail.Expired`: venció el plazo, y qué hacer si ya pagó) |
 | `reembolso-parcial` | apagada | `RefundedOrderSideEffects.NotifyPartialAsync`, desde `OrderRefundService` (panel) y `PaymentWebhookWorker` (parcial hecho en Mercado Pago). Apagada, sale igual con el texto de fábrica. Uno por reembolso: el webhook solo avisa cuando creció lo devuelto |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
 | `carritos-abandonados` | prendida | `AbandonedCartWorker` (1 h después de un checkout con email que no terminó en una venta pagada; una sola vez) |
@@ -95,7 +95,7 @@ El aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertSer
 
 Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión. Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña) salen siempre.
 
-Cancelar una venta a mano o devolver plata siempre le avisa al comprador, aunque la plantilla esté apagada: la cancelación y el parcial pasan por `OrderNotifier.NotifyWithDefaultAsync` (la de la tienda si la prendió; si no, el texto de fábrica del catálogo) y el reembolso total cae en `OrderEmail.Refund`. Prenderla sirve para mandar el texto propio. `reembolso-parcial` es una plantilla aparte (y no variables en `cancelacion-compra`) porque dice otra cosa: la compra sigue en pie.
+Cancelar una venta (a mano o porque venció el plazo de una transferencia o efectivo) o devolver plata siempre le avisa al comprador, una vez por venta, aunque la plantilla esté apagada: las cancelaciones y el parcial pasan por `OrderNotifier.NotifyWithDefaultAsync` (la de la tienda si la prendió; si no, el texto de fábrica del catálogo, o el `fallback` que pasa quien llama cuando el de fábrica no cuenta lo que pasó) y el reembolso total cae en `OrderEmail.Refund`. Prenderla sirve para mandar el texto propio. `reembolso-parcial` es una plantilla aparte (y no variables en `cancelacion-compra`) porque dice otra cosa: la compra sigue en pie.
 
 En las dos de la cuenta, `{{link}}` es el link con el token. Si la tienda lo borró del cuerpo, `ShopperAccountEmails` agrega al final el botón y el link en texto: sin el link el email no sirve.
 

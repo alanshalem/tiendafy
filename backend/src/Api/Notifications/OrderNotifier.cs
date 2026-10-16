@@ -39,8 +39,14 @@ public sealed class OrderNotifier(
     /// prendió y, si no, con el texto de fábrica de esa misma plantilla. Prenderla
     /// sirve para mandar el texto propio, no para decidir si sale.
     /// </summary>
+    /// <param name="fallback">
+    /// El texto para cuando la plantilla está apagada, si el de fábrica de esa
+    /// plantilla no cuenta lo que pasó (la venta que se canceló sola porque
+    /// venció el plazo para pagar). Lleva las mismas variables ({{order_id}}…).
+    /// </param>
     public async Task NotifyWithDefaultAsync(
-        Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
+        Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default,
+        DefaultEmailText? fallback = null)
     {
         var vars = await VarsAsync(order, extraVars, ct);
         var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
@@ -49,9 +55,10 @@ public sealed class OrderNotifier(
         if (!rendered.Enabled)
         {
             var def = EmailTemplateCatalog.Find(templateKey)!;
+            var text = fallback ?? new DefaultEmailText(def.DefaultSubject, def.DefaultBody);
             rendered = new RenderedEmail(true,
-                System.Net.WebUtility.HtmlDecode(EmailTemplates.Substitute(def.DefaultSubject, vars)),
-                EmailTemplates.Substitute(def.DefaultBody, vars));
+                System.Net.WebUtility.HtmlDecode(EmailTemplates.Substitute(text.Subject, vars)),
+                EmailTemplates.Substitute(text.Body, vars));
         }
         await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct);
     }
@@ -74,3 +81,6 @@ public sealed class OrderNotifier(
         return vars;
     }
 }
+
+/// <summary>Asunto y cuerpo (HTML con variables {{...}}) de un aviso cuando la plantilla de la tienda está apagada.</summary>
+public sealed record DefaultEmailText(string Subject, string Body);

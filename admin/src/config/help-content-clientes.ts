@@ -186,7 +186,7 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Cancelación de compra y Reembolso parcial son la excepción: cuando cancelás una venta, la reembolsás entera o devolvés una parte, al comprador siempre le llega el aviso. Apagados sale con un texto estándar; prendelos para mandar el tuyo.',
+            text: 'Cancelación de compra y Reembolso parcial son la excepción: cuando cancelás una venta (o se cancela sola porque venció el plazo de una transferencia), la reembolsás entera o devolvés una parte, al comprador siempre le llega el aviso. Apagados sale con un texto estándar; prendelos para mandar el tuyo.',
           },
         ],
       },
@@ -251,7 +251,7 @@ export const CLIENTES = {
       {
         heading: 'Reembolsos y cancelaciones',
         paragraphs: [
-          '“Cancelación de compra” sale cuando una venta por transferencia o efectivo se cancela sola porque venció el plazo para pagar, y cuando reembolsás una venta entera. Si cancelás a mano una venta sin cobrar desde Ventas, no se le avisa al comprador: escribile vos.',
+          '“Cancelación de compra” sale cuando cancelás a mano una venta sin cobrar desde Ventas, cuando una venta por transferencia o efectivo se cancela sola porque venció el plazo para pagar, y cuando reembolsás una venta entera. Sale siempre, una vez por venta: con tu texto si la prendiste; si no, con uno estándar (el de la que vence sola le explica que no registraste el pago a tiempo y que, si ya pagó, te escriba con el comprobante).',
           'Un reembolso siempre le avisa al comprador: si tenés “Cancelación de compra” apagada, le llega igual un aviso corto de que se le devolvió la plata. Las ventas de mostrador sin email no reciben nada.',
         ],
       },

@@ -141,7 +141,8 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         await merchant.PutAsync("/api/v1/admin/payments/options", TransferOptions());
         var (_, variantId) = await merchant.CreateProductAsync("Bombilla", priceMinor: 5_000_00, stock: 4);
         var shopper = new Shopper(merchant);
-        var checkoutId = await shopper.CheckoutAsync(variantId, quantity: 3);
+        var buyer = $"vencida-{merchant.Subdomain}@test.local";
+        var checkoutId = await shopper.CheckoutAsync(variantId, quantity: 3, email: buyer);
         var orderId = (await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-offline",
             new { method = "transfer" })).GetProperty("orderId").GetGuid();
         Assert.Equal(1, (await StockAsync(merchant, variantId)).GetProperty("available").GetInt32());
@@ -150,12 +151,7 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         await Workers.RunOnceAsync<OfflinePaymentExpiryWorker>(factory);
         Assert.Equal("PENDINGPAYMENT", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
 
-        using (var scope = factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE orders SET payment_due_at_utc = {DateTime.UtcNow.AddMinutes(-1)} WHERE id = {orderId}");
-        }
+        await ExpireAsync(orderId);
 
         await Workers.RunOnceAsync<OfflinePaymentExpiryWorker>(factory);
         Assert.Equal("CANCELLED", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
@@ -170,6 +166,56 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         // Y una segunda pasada no la procesa de nuevo.
         await Workers.RunOnceAsync<OfflinePaymentExpiryWorker>(factory);
         Assert.Equal(4, (await StockAsync(merchant, variantId)).GetProperty("available").GetInt32());
+
+        // Al comprador le llega el aviso aunque la plantilla de cancelación esté
+        // apagada (como viene de fábrica), una sola vez, y le dice por qué.
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(buyer),
+            m => m.Subject.StartsWith("Se venció el plazo para pagar tu pedido #", StringComparison.Ordinal));
+        Assert.Contains("no registramos el pago dentro del plazo", mail.Html, StringComparison.Ordinal);
+        Assert.Contains("Si ya pagaste", mail.Html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Con la plantilla "Cancelación de compra" prendida, la venta que vence
+    /// sola avisa con el texto de la tienda (como la cancelación a mano), y no
+    /// además con el de fábrica.
+    /// </summary>
+    [Fact]
+    public async Task La_transferencia_vencida_avisa_con_la_plantilla_de_la_tienda_si_esta_prendida()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "trw");
+        await merchant.PutAsync("/api/v1/admin/payments/options", TransferOptions());
+        await merchant.PutAsync("/api/v1/email-templates/cancelacion-compra", new
+        {
+            enabled = true,
+            subject = "Anulamos tu pedido #{{order_id}}",
+            bodyHtml = "<p>{{name}}, el pedido quedó sin efecto.</p>",
+        });
+        var (_, variantId) = await merchant.CreateProductAsync("Matera", priceMinor: 9_000_00, stock: 2);
+        var shopper = new Shopper(merchant);
+        var buyer = $"vencida-propia-{merchant.Subdomain}@test.local";
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: buyer);
+        var orderId = (await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-offline",
+            new { method = "transfer" })).GetProperty("orderId").GetGuid();
+
+        await ExpireAsync(orderId);
+        await Workers.RunOnceAsync<OfflinePaymentExpiryWorker>(factory);
+        await Workers.RunOnceAsync<OfflinePaymentExpiryWorker>(factory);
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(buyer),
+            m => m.Subject.StartsWith("Anulamos tu pedido #", StringComparison.Ordinal));
+        Assert.Contains("el pedido quedó sin efecto", mail.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain(factory.ExternalHttp.EmailsTo(buyer),
+            m => m.Subject.StartsWith("Se venció el plazo", StringComparison.Ordinal));
+    }
+
+    /// <summary>Pone el plazo de pago de la venta en el pasado: la próxima pasada del worker la vence.</summary>
+    private async Task ExpireAsync(Guid orderId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE orders SET payment_due_at_utc = {DateTime.UtcNow.AddMinutes(-1)} WHERE id = {orderId}");
     }
 
     [Fact]

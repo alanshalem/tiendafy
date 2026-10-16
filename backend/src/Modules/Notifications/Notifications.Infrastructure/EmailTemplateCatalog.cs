@@ -116,9 +116,10 @@ public static class EmailTemplateCatalog
             Wrap("¿Nos contás qué te pareció?",
                 "<p>Hola {{name}}, esperamos que estés disfrutando tu compra.</p>{{items}}<p>Tu opinión ayuda a otros compradores a decidir (y a nosotros a mejorar). Te lleva un minuto:</p><p><a href=\"{{link}}\">Dejar mi reseña</a></p>")),
 
-        // Apagada de fábrica, pero la cancelación a mano y el reembolso total
-        // avisan igual (con este texto o con el genérico del reembolso): el
-        // comprador tiene que enterarse. Prenderla es para usar el texto propio.
+        // Apagada de fábrica, pero la cancelación a mano, la que se cancela sola
+        // por vencer el plazo de una transferencia y el reembolso total avisan
+        // igual (con este texto o con uno propio de cada caso): el comprador
+        // tiene que enterarse. Prenderla es para usar el texto propio.
         new("cancelacion-compra", "Ventas", "Cancelación de compra",
             "Avisa cuando un pedido se cancela o se reembolsa entero.", false,
             "Tu pedido #{{order_id}} fue cancelado",
