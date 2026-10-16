@@ -662,7 +662,7 @@ public static class MeliEndpoints
                             title = JsonRead.GetString(item, "title"),
                             status = JsonRead.GetString(item, "status"),
                             permalink = JsonRead.GetString(item, "permalink"),
-                            thumbnail = JsonRead.GetString(item, "thumbnail"),
+                            thumbnail = MeliItemSummary.SecureThumbnail(JsonRead.GetString(item, "thumbnail")),
                             price = JsonRead.GetDecimal(item, "price"),
                             availableQuantity = JsonRead.GetInt32(item, "available_quantity"),
                             link = link is null ? null : MeliItemLinkDto.From(link),
@@ -854,7 +854,8 @@ public static class MeliEndpoints
 
     private static void MapWebhook(RouteGroupBuilder group)
     {
-        // ML exige 200 en <500 ms: SOLO persistir (inbox durable) y salir.
+        // ML pide un 200 enseguida (20 s de plazo; si no, reintenta y al
+        // final descarta el aviso): SOLO persistir (inbox durable) y salir.
         // Sin firma criptográfica: nunca se confía en el payload — el worker
         // re-consulta el resource con el token del vendedor.
         group.MapPost("/webhooks/meli", async (
@@ -912,14 +913,23 @@ public sealed record MeliItemSummary(
         return new MeliItemSummary(
             id,
             JsonRead.GetString(item, "title"),
-            // ML todavía devuelve miniaturas por http: el panel corre en https.
-            JsonRead.GetString(item, "thumbnail")?.Replace("http://", "https://", StringComparison.Ordinal),
+            SecureThumbnail(JsonRead.GetString(item, "thumbnail")),
             JsonRead.GetDecimal(item, "price"),
             JsonRead.GetString(item, "currency_id"),
             JsonRead.GetInt32(item, "available_quantity"),
             JsonRead.GetString(item, "permalink"),
             JsonRead.GetString(item, "status"));
     }
+
+    /// <summary>
+    /// ML todavía devuelve miniaturas por http, y el panel corre en https: el
+    /// navegador las bloquea (contenido mixto). Las mismas imágenes se sirven
+    /// por https.
+    /// </summary>
+    public static string? SecureThumbnail(string? url) =>
+        url is not null && url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            ? "https://" + url["http://".Length..]
+            : url;
 }
 public sealed record MeliSendMessageRequest(string Text);
 public sealed record MeliLinkRequest(Guid ProductId, Guid VariantId, long? MeliVariationId, string? Title);

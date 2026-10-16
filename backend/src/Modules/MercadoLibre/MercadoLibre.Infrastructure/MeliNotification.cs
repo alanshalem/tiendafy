@@ -3,9 +3,10 @@ using SharedKernel.Common;
 namespace MercadoLibre.Infrastructure;
 
 /// <summary>
-/// Inbox durable de notificaciones (webhooks) de Mercado Libre. ML exige
-/// responder 200 en menos de 500 ms, así que el endpoint solo persiste y un
-/// worker procesa después con reintentos. El payload de ML NO trae los datos
+/// Inbox durable de notificaciones (webhooks) de Mercado Libre. ML pide
+/// responder 200 enseguida (la doc vigente da 20 s; si no, reintenta durante
+/// una hora y después descarta el aviso), así que el endpoint solo persiste y
+/// un worker procesa después con reintentos. El payload de ML NO trae los datos
 /// (solo el resource a consultar), por eso nunca se confía en él: el worker
 /// re-consulta el recurso con el token del vendedor.
 /// </summary>

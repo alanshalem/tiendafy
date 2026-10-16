@@ -2,7 +2,8 @@ namespace Payments.Infrastructure.MercadoPago;
 
 /// <summary>
 /// Config de la app de PLATAFORMA (Tiendafy) en MercadoPago. NO es por tenant.
-/// Se lee de la sección "MercadoPago" (appsettings / env / user-secrets).
+/// Se lee de la sección "MercadoPago" (appsettings y variables de entorno;
+/// user-secrets no sirve: Api.csproj no tiene UserSecretsId).
 /// Los secretos (ClientSecret, WebhookSecret) jamás se commitean.
 /// </summary>
 public sealed class MercadoPagoOptions

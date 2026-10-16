@@ -3,8 +3,10 @@ namespace MercadoLibre.Infrastructure;
 /// <summary>
 /// Config de la app de PLATAFORMA (Tiendafy) en Mercado Libre. NO es por
 /// tenant: cada tienda autoriza su cuenta vía OAuth contra esta app.
-/// Sección "MercadoLibre" (user-secrets en dev, env en prod). Sin ClientId
-/// configurado, la integración queda apagada (el panel lo informa).
+/// Sección "MercadoLibre": en dev, variables de entorno antes de levantar la
+/// API ($env:MercadoLibre__ClientId…; user-secrets no sirve, Api.csproj no
+/// tiene UserSecretsId); en prod, las del compose (MELI_CLIENT_ID…). Sin
+/// ClientId configurado, la integración queda apagada (el panel lo informa).
 /// </summary>
 public sealed class MeliOptions
 {

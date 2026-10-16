@@ -178,8 +178,7 @@ public sealed partial class MeliInboxSource(
                     result[id] = new MeliListing(
                         id,
                         JsonRead.GetString(body, "title"),
-                        // ML todavía manda thumbnails http: con https no hay contenido mixto en el panel.
-                        JsonRead.GetString(body, "thumbnail")?.Replace("http://", "https://", StringComparison.Ordinal),
+                        Api.Endpoints.MeliItemSummary.SecureThumbnail(JsonRead.GetString(body, "thumbnail")),
                         body.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : null,
                         body.TryGetProperty("available_quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null,
                         JsonRead.GetString(body, "permalink"));

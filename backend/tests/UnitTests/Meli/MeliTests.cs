@@ -338,3 +338,14 @@ public class MeliSyncParseTests
         Assert.Empty(MeliSyncService.ParseItems(doc.RootElement));
     }
 }
+
+/// <summary>Las miniaturas que manda ML por http se piden por https (el panel corre en https).</summary>
+public class MeliThumbnailTests
+{
+    [Theory]
+    [InlineData("http://http2.mlstatic.com/D_123-I.jpg", "https://http2.mlstatic.com/D_123-I.jpg")]
+    [InlineData("https://http2.mlstatic.com/D_123-I.jpg", "https://http2.mlstatic.com/D_123-I.jpg")]
+    [InlineData(null, null)]
+    public void SecureThumbnail_pasa_a_https(string? raw, string? expected) =>
+        Assert.Equal(expected, Api.Endpoints.MeliItemSummary.SecureThumbnail(raw));
+}

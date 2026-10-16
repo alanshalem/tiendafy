@@ -6,7 +6,7 @@ namespace Api.Meli;
 
 /// <summary>
 /// Procesa el inbox de webhooks de Mercado Libre (el endpoint solo persiste y
-/// responde 200 dentro de los 500 ms que exige ML). Resuelve el tenant por el
+/// responde 200 enseguida, dentro de los 20 s que da ML). Resuelve el tenant por el
 /// user_id del vendedor y re-consulta el resource con SU token — jamás se
 /// confía en el payload del webhook.
 /// </summary>
