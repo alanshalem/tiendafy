@@ -30,7 +30,7 @@ async function toApiError(path: string, res: Response, fallbackMessage: string):
   return problemToError(path, res.status, await res.json().catch(() => null), fallbackMessage);
 }
 
-export const SESSION_EXPIRED_MESSAGE = 'Tu sesión venció. Volvé a ingresar.';
+const SESSION_EXPIRED_MESSAGE = 'Tu sesión venció. Volvé a ingresar.';
 
 /** Lo avisa AuthContext: con la sesión vencida se pide la clave encima de la pantalla. */
 let onSessionExpired: (() => void) | null = null;

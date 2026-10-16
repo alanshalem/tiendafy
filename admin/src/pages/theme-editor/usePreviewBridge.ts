@@ -9,7 +9,7 @@ import { EDITOR_MSG, type ThemeConfig } from '@tiendafy/types';
  * que embeba el preview no puede ni mandar ni recibir nada.
  */
 
-export interface PreviewCallbacks {
+interface PreviewCallbacks {
   /** El preview avisó que cargó: hay que mandarle el tema actual. */
   onReady: () => void;
   /** Clic en una región del preview. */

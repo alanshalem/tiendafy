@@ -11,9 +11,9 @@
  * endpoints de importación). Si cambian allá, cambian acá.
  */
 
-export const MB = 1024 * 1024;
+const MB = 1024 * 1024;
 
-export interface FileFormat {
+interface FileFormat {
   /** Cómo se lo nombra al comercio: "JPG", "PDF". */
   label: string;
   mimes: readonly string[];
@@ -21,7 +21,7 @@ export interface FileFormat {
   exts: readonly string[];
 }
 
-export const FORMATS = {
+const FORMATS = {
   jpg: { label: 'JPG', mimes: ['image/jpeg'], exts: ['.jpg', '.jpeg'] },
   png: { label: 'PNG', mimes: ['image/png'], exts: ['.png'] },
   webp: { label: 'WebP', mimes: ['image/webp'], exts: ['.webp'] },
@@ -351,7 +351,7 @@ export interface IdealSize {
 }
 
 /** "16x9" → 16/9. */
-export function ratioValue(ratio: string): number {
+function ratioValue(ratio: string): number {
   const [w, h] = ratio.split('x').map(Number);
   return w && h ? w / h : 16 / 9;
 }
@@ -433,7 +433,7 @@ function extOf(name: string): string {
 }
 
 /** El formato del archivo dentro de la ficha, o null si no es ninguno de los aceptados. */
-export function formatOf(spec: UploadSpec, file: File): FormatKey | null {
+function formatOf(spec: UploadSpec, file: File): FormatKey | null {
   const type = file.type.toLowerCase();
   const ext = extOf(file.name);
   // Primero por tipo; si el navegador no lo informó (o informó uno genérico),
@@ -444,7 +444,7 @@ export function formatOf(spec: UploadSpec, file: File): FormatKey | null {
   return null;
 }
 
-export function maxBytesOf(spec: UploadSpec, format: FormatKey): number {
+function maxBytesOf(spec: UploadSpec, format: FormatKey): number {
   return spec.maxBytes[format] ?? spec.maxBytes.default ?? Number.POSITIVE_INFINITY;
 }
 
@@ -516,7 +516,7 @@ export function rejectReason(spec: UploadSpec, file: File): string | null {
   return null;
 }
 
-export interface Dimensions {
+interface Dimensions {
   width: number;
   height: number;
 }

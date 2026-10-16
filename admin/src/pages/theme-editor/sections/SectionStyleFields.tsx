@@ -6,7 +6,7 @@ import { ColorRow } from '../../theme-editor-inputs';
 import { ChoiceGroup, type Choice } from './choice-group';
 
 /** Lo que cambia SectionStyleFields: el estilo y en qué dispositivos se ve. */
-export type SectionEnvelopePatch = Pick<ThemeSection, 'style' | 'hideOn'>;
+type SectionEnvelopePatch = Pick<ThemeSection, 'style' | 'hideOn'>;
 
 const ICON = 'h-5 w-5';
 const DEVICE_OPTIONS: Choice<'all' | 'mobile-only' | 'desktop-only'>[] = [

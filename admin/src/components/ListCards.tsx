@@ -11,7 +11,7 @@ import { useIsMobile } from '../lib/useMediaQuery';
  * resto en una línea chica abajo; las acciones van al menú de la tarjeta.
  */
 
-export interface ListCardProps {
+interface ListCardProps {
   /** Qué es: el nombre, el número de la venta. */
   title: ReactNode;
   /** Debajo del título: un email, una variante, una fecha. */
@@ -94,7 +94,7 @@ export function ListCardList({ children, label }: { children: ReactNode; label?:
   );
 }
 
-export interface ResponsiveListProps<T> {
+interface ResponsiveListProps<T> {
   rows: T[];
   rowKey: (row: T) => string | number;
   /** Las columnas de la tabla (pantallas medianas para arriba). */

@@ -30,7 +30,7 @@ export const pollWhileRunning = (query: { state: { data?: { status: string } } }
 };
 
 /** Estado de completitud del catálogo (`GET /products/health`). */
-export interface CatalogHealth {
+interface CatalogHealth {
   total: number;
   published: number;
   draft: number;

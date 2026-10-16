@@ -59,7 +59,7 @@ export interface SortableHandle {
   setActivator: (el: HTMLElement | null) => void;
 }
 
-export interface SortableItemState {
+interface SortableItemState {
   handle: SortableHandle;
   index: number;
   isDragging: boolean;

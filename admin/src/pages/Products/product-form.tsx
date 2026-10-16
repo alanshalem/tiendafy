@@ -164,7 +164,7 @@ const CATEGORY_SEARCH_FROM = 8;
  * su propia categoría. Se sube por parentId y, si la API no lo trae, por los
  * prefijos del path, que identifican a cada ancestro igual.
  */
-export function categoryLabels(items: Category[]): (Category & { label: string })[] {
+function categoryLabels(items: Category[]): (Category & { label: string })[] {
   const byId = new Map(items.map((c) => [c.id, c]));
   const byPath = new Map(items.map((c) => [c.path, c]));
   const parentOf = (c: Category): Category | undefined => {
@@ -265,7 +265,7 @@ export interface ShippingDraft {
 export const EMPTY_SHIPPING: ShippingDraft = { weightKg: '', lengthCm: '', widthCm: '', heightCm: '' };
 
 /** Lo que espera la API: gramos y centímetros enteros (null = sin cargar). */
-export interface ShippingSize {
+interface ShippingSize {
   weightGrams: number | null;
   lengthCm: number | null;
   widthCm: number | null;

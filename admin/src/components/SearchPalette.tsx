@@ -28,7 +28,7 @@ export interface PaletteItem {
   group?: string;
 }
 
-export interface SearchPaletteProps {
+interface SearchPaletteProps {
   /** Nombre del diálogo para lectores de pantalla. */
   label: string;
   /** Nombre del campo. */

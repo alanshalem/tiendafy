@@ -20,7 +20,7 @@ import type { SaveState } from './useThemeDraft';
 
 export type Device = 'mobile' | 'tablet' | 'desktop';
 
-export const DEVICES = [
+const DEVICES = [
   { id: 'mobile' as const, label: 'Celulares', icon: Smartphone },
   { id: 'tablet' as const, label: 'Tablets', icon: Tablet },
   { id: 'desktop' as const, label: 'Computadoras', icon: Monitor },

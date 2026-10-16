@@ -27,7 +27,7 @@ import type { NavBadge } from '../lib/useNavCounts';
  * sale de lib/access, la misma tabla que usan las rutas.
  */
 
-export interface NavChild {
+interface NavChild {
   to: string;
   label: string;
   /** Una línea que explica la página (tooltip al pasar el mouse). */
@@ -47,7 +47,7 @@ export interface NavItem {
   children?: NavChild[];
 }
 
-export interface NavSection {
+interface NavSection {
   heading: string | null;
   items: NavItem[];
 }
@@ -57,7 +57,7 @@ export interface NavSection {
  * `soon` = módulo del checklist todavía no implementado; la página existe
  * con empty state para que la estructura completa sea navegable desde hoy.
  */
-export const MAIN_NAV: NavSection[] = [
+const MAIN_NAV: NavSection[] = [
   {
     heading: null,
     items: [
@@ -298,19 +298,19 @@ export const MAIN_NAV: NavSection[] = [
   },
 ];
 
-export interface SettingsNavItem {
+interface SettingsNavItem {
   to: string;
   label: string;
   /** Una línea que explica la página (tooltip al pasar el mouse). */
   desc?: string;
   icon: LucideIcon;
 }
-export interface SettingsNavGroup {
+interface SettingsNavGroup {
   heading: string;
   items: SettingsNavItem[];
 }
 
-export const SETTINGS_NAV: SettingsNavGroup[] = [
+const SETTINGS_NAV: SettingsNavGroup[] = [
   {
     heading: 'Pagos y envíos',
     items: [

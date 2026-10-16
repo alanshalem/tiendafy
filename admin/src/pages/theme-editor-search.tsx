@@ -12,7 +12,7 @@ import { sectionSummary } from './theme-editor/sections/sectionSummary';
  * descuento por transferencia vive en "Detalle de producto" y no en "Colores"
  * es trabajo que no le toca al comercio: se escribe "transferencia" y listo.
  */
-export interface OptionEntry {
+interface OptionEntry {
   /** Cómo se llama la opción en su panel. */
   label: string;
   /** Panel donde vive (la vista del editor). */

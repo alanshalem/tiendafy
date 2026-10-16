@@ -44,7 +44,7 @@ import { useProductSearch } from '../lib/useProductSearch';
    igual, y al editar se reconoce a qué apunta para mostrarlo con su nombre.
    ============================================================ */
 
-export type LinkPickerTab = 'product' | 'category' | 'page' | 'url' | 'whatsapp';
+type LinkPickerTab = 'product' | 'category' | 'page' | 'url' | 'whatsapp';
 
 /** Lo que se eligió, además del href: sirve para proponer un nombre (ítems del menú). */
 export interface LinkPick {

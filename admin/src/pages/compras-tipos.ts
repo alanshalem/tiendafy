@@ -22,7 +22,7 @@ export interface PoListItem {
   leadTimeDays: number | null;
 }
 
-export interface PoItem {
+interface PoItem {
   variantId: string;
   productName: string;
   variantDescription: string;

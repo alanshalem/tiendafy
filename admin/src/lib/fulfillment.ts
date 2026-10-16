@@ -36,7 +36,7 @@ export interface QueueResponse {
   byCarrier: Partial<Record<CarrierId, number>>;
 }
 
-export interface PickLine {
+interface PickLine {
   variantId: string;
   sku: string;
   productName: string;
@@ -53,7 +53,7 @@ export interface PickList {
   skipped: { orderId: string; reason: string }[];
 }
 
-export type LabelStatus = 'ok' | 'sin-envio' | 'no-soportado' | 'error';
+type LabelStatus = 'ok' | 'sin-envio' | 'no-soportado' | 'error';
 
 export interface LabelBatch {
   results: {

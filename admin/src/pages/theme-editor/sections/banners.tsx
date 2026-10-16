@@ -19,7 +19,7 @@ interface GridData {
 }
 
 /** Las columnas como dibujitos ("3" → tres barras), con "por fila" para el lector de pantalla. */
-export const columnChoices = (values: readonly string[]) =>
+const columnChoices = (values: readonly string[]) =>
   values.map((n) => ({
     value: n,
     label: n,

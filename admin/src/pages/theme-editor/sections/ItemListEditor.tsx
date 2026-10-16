@@ -38,7 +38,7 @@ import { INPUT_BASE } from '../../theme-editor-inputs';
  *     )}
  *   />
  */
-export interface ItemListEditorProps<T extends ItemBase> {
+interface ItemListEditorProps<T extends ItemBase> {
   items: T[];
   onChange: (items: T[]) => void;
   renderItem: (item: T, update: (patch: Partial<T>) => void, index: number) => ReactNode;

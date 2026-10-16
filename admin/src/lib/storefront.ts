@@ -25,7 +25,7 @@ export const storefrontHost = (subdomain: string): string =>
   storefrontUrl(subdomain).replace(/^https?:\/\//, '');
 
 /** Lo que hace falta de una tienda para saber su dirección pública. */
-export interface PublicStore {
+interface PublicStore {
   subdomain: string;
   customDomain?: string | null;
 }

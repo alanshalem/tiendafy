@@ -117,7 +117,7 @@ export function IntroBanner() {
  * nombres ("Certificado", "Listo para facturar") y la página cinco tarjetas,
  * y no había forma de saber en qué paso de la barra estaba cada tarjeta.
  */
-export const FISCAL_STEPS = [
+const FISCAL_STEPS = [
   'Datos del emisor',
   'Certificado digital',
   'Puntos de venta',

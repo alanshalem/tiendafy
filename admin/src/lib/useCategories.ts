@@ -16,7 +16,7 @@ export interface Category {
   depth: number;
 }
 
-export interface CategoriesResponse {
+interface CategoriesResponse {
   items: Category[];
 }
 

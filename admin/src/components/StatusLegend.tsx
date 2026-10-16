@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { cn } from '@tiendafy/ui';
 
-export interface LegendItem {
+interface LegendItem {
   /** Clase de fondo del puntito de color (ej. 'bg-success', 'bg-warning'). */
   dot: string;
   text: string;

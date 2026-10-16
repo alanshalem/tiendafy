@@ -55,7 +55,7 @@ interface ReviewsResponse {
   counts: { pending: number; approved: number; hidden: number; flagged: number };
 }
 
-export interface ReviewSettings {
+interface ReviewSettings {
   autoApproveMinRating: number | null;
   requestDelayDays: number;
   showOnStore: boolean;

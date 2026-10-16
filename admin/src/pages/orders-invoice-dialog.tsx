@@ -5,7 +5,7 @@ import { api, errMsg } from '../lib/api';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 /** Condición frente al IVA, como la entiende la API (ver IvaConditionWire). */
-export type IvaCondition = 'ResponsableInscripto' | 'Monotributo' | 'Exento' | 'ConsumidorFinal';
+type IvaCondition = 'ResponsableInscripto' | 'Monotributo' | 'Exento' | 'ConsumidorFinal';
 
 /** Lo que el diálogo le pasa a la facturación. Vacío = como siempre. */
 export interface InvoiceBuyer {

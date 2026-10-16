@@ -6,7 +6,7 @@ import type { BadgeVariant } from '@tiendafy/ui';
  */
 export type { StockItem } from '../../lib/products';
 
-export type ProductStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+type ProductStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
 export type { Category } from '../../lib/useCategories';
 

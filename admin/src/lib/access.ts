@@ -81,7 +81,7 @@ export const SETTINGS_PERMISSIONS = {
   medicion: 'store.config',
 } as const satisfies Record<string, PermRequirement>;
 
-export type SettingsPath = keyof typeof SETTINGS_PERMISSIONS;
+type SettingsPath = keyof typeof SETTINGS_PERMISSIONS;
 
 /** Pantallas del panel principal. Las que no están acá son de todos (Inicio, Mis tiendas, Ayuda). */
 const MAIN_PERMISSIONS: Record<string, PermRequirement> = {

@@ -12,7 +12,7 @@ import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { TableSkeleton } from '../../components/Skeleton';
 import { usePageParam } from '../../lib/useListParams';
 
-export interface StockAlertRow {
+interface StockAlertRow {
   productId: string;
   variantId: string;
   productName: string;

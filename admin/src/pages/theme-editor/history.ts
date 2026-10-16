@@ -12,7 +12,7 @@ import type { ThemeConfig } from '@tiendafy/types';
  */
 
 export const UNDO_LIMIT = 100;
-export const COALESCE_MS = 1000;
+const COALESCE_MS = 1000;
 
 export interface EditHistory {
   past: ThemeConfig[];

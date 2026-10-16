@@ -15,7 +15,7 @@ const PRIMARY = 'rgb(var(--color-primary))';
 
 /* ---------------- Barras verticales ---------------- */
 
-export interface BarPoint {
+interface BarPoint {
   /** Etiqueta del eje (día, mes, estado…). */
   label: string;
   value: number;
@@ -81,7 +81,7 @@ export function BarChart({
 
 /* ---------------- Ranking horizontal ---------------- */
 
-export interface RankRow {
+interface RankRow {
   label: string;
   value: number;
   /** Texto a la derecha (importe formateado, porcentaje…). */
@@ -135,7 +135,7 @@ export function RankBars({
 
 /* ---------------- Dona (participación) ---------------- */
 
-export interface Slice {
+interface Slice {
   label: string;
   value: number;
   /** Color CSS; por defecto una escala del color primario. */

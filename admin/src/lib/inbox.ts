@@ -8,7 +8,7 @@ import type { Perm } from './access';
 
 export type InboxChannel = 'contacto' | 'posventa' | 'ml-pregunta' | 'ml-mensaje';
 
-export interface InboxAssignee {
+interface InboxAssignee {
   userId: string;
   name: string;
 }
@@ -28,7 +28,7 @@ interface ThreadBase {
   assignedTo: InboxAssignee | null;
 }
 
-export interface MeliListing {
+interface MeliListing {
   id: string;
   title: string | null;
   thumbnail: string | null;

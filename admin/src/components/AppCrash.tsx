@@ -13,7 +13,7 @@ import { isStaleChunk } from './ScreenBoundary';
  * común.
  */
 
-export function AppCrashScreen({ stale }: { stale: boolean }) {
+function AppCrashScreen({ stale }: { stale: boolean }) {
   return (
     <main role="alert" className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="max-w-md text-center">

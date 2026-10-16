@@ -9,7 +9,7 @@ export interface UndoNotice {
 }
 
 /** Cuánto queda a la vista el "Deshacer". */
-export const UNDO_NOTICE_MS = 8000;
+const UNDO_NOTICE_MS = 8000;
 
 /**
  * "Eliminaste «Carrusel». Deshacer": borrar una sección es inmediato y se

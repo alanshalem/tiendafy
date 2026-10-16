@@ -18,14 +18,14 @@ import type { Device } from './EditorTopBar';
  */
 
 /** Ancho (en px de CSS) al que se dibuja la tienda en cada dispositivo. */
-export const DEVICE_VIEWPORT: Record<Device, number> = { mobile: 390, tablet: 834, desktop: 1280 };
+const DEVICE_VIEWPORT: Record<Device, number> = { mobile: 390, tablet: 834, desktop: 1280 };
 const DEVICE_NAME: Record<Device, string> = { mobile: 'Celular', tablet: 'Tablet', desktop: 'Computadora' };
 /** El marco negro del celular y la tablet (border-8). */
 const BEZEL = 8;
 /** Aire alrededor de la vista previa (lo que antes era p-6). */
 const GAP = 24;
 
-export interface PreviewLayout {
+interface PreviewLayout {
   /** Ancho y alto del iframe, en px del dispositivo (antes de achicar). */
   width: number;
   height: number;
@@ -58,7 +58,7 @@ const subscribeMd = (cb: () => void) => {
   return () => mq.removeEventListener?.('change', cb);
 };
 /** ¿Pantalla de md para arriba? (en un celular no se emula el dispositivo). */
-export const useIsWide = () =>
+const useIsWide = () =>
   useSyncExternalStore(
     subscribeMd,
     () => window.matchMedia(MD).matches,

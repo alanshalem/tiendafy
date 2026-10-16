@@ -7,7 +7,7 @@ export interface StockItem {
 }
 
 /** Shape mínimo del catálogo que comparten los typeaheads de variantes. */
-export interface CatalogVariant {
+interface CatalogVariant {
   id: string;
   sku: string;
   optionValues: string[];

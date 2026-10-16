@@ -7,7 +7,7 @@ import { DragHandle, type SortableHandle } from '../../../components/SortableLis
 import { RenameInput } from './ItemListEditor';
 import { sectionSummary } from './sectionSummary';
 
-export interface SectionRowActions {
+interface SectionRowActions {
   onOpen: () => void;
   onToggleVisible: () => void;
   onStartRename: () => void;

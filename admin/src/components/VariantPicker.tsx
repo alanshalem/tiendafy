@@ -7,7 +7,7 @@ import { variantLabel, type CatalogProduct } from '../lib/products';
 import { api } from '../lib/api';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 
-export interface VariantOption {
+interface VariantOption {
   variantId: string;
   label: string;
   sku: string;

@@ -6,7 +6,7 @@ import { useStore } from '../../context/StoreContext';
 import { LoadError } from '../../components/LoadError';
 
 /** Config mínima que la card necesita para pintar estado. */
-export interface CarrierConfigBase {
+interface CarrierConfigBase {
   configured: boolean;
   active?: boolean;
   /**

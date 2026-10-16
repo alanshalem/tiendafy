@@ -36,7 +36,7 @@ import { ItemListEditor, RenameInput } from './theme-editor/sections/ItemListEdi
 
 type Footer = ThemeConfig['footer'];
 
-export const COLUMN_KINDS: { kind: FooterColumnKind; label: string; description: string }[] = [
+const COLUMN_KINDS: { kind: FooterColumnKind; label: string; description: string }[] = [
   {
     kind: 'social',
     label: 'Marca y redes',

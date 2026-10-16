@@ -95,7 +95,7 @@ function editingSource(raw: unknown, planned: ProductSource): ProductSource {
 }
 
 /** Cómo se lee el destino automático de "Ver todos" en el editor. */
-export function autoViewAllLabel(source: ProductSource): string {
+function autoViewAllLabel(source: ProductSource): string {
   switch (source.kind) {
     case 'category':
       return 'al listado de la categoría';

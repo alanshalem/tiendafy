@@ -10,7 +10,7 @@
  * `/config.js` cuando arranca y de ahí salen la URL de la API y las tiendas.
  * En desarrollo ese archivo viene vacío y manda el `.env` de siempre.
  */
-export interface RuntimeConfig {
+interface RuntimeConfig {
   apiUrl?: string;
   /**
    * Nombre de la instalación. El producto es Tiendafy; una instalación puede

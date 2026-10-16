@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /** Ítem mínimo que la grilla necesita mostrar. */
-export interface TemplateGridItem {
+interface TemplateGridItem {
   type: string;
   group: string;
   label: string;

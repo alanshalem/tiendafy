@@ -37,7 +37,7 @@ interface ProfileOrder {
   firstItem: string | null;
 }
 
-export interface CustomerProfileResponse {
+interface CustomerProfileResponse {
   customer: Customer;
   stats: {
     ordersCount: number;

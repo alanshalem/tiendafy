@@ -24,7 +24,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
  * "/productos" después de guardar un producto no te deja en la página 1 sin
  * filtros.
  */
-export type ListParamValue = string | number | boolean;
+type ListParamValue = string | number | boolean;
 
 /**
  * El parámetro de la página. Cambiar cualquier otro parámetro del listado
@@ -77,7 +77,7 @@ function writeStored(key: string, value: string) {
   }
 }
 
-export interface ListParams<D extends Record<string, ListParamValue>> {
+interface ListParams<D extends Record<string, ListParamValue>> {
   values: D;
   /** Cambia uno o más parámetros. Sin `pagina` en el cambio, vuelve a la 1. */
   set: (patch: Partial<D>, options?: { replace?: boolean }) => void;
@@ -171,7 +171,7 @@ export function useListParams<D extends Record<string, ListParamValue>>(
  *
  * Si la URL cambia por fuera (Atrás, "limpiar filtros"), el texto la sigue.
  */
-export function useSearchText(
+function useSearchText(
   value: string,
   commit: (text: string) => void,
   delayMs = 350,

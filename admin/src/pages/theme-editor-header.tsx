@@ -57,7 +57,7 @@ const INTERVALS = Array.from(
 );
 
 /** Cómo se llama cada tipo de página en el editor. */
-export const HEADER_PAGE_LABELS: Record<HeaderPageKind, string> = {
+const HEADER_PAGE_LABELS: Record<HeaderPageKind, string> = {
   home: 'Inicio',
   listing: 'Listado y categorías',
   product: 'Producto',

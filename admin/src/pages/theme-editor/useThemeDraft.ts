@@ -58,7 +58,7 @@ const tenantInit = (session: Session, init?: RequestInit): RequestInit => ({
 const withVersion = (t: ThemeConfig, version: number | undefined) =>
   version === undefined ? t : { ...t, draftVersion: version };
 
-export interface ThemeDraft {
+interface ThemeDraft {
   theme: ThemeConfig | null;
   /** Lo publicado: la base para "hay cambios sin publicar". */
   published: ThemeConfig | null;

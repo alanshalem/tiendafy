@@ -172,7 +172,7 @@ export function UploadSpecHint({
   );
 }
 
-export interface UploadNote {
+interface UploadNote {
   tone: 'error' | 'advice';
   file: string;
   text: string;

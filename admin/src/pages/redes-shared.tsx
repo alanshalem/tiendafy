@@ -3,13 +3,13 @@ import type { BadgeVariant } from '@tiendafy/ui';
 
 // ---- Tipos wire --------------------------------------------------------------
 
-export interface SocialConnectorDto {
+interface SocialConnectorDto {
   key: string;
   displayName: string;
   configured: boolean;
 }
 
-export interface SocialChannelDto {
+interface SocialChannelDto {
   key: string;
   displayName: string;
   limits: { maxChars: number; maxImages: number; requiresMedia: boolean };
@@ -31,7 +31,7 @@ export interface SocialAccountDto {
   connectedAtUtc: string;
 }
 
-export interface SocialTargetDto {
+interface SocialTargetDto {
   accountId: string;
   provider: string | null;
   accountName: string;
