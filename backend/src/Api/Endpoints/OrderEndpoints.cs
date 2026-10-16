@@ -293,16 +293,28 @@ public static class OrderEndpoints
             return Results.Ok(ToDto(result.Value));
         }).RequirePermission(Permission.OrdersRefund);
 
-        // Historial de reembolsos de una orden (admin).
+        // Historial de reembolsos de una orden (admin), y por dónde vuelve la
+        // plata si se reembolsa (Mercado Pago, Payway o a mano): la orden no
+        // lo guarda y el diálogo de reembolso tiene que nombrar el medio real.
         group.MapGet("/orders/{id:guid}/refunds", async (
-            Guid id, ITenantContext tenant, PaymentsDbContext paymentsDb, CancellationToken ct) =>
+            Guid id, ITenantContext tenant, PaymentsDbContext paymentsDb, IOrderRepository orders,
+            Api.Orders.OrderRefundService refunds, CancellationToken ct) =>
         {
             var items = await paymentsDb.PaymentRefunds.AsNoTracking()
                 .Where(r => r.TenantId == tenant.TenantId.Value && r.OrderId == id)
                 .OrderByDescending(r => r.CreatedAtUtc)
                 .ToListAsync(ct);
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            var gateway = order is null ? null : await refunds.GatewayOfAsync(tenant.TenantId, order, ct);
             return Results.Ok(new
             {
+                gateway = gateway switch
+                {
+                    Api.Orders.OrderRefundService.RefundGateway.MercadoPago => "mercadopago",
+                    Api.Orders.OrderRefundService.RefundGateway.Payway => "payway",
+                    Api.Orders.OrderRefundService.RefundGateway.Manual => "manual",
+                    _ => null,
+                },
                 items = items.Select(r => new
                 {
                     r.Id,

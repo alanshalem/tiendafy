@@ -119,6 +119,7 @@ public sealed class MercadoPagoFlowTests
 
         var history = await merchant.GetAsync($"/api/v1/orders/{orderId}/refunds");
         Assert.Equal(2, history.GetProperty("items").GetArrayLength());
+        Assert.Equal("mercadopago", history.GetProperty("gateway").GetString());
 
         // Ya no queda nada por devolver.
         Assert.Equal(HttpStatusCode.Conflict,

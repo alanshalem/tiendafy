@@ -152,17 +152,19 @@ public sealed class OrderRefundService(
         return order;
     }
 
-    private enum RefundGateway { Manual, MercadoPago, Payway }
+    public enum RefundGateway { Manual, MercadoPago, Payway }
 
     /// <summary>
     /// Por dónde entró la plata de la venta. La orden no lo guarda (las de
     /// Payway quedan con <c>PaymentProvider = "mercadopago"</c>, el default, y
     /// los ids de pago de las dos pasarelas son números): lo que la distingue
-    /// es el intento de Payway que la cobró, con ese mismo id de pago.
+    /// es el intento de Payway que la cobró, con ese mismo id de pago. El
+    /// panel lo usa para decir por dónde vuelve la plata al reembolsar.
     /// </summary>
-    private async Task<RefundGateway> GatewayOfAsync(TenantId tenantId, Order order, CancellationToken ct)
+    public async Task<RefundGateway?> GatewayOfAsync(TenantId tenantId, Order order, CancellationToken ct)
     {
-        if (order.PaymentId!.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(order.PaymentId)) return null;
+        if (order.PaymentId.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal))
             return RefundGateway.Manual;
 
         var paidWithPayway = await paymentsDb.PaywayPaymentAttempts.AsNoTracking()

@@ -35,9 +35,15 @@ export const toOptions = (map: Record<string, string | { label: string }>, all: 
  * Qué pasa con la plata al reembolsar, según cómo se cobró. Antes el diálogo
  * decía siempre "devuelve el dinero en Mercado Pago", también para una venta
  * en efectivo (la plata la devuelve el comercio) o en cuenta corriente (no
- * hay plata que devolver: baja la deuda).
+ * hay plata que devolver: baja la deuda). Un pago online vuelve por la
+ * pasarela que lo cobró (`gateway`, que dice la API en el historial de
+ * reembolsos: Mercado Pago o Payway); mientras no se sabe, sin nombrarla.
  */
-export function refundEffect(paymentMethod: string | null | undefined, paymentId: string | null): string {
+export function refundEffect(
+  paymentMethod: string | null | undefined,
+  paymentId: string | null,
+  gateway?: string | null,
+): string {
   const method = paymentMethod ?? (paymentId?.startsWith('manual-') ? paymentId.slice(7) : 'online');
   switch (method) {
     case 'cash':
@@ -47,6 +53,10 @@ export function refundEffect(paymentMethod: string | null | undefined, paymentId
     case 'cuenta_corriente':
       return 'La venta fue en cuenta corriente: no hay plata que devolver. Se le baja la deuda al cliente por ese importe (queda como nota de crédito en Cuentas corrientes).';
     default:
-      return 'Se devuelve el dinero por Mercado Pago al medio con el que pagó el comprador.';
+      if (gateway === 'payway')
+        return 'Se devuelve el dinero por Payway a la tarjeta con la que pagó el comprador.';
+      if (gateway === 'mercadopago')
+        return 'Se devuelve el dinero por Mercado Pago al medio con el que pagó el comprador.';
+      return 'Se devuelve el dinero al medio con el que pagó el comprador.';
   }
 }

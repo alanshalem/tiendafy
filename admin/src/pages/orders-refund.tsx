@@ -16,7 +16,8 @@ export function RefundDialog({
   order: Order;
   busy: boolean;
   onClose: () => void;
-  onSubmit: (amount: number | null, reason: string, restock: boolean) => void;
+  /** `effect`: qué pasa con la plata, ya con el medio real, para repetirlo al confirmar. */
+  onSubmit: (amount: number | null, reason: string, restock: boolean, effect: string) => void;
 }) {
   const fid = useId();
   const refundable = order.refundable?.amount ?? order.total.amount;
@@ -25,14 +26,19 @@ export function RefundDialog({
   const [reason, setReason] = useState('');
   const [restock, setRestock] = useState(true);
   const [history, setHistory] = useState<RefundRecord[] | null>(null);
+  // Por dónde vuelve la plata (Mercado Pago, Payway): la orden no lo dice, lo dice el historial.
+  const [gateway, setGateway] = useState<string | null>(null);
   const { dirty, close } = useModalFormGuard({ mode, amount, reason, restock }, onClose);
+  const effect = refundEffect(order.paymentMethod, order.paymentId, gateway);
 
   useEffect(() => {
     let alive = true;
     api
-      .get<{ items: RefundRecord[] }>(`/api/v1/orders/${order.id}/refunds`)
+      .get<{ items: RefundRecord[]; gateway?: string | null }>(`/api/v1/orders/${order.id}/refunds`)
       .then((d) => {
-        if (alive) setHistory(d.items ?? []);
+        if (!alive) return;
+        setHistory(d.items ?? []);
+        setGateway(d.gateway ?? null);
       })
       .catch(() => {
         if (alive) setHistory([]);
@@ -58,7 +64,9 @@ export function RefundDialog({
           </Button>
           <Button
             variant="danger"
-            onClick={() => onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock)}
+            onClick={() =>
+              onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock, effect)
+            }
             disabled={busy || !amountValid}
           >
             {busy && <Spinner inline />} Reembolsar
@@ -70,9 +78,7 @@ export function RefundDialog({
         {order.buyerEmail} · disponible {formatMoney(refundable, order.currency)}
       </p>
       {/* Qué pasa con la plata depende de cómo se cobró: no siempre vuelve por Mercado Pago. */}
-      <p className="mt-2 rounded-md bg-bg-muted px-3 py-2 text-sm text-fg">
-        {refundEffect(order.paymentMethod, order.paymentId)}
-      </p>
+      <p className="mt-2 rounded-md bg-bg-muted px-3 py-2 text-sm text-fg">{effect}</p>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button

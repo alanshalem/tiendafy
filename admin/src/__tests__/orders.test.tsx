@@ -194,6 +194,18 @@ describe('ventas: una venta pagada', () => {
       restock: false,
     });
   });
+
+  it('cobrada con Payway: el reembolso dice que la plata vuelve por Payway, no por Mercado Pago', async () => {
+    const { api, user } = await openOrder({ ...paid, paymentMethod: 'online' } as typeof paid);
+    api.on('GET', `/api/v1/orders/${paid.id}/refunds`, { items: [], gateway: 'payway' });
+    await user.click(screen.getByRole('button', { name: /Reembolsar/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Reembolsar pedido' }));
+    expect(await dialog.findByText(/por Payway/)).toBeInTheDocument();
+    expect(dialog.queryByText(/Mercado Pago/)).toBeNull();
+    await user.click(dialog.getByRole('button', { name: /Reembolsar/ }));
+    const confirm = within(await screen.findByRole('dialog', { name: 'Confirmar reembolso' }));
+    expect(confirm.getByText(/por Payway/)).toBeInTheDocument();
+  });
 });
 
 describe('ventas: facturación de la venta', () => {

@@ -269,6 +269,8 @@ public sealed class PaywayFlowTests
 
         var history = await merchant.GetAsync($"/api/v1/orders/{orderId}/refunds");
         Assert.Equal(2, history.GetProperty("items").GetArrayLength());
+        // El panel nombra por dónde vuelve la plata: Payway, no Mercado Pago.
+        Assert.Equal("payway", history.GetProperty("gateway").GetString());
 
         // Ya no queda nada: no se le vuelve a pedir a Payway.
         Assert.Equal(HttpStatusCode.Conflict,

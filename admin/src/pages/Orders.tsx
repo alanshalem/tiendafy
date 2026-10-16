@@ -23,7 +23,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
-import { ORDER_CHANNEL, ORDER_PAYMENT, ORDER_SHIPPING, refundEffect, toOptions } from '../lib/orderFacets';
+import { ORDER_CHANNEL, ORDER_PAYMENT, ORDER_SHIPPING, toOptions } from '../lib/orderFacets';
 import { orderLabel } from '../lib/orderNumber';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
@@ -248,12 +248,12 @@ export function OrdersPage() {
   const [refunding, setRefunding] = useState<Order | null>(null);
 
   const doRefund = useCallback(
-    async (o: Order, amount: number | null, reason: string, restock: boolean) => {
+    async (o: Order, amount: number | null, reason: string, restock: boolean, effect: string) => {
       const label = amount === null ? money(o.refundable ?? o.total) : formatMoney(amount, o.currency);
       if (
         !(await confirm({
           title: 'Confirmar reembolso',
-          message: `¿Reembolsar ${label} a ${o.buyerEmail}? ${refundEffect(o.paymentMethod, o.paymentId)} No se puede deshacer.`,
+          message: `¿Reembolsar ${label} a ${o.buyerEmail}? ${effect} No se puede deshacer.`,
           confirmLabel: 'Reembolsar',
           variant: 'danger',
         }))
@@ -619,8 +619,8 @@ export function OrdersPage() {
           order={refunding}
           busy={busy === refunding.id}
           onClose={() => setRefunding(null)}
-          onSubmit={async (amount, reason, restock) => {
-            const ok = await doRefund(refunding, amount, reason, restock);
+          onSubmit={async (amount, reason, restock, effect) => {
+            const ok = await doRefund(refunding, amount, reason, restock, effect);
             if (ok) setRefunding(null);
           }}
         />
