@@ -103,7 +103,7 @@ export const LEGAL = {
       {
         heading: 'Facturar una venta a mano',
         paragraphs: [
-          'Si una venta no se facturó sola (la facturación automática estaba apagada, o es una venta vieja), abrí la venta y en el recuadro “Facturación (ARCA)” tocá “Facturar ahora”. Si la automática falló, el botón es “Reintentar”, y “PDF” descarga la factura o la nota de crédito.',
+          'Si una venta no se facturó sola (la facturación automática estaba apagada, o es una venta vieja), abrí la venta y en el recuadro “Facturación (ARCA)” tocá “Facturar ahora”. Si la automática falló, el botón es “Reintentar”, y “PDF” descarga la factura o cada nota de crédito.',
           'En el diálogo cargás el DNI o CUIT del comprador (vacío = consumidor final sin identificar). Con un CUIT, “Consultar en ARCA” trae del padrón el nombre, el domicilio y la condición frente al IVA, y con eso sale el tipo de factura correcto. Si no elegís condición, a una sociedad le sale Factura A y a una persona, B.',
         ],
         blocks: [
@@ -174,8 +174,18 @@ export const LEGAL = {
       {
         heading: 'Reembolsos y notas de crédito',
         paragraphs: [
-          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada y queda devuelta del todo, Tiendafy la emite automáticamente, del mismo tipo que la factura y al mismo comprador — el círculo fiscal queda cerrado sin trámites manuales. El PDF se baja desde el mismo recuadro de la venta.',
-          'Un reembolso parcial no emite nota de crédito: consultá con tu contador cómo registrarlo.',
+          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”, del mismo tipo que la factura y al mismo comprador. Una venta puede tener varias: una por cada reembolso o ajuste, y entre todas nunca superan el total de la factura.',
+          'Con “Facturar automáticamente cada venta” prendido, cada reembolso de una venta facturada —total o parcial, hecho desde el panel o desde tu cuenta de Mercado Pago— emite solo su nota de crédito por el monto devuelto.',
+          'Sin la facturación automática, al reembolsar una venta facturada aparece la casilla “Emitir la nota de crédito por este monto”, tildada de entrada. Si la destildás (o el reembolso vino de otro lado), en el recuadro “Facturación (ARCA)” de la venta vas a ver “Hay $X devueltos sin nota de crédito” y el botón “Emitir nota de crédito”.',
+          'Ese botón está siempre en una venta facturada, también sin reembolso: sirve para un ajuste, como corregir un precio o un descuento que se dio después. Elegís el monto (hasta lo que queda por acreditar), un motivo si querés, y confirmás. Una vez emitida no se puede anular.',
+          'Cada nota de crédito tiene su PDF en el mismo recuadro. Para encontrar las ventas con plata devuelta y sin nota de crédito, en Ventas usá el filtro “Devueltas sin nota de crédito”.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si prendés la plantilla “Nota de crédito” en Configuración → E-mails automáticos, el comprador recibe cada nota de crédito por email con su PDF, igual que la factura.',
+          },
         ],
       },
       {

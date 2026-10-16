@@ -117,7 +117,20 @@ const STATS_DAYS = 30;
  * useListParams), así el Inicio puede mandar a "las que hay que despachar" o
  * "las transferencias por confirmar" con un link.
  */
-const LIST_DEFAULTS = { q: '', estado: '', desde: '', hasta: '', canal: '', envio: '', cobro: '', pagina: 1 };
+const LIST_DEFAULTS = {
+  q: '',
+  estado: '',
+  desde: '',
+  hasta: '',
+  canal: '',
+  envio: '',
+  cobro: '',
+  facturacion: '',
+  pagina: 1,
+};
+
+/** Filtro de facturación: las facturadas con plata devuelta que ninguna nota de crédito cubre. */
+export const REFUNDED_UNCREDITED = 'devueltas-sin-nc';
 type ListValues = typeof LIST_DEFAULTS;
 
 interface SalesStats {
@@ -137,6 +150,7 @@ function listQuery(v: ListValues) {
   if (v.canal) params.set('channel', v.canal);
   if (v.envio) params.set('shipping', v.envio);
   if (v.cobro) params.set('payment', v.cobro);
+  if (v.facturacion) params.set('fiscal', v.facturacion);
   return params;
 }
 
@@ -248,7 +262,14 @@ export function OrdersPage() {
   const [refunding, setRefunding] = useState<Order | null>(null);
 
   const doRefund = useCallback(
-    async (o: Order, amount: number | null, reason: string, restock: boolean, effect: string) => {
+    async (
+      o: Order,
+      amount: number | null,
+      reason: string,
+      restock: boolean,
+      effect: string,
+      creditNote?: boolean,
+    ) => {
       const label = amount === null ? money(o.refundable ?? o.total) : formatMoney(amount, o.currency);
       if (
         !(await confirm({
@@ -261,7 +282,13 @@ export function OrdersPage() {
         return false;
       setBusy(o.id);
       try {
-        await api.post(`/api/v1/orders/${o.id}/refund`, { amount, reason: reason.trim() || null, restock });
+        await api.post(`/api/v1/orders/${o.id}/refund`, {
+          amount,
+          reason: reason.trim() || null,
+          restock,
+          // Solo si se ofreció la casilla (venta facturada, sin emisión automática).
+          ...(creditNote === undefined ? {} : { creditNote }),
+        });
         toast('Reembolso realizado', { variant: 'success' });
         await load();
         return true;
@@ -618,9 +645,10 @@ export function OrdersPage() {
         <RefundDialog
           order={refunding}
           busy={busy === refunding.id}
+          canEmit={canEmit}
           onClose={() => setRefunding(null)}
-          onSubmit={async (amount, reason, restock, effect) => {
-            const ok = await doRefund(refunding, amount, reason, restock, effect);
+          onSubmit={async (amount, reason, restock, effect, creditNote) => {
+            const ok = await doRefund(refunding, amount, reason, restock, effect, creditNote);
             if (ok) setRefunding(null);
           }}
         />
@@ -633,7 +661,7 @@ export function OrdersPage() {
 // ---- Filtros -------------------------------------------------------------------
 
 /**
- * Buscar, estado, fechas, canal, envío y cobro. Todo va en la URL y al
+ * Buscar, estado, fechas, canal, envío, cobro y facturación. Todo va en la URL y al
  * servidor; las fechas son días de Argentina ("hasta el 14" incluye el 14).
  */
 function OrderFilters({
@@ -659,7 +687,7 @@ function OrderFilters({
         value={search}
         onChange={(e) => onSearch(e.target.value)}
       />
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
         <Select
           aria-label="Filtrar por estado"
           value={values.estado}
@@ -686,6 +714,15 @@ function OrderFilters({
           value={values.cobro}
           onChange={(e) => onChange({ cobro: e.target.value })}
           options={toOptions(ORDER_PAYMENT, 'Cualquier cobro')}
+        />
+        <Select
+          aria-label="Filtrar por facturación"
+          value={values.facturacion}
+          onChange={(e) => onChange({ facturacion: e.target.value })}
+          options={[
+            { value: '', label: 'Cualquier facturación' },
+            { value: REFUNDED_UNCREDITED, label: 'Devueltas sin nota de crédito' },
+          ]}
         />
         {/* Con el rótulo a la vista: un "dd/mm/aaaa" vacío no dice si es desde o hasta. */}
         <label className="relative block">

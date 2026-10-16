@@ -6,19 +6,37 @@ import { refundEffect } from '../lib/orderFacets';
 import { parseMoneyInput } from '../lib/price';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { money, type Order, type RefundRecord } from './Orders';
+import type { FiscalStatus } from './orders-fiscal';
 
-/** Modal de reembolso: total o parcial con monto y motivo, más historial. */
+/**
+ * Modal de reembolso: total o parcial con monto y motivo, más historial. Si la
+ * venta está facturada dice qué pasa con la nota de crédito: con emisión
+ * automática sale sola; si no, una casilla (tildada) la emite por el monto.
+ */
 export function RefundDialog({
   order,
   busy,
+  canEmit = false,
   onClose,
   onSubmit,
 }: {
   order: Order;
   busy: boolean;
+  /** Puede facturar: sin ese permiso no se ofrece emitir la nota de crédito. */
+  canEmit?: boolean;
   onClose: () => void;
-  /** `effect`: qué pasa con la plata, ya con el medio real, para repetirlo al confirmar. */
-  onSubmit: (amount: number | null, reason: string, restock: boolean, effect: string) => void;
+  /**
+   * `effect`: qué pasa con la plata, ya con el medio real, para repetirlo al
+   * confirmar. `creditNote`: emitir la NC por el monto (undefined = no se
+   * ofreció la casilla).
+   */
+  onSubmit: (
+    amount: number | null,
+    reason: string,
+    restock: boolean,
+    effect: string,
+    creditNote?: boolean,
+  ) => void;
 }) {
   const fid = useId();
   const refundable = order.refundable?.amount ?? order.total.amount;
@@ -29,7 +47,10 @@ export function RefundDialog({
   const [history, setHistory] = useState<RefundRecord[] | null>(null);
   // Por dónde vuelve la plata (Mercado Pago, Payway): la orden no lo dice, lo dice el historial.
   const [gateway, setGateway] = useState<string | null>(null);
-  const { dirty, close } = useModalFormGuard({ mode, amount, reason, restock }, onClose);
+  // Si la venta está facturada (y si la tienda emite sola): decide qué se dice de la nota de crédito.
+  const [fiscal, setFiscal] = useState<FiscalStatus | null>(null);
+  const [creditNote, setCreditNote] = useState(true);
+  const { dirty, close } = useModalFormGuard({ mode, amount, reason, restock, creditNote }, onClose);
   const effect = refundEffect(order.paymentMethod, order.paymentId, gateway);
 
   useEffect(() => {
@@ -44,10 +65,22 @@ export function RefundDialog({
       .catch(() => {
         if (alive) setHistory([]);
       });
+    api
+      .get<FiscalStatus>(`/api/v1/orders/${order.id}/fiscal`)
+      .then((f) => {
+        if (alive) setFiscal(f);
+      })
+      .catch(() => {
+        if (alive) setFiscal(null);
+      });
     return () => {
       alive = false;
     };
   }, [order.id]);
+
+  const invoiced = !!fiscal?.credit && fiscal.credit.remaining > 0;
+  const autoCredit = invoiced && !!fiscal?.autoInvoice;
+  const offerCredit = invoiced && !autoCredit && canEmit;
 
   // El lector de importes del panel: "1.500" son mil quinientos (con Number eran 1,50).
   const parsed = parseMoneyInput(amount) / 100;
@@ -67,7 +100,13 @@ export function RefundDialog({
           <Button
             variant="danger"
             onClick={() =>
-              onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock, effect)
+              onSubmit(
+                mode === 'total' ? null : parsed,
+                reason,
+                mode === 'total' && restock,
+                effect,
+                offerCredit ? creditNote : undefined,
+              )
             }
             disabled={busy || !amountValid}
           >
@@ -157,6 +196,28 @@ export function RefundDialog({
             </span>
           </span>
         </label>
+      )}
+
+      {offerCredit && (
+        <label className="mt-3 flex items-start gap-2 text-sm text-fg">
+          <Checkbox
+            checked={creditNote}
+            onChange={(e) => setCreditNote(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Emitir la nota de crédito por este monto
+            <span className="block text-xs text-fg-muted">
+              La venta está facturada: la nota de crédito anula en ARCA lo devuelto. Si la destildás, la podés
+              emitir después desde la venta.
+            </span>
+          </span>
+        </label>
+      )}
+      {autoCredit && (
+        <p className="mt-3 text-xs text-fg-muted">
+          La venta está facturada: la nota de crédito por este monto se emite sola.
+        </p>
       )}
 
       {history && history.length > 0 && (

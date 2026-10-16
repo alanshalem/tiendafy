@@ -195,6 +195,70 @@ describe('ventas: una venta pagada', () => {
     });
   });
 
+  const facturada = (autoInvoice: boolean) => ({
+    environment: 'PRODUCCION',
+    autoInvoice,
+    documents: [],
+    jobs: [],
+    credit: {
+      invoiceTotal: 1_000_000,
+      credited: 0,
+      inFlight: 0,
+      remaining: 1_000_000,
+      refunded: 0,
+      refundedUncredited: 0,
+    },
+  });
+
+  it('facturada y sin emisión automática: la casilla de la nota de crédito viene tildada', async () => {
+    const { api, user } = await openOrder();
+    api.on('GET', `/api/v1/orders/${paid.id}/fiscal`, facturada(false));
+    await user.click(screen.getByRole('button', { name: /Reembolsar/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Reembolsar pedido' }));
+    const nc = await dialog.findByRole('checkbox', { name: /Emitir la nota de crédito por este monto/ });
+    expect(nc).toBeChecked();
+    await user.click(dialog.getByRole('button', { name: 'Parcial' }));
+    await user.type(dialog.getByPlaceholderText(/^Hasta/), '100');
+    await user.click(dialog.getByRole('button', { name: /Reembolsar/ }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Confirmar reembolso' })).getByRole('button', {
+        name: 'Reembolsar',
+      }),
+    );
+    await settle(2);
+    expect(body(api, 'POST', `/api/v1/orders/${paid.id}/refund`)).toEqual({
+      amount: 100,
+      reason: null,
+      restock: false,
+      creditNote: true,
+    });
+  });
+
+  it('facturada con emisión automática: no hay casilla, el diálogo dice que sale sola', async () => {
+    const { api, user } = await openOrder();
+    api.on('GET', `/api/v1/orders/${paid.id}/fiscal`, facturada(true));
+    await user.click(screen.getByRole('button', { name: /Reembolsar/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Reembolsar pedido' }));
+    expect(await dialog.findByText(/la nota de crédito por este monto se emite sola/)).toBeInTheDocument();
+    expect(dialog.queryByRole('checkbox', { name: /Emitir la nota de crédito/ })).toBeNull();
+  });
+
+  it('el filtro de facturación pide las devueltas sin nota de crédito', async () => {
+    const api = mockApi();
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/ventas');
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Filtrar por facturación' }),
+      'devueltas-sin-nc',
+    );
+    await settle(2);
+    expect(
+      api.calls.some(
+        (c) => c.path.startsWith('/api/v1/orders?') && c.path.includes('fiscal=devueltas-sin-nc'),
+      ),
+    ).toBe(true);
+  });
+
   it('cobrada con Payway: el reembolso dice que la plata vuelve por Payway, no por Mercado Pago', async () => {
     const { api, user } = await openOrder({ ...paid, paymentMethod: 'online' } as typeof paid);
     api.on('GET', `/api/v1/orders/${paid.id}/refunds`, { items: [], gateway: 'payway' });
@@ -287,9 +351,9 @@ describe('ventas: facturación de la venta', () => {
     await user.click(pdfs[0]!);
     await user.click(pdfs[1]!);
     await waitFor(() =>
-      expect(api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}/invoice.pdf?type=creditnote`)).toBe(
-        true,
-      ),
+      expect(
+        api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}/invoice.pdf?type=creditnote&document=d2`),
+      ).toBe(true),
     );
     expect(api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}/invoice.pdf`)).toBe(true);
   });
@@ -313,6 +377,107 @@ describe('ventas: facturación de la venta', () => {
     expect(screen.getByText(/Factura B 0003-00000042 · CAE 7412/)).toBeInTheDocument();
     expect(screen.getByText('· de prueba (homologación)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Facturar ahora/ })).not.toBeInTheDocument();
+  });
+
+  const conCredito = (refundedUncredited: number, extra: object[] = []) => ({
+    environment: 'PRODUCCION',
+    autoInvoice: false,
+    documents: [{ ...factura, impTotal: 100 }, ...extra],
+    jobs: [],
+    credit: {
+      invoiceTotal: 10_000,
+      credited: 0,
+      inFlight: 0,
+      remaining: 10_000,
+      refunded: refundedUncredited,
+      refundedUncredited,
+    },
+  });
+
+  it('con plata devuelta sin acreditar lo avisa, y la nota de crédito arranca con ese monto', async () => {
+    const { api, user } = await panel(conCredito(4_000), 'PARTIALLYREFUNDED');
+    expect(screen.getByText(/Hay \S*\s?40 devueltos sin nota de crédito/)).toBeInTheDocument();
+    api.on('POST', `/api/v1/orders/${paid.id}/credit-notes`, {
+      queued: false,
+      authorized: true,
+      cae: '7555',
+    });
+
+    await user.click(screen.getByRole('button', { name: /Emitir nota de crédito/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Emitir nota de crédito' }));
+    expect(await a11yViolations(axe, screen.getByRole('dialog'))).toEqual([]);
+    const amount = dialog.getByLabelText('Monto');
+    expect(amount).toHaveValue('40');
+    // Más de lo que queda de la factura: no deja seguir.
+    await user.clear(amount);
+    await user.type(amount, '100,01');
+    expect(dialog.getByText(/Ingresá un monto mayor a 0 y hasta/)).toBeInTheDocument();
+    expect(dialog.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+    await user.clear(amount);
+    await user.type(amount, '35');
+    await user.type(dialog.getByLabelText('Motivo (opcional)'), 'Devolución de un producto');
+    await user.click(dialog.getByRole('button', { name: 'Continuar' }));
+    // Confirmación clara: el monto, la factura que acredita y que no se anula.
+    expect(dialog.getByText(/no se puede anular/)).toBeInTheDocument();
+    expect(dialog.getByText('Factura B 0003-00000042')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: /Sí, emitir la nota de crédito/ }));
+    await settle(2);
+    const sent = body(api, 'POST', `/api/v1/orders/${paid.id}/credit-notes`);
+    expect(sent).toMatchObject({ amount: 35, reason: 'Devolución de un producto' });
+    expect(String(sent.idempotencyKey)).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await screen.findByText(/Nota de crédito autorizada · CAE 7555/)).toBeInTheDocument();
+  });
+
+  it('sin reembolso, la nota de crédito es un ajuste: el monto arranca vacío', async () => {
+    const { user } = await panel(conCredito(0));
+    expect(screen.queryByText(/devueltos sin nota de crédito/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Emitir nota de crédito/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Emitir nota de crédito' }));
+    expect(dialog.getByLabelText('Monto')).toHaveValue('');
+    expect(dialog.getByText(/usala para un ajuste/)).toBeInTheDocument();
+  });
+
+  it('varias notas de crédito: una línea y un PDF por cada una; en proceso y fallida, lo dice', async () => {
+    const nc1 = { ...factura, id: 'n1', cbteTipo: 'NotaCreditoB', number: 7, cae: '1111', impTotal: 30 };
+    const nc2 = { ...factura, id: 'n2', cbteTipo: 'NotaCreditoB', number: 8, cae: '2222', impTotal: 20 };
+    const status = conCredito(0, [nc1, nc2]);
+    const { api, user } = await panel({
+      ...status,
+      jobs: [
+        { id: 'jq', kind: 'CreditNote', status: 'Pending', attempts: 0, lastError: null, amount: 1000 },
+        {
+          id: 'jf',
+          kind: 'CreditNote',
+          status: 'Failed',
+          attempts: 1,
+          lastError: 'Supera lo que queda',
+          amount: 999,
+        },
+      ],
+    });
+    expect(screen.getByText(/NC B 0003-00000007/)).toBeInTheDocument();
+    expect(screen.getByText(/NC B 0003-00000008/)).toBeInTheDocument();
+    expect(screen.getByText('Nota de crédito en proceso…')).toBeInTheDocument();
+    expect(screen.getByText(/Falló la nota de crédito: Supera lo que queda/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'PDF de la NC B 0003-00000008' }));
+    await waitFor(() =>
+      expect(
+        api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}/invoice.pdf?type=creditnote&document=n2`),
+      ).toBe(true),
+    );
+    await user.click(screen.getByRole('button', { name: /Reintentar la nota de/ }));
+    await settle(2);
+    expect(api.calls.some((c) => c.method === 'POST' && c.path === '/api/v1/fiscal/jobs/jf/retry')).toBe(
+      true,
+    );
+  });
+
+  it('sin permiso de facturar no ofrece la nota de crédito', async () => {
+    const api = mockApi();
+    api.on('GET', `/api/v1/orders/${paid.id}/fiscal`, conCredito(4_000));
+    renderWithProviders(<FiscalPanel orderId={paid.id} orderStatus="PAID" buyerDoc={null} canEmit={false} />);
+    await settle(2);
+    expect(screen.queryByRole('button', { name: /Emitir nota de crédito/ })).toBeNull();
   });
 
   it('esperando a ARCA no ofrece volver a facturar; en proceso lo dice', async () => {

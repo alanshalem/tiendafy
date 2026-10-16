@@ -392,8 +392,9 @@ export const VENTAS = {
         paragraphs: [
           'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional), y la orden pasa a “Reembolsada” o “Reembolso parcial”. Qué pasa con la plata depende de cómo se cobró: si se pagó online, vuelve por el mismo medio (Mercado Pago o Payway) a la tarjeta o cuenta del comprador; si fue en efectivo o por transferencia, la devolvés vos; si fue en cuenta corriente, se le baja la deuda al cliente.',
           'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo.',
-          'Cuando la venta queda reembolsada del todo, le avisamos al comprador por email (con tu plantilla “Cancelación de compra” si la tenés prendida; si no, con un aviso estándar de reembolso) y, si tenía factura, sale sola la nota de crédito. Un reembolso parcial no genera nota de crédito.',
+          'Cuando la venta queda reembolsada del todo, le avisamos al comprador por email (con tu plantilla “Cancelación de compra” si la tenés prendida; si no, con un aviso estándar de reembolso).',
           'Si devolvés una parte, al comprador le llega un email con cuánto le devolviste y por dónde vuelve la plata (Mercado Pago, la tarjeta, efectivo, transferencia o su cuenta corriente). Uno por cada reembolso, también si lo hiciste directo en Mercado Pago. El motivo que escribís no se le muestra. Sale siempre: con tu texto si prendiste la plantilla “Reembolso parcial” en Configuración → E-mails automáticos; si no, con uno estándar.',
+          'Si la venta estaba facturada, cada reembolso (total o parcial) tiene su nota de crédito por el monto devuelto: sale sola si la tienda factura automáticamente; si no, el diálogo trae tildada “Emitir la nota de crédito por este monto”. Lo que quede devuelto sin nota de crédito se ve en la venta, con el botón “Emitir nota de crédito”, y en el filtro “Devueltas sin nota de crédito” de Ventas.',
         ],
         blocks: [
           {

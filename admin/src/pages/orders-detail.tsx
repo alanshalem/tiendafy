@@ -202,7 +202,14 @@ export function OrderDetail({
         </div>
       )}
       {(paidLike || o.status === 'REFUNDED') && (
-        <FiscalPanel orderId={o.id} orderStatus={o.status} buyerDoc={o.docNumber} canEmit={canEmit} />
+        <FiscalPanel
+          orderId={o.id}
+          orderStatus={o.status}
+          buyerDoc={o.docNumber}
+          canEmit={canEmit}
+          currency={o.currency}
+          refunded={o.refunded?.amount ?? 0}
+        />
       )}
       {offline && o.status === 'PENDINGPAYMENT' && (
         <div className="rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-xs text-warning">
