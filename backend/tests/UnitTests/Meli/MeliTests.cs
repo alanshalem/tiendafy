@@ -347,5 +347,5 @@ public class MeliThumbnailTests
     [InlineData("https://http2.mlstatic.com/D_123-I.jpg", "https://http2.mlstatic.com/D_123-I.jpg")]
     [InlineData(null, null)]
     public void SecureThumbnail_pasa_a_https(string? raw, string? expected) =>
-        Assert.Equal(expected, Api.Endpoints.MeliItemSummary.SecureThumbnail(raw));
+        Assert.Equal(expected, global::Api.Endpoints.MeliItemSummary.SecureThumbnail(raw));
 }
