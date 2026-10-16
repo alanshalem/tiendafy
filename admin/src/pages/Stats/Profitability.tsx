@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, cn, Select, Table, useToast } from '@tiendafy/ui';
+import { Button, cn, Select, Table, useConfirm, useToast } from '@tiendafy/ui';
 import {
   KPI_GRID,
   KpiCard,
@@ -15,6 +15,7 @@ import { BarChart, Delta } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { formatDayShort, formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { CardsSkeleton } from '../../components/Skeleton';
@@ -387,6 +388,10 @@ function MetaAdsSection({
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  // Ver la pauta es de estadísticas; conectar, elegir la cuenta o desconectar
+  // es otra decisión (ads.manage, lo mismo que exige la API).
+  const canManage = usePermissions().can('ads.manage');
 
   const { data: status } = useQuery({
     queryKey: ['meta-status', store?.id],
@@ -397,7 +402,7 @@ function MetaAdsSection({
   const { data: accounts } = useQuery({
     queryKey: ['meta-accounts', store?.id],
     queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/meta-ads/ad-accounts'),
-    enabled: !!store && !!status?.connected && !status.expired && !status.adAccountId,
+    enabled: !!store && canManage && !!status?.connected && !status.expired && !status.adAccountId,
   });
 
   const { data: spend } = useQuery({
@@ -422,6 +427,36 @@ function MetaAdsSection({
     onError: (e) => toast(errMsg(e, 'No se pudo elegir la cuenta publicitaria.'), { variant: 'error' }),
   });
 
+  const disconnect = useMutation({
+    mutationFn: () => api.delete('/api/v1/meta-ads/connection'),
+    onSuccess: () => {
+      toast('Meta Ads desconectado', { variant: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['meta-status', store?.id] });
+      queryClient.removeQueries({ queryKey: ['meta-spend', store?.id] });
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudo desconectar Meta Ads.'), { variant: 'error' }),
+  });
+
+  const askDisconnect = async () => {
+    const ok = await confirm({
+      title: 'Desconectar Meta Ads',
+      message:
+        'Se deja de leer el gasto de tu pauta y el ROAS real desaparece de esta pantalla. Tus campañas y tu cuenta publicitaria en Meta no se tocan. Para verlo de nuevo, volvé a conectar. Si además querés sacarle el permiso a la app, hacelo desde la configuración de tu cuenta de Facebook.',
+      confirmLabel: 'Desconectar',
+      variant: 'danger',
+    });
+    if (ok) disconnect.mutate();
+  };
+
+  // Desconectar se ofrece en cualquier estado con una conexión guardada
+  // (también vencida o sin cuenta elegida): es la forma de cambiar de cuenta de Meta.
+  const disconnectAction =
+    canManage && status?.connected ? (
+      <Button size="sm" variant="ghost" onClick={askDisconnect} loading={disconnect.isPending}>
+        Desconectar
+      </Button>
+    ) : null;
+
   if (!status) return null;
 
   if (!status.configured)
@@ -437,15 +472,22 @@ function MetaAdsSection({
       <ChartCard
         title="Pauta de Meta Ads"
         info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+        action={disconnectAction}
       >
         <p className="text-sm text-fg-muted">
           {status.expired
             ? 'La conexión con Meta venció (los permisos duran ~60 días). Reconectá para seguir viendo el ROAS real.'
             : 'Conectá tu cuenta de Meta para cruzar el gasto de pauta con la ganancia real y ver el ROAS que importa.'}
         </p>
-        <Button className="mt-3" onClick={() => connect.mutate()} loading={connect.isPending}>
-          {status.expired ? 'Reconectar Meta' : 'Conectar Meta Ads'}
-        </Button>
+        {canManage ? (
+          <Button className="mt-3" onClick={() => connect.mutate()} loading={connect.isPending}>
+            {status.expired ? 'Reconectar Meta' : 'Conectar Meta Ads'}
+          </Button>
+        ) : (
+          <p className="mt-2 text-xs text-fg-muted">
+            Conectarla le corresponde a quien maneja la publicidad.
+          </p>
+        )}
       </ChartCard>
     );
 
@@ -454,20 +496,29 @@ function MetaAdsSection({
       <ChartCard
         title="Pauta de Meta Ads"
         info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+        action={disconnectAction}
       >
-        <p className="text-sm text-fg-muted">Elegí la cuenta publicitaria de la tienda:</p>
-        <div className="mt-2 max-w-sm">
-          <Select
-            aria-label="Cuenta publicitaria"
-            value=""
-            placeholder="Cuenta publicitaria…"
-            options={(accounts?.items ?? []).map((a) => ({ value: a.id, label: a.name || a.id }))}
-            onChange={(e) => {
-              const acc = accounts?.items.find((a) => a.id === e.target.value);
-              if (acc) selectAccount.mutate(acc);
-            }}
-          />
-        </div>
+        {!canManage ? (
+          <p className="text-sm text-fg-muted">
+            Falta elegir la cuenta publicitaria de la tienda: le corresponde a quien maneja la publicidad.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-fg-muted">Elegí la cuenta publicitaria de la tienda:</p>
+            <div className="mt-2 max-w-sm">
+              <Select
+                aria-label="Cuenta publicitaria"
+                value=""
+                placeholder="Cuenta publicitaria…"
+                options={(accounts?.items ?? []).map((a) => ({ value: a.id, label: a.name || a.id }))}
+                onChange={(e) => {
+                  const acc = accounts?.items.find((a) => a.id === e.target.value);
+                  if (acc) selectAccount.mutate(acc);
+                }}
+              />
+            </div>
+          </>
+        )}
       </ChartCard>
     );
 
@@ -476,6 +527,7 @@ function MetaAdsSection({
     <ChartCard
       title={`Pauta de Meta Ads · ${status.adAccountName ?? status.adAccountId}`}
       info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+      action={disconnectAction}
     >
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>

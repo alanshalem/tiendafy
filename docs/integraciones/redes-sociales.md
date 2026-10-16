@@ -259,6 +259,10 @@ no crea campañas ni manda eventos.
   centavos, en la moneda de la cuenta publicitaria.
 - Token: largo de usuario (~60 días), sin refresh. Vencido, el endpoint lo
   trata como no conectado y el panel pide reconectar.
+- Desconectar (botón de la tarjeta, con confirmación, solo con `ads.manage`)
+  borra la conexión guardada; no revoca el permiso de la app en Meta (eso lo
+  hace la persona desde su cuenta de Facebook). Es también la forma de pasar
+  a otra cuenta de Meta.
 - Purposes: `Tiendafy.MetaAds.Tokens.v1` y `Tiendafy.MetaAds.OAuthState.v1`.
   Misma regla: no se cambian.
 - Config: `MetaAds:AppId` / `AppSecret` (en `.env.prod`: `META_APP_ID` /

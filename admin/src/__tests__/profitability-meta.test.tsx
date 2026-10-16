@@ -1,13 +1,14 @@
 /**
  * La tarjeta de pauta de Meta Ads en Rentabilidad, en cada estado: sin la
  * integración configurada, sin conectar o vencida (conectar/reconectar, con
- * su error), eligiendo la cuenta publicitaria y con gasto (ROAS real =
- * ganancia ÷ gasto, y el gasto por campaña).
+ * su error), eligiendo la cuenta publicitaria, con gasto (ROAS real =
+ * ganancia ÷ gasto, y el gasto por campaña) y desconectarla. Conectar,
+ * elegir la cuenta y desconectar son de quien tiene ads.manage.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockApi, type MockApi } from '../test/api';
+import { fixture, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
 
@@ -165,5 +166,90 @@ describe('rentabilidad: pauta de Meta Ads', () => {
     });
     expect(await screen.findByText(/Pauta de Meta Ads · act_1/)).toBeInTheDocument();
     expect(await screen.findByText('sin gasto')).toBeInTheDocument();
+  });
+
+  describe('desconectar', () => {
+    const connected = status({ adAccountId: 'act_1', adAccountName: 'Tienda principal' });
+    const spend = { spendTotal: 10_000_000, campaigns: [] };
+
+    it('pide confirmación; cancelar no toca nada, confirmar borra la conexión y vuelve a "Conectar"', async () => {
+      const { api, user } = await openProfitability((a) => {
+        a.on('GET', `${META}/status`, connected);
+        a.on('GET', `${META}/spend`, spend);
+      });
+      const deletes = () => api.calls.filter((c) => c.method === 'DELETE' && c.path === `${META}/connection`);
+
+      await user.click(await screen.findByRole('button', { name: 'Desconectar' }));
+      let dialog = within(await screen.findByRole('dialog'));
+      expect(
+        dialog.getByText(/Tus campañas y tu cuenta publicitaria en Meta no se tocan/),
+      ).toBeInTheDocument();
+      await user.click(dialog.getByRole('button', { name: 'Cancelar' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(deletes()).toHaveLength(0);
+
+      api.on('DELETE', `${META}/connection`, null, 204);
+      api.on('GET', `${META}/status`, status({ connected: false }));
+      await user.click(screen.getByRole('button', { name: 'Desconectar' }));
+      dialog = within(await screen.findByRole('dialog'));
+      await user.click(dialog.getByRole('button', { name: 'Desconectar' }));
+      expect(await screen.findByText('Meta Ads desconectado')).toBeInTheDocument();
+      expect(deletes()).toHaveLength(1);
+      expect(await screen.findByRole('button', { name: 'Conectar Meta Ads' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Desconectar' })).not.toBeInTheDocument();
+    });
+
+    it('vencida o sin cuenta elegida también se puede desconectar; si falla, lo dice', async () => {
+      const { api, user } = await openProfitability((a) => {
+        a.on('GET', `${META}/status`, status({ expired: true }));
+        a.on('DELETE', `${META}/connection`, { detail: 'No se pudo hablar con la base.' }, 500);
+      });
+      await user.click(await screen.findByRole('button', { name: 'Desconectar' }));
+      await user.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Desconectar' }),
+      );
+      expect(await screen.findByText('No se pudo hablar con la base.')).toBeInTheDocument();
+      // Sigue conectada (vencida): reconectar sigue a mano.
+      expect(screen.getByRole('button', { name: 'Reconectar Meta' })).toBeInTheDocument();
+      void api;
+    });
+
+    const withoutAds = (a: MockApi) => {
+      const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
+      a.on('GET', '/api/v1/me/permissions', {
+        ...perms,
+        permissions: perms.permissions.filter((p) => p !== 'ads.manage'),
+      });
+    };
+
+    it('sin ads.manage ve la pauta pero no la desconecta', async () => {
+      await openProfitability((a) => {
+        withoutAds(a);
+        a.on('GET', `${META}/status`, connected);
+        a.on('GET', `${META}/spend`, spend);
+      });
+      expect(await screen.findByText(/Pauta de Meta Ads · Tienda principal/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Desconectar' })).not.toBeInTheDocument();
+    });
+
+    it('sin ads.manage y sin cuenta elegida: lo dice y no pide la lista de cuentas', async () => {
+      const { api } = await openProfitability((a) => {
+        withoutAds(a);
+        a.on('GET', `${META}/status`, status({}));
+      });
+      expect(await screen.findByText(/Falta elegir la cuenta publicitaria/)).toBeInTheDocument();
+      expect(api.calls.some((c) => c.path === `${META}/ad-accounts`)).toBe(false);
+      expect(screen.queryByLabelText('Cuenta publicitaria')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Desconectar' })).not.toBeInTheDocument();
+    });
+
+    it('sin ads.manage y sin conectar, no ofrece el botón de conectar', async () => {
+      await openProfitability((a) => {
+        withoutAds(a);
+        a.on('GET', `${META}/status`, status({ connected: false }));
+      });
+      expect(await screen.findByText(/le corresponde a quien maneja la publicidad/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Conectar Meta Ads' })).not.toBeInTheDocument();
+    });
   });
 });

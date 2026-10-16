@@ -804,6 +804,12 @@ export const VENTAS = {
             tone: 'info',
             text: 'La conexión con Meta dura unos 60 días; cuando vence, el botón pasa a “Reconectar Meta”. Esto no es el píxel: el píxel se carga aparte, en Configuración → Medición y píxeles. Si en vez del botón ves solo un texto, la plataforma todavía no tiene configurada la app de Meta.',
           },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Desconectar o cambiar de cuenta',
+            text: '“Desconectar”, arriba a la derecha de la tarjeta, borra la conexión: se deja de leer el gasto y el ROAS real desaparece, pero tus campañas en Meta no se tocan. Es también la forma de pasar a otra cuenta de Meta: desconectás y volvés a conectar con la otra. Conectar, elegir la cuenta y desconectar los puede hacer quien tiene el permiso “Conectar Meta Ads”; el resto del equipo ve la pauta pero no esos botones.',
+          },
         ],
       },
     ],
