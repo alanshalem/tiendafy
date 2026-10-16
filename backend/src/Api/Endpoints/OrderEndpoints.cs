@@ -95,7 +95,20 @@ public static class OrderEndpoints
             await paidEffects.RunIfJustPaidAsync(
                 await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct), ct);
 
-            return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
+            // Si el banco pide confirmar el pago (3DS), la orden queda pendiente
+            // y la tienda muestra el desafío con estos datos; el resultado final
+            // llega por webhook. El id de pago lo necesita el Status Screen Brick
+            // para mostrar el desafío; la URL y el creq son los que manda Mercado
+            // Pago para eso (no hay tokens ni datos de la tarjeta).
+            return Results.Ok(new
+            {
+                orderId = order.Id,
+                status = card.Status,
+                statusDetail = card.StatusDetail,
+                challenge = card.Challenge is { } c
+                    ? new { paymentId = card.PaymentId, externalResourceUrl = c.ExternalResourceUrl, creq = c.Creq }
+                    : null,
+            });
         }).RequireTenant().RequireRateLimiting("payments");
 
         // Pagar con Payway (ex Decidir): mismo camino que el on-site de Mercado

@@ -245,6 +245,96 @@ public sealed class MercadoPagoFlowTests
     }
 
     /// <summary>
+    /// El banco pide confirmar el pago (3DS): Mercado Pago contesta
+    /// <c>pending</c> / <c>pending_challenge</c> con <c>three_ds_info</c>. La venta
+    /// queda pendiente, la tienda recibe lo justo para mostrar el desafío y el
+    /// resultado final llega por webhook: aprobado paga, desafío fallido rechaza.
+    /// </summary>
+    [Fact]
+    public async Task Pago_con_tarjeta_que_pide_confirmar_con_el_banco()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mp3ds");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        var (_, variantId) = await merchant.CreateProductAsync("Campera 3DS", priceMinor: 50_000_00);
+        var shopper = new Shopper(merchant);
+        const string acs = "https://acs-public.tp.mastercard.com/api/v1/browser_Challenges";
+
+        async Task<(Guid Order, long Payment)> PayWithChallengeAsync()
+        {
+            var paymentId = Random.Shared.NextInt64(100_000_000, 999_999_999);
+            _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments", new
+            {
+                id = paymentId,
+                status = "pending",
+                status_detail = "pending_challenge",
+                three_ds_info = new { external_resource_url = acs, creq = "eyJjcmVxIjoiZGVtbyJ9" },
+            });
+            var checkoutId = await shopper.CheckoutAsync(variantId);
+            var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-onsite",
+                new { token = "card-token", paymentMethodId = "master" });
+
+            Assert.Equal("pending", paid.GetProperty("status").GetString());
+            Assert.Equal("pending_challenge", paid.GetProperty("statusDetail").GetString());
+            var challenge = paid.GetProperty("challenge");
+            Assert.Equal(paymentId.ToString(), challenge.GetProperty("paymentId").GetString());
+            Assert.Equal(acs, challenge.GetProperty("externalResourceUrl").GetString());
+            Assert.Equal("eyJjcmVxIjoiZGVtbyJ9", challenge.GetProperty("creq").GetString());
+            // Nada del vendedor ni de la tarjeta en lo que ve el navegador.
+            Assert.DoesNotContain("APP_USR", paid.ToString());
+            Assert.DoesNotContain("card-token", paid.ToString());
+
+            var orderId = paid.GetProperty("orderId").GetGuid();
+            Assert.Equal("PENDINGPAYMENT", await StatusAsync(shopper, orderId));
+            return (orderId, paymentId);
+        }
+
+        // Desafío superado: el webhook trae el pago aprobado.
+        var (approvedOrder, approvedPayment) = await PayWithChallengeAsync();
+        var sent = _factory.ExternalHttp.SentTo($"{Api}/v1/payments").Last(r => r.Method == HttpMethod.Post);
+        Assert.Contains("\"three_d_secure_mode\":\"optional\"", sent.Body);
+        Assert.Contains("\"binary_mode\":false", sent.Body);
+        Assert.Contains("\"capture\":true", sent.Body);
+
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{approvedPayment}", new
+        {
+            id = approvedPayment,
+            status = "approved",
+            status_detail = "accredited",
+            external_reference = approvedOrder.ToString(),
+            transaction_amount = 50_000m,
+            transaction_amount_refunded = 0m,
+        });
+        await WebhookAsync(approvedPayment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("PAID", await StatusAsync(shopper, approvedOrder));
+
+        // Desafío fallido: Mercado Pago lo rechaza y la venta no se cobra.
+        var (rejectedOrder, rejectedPayment) = await PayWithChallengeAsync();
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{rejectedPayment}", new
+        {
+            id = rejectedPayment,
+            status = "rejected",
+            status_detail = "cc_rejected_3ds_challenge",
+            external_reference = rejectedOrder.ToString(),
+            transaction_amount = 50_000m,
+            transaction_amount_refunded = 0m,
+        });
+        await WebhookAsync(rejectedPayment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("FAILED", await StatusAsync(shopper, rejectedOrder));
+
+        // Sin desafío no viaja nada para mostrar.
+        var plainPayment = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
+            new { id = plainPayment, status = "approved", status_detail = "accredited" });
+        var plainCheckout = await shopper.CheckoutAsync(variantId);
+        var plain = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{plainCheckout}/pay-onsite",
+            new { token = "card-token", paymentMethodId = "visa" });
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, plain.GetProperty("challenge").ValueKind);
+    }
+
+    /// <summary>
     /// Un reembolso total le avisa al comprador con la plantilla "Cancelación de
     /// compra" de la tienda, lo haga el comercio desde el panel o desde su cuenta
     /// de Mercado Pago (llega por webhook). Antes el webhook mandaba un texto fijo

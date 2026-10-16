@@ -98,7 +98,15 @@ public sealed class MercadoPagoCheckoutClient(
             ["description"] = $"Orden {request.OrderId}",
             ["installments"] = request.Installments < 1 ? 1 : request.Installments,
             ["payment_method_id"] = request.PaymentMethodId,
-            ["binary_mode"] = false, // permite challenge 3DS
+            // 3DS 2.0: con "optional" Mercado Pago (y el banco) deciden por riesgo
+            // si hace falta el desafío; sin este campo el default es
+            // "not_supported" y el 3DS no se pide nunca. La guía oficial pide
+            // además captura automática y binary_mode apagado: el pago queda
+            // "pending" mientras el comprador responde el desafío, y con
+            // binary_mode prendido solo puede quedar aprobado o rechazado.
+            ["three_d_secure_mode"] = "optional",
+            ["capture"] = true,
+            ["binary_mode"] = false,
             ["external_reference"] = request.OrderId.ToString(),
             ["payer"] = new Dictionary<string, object?>
             {
@@ -133,10 +141,39 @@ public sealed class MercadoPagoCheckoutClient(
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        return new CardPaymentResult(
+        var result = new CardPaymentResult(
             PaymentId: root.TryGetProperty("id", out var pid) ? pid.ToString() : string.Empty,
             Status: root.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown",
             StatusDetail: root.TryGetProperty("status_detail", out var sd) ? sd.GetString() ?? string.Empty : string.Empty);
+        return result with { Challenge = ReadChallenge(root, result) };
+    }
+
+    /// <summary>
+    /// El desafío 3DS que hay que mostrarle al comprador, si el pago quedó
+    /// esperándolo (<c>pending</c> / <c>pending_challenge</c>): la URL del banco
+    /// (<c>three_ds_info.external_resource_url</c>) y el <c>creq</c> que se le
+    /// postea. Solo se acepta una URL https absoluta: es lo que el navegador del
+    /// comprador va a abrir en un iframe de la tienda.
+    /// </summary>
+    private ThreeDsChallenge? ReadChallenge(JsonElement root, CardPaymentResult payment)
+    {
+        if (!payment.IsPendingChallenge) return null;
+
+        string? url = null, creq = null;
+        if (root.TryGetProperty("three_ds_info", out var info) && info.ValueKind == JsonValueKind.Object)
+        {
+            url = info.TryGetProperty("external_resource_url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() : null;
+            creq = info.TryGetProperty("creq", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
+            && !string.IsNullOrWhiteSpace(creq) && !string.IsNullOrEmpty(payment.PaymentId))
+            return new ThreeDsChallenge(url!, creq);
+
+        // Sin datos para mostrarlo, el pago se resuelve solo: el banco lo
+        // rechaza al vencer el desafío y llega por webhook.
+        logger.LogWarning("MercadoPago pago {PaymentId} pide desafío 3DS sin three_ds_info utilizable.", payment.PaymentId);
+        return null;
     }
 
     public async Task<Result<PaymentStatusDto>> GetPaymentAsync(TenantId tenantId, string paymentId, CancellationToken ct = default)

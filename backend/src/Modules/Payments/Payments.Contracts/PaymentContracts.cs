@@ -31,7 +31,25 @@ public sealed record CreateCardPaymentRequest(
     string? PayerDocType,
     string? PayerDocNumber);
 
-public sealed record CardPaymentResult(string PaymentId, string Status, string StatusDetail);
+public sealed record CardPaymentResult(string PaymentId, string Status, string StatusDetail)
+{
+    /// <summary>
+    /// El desafío 3DS que el comprador tiene que responder en la tienda; null si
+    /// el pago no lo pide (o vino sin los datos para mostrarlo).
+    /// </summary>
+    public ThreeDsChallenge? Challenge { get; init; }
+
+    /// <summary>El banco pide que el comprador confirme el pago (3DS): <c>pending</c> / <c>pending_challenge</c>.</summary>
+    public bool IsPendingChallenge =>
+        string.Equals(Status, "pending", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(StatusDetail, "pending_challenge", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// Lo que el navegador necesita para mostrar el desafío 3DS
+/// (<c>three_ds_info</c> del pago): la URL del banco y el <c>creq</c> que se le postea.
+/// </summary>
+public sealed record ThreeDsChallenge(string ExternalResourceUrl, string Creq);
 
 public sealed record PaymentStatusDto(
     string PaymentId,
