@@ -10,7 +10,7 @@
    ============================================================ */
 
 /** UTC-3, siempre. */
-export const ARGENTINA_OFFSET_MS = -3 * 3600_000;
+const ARGENTINA_OFFSET_MS = -3 * 3600_000;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 

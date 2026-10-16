@@ -14,7 +14,7 @@
 export const RICH_TEXT_MAX = 20_000;
 
 /** Niveles de título que se aceptan. La tienda los dibuja debajo del h2 de la sección. */
-export const RICH_HEADING_LEVELS = [2, 3, 4] as const;
+const RICH_HEADING_LEVELS = [2, 3, 4] as const;
 export type RichHeadingLevel = (typeof RICH_HEADING_LEVELS)[number];
 
 /** Cuántos niveles se pueden anidar (una lista dentro de una cita dentro de una lista…). */

@@ -11,7 +11,7 @@
  * los SVG originales venían de Canva con un PNG gigante embebido y pesaban
  * 16 MB entre todos. Un test de cada app falla si alguno pasa de 30 KB.
  */
-export interface PaymentLogo {
+interface PaymentLogo {
   slug: string;
   label: string;
 }

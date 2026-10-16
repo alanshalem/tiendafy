@@ -64,7 +64,7 @@ const define = <const F extends FieldsSpec>(def: SectionDefinition<F>) => def;
 /* ---- Campos de cada tipo (de acá sale el tipo de su data) ---- */
 
 /** Cuánto se oscurece una foto para que se lea el texto blanco encima. */
-export const OVERLAYS = ['none', 'light', 'medium', 'strong'] as const;
+const OVERLAYS = ['none', 'light', 'medium', 'strong'] as const;
 export type Overlay = (typeof OVERLAYS)[number];
 
 /**
@@ -128,7 +128,7 @@ const carouselSlide = {
 } as const;
 
 /** Alto del carrusel. `adapt` = el de la imagen (sin recortes si respeta la medida recomendada). */
-export const CAROUSEL_HEIGHTS = ['adapt', 'small', 'medium', 'large', 'full'] as const;
+const CAROUSEL_HEIGHTS = ['adapt', 'small', 'medium', 'large', 'full'] as const;
 
 const carouselFields = {
   slides: field.items(carouselSlide, 20),
@@ -147,8 +147,8 @@ const carouselFields = {
  * Columnas propias de una sección de productos. 'auto' = las del listado
  * (Diseño → Listado de productos), que es lo que hacían todas antes.
  */
-export const PRODUCT_SECTION_COLUMNS = ['auto', '2', '3', '4', '5'] as const;
-export const PRODUCT_SECTION_MOBILE_COLUMNS = ['auto', '1', '2'] as const;
+const PRODUCT_SECTION_COLUMNS = ['auto', '2', '3', '4', '5'] as const;
+const PRODUCT_SECTION_MOBILE_COLUMNS = ['auto', '1', '2'] as const;
 
 /**
  * Destacados, recién llegados y ofertas comparten forma; cambia el título por
@@ -251,7 +251,7 @@ const imageTextFields = {
   buttonStyle: field.enum(['solid', 'outline', 'link'], 'solid'),
 } as const;
 
-export const INFO_ICONS = ['shipping', 'card', 'security', 'gift', 'support', 'returns'] as const;
+const INFO_ICONS = ['shipping', 'card', 'security', 'gift', 'support', 'returns'] as const;
 
 const infoBarFields = {
   items: field.items(
@@ -296,7 +296,7 @@ const instagramFields = {
   aspect: field.enum(['auto', '16:9', '9:16', '1:1'], 'auto'),
 } as const;
 
-export const TESTIMONIAL_RATINGS = ['none', '1', '2', '3', '4', '5'] as const;
+const TESTIMONIAL_RATINGS = ['none', '1', '2', '3', '4', '5'] as const;
 
 const testimonialsFields = {
   title: field.string('Lo que dicen nuestros clientes'),
@@ -418,7 +418,7 @@ const videoFields = {
 } as const;
 
 /** Íconos que se pueden elegir en "Íconos con texto" (los del kit de la tienda). `none`: sin ícono. */
-export const COLUMN_ICONS = [
+const COLUMN_ICONS = [
   'shipping',
   'card',
   'security',
@@ -975,7 +975,7 @@ export const SECTION_REGISTRY = {
  * Dentro de una semana a las 23:59 de Argentina (UTC-3, sin horario de
  * verano), en UTC: el ejemplo del cronómetro.
  */
-export function weekFromToday(now = new Date()): string {
+function weekFromToday(now = new Date()): string {
   const ar = new Date(now.getTime() - 3 * 3600_000);
   const end = Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + 7, 23, 59) + 3 * 3600_000;
   return new Date(end).toISOString();

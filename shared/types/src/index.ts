@@ -1,4 +1,4 @@
-export type { TenantId, Money, ApiError, IsoDateTime } from './common';
+export type { ApiError } from './common';
 
 // NOTA: los tipos de dominio de órdenes/checkout/pagos se removieron de acá:
 // estaban hand-written, drifteados respecto del DTO real del backend y sin uso
@@ -19,11 +19,9 @@ export type {
 export {
   PRODUCT_SOURCE_LIMIT,
   BEST_SELLERS_DAYS,
-  PRODUCT_SECTION_TYPES,
   clampProductLimit,
   normalizeProductSource,
   productSourceQuery,
-  defaultProductSource,
   sectionProductPlan,
   productSourceListingHref,
 } from './product-source';
@@ -64,14 +62,7 @@ export { DEFAULT_SECTIONS, baseTheme, normalizeTheme } from './theme';
 export { PAYMENT_LOGOS, PAYMENT_LOGO_SIZE, paymentLogoSrc, paymentLogoLabel } from './payment-logos';
 export * from './sections';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
-export {
-  SENTRY_FILTERED,
-  isSensitiveName,
-  redactSecrets,
-  scrubSentryBreadcrumb,
-  scrubSentryEvent,
-  sentryScrubbers,
-} from './sentry-scrub';
+export { redactSecrets, scrubSentryBreadcrumb, scrubSentryEvent, sentryScrubbers } from './sentry-scrub';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText, contrastRatio, mixRgb, readableOn } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
@@ -98,7 +89,6 @@ export {
   FOOTER_COLUMN_LINKS_MAX,
   FOOTER_TITLE_MAX,
   FOOTER_TEXT_MAX,
-  FOOTER_COLUMN_KINDS,
   FOOTER_SINGLE_KINDS,
   deriveFooterColumns,
   footerFlagsFromColumns,

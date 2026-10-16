@@ -16,7 +16,7 @@
  * de acá son la parte de los de Sentry que se toca.
  */
 
-export const SENTRY_FILTERED = '[Filtered]';
+const SENTRY_FILTERED = '[Filtered]';
 
 const SENSITIVE_EXACT = new Set([
   't', // link firmado del mail: seguimiento del pedido, reseñas, clics de campañas
@@ -32,7 +32,7 @@ const SENSITIVE_EXACT = new Set([
 ]);
 
 /** Nombre de parámetro, header o dato que lleva un secreto. */
-export function isSensitiveName(name: string): boolean {
+function isSensitiveName(name: string): boolean {
   const n = name.trim().toLowerCase();
   return SENSITIVE_EXACT.has(n) || /token|secret|password|passwd/.test(n) || /(_key|-key|apikey)$/.test(n);
 }

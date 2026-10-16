@@ -1,6 +1,6 @@
 import type { IsoDateTime, TenantId } from './common';
 
-export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
+type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
 
 export interface Tenant {
   id: TenantId;

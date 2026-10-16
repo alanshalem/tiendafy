@@ -52,7 +52,7 @@ export function upgradeBrandsData(data: Data): Data {
 }
 
 /** Por tipo de sección, cómo se lleva su data vieja a la forma de hoy. */
-export const LEGACY_DATA_UPGRADES: Readonly<Partial<Record<string, (data: Data) => Data>>> = {
+const LEGACY_DATA_UPGRADES: Readonly<Partial<Record<string, (data: Data) => Data>>> = {
   carousel: upgradeCarouselData,
   brands: upgradeBrandsData,
 };

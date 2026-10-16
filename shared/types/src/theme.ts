@@ -13,15 +13,6 @@ import { migrateTheme, THEME_SCHEMA_VERSION } from './sections/migrations';
 import { DEFAULT_PRODUCT_LIST } from './theme-helpers';
 import { PAYMENT_LOGO_SLUGS } from './payment-logos';
 
-// Viven en theme-helpers (sin dependencias, ver ahí); se re-exportan para quien los importaba de acá.
-export {
-  DEFAULT_PRODUCT_LIST,
-  footerColumnTitle,
-  headerColorsFor,
-  heroUnderHeader,
-  sanitizeCss,
-} from './theme-helpers';
-
 export interface ThemeColors {
   primary: string;
   accent: string;
@@ -176,10 +167,6 @@ export interface ComingSoonConfig {
   /** Fecha de apertura (AAAA-MM-DD). Vacía = no se anuncia ninguna. */
   launchDate: string;
 }
-
-// Las secciones del inicio (tipos, sobre común, registro, migraciones) viven
-// en ./sections: acá solo se re-exportan para que el resto siga igual.
-export type { SectionType, ThemeSection } from './sections/envelope';
 
 export interface ProductListConfig {
   columns: number;
@@ -356,16 +343,6 @@ export interface FooterConfig {
   phones: string[];
   emails: string[];
 }
-
-// Viven en payment-logos (sin dependencias); se re-exportan para quien los importaba de acá.
-export {
-  PAYMENT_LOGOS,
-  PAYMENT_LOGO_SIZE,
-  PAYMENT_LOGO_SLUGS,
-  paymentLogoLabel,
-  paymentLogoSrc,
-  type PaymentLogo,
-} from './payment-logos';
 
 /** Estilo de bordes global (cards, botones, imágenes, inputs). */
 export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';

@@ -8,7 +8,7 @@
 /**
  * Dinero tal como llega/serializa en el wire: monto en unidad mínima + ISO 4217.
  * Redeclarado a mano en varios consumidores (catalog, EditProduct, Products,
- * Orders); esta es la fuente única. Distinto del dominio `Money` de `common`.
+ * Orders); esta es la fuente única.
  */
 export interface MoneyDto {
   amount: number;

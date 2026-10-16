@@ -122,12 +122,7 @@ export function productSourceQuery(source: ProductSource, limit?: number): strin
 }
 
 /** Las secciones de la portada que muestran una lista de productos. */
-export const PRODUCT_SECTION_TYPES = [
-  'featured',
-  'new-products',
-  'sale-products',
-  'countdown-offer',
-] as const;
+const PRODUCT_SECTION_TYPES = ['featured', 'new-products', 'sale-products', 'countdown-offer'] as const;
 export type ProductSectionType = (typeof PRODUCT_SECTION_TYPES)[number];
 
 /** Qué pedir para una sección: el origen, cuántos, y a qué recurrir si vuelve vacío. */
@@ -143,9 +138,7 @@ export interface SectionProductPlan {
  * destacados = lo más vendido (y si todavía no hay ventas, lo último), recién
  * llegados = lo último, ofertas = las ofertas de todo el catálogo.
  */
-export function defaultProductSource(
-  type: ProductSectionType,
-): Pick<SectionProductPlan, 'source' | 'fallback'> {
+function defaultProductSource(type: ProductSectionType): Pick<SectionProductPlan, 'source' | 'fallback'> {
   switch (type) {
     case 'featured':
       return { source: { kind: 'best-sellers' }, fallback: { kind: 'newest' } };
