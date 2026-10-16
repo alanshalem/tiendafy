@@ -106,7 +106,9 @@ public static class MembersEndpoints
         // Sumar a alguien por email con un rol. Si todavía no tiene cuenta, se
         // la crea: el registro del panel está cerrado a propósito, así que el
         // alta la hace alguien del equipo y a la persona le llega un email para
-        // poner su contraseña. A quien ya está, se le cambia el rol desde la
+        // poner su contraseña. Quien ya tenía cuenta (de otra tienda) no recibe
+        // ningún email: entra con su contraseña de siempre y ve esta tienda.
+        // A quien ya es del equipo, se le cambia el rol desde la
         // lista (con las reglas de ese cambio), no volviéndolo a sumar.
         members.MapPost("/", async (
             AddMemberRequest req, HttpContext http, ITenantContext tenant, IMembershipService memberships,
@@ -125,6 +127,7 @@ public static class MembersEndpoints
                 return Results.Problem(title: "Members.InvalidEmail", detail: "El email no es válido.", statusCode: 400);
 
             var user = await users.FindByEmailAsync(email);
+            var accountCreated = user is null;
             if (user is null)
             {
                 user = new AppUser
@@ -154,7 +157,9 @@ public static class MembersEndpoints
 
             await RecordAsync(http, audit, tenantId, "member.add",
                 $"Sumó a {Who(user.DisplayName, user.Email)} como {Roles.Label(role)}.", ct);
-            return Results.NoContent();
+            // El panel avisa distinto: la cuenta nueva recibe el email para poner
+            // su contraseña; quien ya tenía cuenta no recibe nada y entra con la suya.
+            return Results.Ok(new { accountCreated });
         }).RequirePermission(Permission.MembersManage);
 
         // Cambiar el rol (jerarquía + no dejar la tienda sin dueño). Las

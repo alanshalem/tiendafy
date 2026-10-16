@@ -253,6 +253,16 @@ describe('usuarios y permisos', () => {
     expect(did(api, 'DELETE', `/api/v1/members/${extra.userId}`)).toBe(true);
     expect(member.email).toBeTruthy();
   });
+
+  it('a quien ya tenía cuenta no le promete un email que no se manda', async () => {
+    const { api, user } = await open('usuarios');
+    api.on('POST', '/api/v1/members', { accountCreated: false });
+    await user.click(screen.getByRole('button', { name: /Agregar usuario/ }));
+    await user.type(screen.getByPlaceholderText('email@ejemplo.com'), 'ya-tenia@tienda.com');
+    await user.click(screen.getByRole('button', { name: 'Agregar' }));
+    expect(await screen.findByText(/Ya tenía cuenta/)).toBeInTheDocument();
+    expect(screen.queryByText(/Le llegó un email/)).toBeNull();
+  });
 });
 
 describe('medición y píxeles', () => {

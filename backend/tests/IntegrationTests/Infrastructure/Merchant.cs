@@ -78,7 +78,9 @@ public sealed class Merchant
     {
         var client = Factory.CreateDefaultClient(new CookieContainerHandler());
         var email = await LogInNewUserAsync(Factory, client, Unique(tag));
-        await ExpectOkAsync(HttpMethod.Post, "/api/v1/members", new { email, role });
+        // Ya tenía cuenta: el panel no le promete un email que no se manda.
+        var added = await PostAsync("/api/v1/members", new { email, role });
+        Assert.False(added.GetProperty("accountCreated").GetBoolean());
         var userId = (await GetAsync("/api/v1/members?limit=100")).GetProperty("items").EnumerateArray()
             .Single(m => m.GetProperty("email").GetString() == email).GetProperty("userId").GetGuid();
         return new Teammate(this, client, userId, email);

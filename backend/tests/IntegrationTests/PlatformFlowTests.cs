@@ -88,7 +88,8 @@ public sealed partial class PlatformFlowTests
 
         // Alta de alguien sin cuenta: se le crea y le llega el mail para poner su clave.
         var sellerEmail = $"vendedora-{owner.Subdomain}@test.local";
-        await owner.ExpectOkAsync(HttpMethod.Post, "/api/v1/members", new { email = sellerEmail, role = "vendedor", name = "Vendedora" });
+        var added = await owner.PostAsync("/api/v1/members", new { email = sellerEmail, role = "vendedor", name = "Vendedora" });
+        Assert.True(added.GetProperty("accountCreated").GetBoolean());
         var welcome = _factory.ExternalHttp.EmailsTo(sellerEmail).Last();
         var members = await owner.GetAsync("/api/v1/members");
         Assert.Equal(2, members.GetProperty("total").GetInt32());

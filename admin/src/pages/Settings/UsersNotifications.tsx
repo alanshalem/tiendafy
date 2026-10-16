@@ -90,13 +90,24 @@ export function UsersNotificationsPage() {
   const onError = (e: unknown) => toast(errMsg(e, 'No se pudo completar la acción.'), { variant: 'error' });
 
   const addM = useMutation({
-    mutationFn: () => api.post('/api/v1/members', { email, role, name: name.trim() || null }),
-    onSuccess: () => {
+    mutationFn: () =>
+      api.post<{ accountCreated?: boolean } | undefined>('/api/v1/members', {
+        email,
+        role,
+        name: name.trim() || null,
+      }),
+    onSuccess: (res) => {
       setEmail('');
       setName('');
       setRole('vendedor');
       setAdding(false);
-      toast('Usuario agregado. Le llegó un email para definir su contraseña.', { variant: 'success' });
+      // Solo a una cuenta nueva le llega el email; quien ya tenía cuenta entra con su contraseña.
+      toast(
+        res?.accountCreated === false
+          ? 'Usuario agregado. Ya tenía cuenta: entra con su contraseña de siempre y va a ver esta tienda.'
+          : 'Usuario agregado. Le llegó un email para definir su contraseña.',
+        { variant: 'success' },
+      );
       invalidate();
     },
     onError,
