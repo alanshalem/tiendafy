@@ -140,7 +140,7 @@ public sealed class MercadoPagoFlowTests
             $"/api/v1/checkout/{checkoutId}/pay-onsite", new { token = "", paymentMethodId = "visa" })).StatusCode);
 
         // Id de pago nuevo en cada corrida: la base de tests persiste y el inbox
-        // descarta un aviso repetido del mismo pago.
+        // guarda una fila por pago.
         var cardPayment = Random.Shared.NextInt64(100_000_000, 999_999_999);
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
             new { id = cardPayment, status = "approved", status_detail = "accredited" });
@@ -189,6 +189,58 @@ public sealed class MercadoPagoFlowTests
         var rejected = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{otherCheckout}/pay-onsite",
             new { token = "card-token", paymentMethodId = "visa" });
         Assert.False(rejected.IsSuccessStatusCode);
+    }
+
+    /// <summary>
+    /// MP avisa cada cambio del mismo pago con el mismo id. Una tarjeta que
+    /// queda en revisión (o un pago en efectivo) se aprueba con un aviso
+    /// posterior: antes el inbox lo descartaba por repetido y la venta quedaba
+    /// pendiente para siempre.
+    /// </summary>
+    [Fact]
+    public async Task Un_pago_que_queda_pendiente_se_cobra_con_el_aviso_siguiente()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mpp");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        var (_, variantId) = await merchant.CreateProductAsync("Campera MP", priceMinor: 40_000_00);
+        var shopper = new Shopper(merchant);
+
+        var checkoutId = await shopper.CheckoutAsync(variantId);
+        var paymentId = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
+            new { id = paymentId, status = "in_process", status_detail = "pending_review_manual" });
+        var pay = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-onsite",
+            new { token = "card-token", paymentMethodId = "visa" });
+        var orderId = pay.GetProperty("orderId").GetGuid();
+
+        object Payment(string status) => new
+        {
+            id = paymentId,
+            status,
+            status_detail = status == "approved" ? "accredited" : "pending_review_manual",
+            external_reference = orderId.ToString(),
+            transaction_amount = 40_000m,
+            transaction_amount_refunded = 0m,
+        };
+
+        // Primer aviso: sigue en revisión.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{paymentId}", Payment("in_process"));
+        await WebhookAsync(paymentId.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        Assert.NotEqual("PAID", await StatusAsync(shopper, orderId));
+
+        // Segundo aviso del mismo pago: MP lo aprobó.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{paymentId}", Payment("approved"));
+        Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(paymentId.ToString(), mpUserId)).StatusCode);
+        await DrainWebhooksAsync();
+        Assert.Equal("PAID", await StatusAsync(shopper, orderId));
+
+        // Sigue habiendo una sola fila por pago.
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var ev = await db.PaymentWebhookEvents.AsNoTracking().SingleAsync(e => e.DataId == paymentId.ToString());
+        Assert.Equal(InboxEntry.StatusDone, ev.Status);
     }
 
     /// <summary>

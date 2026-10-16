@@ -100,8 +100,12 @@ que trae la comisión (la respuesta del cobro no informa el neto).
 **Webhook.** `POST /api/v1/payments/webhooks/mercadopago` es público. Valida la
 firma, guarda `(type, data.id, user_id)` en `payment_webhook_events` y contesta
 200 sin procesar. Solo se guardan los de tipo `payment`: los demás se contestan
-200 y se descartan. El índice único `(type, data_id)` descarta los reenvíos. El
-worker (cada 5 s) busca la tienda por el `user_id` de
+200 y se descartan. Hay una fila por pago (índice único `(type, data_id)`),
+pero Mercado Pago avisa cada cambio del mismo pago (pendiente → aprobado,
+reembolso desde su cuenta, contracargo): un aviso repetido vuelve a poner en
+cola la fila ya procesada, y una que sigue pendiente queda como está (el
+worker va a leer el estado nuevo). Hasta el 16-oct-2026 se descartaba y esos
+cambios no llegaban nunca. El worker (cada 5 s) busca la tienda por el `user_id` de
 Mercado Pago, consulta `GET /v1/payments/{id}` (nunca confía en el body ni en
 el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 

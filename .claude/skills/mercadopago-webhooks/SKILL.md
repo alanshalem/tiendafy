@@ -51,13 +51,15 @@ id:{data.id};request-id:{x-request-id};ts:{ts};
   `GET /payments/mercadopago/webhooks/health` y los revive con
   `POST /payments/mercadopago/webhooks/{id}/retry`, acotado al `user_id` de la
   tienda.
-- Dedup: índice único `(type, data_id)`. **Ojo**: Mercado Pago manda varios
-  avisos del mismo pago cuando cambia de estado (`payment.created`, después
-  `payment.updated` al aprobarse un `in_process`, al reembolsarse desde su
-  panel, al entrar un contracargo). Con ese índice, el endpoint descarta todo
-  aviso posterior al primero (`PaymentWebhookEndpoints`), así que esos cambios
-  no llegan por webhook. Si se toca la dedup, deduplicar por evento (o
-  reencolar el pago si el evento anterior ya se procesó), no por pago.
+- Dedup: una fila por pago (índice único `(type, data_id)`). Mercado Pago
+  manda varios avisos del mismo pago cuando cambia de estado
+  (`payment.created`, después `payment.updated` al aprobarse un `in_process`,
+  al reembolsarse desde su panel, al entrar un contracargo). Ante la violación
+  del índice, `PaymentWebhookEndpoints` vuelve a poner en cola la fila si ya
+  estaba `done` o `dead`; si sigue `pending` no la toca (el worker todavía no
+  consultó el pago). Hasta el 16-oct-2026 los avisos posteriores se
+  descartaban. Queda una ventana chica: un aviso que llega mientras el worker
+  está procesando la misma fila se pierde si el worker ya leyó el estado viejo.
 
 ## El inbox no tiene tienda
 

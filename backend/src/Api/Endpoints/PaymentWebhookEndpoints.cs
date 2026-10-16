@@ -42,8 +42,14 @@ public static class PaymentWebhookEndpoints
 
             // Persistir el evento (inbox durable) y responder 200. El worker lo
             // procesa async con reintentos; sobrevive reinicios del proceso.
-            // Idempotente: si MP reenvía el mismo (type, data.id), el índice único
-            // lo rechaza y respondemos 200 igual (ya está encolado).
+            //
+            // Hay una fila por pago (índice único (type, data.id)), pero MP avisa
+            // CADA cambio del mismo pago: pendiente → aprobado (efectivo en
+            // Rapipago, tarjeta en revisión), reembolso hecho desde su cuenta,
+            // contracargo. El aviso no trae el estado: el worker lo consulta al
+            // procesar. Así que un aviso repetido vuelve a poner en cola la fila
+            // que ya se había procesado (o dado por muerta). Antes se descartaba
+            // y la venta quedaba pendiente para siempre.
             if (result.Type == "payment" && !string.IsNullOrEmpty(result.DataId))
             {
                 db.PaymentWebhookEvents.Add(PaymentWebhookEvent.Receive(result.Type, result.DataId!, userId));
@@ -53,7 +59,20 @@ public static class PaymentWebhookEndpoints
                 }
                 catch (DbUpdateException dup) when (IsUniqueViolation(dup))
                 {
-                    // Duplicado ya encolado: nada que hacer, seguimos a 200.
+                    db.ChangeTracker.Clear();
+                    var type = result.Type;
+                    var dataId = result.DataId!;
+                    var now = DateTime.UtcNow;
+                    // Si sigue pendiente no se toca: el worker todavía no lo
+                    // consultó y, cuando lo haga, va a leer el estado nuevo.
+                    await db.PaymentWebhookEvents
+                        .Where(e => e.Type == type && e.DataId == dataId && e.Status != InboxEntry.StatusPending)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(e => e.Status, InboxEntry.StatusPending)
+                            .SetProperty(e => e.Attempts, 0)
+                            .SetProperty(e => e.LastError, (string?)null)
+                            .SetProperty(e => e.ProcessedAtUtc, (DateTime?)null)
+                            .SetProperty(e => e.NextAttemptAtUtc, now), ct);
                 }
             }
 

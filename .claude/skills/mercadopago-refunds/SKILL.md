@@ -46,8 +46,8 @@ Después del reembolso, el pago queda `approved` con
   (ARCA); el reingreso de stock es opcional.
 - Reembolsos hechos desde el panel de Mercado Pago: `SettlePaymentHandler` los
   aplica si consulta el pago y ve `transaction_amount_refunded` mayor al
-  registrado. Pero el aviso que los dispara es un `payment.updated` del mismo
-  pago, y el inbox hoy lo descarta por duplicado (ver `mercadopago-webhooks`).
+  registrado. El aviso que los dispara es un `payment.updated` del mismo pago:
+  el inbox vuelve a poner en cola esa fila (ver `mercadopago-webhooks`).
 - En marketplace, Mercado Pago devuelve también la parte proporcional de la
   comisión de la plataforma (`marketplace_fee`/`application_fee`).
 

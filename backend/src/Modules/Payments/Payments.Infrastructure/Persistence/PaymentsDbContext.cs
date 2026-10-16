@@ -44,9 +44,9 @@ public sealed class PaymentsDbContext : DbContext
         wh.Property(x => x.Id).ValueGeneratedNever();
         // Cola: el worker pide los pendientes YA vencidos, en orden de vencimiento.
         wh.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
-        // Idempotencia de ingesta: MP reenvía el mismo evento varias veces. El
-        // índice único descarta duplicados a nivel DB (el endpoint traga la
-        // violación y responde 200), evitando doble procesamiento/notificación.
+        // Una fila por pago: los avisos repetidos del mismo pago no se apilan.
+        // El endpoint, ante la violación, vuelve a poner en cola la fila ya
+        // procesada (MP avisa cada cambio de estado del mismo pago).
         wh.HasIndex(x => new { x.Type, x.DataId }).IsUnique();
         wh.Property(x => x.Type).HasMaxLength(40).IsRequired();
         wh.Property(x => x.DataId).HasMaxLength(64).IsRequired();
