@@ -14,7 +14,7 @@ export { Dropdown, type DropdownProps, type DropdownItemProps } from './Dropdown
 export { ToastProvider, useToast, type ToastVariant, type ToastOptions } from './Toast';
 export { ConfirmProvider, useConfirm, type ConfirmOptions } from './Confirm';
 export { PromptProvider, usePrompt, type PromptOptions } from './Prompt';
-export { Table, TABLE_TH, clickableRowProps, type TableProps, type TableColumn } from './Table';
+export { Table, clickableRowProps, type TableProps, type TableColumn } from './Table';
 export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './Breadcrumbs';
 export { FormField, type FormFieldProps } from './Form';
 export { Captcha, type CaptchaProps } from './Captcha';
@@ -24,4 +24,3 @@ export { EmptyList, type EmptyListProps } from './EmptyList';
 export { Tabs, type TabsProps, type TabItem } from './Tabs';
 export { Tooltip, type TooltipProps } from './Tooltip';
 export { PageHeader, type PageHeaderProps } from './PageHeader';
-export { StatCard, type StatCardProps } from './StatCard';

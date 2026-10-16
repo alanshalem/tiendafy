@@ -86,13 +86,13 @@ const alignClasses = {
 };
 
 /**
- * Las clases del encabezado de toda tabla del panel, también de las que se
- * arman a mano (las que tienen filas desplegables o celdas editables y no
- * entran en <Table>). Había encabezados en MAYÚSCULAS y otros no según la
- * pantalla; quedan en minúscula con la primera en mayúscula, que se lee mejor
- * en columnas angostas.
+ * Las clases del encabezado de <Table>. Las tablas que se arman a mano (las
+ * que tienen filas desplegables o celdas editables) usan el mismo texto con
+ * TABLE_HEAD_TEXT del panel. Había encabezados en MAYÚSCULAS y otros no según
+ * la pantalla; quedan en minúscula con la primera en mayúscula, que se lee
+ * mejor en columnas angostas.
  */
-export const TABLE_TH = 'bg-bg-subtle px-4 py-2.5 text-xs font-medium text-fg-muted';
+const TABLE_TH = 'bg-bg-subtle px-4 py-2.5 text-xs font-medium text-fg-muted';
 
 /** Tabla tipada para listados de admin (productos, pedidos, clientes). */
 export function Table<T>({
