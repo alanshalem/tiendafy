@@ -655,7 +655,7 @@ function OrderFilters({
     <div className="mb-2 space-y-2">
       <SearchInput
         aria-label="Buscar ventas"
-        placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
+        placeholder="Buscar por email, nombre o número (#1042)…"
         value={search}
         onChange={(e) => onSearch(e.target.value)}
       />

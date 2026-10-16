@@ -145,7 +145,7 @@ export function ScanDispatch({ initialCode }: { initialCode: string | null }) {
         >
           <Input
             aria-label={order ? 'Código del producto' : 'Código del pedido'}
-            placeholder={order ? 'Código de barras o SKU…' : 'Número del pedido (#A1B2C3D4)…'}
+            placeholder={order ? 'Código de barras o SKU…' : 'Número del pedido (#1042)…'}
             value={manual}
             onChange={(e) => setManual(e.target.value)}
           />

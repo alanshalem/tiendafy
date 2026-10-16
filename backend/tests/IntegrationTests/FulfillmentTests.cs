@@ -104,6 +104,15 @@ public sealed class FulfillmentTests(ApiFactory factory)
         Assert.Equal(order, (await store.GetAsync($"/api/v1/fulfillment/orders/resolve?code={Uri.EscapeDataString(number)}")).GetProperty("id").GetGuid());
         var resolved = await store.GetAsync($"/api/v1/fulfillment/orders/resolve?code={order}");
         Assert.Contains(resolved.GetProperty("items").EnumerateArray(), i => i.GetProperty("barcode").GetString() == barcode);
+        // Y por el número de la tienda, como se lo ve en el panel (con o sin el #).
+        var label = resolved.GetProperty("number").GetString()!;
+        Assert.Matches(@"^#\d+$", label);
+        Assert.Equal(order, (await store.GetAsync($"/api/v1/fulfillment/orders/resolve?code={Uri.EscapeDataString(label)}")).GetProperty("id").GetGuid());
+        Assert.Equal(order, (await store.GetAsync($"/api/v1/fulfillment/orders/resolve?code={label[1..]}")).GetProperty("id").GetGuid());
+        // El mismo número en otra tienda es otra venta (o ninguna), nunca esta.
+        var foreignStore = await Merchant.CreateAsync(factory, "scx");
+        var foreign = await foreignStore.SendAsync(HttpMethod.Get, $"/api/v1/fulfillment/orders/resolve?code={label[1..]}");
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await store.SendAsync(HttpMethod.Get, "/api/v1/fulfillment/orders/resolve?code=nada")).StatusCode);
 
         // Falta una remera.

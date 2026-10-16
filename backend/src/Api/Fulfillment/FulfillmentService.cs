@@ -215,14 +215,20 @@ public sealed class FulfillmentService(
     }
 
     /// <summary>
-    /// El pedido de un código escaneado: el QR del remito (el id completo), o
-    /// el número corto que se lee en la etiqueta ("#A1B2C3D4" o sin el #).
+    /// El pedido de un código escaneado o escrito: el QR del remito (el id
+    /// completo), el número de la venta ("#1042" o sin el #) o el id corto de
+    /// las etiquetas viejas ("#A1B2C3D4"). Siempre dentro de la tienda.
     /// </summary>
     public async Task<Order?> ResolveOrderAsync(TenantId tenantId, string code, CancellationToken ct)
     {
-        var needle = code.Trim().TrimStart('#');
+        var needle = code.Trim().TrimStart('#').Trim();
         if (Guid.TryParse(needle, out var id))
             return await ordersDb.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == id, ct);
+
+        if (OrderLabel.ParseNumber(needle) is { } number
+            && await ordersDb.Orders.AsNoTracking()
+                .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Number == number, ct) is { } byNumber)
+            return byNumber;
 
         if (needle.Length != 8 || !needle.All(Uri.IsHexDigit)) return null;
         var prefix = needle.ToLowerInvariant();

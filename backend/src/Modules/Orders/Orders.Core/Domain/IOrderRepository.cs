@@ -6,7 +6,7 @@ namespace Orders.Core.Domain;
 /// Los filtros del listado de Ventas. Todos opcionales; los mismos valen para
 /// la página, el export y los contadores, así lo que se cuenta es lo que se ve.
 /// </summary>
-/// <param name="Search">Email, nombre o número (#A1B2C3D4).</param>
+/// <param name="Search">Email, nombre o número (#1042, o el id corto de las etiquetas viejas).</param>
 /// <param name="Status">Estado tal como lo muestra la API (PAID, FULFILLED…).</param>
 /// <param name="FromUtc">Creadas desde (inclusive).</param>
 /// <param name="ToUtc">Creadas antes de (exclusivo).</param>
