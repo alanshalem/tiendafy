@@ -41,7 +41,9 @@ public static class CheckoutModule
         services.AddMemoryCache();
         services.AddHttpClient<MiCorreoClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
 
-        // Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
+        // Zipnova: SIN retries (la creación de envíos no es idempotente). 20 s
+        // para crear envíos y bajar etiquetas; cotizar corta antes, a los
+        // ZipnovaClient.QuoteTimeout, porque está en el camino del checkout.
         services.AddHttpClient<ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 
         // El timeout real lo pone cada operación: cotizar corta a los 6 s

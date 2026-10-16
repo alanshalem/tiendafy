@@ -216,6 +216,17 @@ public sealed class ZipnovaFlowTests
         var test = await merchant.SendAsync(HttpMethod.Post, "/api/v1/admin/shipping/zipnova/test", new { });
         Assert.Contains("cuenta suspendida", await test.Content.ReadAsStringAsync());
 
+        // Zipnova inalcanzable (red caída, timeout): el checkout sigue sin la
+        // opción y el panel avisa con un mensaje, no con un 500.
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/shipments/quote",
+            (_, _) => throw new HttpRequestException("Connection refused"));
+        var unreachable = await merchant.PostAsync("/api/v1/shipping/zipnova/quote", new { postalCode = "1043", city = "CABA", state = "BA", units = 1 });
+        Assert.Empty(unreachable.GetProperty("options").EnumerateArray());
+        Assert.False(string.IsNullOrEmpty(unreachable.GetProperty("error").GetString()));
+        var testDown = await merchant.SendAsync(HttpMethod.Post, "/api/v1/admin/shipping/zipnova/test", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, testDown.StatusCode);
+        Assert.Contains("no respondió", await testDown.Content.ReadAsStringAsync());
+
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/shipments", new { error = "destino inválido" }, HttpStatusCode.UnprocessableEntity);
         var create = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/orders/{orderId}/zipnova-shipment", Recipient());
         Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);

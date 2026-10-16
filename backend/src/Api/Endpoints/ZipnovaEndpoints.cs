@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Api.Auth;
 using Api.Shipping;
 using Catalog.Contracts;
@@ -94,7 +95,7 @@ public static class ZipnovaEndpoints
         // real (leer no crea nada ni consume saldo).
         admin.MapPost("/test", async (
             ZipnovaTestRequest req, ITenantContext tenant, IZipnovaRepository repo,
-            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -124,13 +125,18 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.TestFailed", ex.Message).ToProblem();
             }
+            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            {
+                loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió a la cotización de prueba.");
+                return Error.Validation("Zipnova.TestFailed", NoAnswerMessage).ToProblem();
+            }
         });
 
         // --------------------------------------- Público: cotización del checkout
         group.MapPost("/shipping/zipnova/quote", async (
             ZipnovaPublicQuoteRequest req, ITenantContext tenant, IZipnovaRepository repo,
             ShippingSecretProtector protector, ZipnovaClient client, ICatalogCheckoutQuery catalog,
-            IDataProtectionProvider dp, CancellationToken ct) =>
+            IDataProtectionProvider dp, ILoggerFactory loggers, CancellationToken ct) =>
         {
 
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
@@ -188,9 +194,13 @@ public static class ZipnovaEndpoints
 
                 return Results.Ok(new { available = true, options });
             }
-            catch (ZipnovaException)
+            catch (Exception ex) when (ex is ZipnovaException || IsNoAnswer(ex, ct))
             {
-                // El checkout nunca se rompe por el cotizador.
+                // El checkout nunca se rompe por el cotizador: tampoco si Zipnova
+                // tarda más que ZipnovaClient.QuoteTimeout o no se lo alcanza (antes
+                // eso salía como un 500 y ensuciaba Sentry).
+                if (ex is not ZipnovaException)
+                    loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió a la cotización del checkout.");
                 return Results.Ok(new
                 {
                     available = true,
@@ -369,7 +379,7 @@ public static class ZipnovaEndpoints
         // Etiqueta PDF, proxied (las credenciales nunca tocan el browser).
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-label", async (
             Guid orderId, ITenantContext tenant, IZipnovaRepository repo,
-            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
@@ -383,12 +393,17 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.LabelFailed", ex.Message).ToProblem();
             }
+            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            {
+                loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió al pedir una etiqueta.");
+                return Error.Validation("Zipnova.LabelFailed", NoAnswerMessage).ToProblem();
+            }
         }).RequirePermission(Permission.OrdersFulfill);
 
         // Tracking del envío de una orden.
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-tracking", async (
             Guid orderId, ITenantContext tenant, IZipnovaRepository repo,
-            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
@@ -417,12 +432,31 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.TrackingFailed", ex.Message).ToProblem();
             }
+            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            {
+                loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió al pedir el seguimiento.");
+                return Error.Validation("Zipnova.TrackingFailed", NoAnswerMessage).ToProblem();
+            }
         }).RequirePermission(Permission.OrdersRead);
 
         return group;
     }
 
     // ---------------------------------------------------------------- Helpers
+
+    private const string NoAnswerMessage = "Zipnova no respondió a tiempo. Probá de nuevo en unos minutos.";
+
+    /// <summary>
+    /// Zipnova no contestó (timeout, red caída) o mandó algo que no se pudo
+    /// leer: es un problema del proveedor, no nuestro, y se trata igual que un
+    /// error de su API. Si el que cortó fue el que hizo el pedido, no: eso no
+    /// es una falla de nadie. La creación de envíos NO pasa por acá: ahí "no
+    /// respondió" puede querer decir que el envío se creó igual, y lo maneja
+    /// ShipmentWriteAhead.
+    /// </summary>
+    private static bool IsNoAnswer(Exception ex, CancellationToken requestAborted) =>
+        ex is HttpRequestException or JsonException
+        || (ex is OperationCanceledException && !requestAborted.IsCancellationRequested);
 
     /// <summary>Paquetes por envío: más que esto no se cotiza online.</summary>
     private const int MaxUnits = 200;

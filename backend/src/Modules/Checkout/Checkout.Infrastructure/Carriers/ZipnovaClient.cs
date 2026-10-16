@@ -93,6 +93,17 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
 {
     private static readonly JsonSerializerOptions Json = JsonDefaults.Web;
 
+    /// <summary>
+    /// Cotizar es parte del checkout, y el checkout de la tienda deja de esperar
+    /// una cotización a los 10 s (FETCH_TIMEOUT_MS de CheckoutClient.tsx). Con
+    /// los 20 s del HttpClient, una cotización lenta llegaba cuando el comprador
+    /// ya no la esperaba. 8 s deja 2 s para lo nuestro (leer el carrito, armar
+    /// el token) y la ida y vuelta de la tienda a la API; más vale no ofrecer
+    /// Zipnova que trabar la compra. Crear envíos y bajar etiquetas, que se
+    /// hacen desde el panel, siguen con los 20 s del HttpClient.
+    /// </summary>
+    public static readonly TimeSpan QuoteTimeout = TimeSpan.FromSeconds(8);
+
     private HttpRequestMessage Build(ZipnovaCredentials creds, HttpMethod method, string path, object? payload)
     {
         var request = new HttpRequestMessage(method, $"{creds.BaseUrl}{path}");
@@ -149,7 +160,9 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
         if (config.OriginId != "auto" && int.TryParse(config.OriginId, out var originId))
             payload["origin_id"] = originId;
 
-        var body = await SendAsync(creds, HttpMethod.Post, "/shipments/quote", payload, ct);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(QuoteTimeout);
+        var body = await SendAsync(creds, HttpMethod.Post, "/shipments/quote", payload, timeout.Token);
         return JsonSerializer.Deserialize<ZipnovaQuoteResponse>(body, Json)
             ?? throw new ZipnovaException("Respuesta de cotización vacía.");
     }
