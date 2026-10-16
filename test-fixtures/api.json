@@ -2265,11 +2265,21 @@
           "type": "cancelacion-compra",
           "group": "Ventas",
           "label": "Cancelaci\u00F3n de compra",
-          "description": "Notifica cuando un pedido fue cancelado.",
+          "description": "Avisa cuando un pedido se cancela o se reembolsa entero.",
           "enabled": false,
           "alwaysOn": false,
           "subject": "Tu pedido #{{order_id}} fue cancelado",
           "bodyHtml": "\u003Ch2 style=\u0022margin:0 0 12px;font-size:20px\u0022\u003EPedido cancelado\u003C/h2\u003E\n\u003Cp\u003ETu pedido fue cancelado. Si ten\u00E9s dudas, escribinos.\u003C/p\u003E"
+        },
+        {
+          "type": "reembolso-parcial",
+          "group": "Ventas",
+          "label": "Reembolso parcial",
+          "description": "Avisa cu\u00E1nto le devolviste al comprador y por d\u00F3nde cuando reembols\u00E1s una parte de la compra.",
+          "enabled": false,
+          "alwaysOn": false,
+          "subject": "Te devolvimos {{refund_amount}} de tu pedido #{{order_id}}",
+          "bodyHtml": "\u003Ch2 style=\u0022margin:0 0 12px;font-size:20px\u0022\u003ETe devolvimos parte de tu compra\u003C/h2\u003E\n\u003Cp\u003EHola {{name}}, te devolvimos {{refund_amount}} de tu pedido #{{order_id}}.\u003C/p\u003E\u003Cp\u003E{{refund_method}}\u003C/p\u003E\u003Cp\u003E\u003Ca href=\u0022{{tracking_link}}\u0022\u003EVer tu pedido\u003C/a\u003E\u003C/p\u003E"
         },
         {
           "type": "factura",
@@ -9856,8 +9866,8 @@
         {
           "type": "cancelacion-compra",
           "group": "Ventas",
-          "label": "Reembolso / cancelaci\u00F3n",
-          "description": "Avisa cuando un pedido se cancela o reembolsa.",
+          "label": "Reembolso",
+          "description": "Avisa cuando le devolv\u00E9s el total de un pedido.",
           "enabled": false,
           "metaTemplateName": "pedido_reembolsado",
           "languageCode": "es_AR",

@@ -127,8 +127,12 @@ public static class WhatsAppTemplateCatalog
             ["nombre", "orden"],
             "¡Hola {{1}}! Tu pedido {{2}} ya está listo para retirar. Te esperamos. 🛍️"),
 
-        new("cancelacion-compra", "Ventas", "Reembolso / cancelación",
-            "Avisa cuando un pedido se cancela o reembolsa.",
+        // Solo el reembolso total: el texto sugerido dice que se devolvió la
+        // plata, así que no sirve para una venta sin cobrar que se cancela ni
+        // para un parcial (esos avisan solo por email). La clave queda igual
+        // que la del email: es la que guardó cada tienda.
+        new("cancelacion-compra", "Ventas", "Reembolso",
+            "Avisa cuando le devolvés el total de un pedido.",
             DefaultEnabled: false, "pedido_reembolsado",
             ["nombre", "orden", "total"],
             "Hola {{1}}, procesamos el reembolso de tu pedido {{2}} por {{3}}. Cualquier duda escribinos por acá."),

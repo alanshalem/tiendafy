@@ -18,7 +18,7 @@ public sealed record EmailTemplateDef(
 /// Catálogo de emails automáticos. Es la fuente de defaults; el tenant solo
 /// guarda los que edita (overrides en la tabla email_templates).
 /// Variables disponibles: {{store}}, {{name}}, {{order_id}} (el número de pedido, sin #), {{total}}, {{items}}, {{tracking_link}} ("Seguí tu pedido"), {{link}}
-/// y, en las instrucciones de pago, {{payment_instructions}}.
+/// y, en las instrucciones de pago, {{payment_instructions}}; en el reembolso parcial, {{refund_amount}} y {{refund_method}}.
 /// <para>
 /// Una plantilla está acá solo si algo la manda. "Confirmación de compra" y
 /// "Bienvenida" se sacaron (oct-2026): no había evento propio (la compra ya
@@ -116,10 +116,25 @@ public static class EmailTemplateCatalog
             Wrap("¿Nos contás qué te pareció?",
                 "<p>Hola {{name}}, esperamos que estés disfrutando tu compra.</p>{{items}}<p>Tu opinión ayuda a otros compradores a decidir (y a nosotros a mejorar). Te lleva un minuto:</p><p><a href=\"{{link}}\">Dejar mi reseña</a></p>")),
 
+        // Apagada de fábrica, pero la cancelación a mano y el reembolso total
+        // avisan igual (con este texto o con el genérico del reembolso): el
+        // comprador tiene que enterarse. Prenderla es para usar el texto propio.
         new("cancelacion-compra", "Ventas", "Cancelación de compra",
-            "Notifica cuando un pedido fue cancelado.", false,
+            "Avisa cuando un pedido se cancela o se reembolsa entero.", false,
             "Tu pedido #{{order_id}} fue cancelado",
             Wrap("Pedido cancelado", "<p>Tu pedido fue cancelado. Si tenés dudas, escribinos.</p>")),
+
+        // Mismo criterio que la de cancelación: sale siempre (apagada, con este
+        // texto de fábrica). Una plantilla aparte y no variables en la de
+        // cancelación: el texto de un reembolso parcial dice otra cosa (la
+        // compra sigue en pie) y cada tienda edita uno sin romper el otro.
+        // {{refund_amount}}: lo devuelto en ESTE reembolso; {{refund_method}}:
+        // por dónde vuelve la plata, en una frase.
+        new("reembolso-parcial", "Ventas", "Reembolso parcial",
+            "Avisa cuánto le devolviste al comprador y por dónde cuando reembolsás una parte de la compra.", false,
+            "Te devolvimos {{refund_amount}} de tu pedido #{{order_id}}",
+            Wrap("Te devolvimos parte de tu compra",
+                "<p>Hola {{name}}, te devolvimos {{refund_amount}} de tu pedido #{{order_id}}.</p><p>{{refund_method}}</p><p><a href=\"{{tracking_link}}\">Ver tu pedido</a></p>")),
 
         new("factura", "Ventas", "Factura",
             "Informa al cliente al facturar una venta.", false,

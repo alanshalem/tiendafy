@@ -8,7 +8,11 @@ namespace Orders.Core.Features;
 /// <summary>Qué pasó al aplicar el pago (para que el caller dispare side-effects como emails).</summary>
 public enum SettleOutcome { NoChange, JustPaid, Failed, Refunded, ChargedBack, PartiallyRefunded }
 
-public sealed record SettleResult(SettleOutcome Outcome, Order? Order);
+/// <param name="RefundedNow">
+/// Lo que se devolvió en ESTE aviso, cuando sincronizó un reembolso parcial
+/// hecho en Mercado Pago (el aviso al comprador dice cuánto).
+/// </param>
+public sealed record SettleResult(SettleOutcome Outcome, Order? Order, Money? RefundedNow = null);
 
 /// <summary>
 /// Aplica el resultado de un pago a la orden. Idempotente: si la orden ya está
@@ -57,7 +61,7 @@ public sealed class SettlePaymentHandler(
                             logger.LogInformation("Order {OrderId}: refund parcial sincronizado desde MP ({Delta}).", orderId, delta);
                             return new SettleResult(
                                 order.Status == OrderStatus.Refunded ? SettleOutcome.Refunded : SettleOutcome.PartiallyRefunded,
-                                order);
+                                order, delta);
                         }
                     }
                 }

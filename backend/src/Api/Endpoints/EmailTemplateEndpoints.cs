@@ -145,6 +145,9 @@ public static class EmailTemplateEndpoints
                 ["link"] = "#",
                 ["items"] = SampleItemsTable(),
                 ["payment_instructions"] = Api.Orders.OfflinePaymentEmail.Sample(),
+                ["refund_amount"] = "ARS 12.000",
+                ["refund_method"] = System.Net.WebUtility.HtmlEncode(
+                    Api.Orders.RefundMediums.BuyerText(Api.Orders.RefundMedium.MercadoPago)),
             };
 
             var body = Sanitizer.Sanitize(req.BodyHtml ?? string.Empty);

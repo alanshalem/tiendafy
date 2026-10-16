@@ -72,6 +72,13 @@ public sealed class PaymentWebhookWorker(
                 // lo decide el comercio al devolver.
                 await sp.GetRequiredService<Api.Orders.RefundedOrderSideEffects>().RunAsync(order, ct);
                 break;
+            case SettleOutcome.PartiallyRefunded when result.Value.RefundedNow is { } refundedNow:
+                // Un parcial hecho en la cuenta de Mercado Pago: el mismo aviso
+                // que uno desde el panel. Solo cuando el monto devuelto creció,
+                // así que un reintento del webhook no lo repite.
+                await sp.GetRequiredService<Api.Orders.RefundedOrderSideEffects>()
+                    .NotifyPartialAsync(order, refundedNow, Api.Orders.RefundMedium.MercadoPago, ct);
+                break;
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);
                 break;

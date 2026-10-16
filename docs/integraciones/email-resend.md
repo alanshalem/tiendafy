@@ -74,7 +74,7 @@ Del lado de Resend (detalle en [configuracion.md](../configuracion.md) y en la g
 
 Las variables llegan HTML-encodeadas (van al cuerpo); el asunto se decodifica después de sustituir, porque es texto plano ("Café", no "Caf&#233;").
 
-Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{items}}` (tabla con fotos en los pedidos, lista de productos en el carrito abandonado), `{{tracking_link}}` (link firmado a `/seguimiento`), `{{link}}`, `{{product}}`, `{{price}}` y `{{payment_instructions}}` según la plantilla.
+Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{items}}` (tabla con fotos en los pedidos, lista de productos en el carrito abandonado), `{{tracking_link}}` (link firmado a `/seguimiento`), `{{link}}`, `{{product}}`, `{{price}}`, `{{payment_instructions}}`, `{{refund_amount}}` (lo devuelto en ese reembolso) y `{{refund_method}}` (por dónde vuelve la plata, en una frase: `RefundMediums.BuyerText`) según la plantilla.
 
 | Plantilla | Default | Quién la dispara |
 |---|---|---|
@@ -83,7 +83,8 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `confirmacion-envio` / `lista-para-retirar` | prendidas | `Api/Orders/OrderFulfillment.cs` (según sea envío o retiro) |
 | `pedir-resena` | prendida | `ReviewRequestWorker` (días después del despacho) |
 | `aviso-stock` | prendida | `BackInStockWorker` (los pedidos de "Avisame cuando ingrese") |
-| `cancelacion-compra` | apagada | `RefundedOrderSideEffects` y `OfflinePayments`. Si está apagada, el reembolso igual avisa con un texto genérico (`OrderEmail.Refund`) |
+| `cancelacion-compra` | apagada | `RefundedOrderSideEffects` (reembolso total), `OrderRefundService.CancelAsync` (cancelación a mano) y `OfflinePayments` (venció el plazo de una transferencia o efectivo). Apagada, el reembolso total avisa igual con un texto genérico (`OrderEmail.Refund`) y la cancelación a mano con el texto de fábrica de la plantilla; la que vence sola, no |
+| `reembolso-parcial` | apagada | `RefundedOrderSideEffects.NotifyPartialAsync`, desde `OrderRefundService` (panel) y `PaymentWebhookWorker` (parcial hecho en Mercado Pago). Apagada, sale igual con el texto de fábrica. Uno por reembolso: el webhook solo avisa cuando creció lo devuelto |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
 | `carritos-abandonados` | prendida | `AbandonedCartWorker` (1 h después de un checkout con email que no terminó en una venta pagada; una sola vez) |
 | `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` |
@@ -93,6 +94,8 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 El aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertService.cs`) también pasa por `BrandedEmailSender` (tag de uso `stock-bajo`), pero no es una plantilla editable: no figura en el catálogo.
 
 Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión. Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña) salen siempre.
+
+Cancelar una venta a mano o devolver plata siempre le avisa al comprador, aunque la plantilla esté apagada: la cancelación y el parcial pasan por `OrderNotifier.NotifyWithDefaultAsync` (la de la tienda si la prendió; si no, el texto de fábrica del catálogo) y el reembolso total cae en `OrderEmail.Refund`. Prenderla sirve para mandar el texto propio. `reembolso-parcial` es una plantilla aparte (y no variables en `cancelacion-compra`) porque dice otra cosa: la compra sigue en pie.
 
 En las dos de la cuenta, `{{link}}` es el link con el token. Si la tienda lo borró del cuerpo, `ShopperAccountEmails` agrega al final el botón y el link en texto: sin el link el email no sirve.
 
@@ -136,7 +139,7 @@ Estados de la campaña: `draft`, `scheduled`, `sending`, `sent`, `cancelled`.
 - **Preview**: en `/configuracion/emails-automaticos` el editor muestra la plantilla con el layout real (`POST /api/v1/email-templates/preview`). En `/marketing`, la campaña tiene preview y "Enviar prueba".
 - **Envío real**: cargá una API key de prueba y `Email:From` de un dominio verificado, y mandá una campaña de prueba a tu casilla.
 - **Webhook**: desde el panel de Resend podés reenviar un evento a tu endpoint (sale con un timestamp nuevo, así que pasa la ventana de 5 minutos). Sin `Email:WebhookSecret` el endpoint da 404 (es lo esperado).
-- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada y supresión), `EmailTemplateTests.cs` y `FiscalWorkerTests.cs` (el email `factura` con el PDF, una sola vez). En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
+- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada y supresión), `EmailTemplateTests.cs`, `FiscalWorkerTests.cs` (el email `factura` con el PDF, una sola vez) y los avisos de cancelación y reembolso en `ManualOrderTests.cs` y `MercadoPagoFlowTests.cs`. En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
 
 ## Pendiente
 

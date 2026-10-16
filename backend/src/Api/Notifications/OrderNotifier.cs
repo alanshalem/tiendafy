@@ -24,6 +24,41 @@ public sealed class OrderNotifier(
         Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default,
         IReadOnlyList<EmailAttachment>? attachments = null)
     {
+        var vars = await VarsAsync(order, extraVars, ct);
+        var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
+
+        if (rendered is not { Enabled: true }) return false;
+        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct,
+            attachments: attachments);
+        return true;
+    }
+
+    /// <summary>
+    /// Un aviso que el comprador no puede dejar de recibir (su venta se canceló,
+    /// le devolvieron parte de la plata): con la plantilla de la tienda si la
+    /// prendió y, si no, con el texto de fábrica de esa misma plantilla. Prenderla
+    /// sirve para mandar el texto propio, no para decidir si sale.
+    /// </summary>
+    public async Task NotifyWithDefaultAsync(
+        Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
+    {
+        var vars = await VarsAsync(order, extraVars, ct);
+        var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
+        if (rendered is null) return;
+
+        if (!rendered.Enabled)
+        {
+            var def = EmailTemplateCatalog.Find(templateKey)!;
+            rendered = new RenderedEmail(true,
+                System.Net.WebUtility.HtmlDecode(EmailTemplates.Substitute(def.DefaultSubject, vars)),
+                EmailTemplates.Substitute(def.DefaultBody, vars));
+        }
+        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct);
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> VarsAsync(
+        Order order, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct)
+    {
         var store = await links.ForTenantAsync(order.TenantId.Value, "https", ct);
         var storeName = store?.Name ?? "tu tienda";
 
@@ -36,11 +71,6 @@ public sealed class OrderNotifier(
         var vars = OrderEmail.OrderVars(order, storeName, imageMap, trackingLink);
         if (extraVars is not null)
             vars = vars.Concat(extraVars).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Last().Value);
-        var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
-
-        if (rendered is not { Enabled: true }) return false;
-        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct,
-            attachments: attachments);
-        return true;
+        return vars;
     }
 }

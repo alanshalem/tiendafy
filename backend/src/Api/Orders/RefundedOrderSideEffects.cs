@@ -1,13 +1,16 @@
+using System.Net;
 using Api.Notifications;
 using Fiscal.Core.Abstractions;
 using Orders.Core.Domain;
+using SharedKernel.Common;
 
 namespace Api.Orders;
 
 /// <summary>
 /// Lo que pasa cuando una venta queda reembolsada entera: el aviso al
 /// comprador por email y WhatsApp con la plantilla "cancelacion-compra" de la
-/// tienda, y la nota de crédito si estaba facturada.
+/// tienda, y la nota de crédito si estaba facturada. Y el aviso de un
+/// reembolso parcial (<see cref="NotifyPartialAsync"/>).
 ///
 /// Dos caminos llegan acá —el reembolso desde el panel y el que el comercio
 /// hace en su cuenta de Mercado Pago, que llega por webhook— y cada uno tenía
@@ -25,6 +28,7 @@ public sealed class RefundedOrderSideEffects(
     ILogger<RefundedOrderSideEffects> logger)
 {
     public const string Template = "cancelacion-compra";
+    public const string PartialTemplate = "reembolso-parcial";
 
     public async Task RunAsync(Order order, CancellationToken ct = default)
     {
@@ -42,6 +46,24 @@ public sealed class RefundedOrderSideEffects(
         await StepAsync("nota de crédito", order, () => fiscal.EnqueueCreditNoteAsync(
             order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct));
     }
+
+    /// <summary>
+    /// El aviso de un reembolso parcial: cuánto se devolvió en ESTE reembolso y
+    /// por dónde vuelve, con la plantilla "reembolso-parcial" (la de la tienda si
+    /// la prendió; si no, su texto de fábrica). Antes un parcial no avisaba nada.
+    /// Una vez por reembolso: el panel llega acá una vez por pedido de reembolso
+    /// (bajo el lock de la venta) y el webhook solo cuando el monto devuelto
+    /// creció, así que un reintento del aviso no lo repite.
+    /// Solo email: la plantilla de WhatsApp de reembolso dice que se devolvió
+    /// el total, y no hay una aprobada para un parcial.
+    /// </summary>
+    public Task NotifyPartialAsync(Order order, Money amount, RefundMedium medium, CancellationToken ct = default) =>
+        StepAsync("email de reembolso parcial", order, () => notifier.NotifyWithDefaultAsync(order, PartialTemplate,
+            new Dictionary<string, string>
+            {
+                ["refund_amount"] = WebUtility.HtmlEncode(MoneyFormat.ForNotification(amount)),
+                ["refund_method"] = WebUtility.HtmlEncode(RefundMediums.BuyerText(medium)),
+            }, ct));
 
     private async Task StepAsync(string step, Order order, Func<Task> run)
     {

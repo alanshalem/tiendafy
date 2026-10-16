@@ -164,7 +164,7 @@ export const CLIENTES = {
             rows: [
               [
                 'Ventas',
-                'Instrucciones de pago (a quien eligió transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro, en lugar de la de envío), Confirmación de envío (con seguimiento), Pedido de reseña (unos días después del despacho), Cancelación de compra y Factura (con el PDF adjunto, cuando la venta tiene su CAE)',
+                'Instrucciones de pago (a quien eligió transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro, en lugar de la de envío), Confirmación de envío (con seguimiento), Pedido de reseña (unos días después del despacho), Cancelación de compra, Reembolso parcial y Factura (con el PDF adjunto, cuando la venta tiene su CAE)',
               ],
               [
                 'Cuenta de usuarios',
@@ -181,6 +181,11 @@ export const CLIENTES = {
             demo: 'switch',
             caption:
               'Cada tipo de email tiene su interruptor — probalo. Apagado, ese email simplemente no se envía (salvo los de la cuenta, que no se apagan).',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Cancelación de compra y Reembolso parcial son la excepción: cuando cancelás una venta, la reembolsás entera o devolvés una parte, al comprador siempre le llega el aviso. Apagados sale con un texto estándar; prendelos para mandar el tuyo.',
           },
         ],
       },
@@ -218,6 +223,11 @@ export const CLIENTES = {
               [
                 '{{payment_instructions}}',
                 'Los datos para pagar: monto, cuenta o local y hasta cuándo (solo en Instrucciones de pago)',
+              ],
+              ['{{refund_amount}}', 'Cuánto le devolviste (solo en Reembolso parcial)'],
+              [
+                '{{refund_method}}',
+                'Por dónde vuelve la plata: Mercado Pago, la tarjeta, efectivo, transferencia o la cuenta corriente (solo en Reembolso parcial)',
               ],
             ],
           },
@@ -378,7 +388,7 @@ export const CLIENTES = {
       {
         heading: 'Qué conviene activar',
         paragraphs: [
-          'Los que salen hoy: Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso / cancelación (cuando reembolsás una venta entera) y Carritos abandonados. La tarjeta “Confirmación de compra” todavía no se manda en ningún momento: el aviso de la compra sale con la confirmación de pago.',
+          'Los que salen hoy: Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso (cuando reembolsás una venta entera) y Carritos abandonados. La tarjeta “Confirmación de compra” todavía no se manda en ningún momento: el aviso de la compra sale con la confirmación de pago.',
           'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta y le llega a cualquiera que dejó su teléfono en el checkout, sin mirar si aceptó recibir novedades: usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
         ],
       },

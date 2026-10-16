@@ -187,6 +187,23 @@ public sealed class ManualOrderTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Un_reembolso_parcial_de_una_venta_manual_avisa_que_la_plata_la_devuelve_la_tienda()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "mo11");
+        var (_, variant) = await merchant.CreateProductAsync("Disco 5 kg", priceMinor: 6_000_00, stock: 5);
+        var buyer = $"parcial-{Guid.NewGuid():N}@test.local";
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual",
+                Sale(variant, "transfer", quantity: 2, extra: new() { ["buyerEmail"] = buyer })))
+            .GetProperty("id").GetGuid();
+
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = 6_000m, reason = "uno vino golpeado" });
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(buyer), m => m.Subject.StartsWith("Te devolvimos", StringComparison.Ordinal));
+        Assert.StartsWith("Te devolvimos ARS 6.000 de tu pedido #", mail.Subject, StringComparison.Ordinal);
+        Assert.Contains("Te lo devolvemos por transferencia.", mail.Html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Cancelar_una_venta_con_link_anula_el_link_libera_el_stock_y_deja_rastro()
     {
         var merchant = await Merchant.CreateAsync(factory, "mo6");
@@ -220,6 +237,60 @@ public sealed class ManualOrderTests(ApiFactory factory)
         var notPending = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{paid}/cancel", new { reason = (string?)null });
         Assert.Equal(HttpStatusCode.Conflict, notPending.StatusCode);
         Assert.Equal("Order.NotCancellable", await CodeAsync(notPending));
+    }
+
+    /// <summary>
+    /// Cancelar a mano le avisa al comprador, una sola vez. Antes no salía nada,
+    /// aunque la plantilla "Cancelación de compra" dijera "Notifica cuando un
+    /// pedido fue cancelado". Apagada (como viene de fábrica) sale con su texto
+    /// de fábrica; prendida, con el que escribió la tienda.
+    /// </summary>
+    [Fact]
+    public async Task Cancelar_a_mano_le_avisa_al_comprador_una_sola_vez()
+    {
+        // Plantilla apagada: el texto de fábrica.
+        var (merchant, orderId, buyer) = await PendingLinkSaleAsync("mo9");
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/cancel", new { reason = "se arrepintió" });
+        await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{orderId}/cancel", new { reason = (string?)null }); // 409
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(buyer), m => m.Subject.EndsWith("fue cancelado", StringComparison.Ordinal));
+        Assert.StartsWith("Tu pedido #", mail.Subject, StringComparison.Ordinal);
+        Assert.Contains("Tu pedido fue cancelado", mail.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain("se arrepintió", mail.Html, StringComparison.Ordinal); // el motivo es interno
+
+        // Plantilla prendida y editada: el texto de la tienda.
+        var (custom, customOrder, customBuyer) = await PendingLinkSaleAsync("mo10");
+        await custom.PutAsync("/api/v1/email-templates/cancelacion-compra", new
+        {
+            enabled = true,
+            subject = "Cancelamos tu pedido #{{order_id}}",
+            bodyHtml = "<p>{{name}}, anulamos el pedido y el link de pago.</p>",
+        });
+        await custom.PostAsync($"/api/v1/orders/{customOrder}/cancel", new { reason = (string?)null });
+
+        var customMail = Assert.Single(factory.ExternalHttp.EmailsTo(customBuyer), m => m.Subject.StartsWith("Cancelamos tu pedido #", StringComparison.Ordinal));
+        Assert.Contains("anulamos el pedido y el link de pago", customMail.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain(factory.ExternalHttp.EmailsTo(customBuyer), m => m.Subject.EndsWith("fue cancelado", StringComparison.Ordinal));
+    }
+
+    /// <summary>Una tienda con una venta manual por link de Mercado Pago, sin pagar, de un comprador propio.</summary>
+    private async Task<(Merchant Merchant, Guid OrderId, string Buyer)> PendingLinkSaleAsync(string tag)
+    {
+        var merchant = await Merchant.CreateAsync(factory, tag);
+        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        var (_, variant) = await merchant.CreateProductAsync("Step", priceMinor: 12_000_00, stock: 3);
+        var preferenceId = $"pref-{Guid.NewGuid():N}"[..20];
+        factory.ExternalHttp.OnJson(HttpMethod.Post, $"{MercadoPago}/v1/checkout/preferences",
+            new { id = preferenceId, init_point = "https://www.mercadopago.com.ar/x" });
+        factory.ExternalHttp.OnJson(HttpMethod.Put, $"{MercadoPago}/checkout/preferences/{preferenceId}", new { id = preferenceId });
+        var buyer = $"cancelado-{Guid.NewGuid():N}@test.local";
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual", Sale(variant, "link", extra: new()
+        {
+            ["returnUrl"] = $"http://{merchant.Subdomain}.localhost:3000",
+            ["buyerEmail"] = buyer,
+        })))
+            .GetProperty("id").GetGuid();
+        return (merchant, orderId, buyer);
     }
 
     [Fact]

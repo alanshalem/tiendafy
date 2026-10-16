@@ -52,7 +52,7 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 | `confirmacion-pago` | `confirmacion_pago` | nombre, orden, total | Orden pagada |
 | `confirmacion-envio` | `pedido_en_camino` | nombre, orden, seguimiento ("a coordinar" si no hay) | Despacho |
 | `lista-para-retirar` | `listo_para_retirar` | nombre, orden | Pedido de retiro listo |
-| `cancelacion-compra` | `pedido_reembolsado` | nombre, orden, total | Reembolso |
+| `cancelacion-compra` | `pedido_reembolsado` | nombre, orden, total | Reembolso total. No en la cancelación de una venta sin cobrar ni en un reembolso parcial: el texto sugerido dice que se devolvió la plata (esos dos avisan solo por email) |
 | `carritos-abandonados` | `carrito_abandonado` | nombre, tienda | `AbandonedCartWorker`, solo si el checkout llegó a cargar teléfono |
 | `confirmacion-compra` | `confirmacion_compra` | nombre, orden, total | Nunca (ver "Pendiente") |
 

@@ -1,6 +1,7 @@
 using Api.Crm;
 using Api.Endpoints;
 using Api.Finance;
+using Api.Notifications;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
@@ -31,6 +32,7 @@ public sealed class OrderRefundService(
     LedgerPoster ledger,
     CustomerDirectory customers,
     RefundedOrderSideEffects refundedEffects,
+    OrderNotifier notifier,
     OrderRefundLocks locks,
     ILogger<OrderRefundService> logger)
 {
@@ -149,6 +151,17 @@ public sealed class OrderRefundService(
             if (req.Restock)
                 await RestockAsync(tenantId, order, ct);
         }
+        else
+        {
+            // Parcial: el comprador se entera de cuánto le volvió y por dónde.
+            var medium = gateway switch
+            {
+                RefundGateway.Payway => RefundMedium.Payway,
+                RefundGateway.MercadoPago => RefundMedium.MercadoPago,
+                _ => RefundMediums.ForManual(order),
+            };
+            await refundedEffects.NotifyPartialAsync(order, amount, medium, ct);
+        }
         return order;
     }
 
@@ -200,8 +213,11 @@ public sealed class OrderRefundService(
 
     /// <summary>
     /// Cancelar una venta que nunca se cobró. Anula el link de pago (para que
-    /// no pague algo que ya no existe), libera el stock reservado y deja
-    /// escrito quién la canceló y por qué.
+    /// no pague algo que ya no existe), libera el stock reservado, deja
+    /// escrito quién la canceló y por qué, y le avisa al comprador con la
+    /// plantilla "Cancelación de compra" (la de la tienda si la prendió; si no,
+    /// el texto de fábrica). Antes no le avisaba: la plantilla decía "Notifica
+    /// cuando un pedido fue cancelado" y la cancelación a mano no la mandaba.
     /// </summary>
     public async Task<Result<CancelledOrder>> CancelAsync(
         TenantId tenantId, Guid orderId, string? reason, string cancelledBy, CancellationToken ct)
@@ -242,6 +258,18 @@ public sealed class OrderRefundService(
         foreach (var reservationId in order.ReservationIds)
             if ((await stock.ReleaseReservationAsync(tenantId, reservationId, ct)).IsSuccess)
                 released++;
+
+        // El comprador se entera de que la venta ya no va (y de que el link de
+        // pago dejó de andar). Una sola vez: solo llega acá quien la pasó a
+        // cancelada, y una venta cancelada no se vuelve a cancelar.
+        try
+        {
+            await notifier.NotifyWithDefaultAsync(order, RefundedOrderSideEffects.Template, null, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "No salió el aviso de cancelación de la venta {OrderId}.", order.Id);
+        }
 
         return new CancelledOrder(order, linkExpired, released);
     }

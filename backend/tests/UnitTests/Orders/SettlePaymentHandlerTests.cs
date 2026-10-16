@@ -167,11 +167,18 @@ public class SettlePaymentHandlerTests
         Assert.Equal(SettleOutcome.PartiallyRefunded, result.Value.Outcome);
         Assert.Equal(OrderStatus.PartiallyRefunded, order.Status);
         Assert.Equal(30_000, order.RefundedAmount.AmountInMinorUnits);
+        Assert.Equal(30_000, result.Value.RefundedNow?.AmountInMinorUnits); // el aviso al comprador dice cuánto
         Assert.Equal(1, repo.Saves);
 
-        // mismo monto reportado de nuevo → sin cambios
+        // mismo monto reportado de nuevo → sin cambios (y sin otro aviso)
         var again = await handler.HandleAsync(order.Id, "approved", "pay-1", amountRefunded: 300m);
         Assert.Equal(SettleOutcome.NoChange, again.Value.Outcome);
+        Assert.Null(again.Value.RefundedNow);
+
+        // Otro parcial: lo nuevo es solo la diferencia, no el acumulado.
+        var second = await handler.HandleAsync(order.Id, "approved", "pay-1", amountRefunded: 450m);
+        Assert.Equal(SettleOutcome.PartiallyRefunded, second.Value.Outcome);
+        Assert.Equal(15_000, second.Value.RefundedNow?.AmountInMinorUnits);
     }
 
     [Fact]

@@ -429,6 +429,75 @@ public sealed class MercadoPagoFlowTests
         }
     }
 
+    /// <summary>
+    /// Un reembolso parcial le avisa al comprador cuánto le devolvieron y por
+    /// dónde, lo haga el comercio desde el panel o desde su cuenta de Mercado
+    /// Pago. Antes un parcial no avisaba nada. Y uno solo por reembolso: el
+    /// reintento del mismo aviso de Mercado Pago no lo repite.
+    /// </summary>
+    [Fact]
+    public async Task Un_reembolso_parcial_avisa_cuanto_y_por_donde_una_sola_vez()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mpp");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        var (_, variantId) = await merchant.CreateProductAsync("Campera MP", priceMinor: 15_000_00);
+        var shopper = new Shopper(merchant);
+
+        // Desde el panel, con la plantilla apagada (de fábrica): sale el texto de fábrica.
+        var (panelOrder, panelPayment, panelBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments/{panelPayment}/refunds",
+            new { id = Random.Shared.Next(), amount = 5_000m });
+        await merchant.PostAsync($"/api/v1/orders/{panelOrder}/refund", new { amount = 5_000m, reason = "Falta una pieza" });
+        Assert.Equal("PARTIALLYREFUNDED", await StatusAsync(shopper, panelOrder));
+
+        var panelMail = Assert.Single(_factory.ExternalHttp.EmailsTo(panelBuyer), m => m.Subject.StartsWith("Te devolvimos", StringComparison.Ordinal));
+        Assert.StartsWith("Te devolvimos ARS 5.000 de tu pedido #", panelMail.Subject, StringComparison.Ordinal);
+        Assert.Contains("Vuelve por Mercado Pago", panelMail.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Falta una pieza", panelMail.Html, StringComparison.Ordinal); // el motivo es interno
+        // No es el aviso de un reembolso total.
+        Assert.DoesNotContain(_factory.ExternalHttp.EmailsTo(panelBuyer), m => m.Subject == "Tu compra fue reembolsada");
+
+        // Desde Mercado Pago, con la plantilla de la tienda prendida.
+        await merchant.PutAsync("/api/v1/email-templates/reembolso-parcial", new
+        {
+            enabled = true,
+            subject = "Parte de tu plata vuelve: {{refund_amount}}",
+            bodyHtml = "<p>{{name}}, te devolvimos {{refund_amount}}. {{refund_method}}</p>",
+        });
+        var (mpOrder, mpPayment, mpBuyer) = await PaidOnsiteAsync(shopper, variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{mpPayment}", new
+        {
+            id = mpPayment,
+            status = "approved",
+            status_detail = "partially_refunded",
+            external_reference = mpOrder.ToString(),
+            transaction_amount = 15_000m,
+            transaction_amount_refunded = 4_000m,
+        });
+        await WebhookAsync(mpPayment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("PARTIALLYREFUNDED", await StatusAsync(shopper, mpOrder));
+
+        var mpMail = Assert.Single(_factory.ExternalHttp.EmailsTo(mpBuyer), m => m.Subject.StartsWith("Parte de tu plata vuelve", StringComparison.Ordinal));
+        Assert.Equal("Parte de tu plata vuelve: ARS 4.000", mpMail.Subject);
+        Assert.Contains("Vuelve por Mercado Pago", mpMail.Html, StringComparison.Ordinal);
+
+        // El mismo aviso procesado otra vez (un reintento): el monto devuelto no
+        // creció, así que no sale otro email.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            var now = DateTime.UtcNow;
+            await db.PaymentWebhookEvents.Where(e => e.DataId == mpPayment.ToString())
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(e => e.Status, InboxEntry.StatusPending)
+                    .SetProperty(e => e.NextAttemptAtUtc, now));
+        }
+        await DrainWebhooksAsync();
+        Assert.Single(_factory.ExternalHttp.EmailsTo(mpBuyer), m => m.Subject.StartsWith("Parte de tu plata vuelve", StringComparison.Ordinal));
+    }
+
     /// <summary>Un comprador propio paga con tarjeta en la tienda; devuelve la orden, el pago y su email.</summary>
     private async Task<(Guid Order, long Payment, string Buyer)> PaidOnsiteAsync(Shopper shopper, Guid variantId)
     {
