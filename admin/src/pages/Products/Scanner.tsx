@@ -35,6 +35,7 @@ interface OrderLite {
   buyerEmail: string;
   fulfilledAtUtc: string | null;
   createdAtUtc: string;
+  isPickup?: boolean;
   items: {
     variantId: string;
     productName: string;
@@ -378,19 +379,28 @@ function BuscarTab() {
 
 // ------------------------------------------------------------ Picking
 
+/** Cuántos pedidos trae la lista; para uno más viejo, la búsqueda. */
+const PICKING_LIMIT = 100;
+
 function PickingTab() {
   const { store } = useStore();
   const { toast } = useToast();
   const [orderId, setOrderId] = useState('');
   const [picked, setPicked] = useState<Record<string, number>>({});
+  // Lo cobrado y sin despachar lo filtra la API (no una página de las últimas
+  // ventas): con el número o el email se encuentra también una venta vieja.
+  const [searchDraft, setSearchDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const params = `status=PAID&limit=${PICKING_LIMIT}${search ? `&q=${encodeURIComponent(search)}` : ''}`;
 
   const { data: orders } = useQuery({
-    queryKey: ['orders-picking', store?.id],
-    queryFn: () => api.get<{ items: OrderLite[] }>('/api/v1/orders?limit=50'),
+    queryKey: qk.ordersList(store?.id, `picking:${params}`),
+    queryFn: () => api.get<{ items: OrderLite[]; total?: number }>(`/api/v1/orders?${params}`),
     enabled: !!store,
   });
 
   const pending = (orders?.items ?? []).filter((o) => o.status === 'PAID' && !o.fulfilledAtUtc);
+  const more = (orders?.total ?? 0) > pending.length;
   const order = pending.find((o) => o.id === orderId) ?? null;
 
   // useScanner guarda siempre el callback más reciente: ve el pedido y lo
@@ -425,13 +435,25 @@ function PickingTab() {
   const fulfill = useMutation({
     mutationFn: () => api.post(`/api/v1/orders/${order!.id}/fulfill`, { tracking: tracking.trim() || null }),
     onSuccess: () => {
-      toast('Pedido marcado como enviado. El comprador ya recibió el aviso.', { variant: 'success' });
+      toast(
+        order?.isPickup
+          ? 'Pedido listo para retirar. El comprador ya recibió el aviso.'
+          : 'Pedido marcado como enviado. El comprador ya recibió el aviso.',
+        { variant: 'success' },
+      );
       setOrderId('');
       setPicked({});
       setTracking('');
-      queryClient.invalidateQueries({ queryKey: ['orders-picking'] });
+      queryClient.invalidateQueries({ queryKey: qk.orders(store?.id) });
     },
-    onError: (err) => toast(errMsg(err, 'No se pudo marcar como enviada.'), { variant: 'error' }),
+    onError: (err) =>
+      toast(
+        errMsg(
+          err,
+          order?.isPickup ? 'No se pudo marcar como lista para retirar.' : 'No se pudo marcar como enviada.',
+        ),
+        { variant: 'error' },
+      ),
   });
 
   return (
@@ -450,6 +472,25 @@ function PickingTab() {
           </>
         )}
       </p>
+      <form
+        className="mt-2 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSearch(searchDraft.trim());
+          setOrderId('');
+          setPicked({});
+        }}
+      >
+        <Input
+          aria-label="Buscar pedido"
+          placeholder="Buscar por número (#1042) o email…"
+          value={searchDraft}
+          onChange={(e) => setSearchDraft(e.target.value)}
+        />
+        <Button type="submit" variant="secondary">
+          Buscar
+        </Button>
+      </form>
       <select
         aria-label="Pedido a preparar"
         className="mt-2 h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg"
@@ -459,13 +500,20 @@ function PickingTab() {
           setPicked({});
         }}
       >
-        <option value="">Pedidos pagados sin despachar ({pending.length})…</option>
+        <option value="">
+          {`Pedidos pagados sin despachar${search ? ' que coinciden' : ''} (${pending.length})…`}
+        </option>
         {pending.map((o) => (
           <option key={o.id} value={o.id}>
             {orderLabel(o)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
           </option>
         ))}
       </select>
+      {more && (
+        <p className="mt-1 text-xs text-fg-muted">
+          Se muestran los {pending.length} más recientes. Para uno más viejo, buscalo por su número.
+        </p>
+      )}
 
       {order && (
         <>
@@ -509,23 +557,33 @@ function PickingTab() {
               </p>
               {can('orders.fulfill') ? (
                 <div className="mt-2 flex flex-wrap items-end gap-2">
-                  <div className="min-w-[12rem] flex-1">
-                    <Input
-                      compact
-                      aria-label="Número de seguimiento"
-                      placeholder="Número de seguimiento (opcional)"
-                      value={tracking}
-                      onChange={(e) => setTracking(e.target.value)}
-                    />
-                  </div>
+                  {/* Retiro en el local: no hay seguimiento; se avisa que está listo, como en la ficha de la venta. */}
+                  {!order.isPickup && (
+                    <div className="min-w-[12rem] flex-1">
+                      <Input
+                        compact
+                        aria-label="Número de seguimiento"
+                        placeholder="Número de seguimiento (opcional)"
+                        value={tracking}
+                        onChange={(e) => setTracking(e.target.value)}
+                      />
+                    </div>
+                  )}
                   <Button onClick={() => fulfill.mutate()} disabled={fulfill.isPending}>
-                    {fulfill.isPending ? <Spinner inline /> : <Truck className="h-4 w-4" />}
-                    Marcar enviada
+                    {fulfill.isPending ? (
+                      <Spinner inline />
+                    ) : order.isPickup ? (
+                      <PackageCheck className="h-4 w-4" />
+                    ) : (
+                      <Truck className="h-4 w-4" />
+                    )}
+                    {order.isPickup ? 'Lista para retirar' : 'Marcar enviada'}
                   </Button>
                 </div>
               ) : (
                 <p className="mt-1 text-xs text-fg-muted">
-                  Pedile a alguien con permiso de despacho que lo marque como enviado.
+                  Pedile a alguien con permiso de despacho que lo marque como{' '}
+                  {order.isPickup ? 'listo para retirar' : 'enviado'}.
                 </p>
               )}
             </div>

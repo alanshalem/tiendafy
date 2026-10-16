@@ -206,6 +206,42 @@ describe('escáner: preparar pedido', () => {
       tracking: 'TRK-9',
     });
   });
+
+  it('lo cobrado sin despachar lo filtra la API, y una venta vieja se encuentra por su número', async () => {
+    const { api, user } = await open('Preparar pedido');
+    const listed = () => api.calls.filter((c) => c.method === 'GET' && c.path.startsWith('/api/v1/orders?'));
+    expect(listed().at(-1)?.path).toContain('status=PAID');
+
+    await user.type(screen.getByRole('textbox', { name: 'Buscar pedido' }), '#1001{Enter}');
+    await settle(2);
+    expect(listed().at(-1)?.path).toContain(`q=${encodeURIComponent('#1001')}`);
+    expect(listed().at(-1)?.path).toContain('status=PAID');
+  });
+
+  it('un pedido de retiro se cierra con "Lista para retirar", sin seguimiento', async () => {
+    const pickup = { ...paid, isPickup: true, items: [{ ...item, quantity: 1 }] };
+    const { api, user } = await open();
+    api.on('GET', '/api/v1/orders', { items: [pickup], total: 1 });
+    api.on('GET', `/api/v1/products/by-code/${item.variantId}`, {
+      ...hit,
+      variantId: item.variantId,
+      productName: item.productName,
+    });
+    await user.click(screen.getByRole('button', { name: 'Preparar pedido', pressed: false }));
+    await settle(2);
+    await user.selectOptions(screen.getByRole('combobox'), pickup.id);
+    await user.type(screen.getByPlaceholderText('…o ingresá el código a mano'), `${item.variantId}{Enter}`);
+    expect(await screen.findByText('Pedido completo y verificado.')).toBeInTheDocument();
+
+    expect(screen.queryByPlaceholderText('Número de seguimiento (opcional)')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Marcar enviada/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Lista para retirar/ }));
+    await settle(2);
+    expect(api.calls.find((c) => c.path === `/api/v1/orders/${paid.id}/fulfill`)?.body).toEqual({
+      tracking: null,
+    });
+    expect(await screen.findByText(/listo para retirar/)).toBeInTheDocument();
+  });
 });
 
 describe('escáner: conteo', () => {
