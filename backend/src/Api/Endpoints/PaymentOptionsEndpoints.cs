@@ -6,7 +6,6 @@ using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Orders.Core.Domain;
 using Payments.Contracts;
 using Payments.Core.Domain;
 using SharedKernel.Abstractions;

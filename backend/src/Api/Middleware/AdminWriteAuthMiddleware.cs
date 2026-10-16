@@ -1,5 +1,4 @@
 using Api.Auth;
-using Identity.Infrastructure;
 using SharedKernel.Abstractions;
 
 namespace Api.Middleware;

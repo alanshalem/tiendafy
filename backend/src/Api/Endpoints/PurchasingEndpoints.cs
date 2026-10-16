@@ -4,8 +4,6 @@ using Catalog.Core.Features.UpdateProduct;
 using Identity.Infrastructure;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
-using Orders.Core.Domain;
-using Orders.Infrastructure.Persistence;
 using Purchasing.Infrastructure;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;

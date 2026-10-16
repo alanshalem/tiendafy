@@ -1,5 +1,4 @@
 using Api.Startup;
-using Sentry;
 
 namespace UnitTests.Api;
 

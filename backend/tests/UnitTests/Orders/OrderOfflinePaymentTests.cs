@@ -1,6 +1,5 @@
 using Checkout.Core.Domain;
 using Orders.Core.Domain;
-using SharedKernel.Common;
 using static UnitTests.TestData;
 
 namespace UnitTests.Orders;

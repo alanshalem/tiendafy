@@ -3,7 +3,6 @@ using Api.Crm;
 using Customers.Infrastructure;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Orders.Core.Domain;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
