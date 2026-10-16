@@ -115,8 +115,12 @@ muestra "no configurada".
 | `MercadoLibre:AuthBaseUrl` | Auth del país del vendedor | `https://auth.mercadolibre.com.ar` |
 | `MercadoLibre:ApiBaseUrl` | API | `https://api.mercadolibre.com` |
 
-- **Dev:** user-secrets, con la URL de un túnel en `RedirectUri` (ML exige
-  HTTPS público para el callback y los avisos).
+- **Dev:** variables de entorno exportadas en la consola antes de
+  `.\dev-up.ps1` (`$env:MercadoLibre__ClientId`, `__ClientSecret` y
+  `__RedirectUri` con la URL pública de un túnel: ML exige HTTPS público para
+  el callback y los avisos). `dotnet user-secrets` no sirve (`Api.csproj` no
+  tiene `UserSecretsId`) y `.\dev-up.ps1 -Tunnel` solo completa las de Mercado
+  Pago.
 - **Prod:** `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` en `.env.prod`; el compose
   las pasa como `MercadoLibre__ClientId` / `__ClientSecret` y arma solo
   `RedirectUri` y `AdminReturnUrl` con el dominio del ambiente.
@@ -159,7 +163,8 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
 `user_id`, saca el id de `resource` (`/orders/123`) y re-consulta
 `GET /orders/{id}` con el token del vendedor. `MeliSyncService.ApplyOrderAsync`:
 
-1. Upsert del cache (ítems con `sale_fee` por unidad, pack, envío).
+1. Upsert del cache (ítems con `sale_fee` por unidad, pack, id del envío; el
+   estado del envío no se trae).
 2. Si está cobrada y `!StockApplied`: descuenta stock de cada ítem vinculado
    con `SyncStock` (vínculo exacto ítem + variación, o fallback a nivel ítem).
 3. Si pasó a `cancelled` con stock aplicado: lo devuelve (`StockReverted`).
@@ -203,13 +208,18 @@ real (ver Pendiente).
 - El endpoint de autorización cuelga de la base de auth (`/authorization`), a
   diferencia de los otros OAuth de la plataforma.
 - **Los webhooks no traen datos ni vienen firmados**: siempre se re-consulta el
-  resource con el token del vendedor. Exigen 200 en menos de 500 ms, por eso el
-  inbox. Llegan repetidos: el descuento de stock es idempotente por orden.
+  resource con el token del vendedor. ML pide contestar 200 enseguida (la doc
+  vigente da 20 s de plazo; versiones anteriores hablaban de 500 ms) y, si no,
+  reintenta durante una hora y después descarta el aviso: por eso el endpoint
+  solo guarda en el inbox. Llegan repetidos: el descuento de stock es
+  idempotente por orden.
 - Rate limit de ~1500 req/min por vendedor; un 429 se traduce a un mensaje
   amable.
 - Multiget `/items?ids=` de a 20; las búsquedas devuelven hasta 50 por página
   y el total en `paging.total`.
-- Las miniaturas vienen por `http://`; se reescriben a `https://` para el panel.
+- Las miniaturas vienen por `http://`; se reescriben a `https://` en la ficha
+  de publicación que acompaña a cada pregunta (`MeliItemSummary`). El listado
+  de la pestaña Publicaciones todavía las pasa tal cual vienen.
 - Mensajes posventa limitados a 350 caracteres.
 - El recurso de reclamos (`/post-purchase/v1/claims/search`) varía por cuenta:
   si falla, el panel muestra "sin reclamos" en vez de error.
@@ -224,14 +234,17 @@ real (ver Pendiente).
   lectura y devolución parcial, contra la API simulada (`FakeHttp`). Unitarios
   en `backend/tests/UnitTests/Meli/`. Desde `backend/`:
   `dotnet test tests/IntegrationTests --filter "FullyQualifiedName~MercadoLibre"`
-  (levanta Postgres en Docker).
+  (usa el Postgres de desarrollo, base `tiendafy_itests` o la que diga
+  `TIENDAFY_TEST_DB`).
 - **Demo sin cuenta.** En Development, `POST /api/v1/dev/demo-seed` crea una
   conexión marcada `IsDemo` con token falso, vínculos y ventas de ejemplo. Las
   pantallas en vivo (preguntas, publicaciones, reclamos, mensajes) contestan
-  con `MeliDemoFeed`; las escrituras devuelven 409 (`Meli.Demo`) y los workers
-  la saltean.
-- **Con cuenta real.** Creá la app, cargá las claves con un túnel en
-  `RedirectUri`, conectá desde `/configuracion/mercadolibre`, mirá que lleguen
+  con `MeliDemoFeed`; las escrituras (responder, mandar mensaje, publicar)
+  devuelven 409 (`Meli.Demo`), "Actualizar" no importa nada y los workers la
+  saltean. La sugerencia de categoría no tiene ejemplo: con la cuenta de demo
+  sale a ML con el token falso y devuelve error.
+- **Con cuenta real.** Creá la app, cargá las claves como en Configuración
+  (con un túnel en `RedirectUri`), conectá desde `/configuracion/mercadolibre`, mirá que lleguen
   las ventas, prendé stock sync con una publicación vinculada y verificá el PUT
   en los logs (`ML actualizado: ...`). Para no tocar publicaciones reales, ML
   ofrece usuarios de test (`POST /users/test_user`, ver docs oficiales).

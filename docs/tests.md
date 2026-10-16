@@ -47,7 +47,8 @@ paralelismo que aguanta la máquina, y deja un log por paso en `.verify/`:
 
 1. Prettier, ESLint y tipos de todos los paquetes, en paralelo.
 2. Las suites del panel y de la tienda: juntas si hay 8 GB libres o más (cada
-   una con la mitad de los workers); si no, de a una.
+   una con workers para el 25 % de los núcleos); si no, de a una con el tope
+   normal.
 3. Builds (`next build`, `vite build` y el backend en Release con
    `-warnaserror --no-incremental`), en paralelo si hay 7 GB libres o más.
 4. Backend: `dotnet format --verify-no-changes` y unitarios juntos; después

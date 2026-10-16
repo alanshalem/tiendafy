@@ -1,5 +1,8 @@
 # Tiendafy vs La Pyme — qué nos falta
 
+> **Registro histórico**: no se actualiza. Lo que cambió después, en el
+> recuadro "Estado al 15-oct-2026" más abajo.
+
 Análisis del 11/09/2026 contra [lapyme.com.ar](https://www.lapyme.com.ar/) (home,
 funcionalidades, ventas, POS, facturación, inventario, compras, tesorería,
 cuentas corrientes, contabilidad, multimoneda, reportes, precios e integraciones).

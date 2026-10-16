@@ -58,9 +58,11 @@ El servidor valida los mismos límites (texto de cada cuenta contra
 **editar un post ya programado**: 400 `Social.TooLongForNetwork` o
 `Social.MediaRequired`, con la red y la cuenta en el mensaje. Un borrador se
 guarda igual, como en el composer (puede estar a medio escribir y no sale a
-ninguna red). `MaxImages` no se valida en ningún lado a propósito: Instagram
+ninguna red). `MaxImages` de cada red no se valida a propósito: Instagram
 publica la primera imagen y X solo texto, y un post con fotos para Facebook
-puede ir también a esas dos.
+puede ir también a esas dos. Lo que sí se valida al guardar cualquier post es
+el techo general: hasta 10 imágenes (`Social.TooManyImages`) y URLs absolutas
+de hasta 500 caracteres (`Social.BadImageUrl`).
 
 | Canal (`Provider`) | Máx. caracteres | Máx. imágenes | Exige imagen |
 |---|---|---|---|
@@ -121,8 +123,9 @@ conector queda apagado y el panel lo dice. Telegram no lleva nada.
 
 El mapeo está en `infra/docker/docker-compose.stack.yml` y los placeholders en
 `infra/docker/.env.prod.example`. En `appsettings.json` no hay sección
-`Social`: en dev se carga con user-secrets o variables de entorno
-(`Social__Meta__AppId`, etc.).
+`Social`: en dev se carga con variables de entorno (`Social__Meta__AppId`,
+etc.) antes de levantar la API; user-secrets no sirve porque `Api.csproj` no
+tiene `UserSecretsId`.
 
 Qué pedir en cada consola (scopes, redirect) está en
 [configuracion.md](../configuracion.md); el resto del despliegue, en
@@ -196,7 +199,8 @@ documentación oficial y quedó codificado así.
 - **Meta canjea por GET**, con `client_secret` en query, no por POST form como
   Mercado Pago o Mercado Libre.
 - **Versión de la Graph API**: una sola, `MetaGraph.Version` (hoy `v26.0`,
-  salida el 29-jul-2026). Meta apaga cada versión a los ~2 años (v20.0 murió
+  salida el 29-jul-2026; es la última y al 16-oct-2026 Meta todavía no le puso
+  fecha de baja). Meta apaga cada versión a los ~2 años (v20.0 murió
   el 24-sep-2026, v21.0 muere el 21-ene-2027). Los changelogs de v22 a v26 no
   tocan los endpoints que usamos; v26 deja de aceptar `date_format`,
   `pretty`/`debug`, ETag y `GET /?ids=`, que no usamos. Al subirla, revisá el
@@ -211,6 +215,15 @@ documentación oficial y quedó codificado así.
   uso** (como el de Mercado Libre). Las apps confidenciales exigen Basic auth
   en `/oauth2/token` además del `client_id` en el form. Subir media va por otro
   flujo y no está hecho: X publica solo texto (más el link que pongas).
+- **La API de X es paga**: pago por uso, sin plan gratis (16-oct-2026, según
+  [Pricing](https://docs.x.com/x-api/getting-started/pricing)). Crear un post
+  cuesta USD 0,015 y **USD 0,20 si lleva una URL**, que es el caso típico de un
+  post con el link al producto.
+- **Instagram con Facebook Login**: los permisos siguen siendo `instagram_basic`
+  e `instagram_content_publish` (los `instagram_business_*` son del otro camino,
+  Instagram Login). Si el usuario tiene la página por un rol de Business
+  Manager, Meta pide además `ads_management` y `ads_read`. Tope: 100 posts por
+  API cada 24 h por cuenta.
 - **Telegram**: el caption de una foto admite 1024 caracteres contra 4096 de un
   mensaje. `sendMediaGroup` devuelve un array. El link `t.me/{username}/{id}`
   existe solo si el canal es público. El 429 trae `parameters.retry_after`.
@@ -278,8 +291,9 @@ No hay Conversions API del lado del servidor.
 ## Pendiente
 
 - **Crear las apps reales de Meta y de X** y probar con cuentas reales. Meta
-  necesita App Review para `pages_manage_posts` e `instagram_content_publish`
-  (y `ads_read` para Meta Ads) antes de que la usen cuentas que no sean
-  testers de la app.
+  necesita App Review (acceso avanzado) para los permisos que pedimos
+  (`pages_*`, `instagram_*`, y `ads_read` para Meta Ads) antes de que la usen
+  cuentas que no sean testers de la app. X necesita una cuenta de desarrollador
+  con medio de pago cargado.
 - Media en X (hoy solo texto).
 - Conversions API de Meta: no existe; solo el pixel en el navegador.

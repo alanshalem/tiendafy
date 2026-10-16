@@ -61,9 +61,10 @@ flowchart TB
   copia la base, corre `dotnet Api.dll migrate` con la imagen nueva y recién
   ahí recambia los contenedores (`Database__MigrateOnStartup=false` en prod).
 - **CI/CD**: `docker-release.yml` construye una vez por push a `main` y publica
-  en GHCR; producción despliega el mismo tag por SSH con aprobación humana.
-  Pendiente: staging no existe todavía (el workflow lo saltea mientras no esté
-  la variable `STAGING_DOMAIN`).
+  en GHCR. Hoy se despliega a mano en el servidor (`./infra/deploy.sh prod
+  sha-XXXXXXX`): el workflow sabe desplegar staging y producción por SSH, pero
+  saltea esos pasos mientras el repo no tenga las variables `STAGING_DOMAIN` y
+  `PLATFORM_DOMAIN` (ver [despliegue.md](./despliegue.md)).
 - **El keyring es crítico**: `dpkeys` cifra los secretos de las tiendas. Sin él
   la API no arranca en producción (fail-fast), y un dump sin su keyring no
   sirve; por eso `pg-backup` copia los dos.
@@ -213,11 +214,11 @@ flowchart LR
 | Cobros | Mercado Pago | OAuth por tienda (cobra en la cuenta de la tienda; `MarketplaceFeePercent` existe y arranca en 0). Checkout Pro (redirect) o Bricks (on-site). Webhooks validados por HMAC a un inbox durable. Reembolsos totales y parciales. | Tokens del vendedor cifrados |
 | Cobros | Payway (ex Decidir) | Tarjeta on-site con el SDK de Payway; el pago se crea desde la API. | Credenciales por tienda, cifradas |
 | Cobros | Transferencia / efectivo | Sin proveedor: la orden queda pendiente con instrucciones de pago y vence sola. | — |
-| Email | Resend | 15 plantillas automáticas editables por tienda (`EmailTemplateCatalog`) y campañas; layout con logo y color de la tienda. Sin API key, se escriben en el log. | API key + secreto del webhook |
+| Email | Resend | 13 plantillas automáticas editables por tienda (`EmailTemplateCatalog`) y campañas; layout con logo y color de la tienda. Sin API key, se escriben en el log. | API key + secreto del webhook |
 | WhatsApp | Cloud API de Meta | Conexión por tienda, mensajes por plantilla espejo de los emails. | Token por tienda, cifrado |
 | Facturación | ARCA | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE) + padrón A5 (condición de IVA del receptor). Certificado por tienda: CSR generado en el panel. | Clave privada y certificado cifrados; nunca salen por la API |
 | Envíos | Correo Argentino, Andreani, Zipnova | Cotización en el checkout con precio firmado (TTL 30 min), alta de envíos y etiquetas desde la venta. | Credenciales por tienda, cifradas |
-| Canal | Mercado Libre | OAuth por tienda; ventas, preguntas, mensajes, stock unificado, publicar. Sin app configurada corre en modo demo (`MeliDemoFeed`). | Tokens cifrados; refresh serializado por tienda |
+| Canal | Mercado Libre | OAuth por tienda; ventas, preguntas, mensajes, stock unificado, publicar. Sin app configurada, el canal está apagado; la conexión de demo (`POST /dev/demo-seed`) contesta con datos fijos (`MeliDemoFeed`) sin salir a la red. | Tokens cifrados; refresh serializado por tienda |
 | Redes | Meta (Facebook/Instagram), X, Telegram | Posts multi-red programados. | Tokens cifrados |
 | Publicidad | Meta Ads | Gasto por campaña para el ROAS en Rentabilidad. | Token cifrado |
 | IA | Claude API | Respuestas a preguntas de ML y del chat, textos de posts y de productos, lectura de facturas de compra. Sin `Ai:ApiKey`, los botones se ocultan. | API key |
@@ -226,8 +227,9 @@ flowchart LR
 | Media | MinIO (dev) / Cloudflare R2 (prod) | Bucket público para fotos y videos; bucket privado para adjuntos del chat, con URL firmada de 15 min. | Access keys |
 | Errores | Sentry | API, tienda y panel; activo solo con DSN. | DSN por app |
 
-Pendiente: faltan las apps reales de Mercado Libre, Meta (redes y Ads) y X, y
-el certificado de ARCA para emitir CAE real.
+En producción hoy andan el email y las imágenes en R2; el resto espera
+credenciales reales o la primera prueba con una cuenta de verdad. Qué le falta
+a cada una: [integraciones/](./integraciones/README.md).
 
 ## 4. Una venta de punta a punta
 

@@ -41,7 +41,7 @@ Payway (credenciales propias y certificación) y un cobro real hecho y devuelto
 | Endpoints de configuración | `backend/src/Api/Endpoints/PaywayEndpoints.cs` |
 | Cobrar (`POST /checkout/{id}/pay-payway`) | `backend/src/Api/Endpoints/OrderEndpoints.cs` |
 | Panel | `admin/src/pages/Settings/PaywayConnect.tsx` |
-| Formulario de tarjeta | `storefront/src/components/store/PaywayCardForm.tsx` (carga `https://ventasonline.payway.com.ar/static/v2.6.4/decidir.js`) |
+| Formulario de tarjeta | `storefront/src/components/store/PaywayCardForm.tsx` (carga `decidir.js` desde `PAYWAY_SDK_URL`: `https://ventasonline.payway.com.ar/static/v2.6.4/decidir.js`) |
 | CSP de la tienda (script y hosts de Payway) | `storefront/src/lib/csp.ts` (`PAYWAY_SDK_URL`, `PAYWAY_CONNECT`) |
 | Reembolsar (elige la pasarela) | `backend/src/Api/Orders/OrderRefundService.cs` |
 | Reconsulta de cobros sin resolver | `backend/src/Api/Payments/PaywayReconciliation.cs` (`PaywayReconciliationWorker`) |
@@ -226,14 +226,14 @@ por id, consulta por `siteOperationId` y timeout con recuperación.
 - Visa Débito no acepta devoluciones parciales: hoy el formulario siempre
   manda `isDebit: false`, así que no se puede bloquear de antemano; Payway la
   rechaza y el panel muestra el error sin tocar la venta.
+- Sin implementar a propósito: 3D Secure, antifraude Cybersource, cuotas con
+  interés, pagos offline (Rapipago, Pago Fácil), pre-autorización, pago
+  distribuido y modelo agregador.
 
 No es un bug (decidido así): el número de intento casi siempre es 1, porque
 cada envío del checkout crea una orden nueva y la protección por orden no
 cruza envíos. Contra el doble cobro cuentan el token de un solo uso (reusarlo
 da `409 Payway.TokenAlreadyUsed`) y el botón que se deshabilita mientras paga.
-- Sin implementar a propósito: 3D Secure, antifraude Cybersource, cuotas con
-  interés, pagos offline (Rapipago, Pago Fácil), pre-autorización, pago
-  distribuido y modelo agregador.
 
 Docs oficiales: el portal de developers de Payway es una SPA que no siempre
 carga; la referencia más confiable es el código de los SDK oficiales en

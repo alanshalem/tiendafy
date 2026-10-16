@@ -1,8 +1,8 @@
 # Andreani
 
 Tercer correo de Tiendafy, al lado de Correo Argentino y Zipnova. Este doc
-reemplaza al relevamiento previo (`docs/andreani-integration/`, 16 archivos
-escritos antes de implementar): lo que sigue es lo que hay en el código y lo
+reemplaza al relevamiento previo (16 archivos escritos antes de implementar,
+borrados en el commit `efb5fecd`): lo que sigue es lo que hay en el código y lo
 que se verificó contra la API real. El relevamiento queda en la historia de git.
 
 Documentación oficial: <https://developers.andreani.com/documentacion>.
@@ -52,7 +52,9 @@ además corta la cotización a los **6 s** y el resto de las llamadas a los 20 s
 | `POST /admin/shipping/andreani/test` | `shipping.config` | Hace un login real: valida usuario, contraseña y habilitación de IP |
 | `POST /shipping/andreani/quote` | público (tenant) | Cotización del checkout. Está en la lista de rutas públicas de `AdminWriteAuthMiddleware` |
 | `POST /admin/orders/{id}/andreani-shipment` | `orders.fulfill` | Crea la orden de envío |
-| `GET /admin/orders/{id}/andreani-shipment` | `orders.read` | Estado del envío de esa venta |
+| `GET /admin/orders/{id}/andreani-shipment` | `orders.read` | Estado del envío de esa venta (o el aviso de un envío a revisar) |
+| `POST /admin/orders/{id}/andreani-shipment/review/record` | `orders.fulfill` | Envío a revisar: "Se creó", registra los números de seguimiento que figuran en Andreani |
+| `POST /admin/orders/{id}/andreani-shipment/review/release` | `orders.fulfill` | Envío a revisar: "No se creó", suelta la reserva |
 | `GET /admin/orders/{id}/andreani-label` | `orders.fulfill` | PDF de la etiqueta |
 | `GET /admin/orders/{id}/andreani-tracking` | `orders.read` | Trazas; actualiza el estado guardado |
 

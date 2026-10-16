@@ -48,7 +48,7 @@ El isotipo es una moneda china: disco naranja, aro interior blanco y el agujero 
 Proporción de uso en cualquier pieza: 60 % blanco y superficies claras (`superficie`, `superficie-alt`), 30 % `naranja`, 10 % `tinta`. El `rojo-laca` es un acento puntual, nunca más de un elemento por pieza.
 
 - Texto sobre blanco: `tinta` para lo principal, `piedra` para lo secundario, `naranja-texto` para links y precios.
-- Botón primario: relleno `naranja`, texto `on-naranja`, forma `radius-pill`; hover `naranja-hover`.
+- Botón primario: relleno `naranja`, texto `on-naranja` (es `tinta`), forma `radius-pill`; hover `naranja-texto`.
 - El blanco sobre `naranja` solo va en el isotipo, ilustraciones y titulares de banner de 32 px o más en bold. En botones, chips y texto de interfaz usá `on-naranja`.
 - Bloques destacados (beneficios, cotizador, banners suaves) sobre `arena`.
 - Estados: `exito` y `error`, siempre con palabra o ícono además del color.
@@ -156,6 +156,24 @@ Cómo se arma la marca en las piezas de todos los días.
 ### Documentos
 
 Cotizaciones, proformas y presentaciones: hoja blanca, logo horizontal arriba a la izquierda, línea fina `naranja` bajo el encabezado, tablas en Inter con números tabulares y filas alternas en `superficie-alt`.
+
+## En la tienda (Tiendafy)
+
+El diseño listo **Puente Oriente** del editor de la tienda (grupo "Marcas del
+grupo", en `admin/src/lib/themePresets.ts`) es esta guía pasada a la tienda:
+
+- Colores: primario `naranja` #FF6A1A, hover `naranja-texto` #C2410C, fondo
+  `superficie`, fondo alterno y cards `superficie-alt` #F4F5F7, texto `tinta`
+  #1E2230; header blanco con el logo horizontal y buscador.
+- El texto sobre el naranja no es un color fijo: la tienda lo elige por
+  contraste y sale oscuro (#111827, 6,2:1; el blanco daría 2,9:1). Para los
+  links y precios usa una variante oscura del primario que llegue a 4,5:1.
+- Poppins para titulares e Inter para el texto, servidas por la propia tienda
+  (`storefront/src/app/fonts/`); íconos Lucide; formas redondeadas.
+- Logo y favicon: `/marca/puente-oriente/logo-horizontal.svg` y
+  `/marca/puente-oriente/favicon.ico`, copias de los de esta carpeta en
+  `storefront/public/marca/puente-oriente/`. Si cambia un archivo acá, hay que
+  copiarlo también allá.
 
 ## Prompts para Gemini
 

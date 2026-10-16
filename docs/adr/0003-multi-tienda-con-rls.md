@@ -4,7 +4,7 @@
 **Status**: Parcialmente implementado — base compartida con `tenant_id` sí; RLS no (ver Estado)
 **Decision Makers**: Alan Shalem
 
-## Estado (15-oct-2026)
+## Estado (15-oct-2026, revisado el 16-oct)
 
 **Implementado**: una base, un esquema, `tenant_id` en cada fila de cada tabla
 de tienda.
@@ -30,10 +30,12 @@ El aislamiento hoy son tres capas de aplicación:
    consultan siempre con el tenant explícito). Cuando se agregó, encontró ocho
    entidades sin filtro.
 
-Lo que estas capas no cubren es el SQL crudo. Hoy hay siete lugares (upserts
-de contadores y búsquedas, locks de asesoría de ARCA, un filtro de texto de
-Mercado Libre que EF compone con el filtro de tienda); cada uno lleva el tenant
-explícito o actúa sobre una fila ya cargada con filtro. Pendiente: RLS sigue
+Lo que estas capas no cubren es el SQL crudo. Hoy hay seis lugares (el
+contador de números de pedido, el upsert de búsquedas, el borrado de los
+valores de un campo de ficha técnica, los locks de asesoría de ARCA en la
+emisión y en el WSAA, y un filtro de texto de Mercado Libre que EF compone con
+el filtro de tienda); cada uno lleva el tenant explícito o actúa sobre una
+fila ya cargada con filtro. Pendiente: RLS sigue
 siendo la defensa en profundidad que falta, y no hay fecha para hacerlo.
 
 ## Context

@@ -47,7 +47,9 @@ reintentos** (la creación no es idempotente).
 | `POST /admin/shipping/zipnova/test` | `shipping.config` | Cotización real de prueba (por defecto Rosario, Santa Fe, CP 2000). Leer no crea nada ni consume saldo |
 | `POST /shipping/zipnova/quote` | público (tenant) | Cotización del checkout |
 | `POST /admin/orders/{id}/zipnova-shipment` | `orders.fulfill` | Crea el envío |
-| `GET /admin/orders/{id}/zipnova-shipment` | `orders.read` | Envío de esa venta |
+| `GET /admin/orders/{id}/zipnova-shipment` | `orders.read` | Envío de esa venta (o el aviso de un envío a revisar) |
+| `POST /admin/orders/{id}/zipnova-shipment/review/record` | `orders.fulfill` | Envío a revisar: "Se creó", registra el id del envío en Zipnova |
+| `POST /admin/orders/{id}/zipnova-shipment/review/release` | `orders.fulfill` | Envío a revisar: "No se creó", suelta la reserva |
 | `GET /admin/orders/{id}/zipnova-label` | `orders.fulfill` | PDF de la etiqueta |
 | `GET /admin/orders/{id}/zipnova-tracking` | `orders.read` | Historial; actualiza el estado guardado |
 
@@ -56,7 +58,9 @@ reintentos** (la creación no es idempotente).
 Se carga en **Configuración → Medios de envío → Zipnova**:
 
 - **API Token y API Secret**: panel de Zipnova → Configuración → Integraciones
-  → Gestionar credenciales. Se guardan cifrados con Data Protection (purpose
+  → Gestionar credenciales y webhooks. Van por Basic auth (el modo que Zipnova
+  indica para una cuenta propia; OAuth2 es para apps que usan muchas cuentas
+  ajenas). Se guardan cifrados con Data Protection (purpose
   `tiendafy.correo.tokens`, compartido por todos los carriers: no cambiarlo
   nunca).
 - **País** (`AR`, `CL` o `MX`): define el host (`api.zipnova.com.ar/v2`,
@@ -86,8 +90,12 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
    `Tiendafy.Shipping.ZipnovaQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). Al confirmar, el precio sale del token; si el carrito
    cambió, se pide recotizar.
-5. Si Zipnova falla, la cotización vuelve sin opciones y con un mensaje: el
-   checkout sigue con los demás medios.
+5. Si Zipnova contesta con error, la cotización vuelve sin opciones y con un
+   mensaje: el checkout sigue con los demás medios. Si no contesta (timeout de
+   20 s o red caída), la API responde 500 (queda como error no manejado en el
+   log) y la tienda lo toma como que Zipnova no cotizó: el checkout también
+   sigue, pero el comprador espera hasta que la tienda corta (10 s en el
+   checkout, 12 s en la ficha del producto).
 
 ### Envío desde una venta
 
@@ -167,3 +175,7 @@ De la especificación, y manejado a la defensiva:
   actualiza solo cuando alguien abre el seguimiento de la venta.
 - Confirmar en producción el formato de `created_at` del tracking: se ordena
   por esa fecha; un evento sin fecha legible queda al final.
+- La cotización no atrapa el timeout ni la red caída (ver "Cotización en el
+  checkout", paso 5) y espera hasta 20 s, cuando Andreani corta a los 6 s.
+- Zipnova ofrece webhooks de cambio de estado (se configuran en el mismo
+  lugar que las credenciales); hoy no se usan.

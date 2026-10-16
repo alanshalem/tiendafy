@@ -62,8 +62,10 @@ producción las setea `infra/docker/docker-compose.stack.yml`:
 | `DataProtection:KeyPath` | `/keys` (volumen `dpkeys`) | Obligatoria fuera de Development; sin ella la API no arranca |
 | `RateLimiting:PaymentsPermitLimit` | default 15 | Cupo por IP y ruta cada 5 min en `/pay`, `/pay-onsite`, `/pay-payway` |
 
-En local, los secretos van por user-secrets del proyecto `backend/src/Api`
-(`MercadoPago:ClientId`, `MercadoPago:ClientSecret`, `MercadoPago:WebhookSecret`).
+En local, los secretos van como variables de entorno en la consola antes de
+`.\dev-up.ps1` (la API hereda el entorno): `$env:MercadoPago__ClientId`,
+`$env:MercadoPago__ClientSecret` y `$env:MercadoPago__WebhookSecret`.
+`dotnet user-secrets` no sirve: `Api.csproj` no tiene `UserSecretsId`.
 `.\dev-up.ps1 -Tunnel` levanta cloudflared e inyecta `MercadoPago__PublicApiBaseUrl`
 y `MercadoPago__RedirectUri` con la URL del túnel.
 
@@ -97,8 +99,9 @@ que trae la comisión (la respuesta del cobro no informa el neto).
 
 **Webhook.** `POST /api/v1/payments/webhooks/mercadopago` es público. Valida la
 firma, guarda `(type, data.id, user_id)` en `payment_webhook_events` y contesta
-200 sin procesar. El índice único `(type, data_id)` descarta los reenvíos. El
-worker (cada 5 s) toma solo `payment`, busca la tienda por el `user_id` de
+200 sin procesar. Solo se guardan los de tipo `payment`: los demás se contestan
+200 y se descartan. El índice único `(type, data_id)` descarta los reenvíos. El
+worker (cada 5 s) busca la tienda por el `user_id` de
 Mercado Pago, consulta `GET /v1/payments/{id}` (nunca confía en el body ni en
 el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 
@@ -110,8 +113,8 @@ el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 | `charged_back`, `in_mediation` | → `ChargedBack` |
 | `pending`, `in_process` | Nada; espera el próximo aviso |
 
-Reintentos: backoff de 30 s, 2, 10 y 45 min, 3, 6 y 12 h (8 intentos, poco más
-de 22 horas) y después `dead`. El panel ve los muertos en
+Reintentos: backoff de 30 s, 2, 10 y 45 min, 3, 6 y 12 h (8 intentos en casi
+22 horas) y después `dead`. El panel ve los muertos en
 `GET /payments/mercadopago/webhooks/health` y los revive con
 `POST /payments/mercadopago/webhooks/{id}/retry`, acotado al `user_id` de la
 tienda.
@@ -158,6 +161,11 @@ no acepte pagos, después se cancela la orden y se liberan las reservas.
   tienda**: se resuelve por el `user_id` del body. Una tienda solo puede ver o
   revivir eventos de su propio `user_id`.
 - Refunds: hasta 180 días después del pago.
+- El cobro del Brick va por la API de pagos (`/v1/payments`). Mercado Pago
+  ahora ofrece la Orders API (`/v1/orders`) para integraciones nuevas, pero no
+  anunció la baja de `/v1/payments`, y su guía de migración avisa que la
+  comisión de marketplace (`application_fee`) todavía no tiene equivalente en
+  la Orders API. Por eso seguimos en `/v1/payments`.
 
 ## Cómo probar
 
@@ -169,8 +177,9 @@ falsa), `UnitTests/Orders/SettlePaymentHandlerTests.cs`,
 A mano, con cuentas de prueba de Mercado Pago:
 
 1. Creá dos usuarios de prueba (vendedor y comprador, sitio `MLA`).
-2. Logueado como el vendedor de prueba, creá una app marketplace y cargá
-   `ClientId`, `ClientSecret` y `WebhookSecret` en user-secrets.
+2. Logueado como el vendedor de prueba, creá una app marketplace y exportá
+   `ClientId`, `ClientSecret` y `WebhookSecret` como variables de entorno
+   (`$env:MercadoPago__ClientId = '...'`, etc.) en la misma consola.
 3. Poné `cloudflared.exe` en la raíz del repo y corré `.\dev-up.ps1 -Tunnel`.
 4. Registrá en la app el Redirect URI que imprime el script
    (`https://xxxx.trycloudflare.com/api/v1/payments/mercadopago/callback`). La
@@ -199,11 +208,11 @@ A mano, con cuentas de prueba de Mercado Pago:
   Redirect URI y el webhook de pagos con su secreto, y completar `MP_CLIENT_ID`,
   `MP_CLIENT_SECRET` y `MP_WEBHOOK_SECRET` en `.env.prod`. Después: una compra
   real chica aprobada y devuelta, y probar que el webhook llega cerrando el
-  navegador antes de volver a la tienda.
-- Las ventas del Brick cobradas antes de este arreglo quedaron sin comisión:
-  no se recuperan solas, porque el webhook de esos pagos ya se procesó y el
-  inbox descarta un aviso repetido del mismo pago. Si importa, se completan a
-  mano consultando cada pago en Mercado Pago.
+  navegador antes de volver a la tienda. Ojo: hasta el 16-oct-2026 el código
+  creaba la preference en `/v1/checkout/preferences`, una ruta que la API no
+  tiene (la oficial es `POST /checkout/preferences`, sin `/v1`); ese día se
+  corrigió. Nunca se había probado contra Mercado Pago de verdad: esa compra
+  chica es la primera.
 
 Docs oficiales: [Checkout Pro](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing),
 [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing),

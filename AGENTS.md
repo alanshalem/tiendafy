@@ -15,7 +15,7 @@ propias (por rubro). En producción desde el 13-oct-2026.
 | `backend/` | API .NET 10, monolito modular: `src/Api` (endpoints y orquestación), `src/Modules/<Módulo>` (dominio, persistencia), `src/SharedKernel*`, `tests/` |
 | `admin/` | Panel del comercio: Vite + React 19 + React Query (puerto 5173) |
 | `storefront/` | Tiendas: Next.js 16 App Router, multi-tienda por host (puerto 3000) |
-| `shared/` | `@tiendafy/types` (contratos, registro de secciones) y `@tiendafy/ui` |
+| `shared/` | `@tiendafy/types` (contratos, registro de secciones), `@tiendafy/ui` (componentes) y `@tiendafy/design-system` (tokens y preset de Tailwind) |
 | `e2e/` | Playwright |
 | `infra/` | Compose de producción/staging, Caddy, `deploy.sh`, backups |
 
@@ -32,7 +32,7 @@ comprador no usan jerga técnica.
 ## Verificar antes de dar algo por terminado
 
 ```bash
-pnpm verify              # todo lo que corre CI, en fases que no agotan la RAM
+pnpm verify              # lo que corre CI menos el e2e, en fases que no agotan la RAM
 pnpm verify --front      # panel, tienda y tipos
 pnpm verify --back       # build con -warnaserror, dotnet format, unit e integración
 ```
@@ -67,9 +67,11 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
   `double`. Montos y fechas que ve una persona: `ArgentineNumbers` y
   `ArgentinaTime` (SharedKernel). El contenedor corre con la cultura invariante:
   un `{x:N0}` sin cultura sale "1,500".
-- **Tailwind en el panel.** `cn` concatena sin tailwind-merge: una clase de
-  alto/ancho pasada a `<Input>` no pisa la base. Usá la prop `compact` y un div
-  envolvente para el ancho.
+- **Tailwind y `cn`.** `cn` (`shared/ui/src/cn.ts`) resuelve con tailwind-merge
+  las clases que se pisan, pero solo reconoce los tokens propios que tiene
+  listados en `extendTailwindMerge`. Un token nuevo en
+  `shared/design-system/tailwind.preset.cjs` (tamaño, espaciado, sombra…) se
+  suma también ahí, o esa clase no se resuelve contra la de la base.
 - **Paquetes de `shared/` con peers** (React): el panel necesita `resolve.dedupe`
   o el bundle termina con dos Reacts y la pantalla en negro.
 

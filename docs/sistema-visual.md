@@ -62,12 +62,12 @@ tienda.**
   salen el editor, la validación de la API y el renderer de la tienda. Ver el
   README de esa carpeta para agregar uno.
 - **Fuentes**: 19 opciones (`FONT_OPTIONS` en `@tiendafy/types`), servidas
-  desde la propia tienda (`storefront/src/app/fonts`, woff2 generados por
-  `storefront/scripts/fetch-store-fonts.mjs`); ninguna se precarga, el navegador baja solo
-  la que aplica el tema.
+  desde la propia tienda; ninguna se precarga, el navegador baja solo la que
+  aplica el tema. Cómo sumar una:
+  [storefront/src/app/fonts/README.md](../storefront/src/app/fonts/README.md).
 - **Diseños listos** (`admin/src/lib/themePresets.ts`): paletas por rubro y las
-  "Marcas del grupo" (Puente Oriente, SmartFox, Volxen, Canicari), armadas
-  desde las guías de marca de `docs/marca/`.
+  "Marcas del grupo" (Puente Oriente, SmartFox, Volxen, Canicari). Las dos
+  primeras salen de sus guías de marca en `docs/marca/`.
 - **Contraste**: el color del texto sobre el primario se elige por contraste
   real, no por una regla fija; el primario usado como texto tiene su propia
   variante (`--color-primary-ink`) para llegar a 4,5:1.

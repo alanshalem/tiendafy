@@ -8,7 +8,9 @@ ya corren **cking** y **ckinsight**, con **Caddy delante de todo**.
 > `/root/nginx-antes-de-caddy`). Falta: la app de Mercado Pago (1.7), apagar
 > `certbot.timer` (3.6), la Parte 4 (cuenta y tiendas reales) y, cuando
 > quieras, la 5 (deploy automático). El día a día del deploy está en
-> [despliegue.md](./despliegue.md).
+> [despliegue.md](./despliegue.md), y dónde quedó cada cosa en el servidor
+> (repo, `.env.prod`, backups, logs, Caddy), en
+> [Dónde está cada cosa en el servidor](./despliegue.md#dónde-está-cada-cosa-en-el-servidor).
 
 ## Cómo queda
 
@@ -208,6 +210,10 @@ Cloudflare. Para levantar Tiendafy alcanza con R2 (1.5); Resend y Mercado Pago
 se completan después en `.env.prod` y se aplican volviendo a correr
 `./infra/deploy.sh prod <tag>`.
 
+Todo se hace con el usuario `deploy` (con `ssh cking` ya entrás como él), salvo
+los pasos marcados con `su -`. El repo va en **`/srv/tiendafy`**, una ruta
+absoluta en la raíz del disco, no adentro del home de `deploy`.
+
 ### 2.1 Entrar y darle Docker al usuario `deploy`
 
 ```bash
@@ -298,8 +304,8 @@ git rev-parse --short=7 HEAD            # ej. e3a4c1a  → el tag es sha-e3a4c1a
 ```
 
 `deploy.sh` baja las imágenes, crea la base, corre las migraciones y levanta
-todo escuchando **solo adentro** del servidor. Al final tiene que decir
-`esperando health ... OK`. Comprobá:
+todo escuchando **solo adentro** del servidor. Tiene que mostrar
+`==> esperando la API ... OK` y después `storefront OK` y `admin OK`. Comprobá:
 
 ```bash
 curl -s http://127.0.0.1:5080/health                          # Healthy
@@ -548,6 +554,10 @@ docker-compose.stack.yml --env-file .env.prod logs -f api`.
   (`OFFSITE_PROVIDER=Other`, `OFFSITE_ENDPOINT=https://s3.<región>.backblazeb2.com`).
   Pasos en `docs/despliegue.md` → "Copia fuera del servidor". Y el control semanal
   de que se pueden restaurar: `infra/check-backup.sh` en el cron.
+- **Postgres 18**: producción salió el 13-oct con Postgres 16 y el compose
+  pide la 18 desde el 15-oct. Si todavía no se migró, el próximo
+  `./infra/deploy.sh prod …` se frena y pide correr antes
+  `./infra/pg-upgrade.sh prod` (ver [despliegue.md](./despliegue.md#cambiar-de-major-de-postgres-16--18)).
 - **Staging** (`stg.puenteoriente.com.ar`): cuando haga falta. Los puertos ya
   están separados en `.env.staging.example`.
 - Certificado de **ARCA** (facturación), **Sentry**, apps de **Meta / X /

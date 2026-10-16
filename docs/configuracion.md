@@ -160,6 +160,7 @@ que no hace falta recompilar):
 | `VITE_PRIMARY_STORE_SUBDOMAIN` | La tienda que vive en el dominio pelado | Vacío | `PRIMARY_STORE_SUBDOMAIN` |
 | `VITE_SENTRY_DSN` | Errores del panel | Vacío | `SENTRY_DSN_ADMIN` |
 | `VITE_BRAND_NAME` | Marca que muestra el panel | `Tiendafy` | `BRAND_NAME` (vacío = Tiendafy) |
+| `APP_ENV` | Ambiente en Sentry (en el contenedor; en dev sale del modo de Vite) | `development` | `APP_ENV` |
 
 ## 4. Producción: los archivos `.env`
 

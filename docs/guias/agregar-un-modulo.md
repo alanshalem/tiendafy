@@ -101,8 +101,9 @@ unitarios (`backend/tests/UnitTests/Architecture/`):
    `TestData.cs`) y el flujo por HTTP en `backend/tests/IntegrationTests/`
    con `Merchant` y `ApiFactory` (ver [tests.md](../tests.md)).
 
-9. **Docs**: sumá el módulo a la lista de [primeros-pasos.md](../primeros-pasos.md) y
-   al diagrama de [arquitectura.md](../arquitectura.md).
+9. **Docs**: sumá el módulo al diagrama de
+   [arquitectura.md](../arquitectura.md#2-adentro-de-la-api), con la cantidad
+   de módulos que dice arriba.
 
 ## Antes de dar por terminado
 

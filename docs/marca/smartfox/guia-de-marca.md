@@ -135,7 +135,24 @@ Los valores entre corchetes son de ejemplo.
 - **Indumentaria:** tipográfico blanco en pecho (9–10 cm), apilado en espalda (25 cm); bordado mínimo 6 cm.
 - **Manual y garantía:** portada con bloque partido; contratapa con datos del importador y del service.
 
-## 9. Prompts para Gemini
+## 9. En la tienda (Tiendafy)
+
+El diseño listo **SmartFox** del editor de la tienda (grupo "Marcas del
+grupo", en `admin/src/lib/themePresets.ts`) es esta guía pasada a la tienda:
+
+- Colores: primario Verde Bosque #195A3A (hover, un verde más oscuro:
+  #12442B), fondo blanco, fondo alterno Gris Cemento #ECEBE8, texto Negro
+  Asfalto #231F20 y acento Amarillo Ruta #FFC72C para precios y llamados.
+- Esquinas rectas en todo; header negro con el logo principal, sin buscador.
+- Montserrat para titulares y Barlow para el texto, servidas por la propia
+  tienda (`storefront/src/app/fonts/`, que también trae Barlow Condensed);
+  íconos Tabler.
+- Logo y favicon: `/marca/smartfox/smartfox-logo.svg` y
+  `/marca/smartfox/favicon.ico`, copias de los de esta carpeta en
+  `storefront/public/marca/smartfox/`. Si cambia un archivo acá, hay que
+  copiarlo también allá.
+
+## 10. Prompts para Gemini
 
 Adjuntá siempre el PNG del logo y pedí que no lo redibuje. Si lo deforma, generá la escena sin logo y pegá el logo real después.
 

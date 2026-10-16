@@ -99,25 +99,21 @@ infra/edge/                 Caddy del borde (80/443) para todo el servidor
 scripts/                    verify, fixtures de la API, prueba de carga
 ```
 
-Los 21 módulos de `backend/src/Modules`: Analytics, Catalog, Checkout,
-Content, Customers, Discounts, Finance, Fiscal, Identity, Inventory, Media,
-MercadoLibre, Notifications, Orders, Payments, Purchasing, Reviews, Social,
-Support, Tenancy y Themes. La mayoría es un solo proyecto `.Infrastructure`;
-los que tienen dominio con reglas suman `.Core`, y los que les muestran tipos
-a otros módulos, `.Contracts`. Un módulo solo puede referenciar el
-`.Contracts` de otro (lo controla
-`backend/tests/UnitTests/Architecture/ModuleBoundariesTests.cs`).
+Los módulos de `backend/src/Modules` y qué guarda cada uno están en el
+diagrama de [arquitectura.md](./arquitectura.md#2-adentro-de-la-api); qué
+forma tiene un módulo y qué puede referenciar, en
+[guias/agregar-un-modulo.md](./guias/agregar-un-modulo.md).
 
 ## 7. Convenciones
 
-- Código, commits, UI y docs en castellano rioplatense. Commits con el formato
-  del historial: `tipo(área): qué cambia` (`fix(pagos): …`, `docs(testing): …`).
+- Comentarios, commits, UI y docs en castellano rioplatense; los
+  identificadores del código, en inglés. Commits con el formato del historial:
+  `tipo(área): qué cambia` (`fix(pagos): …`, `docs(testing): …`).
 - `pre-commit` (husky + lint-staged) formatea lo que commiteás: Prettier en
   TS/CSS/JSON/YAML y `dotnet format --include` en C#. No reemplaza a
   `pnpm verify`: CI corre `dotnet format` sobre toda la solución y compila con
   `-warnaserror`.
-- Módulo nuevo: [guias/agregar-un-modulo.md](./guias/agregar-un-modulo.md).
-  Permisos: [permisos.md](./permisos.md) (fuente de verdad:
+- Permisos: [permisos.md](./permisos.md) (fuente de verdad:
   `backend/src/Modules/Identity/Identity.Infrastructure/Permissions.cs`).
   UI: [sistema-visual.md](./sistema-visual.md). Decisiones de arquitectura: [adr/](./adr/).
 - Un bug arreglado lleva su test de regresión ([tests.md](./tests.md#convenciones)).

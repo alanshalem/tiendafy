@@ -5,7 +5,7 @@
 [AGENTS.md](../AGENTS.md).
 
 Todo en español. Lo que describe el sistema está al día con el código al
-15-oct-2026. Lo de [historial/](./historial/) registra decisiones y análisis
+16-oct-2026. Lo de [historial/](./historial/) registra decisiones y análisis
 viejos, con un bloque de estado arriba.
 
 ## Para trabajar en el código
@@ -30,6 +30,7 @@ viejos, con un bloque de estado arriba.
 | [sistema-visual.md](./sistema-visual.md) | El sistema visual del panel, las tiendas y los mails |
 | [integraciones/](./integraciones/README.md) | Un documento por servicio externo (pagos, ARCA, envíos, Mercado Libre, redes, mail, WhatsApp) con su estado |
 | [`shared/types/src/sections/`](../shared/types/src/sections/README.md) | Cómo sumar o cambiar una sección del editor de tiendas |
+| [`storefront/src/app/fonts/`](../storefront/src/app/fonts/README.md) | Las fuentes de las tiendas: de dónde salen y cómo sumar una |
 
 ## Producción
 
@@ -43,6 +44,7 @@ viejos, con un bloque de estado arriba.
 | Documento | Qué tiene |
 |---|---|
 | [marca/puente-oriente/guia-de-marca.md](./marca/puente-oriente/guia-de-marca.md) | Guía de marca de Puente Oriente (logos en la misma carpeta) |
+| [marca/puente-oriente/prompt-gemini.md](./marca/puente-oriente/prompt-gemini.md) | Prompts para explorar variantes del logo y mockups con Gemini |
 | [marca/smartfox/guia-de-marca.md](./marca/smartfox/guia-de-marca.md) | Guía de marca de Smartfox |
 
 ## Historial

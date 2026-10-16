@@ -41,7 +41,7 @@ Todos los puertos: [docs/urls-y-puertos.md](./docs/urls-y-puertos.md).
 ## Comandos
 
 ```bash
-pnpm verify                          # lo mismo que CI, en local (--front, --back, --coverage, --seq)
+pnpm verify                          # lo de CI menos el e2e, en local (--front, --back, --coverage, --seq)
 dotnet build backend/backend.slnx
 dotnet test backend/backend.slnx
 pnpm --filter ./admin dev            # o type-check / lint / build / test

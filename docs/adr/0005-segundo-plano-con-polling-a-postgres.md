@@ -49,9 +49,9 @@ pocas tiendas, no el de una plataforma con miles.
 - Si algún día hace falta un bus, el lugar natural es reemplazar el loop de
   `InboxDrain`/`PollingWorker`; los efectos ya están en servicios aparte.
 
-## Estado (15-oct-2026)
+## Estado (16-oct-2026)
 
-Implementado: 13 workers de polling, 2 de importación y el de reservas
+Implementado: 14 workers de polling, 2 de importación y el de reservas
 vencidas, todos en la API. En octubre se agregó el claim por fila al inbox de
 webhooks (antes, dos instancias podían procesar el mismo pago dos veces) y la
 escala de reintentos.

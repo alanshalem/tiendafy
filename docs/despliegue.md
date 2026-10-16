@@ -33,14 +33,15 @@ andando, la guía paso a paso (con vuelta atrás) es
 [publicar-en-la-vps.md](./publicar-en-la-vps.md).
 
 ```bash
-# Una sola vez
+# Una sola vez, en /srv/tiendafy
 cp infra/edge/.env.example           infra/edge/.env
 cp infra/docker/.env.prod.example    infra/docker/.env.prod
 cp infra/docker/.env.staging.example infra/docker/.env.staging   # si hay staging
 chmod 600 infra/edge/.env infra/docker/.env.*                    # tienen secretos
 docker compose -f infra/edge/docker-compose.yml up -d --build
 
-# Cada deploy (lo hace GitHub Actions, o vos a mano)
+# Cada deploy (hoy a mano; GitHub Actions cuando tenga las variables, ver abajo)
+git pull                                # deploy.sh usa el compose y los scripts del repo
 ./infra/deploy.sh staging sha-a1b2c3d
 ./infra/deploy.sh prod    sha-a1b2c3d   # el MISMO tag que probaste
 ```
@@ -68,6 +69,34 @@ credenciales de cobro y facturación. Si algo queda sin anonimizar, el script
 **no levanta staging**. Restaurar producción sin anonimizar es la forma más
 común de mandarle un email a un cliente real desde un ambiente de prueba.
 
+## Dónde está cada cosa en el servidor
+
+Se entra con `ssh cking` (el alias de tu PC; IP `31.97.166.27`) y se entra
+como el usuario **`deploy`**, no root: todo lo de Tiendafy se hace con él (está
+en el grupo `docker`). Root (`su -`) hace falta solo para nginx, certbot y los
+repos de cking y ckinsight.
+
+| Qué | Dónde |
+|---|---|
+| El repo | **`/srv/tiendafy`**, de `deploy`. Es una ruta absoluta, en la raíz del disco: `cd /srv/tiendafy`, no `~/srv` (el home de `deploy` es `/home/deploy` y ahí no hay nada de Tiendafy) |
+| Variables de producción | `/srv/tiendafy/infra/docker/.env.prod` (`chmod 600`; git lo ignora, así que no aparece en `git status`) |
+| El borde (Caddy) | `/srv/tiendafy/infra/edge/`: `docker-compose.yml`, su `.env`, el `Caddyfile` y un archivo por sistema en `sites/`. Proyecto compose `edge`, contenedor `edge-caddy-1` |
+| Backups | `/srv/tiendafy/infra/docker/backups/prod/`: los diarios (`tiendafy-*.dump` y `dpkeys-*.tgz`), las copias previas a cada deploy (`tiendafy-predeploy-*.dump`) y las de un cambio de major (`pg-upgrade-<fecha>/`). Puede quedar de root porque la escribe `pg-backup`; `deploy.sh` la devuelve a `deploy` cuando la necesita |
+| Control semanal de backups | `/srv/tiendafy/infra/docker/backups/check.log`, si está el cron de `deploy` (`crontab -l`) |
+| La base y el keyring | Volúmenes de Docker `tiendafy-prod_pgdata18` y `tiendafy-prod_dpkeys` (`docker volume ls`). El de la 16 (`tiendafy-prod_pgdata`), si existe, es la vuelta atrás del cambio de major |
+| Certificados | Volumen `edge_caddydata` |
+| Logs | No hay archivos de log propios: cada contenedor loguea a Docker (3 archivos de 10 MB, rotan solos). Se leen con `docker compose … logs` (ver [Parte 7 de la guía de la VPS](./publicar-en-la-vps.md#parte-7--el-día-a-día)). Los de cking y ckinsight, en `/var/log/nginx/` |
+| Contenedores | `tiendafy-prod-api-1`, `-storefront-1`, `-admin-1`, `-postgres-1`, `-pg-backup-1` (`docker ps`) |
+| nginx (cking, ckinsight) | `/etc/nginx`, escuchando en `127.0.0.1:8081` detrás de Caddy. Respaldo de antes de Caddy: `/root/nginx-antes-de-caddy` |
+
+Los comandos de `docker compose` del stack se corren desde
+`/srv/tiendafy/infra/docker` con
+`-f docker-compose.stack.yml --env-file .env.prod`; los scripts
+(`./infra/deploy.sh`, `./infra/check-backup.sh`…), desde `/srv/tiendafy`.
+
+Si el último deploy lo hizo GitHub Actions, el repo queda en el commit exacto
+que desplegó, sin rama: antes de un `git pull` a mano, `git checkout main`.
+
 ## Arquitectura
 
 3 apps + infra:
@@ -83,39 +112,108 @@ común de mandarle un email a un cliente real desde un ambiente de prueba.
 
 ## Variables de entorno
 
-### Backend (`ASPNETCORE_ENVIRONMENT=Production`)
-Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Production.json`.
-En el stack ya están mapeadas desde `.env.prod` (`infra/docker/docker-compose.stack.yml`);
-la referencia completa, con qué conseguir y dónde, es [configuracion.md](./configuracion.md).
+En el servidor todo sale de **`infra/docker/.env.prod`** (o `.env.staging`):
+`docker-compose.stack.yml` lo lee y arma con eso la config de la API, la tienda
+y el panel. Lo que no está en el `.env` lo arma el compose solo, a partir de
+`STACK_DOMAIN` (direcciones públicas y callbacks de OAuth) o con un valor fijo.
+Qué clave de la aplicación sale de cada variable, con sus defaults de
+desarrollo y qué conseguir dónde: [configuracion.md](./configuracion.md).
 
-| Variable | Ejemplo | Notas |
-|----------|---------|-------|
-| `ConnectionStrings__Default` | `Host=pg;Port=5432;Database=tiendafy;Username=...;Password=...` | **Requerido** |
-| `Tenancy__PlatformBaseDomain` | `tudominio.com` | Sin esto resuelve mal los hosts |
-| `Cors__AllowedOrigins__0` | `https://midominio-propio.com` | Extra (localhost y `*.PlatformBaseDomain` ya se permiten) |
-| `DataProtection__KeyPath` | `/keys` | **Volumen persistente.** Sin esto, los tokens MP encriptados se pierden al reiniciar |
-| `Media__Endpoint` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | **Requerido.** Storage S3-compatible (R2, S3, MinIO propio). La API no arranca en Producción si apunta a localhost |
-| `Media__PublicBaseUrl` | `https://img.tudominio.com` | **Requerido.** Dominio desde el que el comprador descarga las imágenes |
-| `Media__AccessKey` / `__SecretKey` | — | **Requerido.** Token con lectura/escritura sobre los dos buckets. `minioadmin` en Producción = no arranca |
-| `Media__Region` | `auto` | R2 firma con `auto`. MinIO la ignora |
-| `Media__BucketInPublicUrl` | `false` | `false` con dominio propio de R2 (objeto en la raíz); `true` en MinIO/S3 path-style (`{base}/{bucket}/{key}`) |
-| `Media__EnsureBucketOnStartup` | `false` | R2 no soporta `PutBucketPolicy`: los buckets se crean a mano una vez |
-| `MercadoPago__ClientId` / `__ClientSecret` | — | App de MercadoPago (marketplace) |
-| `MercadoPago__RedirectUri` | `https://api.tudominio.com/api/v1/payments/mercadopago/callback` | Debe coincidir con la app MP |
-| `MercadoPago__WebhookSecret` | — | Para validar la firma del webhook |
-| `MercadoPago__PublicApiBaseUrl` | `https://api.tudominio.com` | URL pública para webhooks |
-| `MercadoPago__AdminReturnUrl` | `https://admin.tudominio.com/configuracion/medios-de-pago` | Vuelta tras OAuth |
-| `Email__ResendApiKey` | `re_...` | Sin esto, los emails solo se loguean (reset de contraseña, verificación, pedidos) |
-| `Database__MigrateOnStartup` | `false` | Multi-instancia: desactivá las migraciones en boot y corrélas como paso de deploy |
-| `Sentry__Dsn` | `https://…@…ingest.sentry.io/…` | Error-tracking backend. Vacío = Sentry desactivado. Los secretos de las URLs (token del bot de Telegram, `access_token`, `?t=` de los links firmados, headers de autorización) se tapan antes de mandar nada: `Api/Startup/SentryScrubber.cs`, y en el panel y la tienda `@tiendafy/types/sentry-scrub.ts`. Un parámetro secreto nuevo se suma en los dos |
-| `Email__From` | `Tienda <hola@tudominio.com>` | Remitente verificado en Resend |
-| `Authentication__Google__ClientId` / `__ClientSecret` | — | Opcional (login Google del comprador) |
-| `Captcha__Turnstile__SiteKey` / `__Secret` | — | Opcional. Cloudflare Turnstile anti-bots en contacto y login/signup. Vacío = sin captcha |
-| `Notifications__EmailCostUsdPer1000` | `0.40` | Opcional. Tarifa de referencia del panel "Uso del mes" (emails) |
-| `Notifications__WhatsAppCostUsdPerMessage` | `0.034` | Opcional. Ídem para WhatsApp |
-| `PublicApiBaseUrl` | `https://api.tudominio.com` | URL pública de la API: links de seguimiento y de baja de los mails de campañas |
-| `Storefront__RevalidateUrl` / `__RevalidateSecret` | `http://storefront:3000/internal/revalidate` | Aviso a la tienda para que un cambio se vea al toque. Sin secreto, la caché vence sola (30 a 60 s) |
-| `Workers__Enabled` | `true` | `false` en réplicas extra de la API, para no duplicar los workers |
+Un cambio en el `.env` se aplica volviendo a correr
+`./infra/deploy.sh prod <el tag que corre>` (o `docker compose … up -d`, que
+recrea los contenedores cuya config cambió).
+
+### Lo que completa el operador en `.env.prod`
+
+**Base del stack**
+
+| Variable | Ejemplo / default | Notas |
+|---|---|---|
+| `COMPOSE_PROJECT_NAME` | `tiendafy-prod` | Prefijo de contenedores y volúmenes (`tiendafy-prod-api-1`, `tiendafy-prod_dpkeys`) |
+| `APP_ENV` | `prod` | Carpeta de backups (`backups/prod`) y nombre del ambiente en Sentry, la tienda y el panel. **Requerida** |
+| `STACK_DOMAIN` | `puenteoriente.com.ar` | **Requerida.** De acá salen `api.`, `admin.`, las tiendas (`<sub>.dominio`) y todas las URLs de callback |
+| `PRIMARY_STORE_SUBDOMAIN` | `puenteoriente` | Qué tienda atiende el dominio pelado (lo usan la tienda y el panel). Vacío = "tienda no encontrada" |
+| `BRAND_NAME` | `Puente Oriente` | Marca que ve el equipo en el panel. Vacío = Tiendafy. No cambia lo que ve el comprador |
+| `REGISTRY` / `TAG` | `ghcr.io/alanshalem/tiendafy` / vacío | Imágenes de GHCR. En producción el tag lo pasa `deploy.sh` y no puede ser `latest` |
+| `POSTGRES_PASSWORD` | `openssl rand -base64 32` | **Requerida** |
+| `DB_MIN_POOL_SIZE` | `5` | Conexiones abiertas aunque no haya tráfico. No viene en el ejemplo: vale el default |
+| `API_PORT` / `WEB_PORT` / `ADMIN_PORT` | `5080` / `3000` / `8090` | Publicados solo en `127.0.0.1`; tienen que coincidir con `infra/edge/sites/tiendafy.caddy` |
+| `PG_MEM_LIMIT` / `API_MEM_LIMIT` / `WEB_MEM_LIMIT` / `ADMIN_MEM_LIMIT` | `1g` / `1g` / `768m` / `128m` | Techos de memoria de cada contenedor |
+| `BACKUP_REPLICAS` | `1` | `0` apaga el backup diario (staging) |
+| `WORKERS_ENABLED` | `true` | `false` en réplicas extra de la API, para no duplicar los workers |
+| `TRUSTED_PROXY_CIDR_0` … `_2` | `172.16.0.0/12`, `192.168.0.0/16`, `10.0.0.0/8` | Redes de las que la API acepta `X-Forwarded-For` (lo que entra por el puerto publicado viene de la red de Docker). Sin esto, los límites por IP se comparten entre todos los visitantes. No vienen en el ejemplo: valen los defaults |
+
+**Imágenes (storage S3)** — alta en [Imágenes de las tiendas](#imágenes-de-las-tiendas-storage)
+
+| Variable | Ejemplo / default | Notas |
+|---|---|---|
+| `MEDIA_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | **Requerida.** En producción la API no arranca si apunta a localhost |
+| `MEDIA_PUBLIC_BASE_URL` | `https://img.puenteoriente.com.ar` | **Requerida.** Dominio desde el que el comprador baja las fotos |
+| `MEDIA_ACCESS_KEY` / `MEDIA_SECRET_KEY` | — | **Requeridas.** Token con lectura y escritura sobre los dos buckets. `minioadmin` en producción = no arranca |
+| `MEDIA_BUCKET` / `MEDIA_PRIVATE_BUCKET` | `tiendafy-media` / `tiendafy-private` | Staging usa los suyos (`-stg`). En el ejemplo de prod no vienen: valen los defaults |
+| `MEDIA_REGION` | `auto` | R2 firma con `auto`; MinIO la ignora |
+| `MEDIA_BUCKET_IN_PUBLIC_URL` | `false` | `false` con dominio propio de R2 (objeto en la raíz); `true` en MinIO o S3 path-style (`{base}/{bucket}/{key}`) |
+| `MEDIA_ENSURE_BUCKET` | `false` | R2 no soporta `PutBucketPolicy`: los buckets se crean a mano una vez |
+
+**Email, cobros y servicios** (vacío = apagado, y el panel lo dice)
+
+| Variable | Notas |
+|---|---|
+| `EMAIL_FROM` | Remitente con dominio verificado en Resend (`Puente Oriente <no-responder@…>`) |
+| `RESEND_API_KEY` | Sin esto los mails solo se escriben en el log (es el default de staging, a propósito) |
+| `EMAIL_WEBHOOK_SECRET` | Signing secret del webhook de rebotes y quejas de Resend. Vacío = el webhook responde 404 |
+| `MP_CLIENT_ID` / `MP_CLIENT_SECRET` / `MP_WEBHOOK_SECRET` | App de Mercado Pago de la plataforma ([integraciones/mercadopago.md](./integraciones/mercadopago.md)) |
+| `MELI_CLIENT_ID` / `MELI_CLIENT_SECRET` | Canal Mercado Libre ([integraciones/mercadolibre.md](./integraciones/mercadolibre.md)) |
+| `META_APP_ID` / `META_APP_SECRET` | Meta Ads (ROAS real) |
+| `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET`, `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` | Redes sociales; Telegram no necesita credenciales ([integraciones/redes-sociales.md](./integraciones/redes-sociales.md)) |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | Cloudflare Turnstile en login, registro y contacto. Vacío = sin captcha |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | "Entrar con Google" de los compradores. Vacío = botón oculto |
+| `AI_API_KEY` / `AI_MODEL` | Sugerencias con IA (Anthropic). Modelo por defecto `claude-sonnet-5` |
+| `REVALIDATE_SECRET` | Lo comparten la API y la tienda: con él, publicar un diseño o cambiar el catálogo se ve al toque; vacío, tarda 30 a 60 s. `openssl rand -hex 32` |
+| `SENTRY_DSN_BACKEND` / `SENTRY_DSN_STOREFRONT` / `SENTRY_DSN_ADMIN` | Errores de cada app. Vacío = Sentry apagado. Los secretos de las URLs (token del bot de Telegram, `access_token`, `?t=` de los links firmados, headers de autorización) se tapan antes de mandar nada: `backend/src/Api/Startup/SentryScrubber.cs` y, en el panel y la tienda, `shared/types/src/sentry-scrub.ts`. Un parámetro secreto nuevo se suma en los dos |
+
+**Copia fuera del servidor** (`OFFSITE_REPLICAS`, `OFFSITE_PROVIDER`,
+`OFFSITE_ENDPOINT`, `OFFSITE_BUCKET`, `OFFSITE_ACCESS_KEY`,
+`OFFSITE_SECRET_KEY`, `OFFSITE_CRYPT_PASSWORD`): ver
+[Copia fuera del servidor](#copia-fuera-del-servidor). `OFFSITE_PROVIDER` no
+viene en el ejemplo: vale `Cloudflare` (para Backblaze B2, `Other`).
+
+Correo Argentino, Andreani, Zipnova, Payway, WhatsApp y ARCA no llevan
+variables: las credenciales son **por tienda**, las carga el comercio desde el
+panel y quedan cifradas en la base.
+
+### Lo que arma el compose solo
+
+- **API** (`ASPNETCORE_ENVIRONMENT=Production` también en staging, escuchando
+  en `:5080`): `ConnectionStrings__Default` (con `POSTGRES_PASSWORD` y
+  `DB_MIN_POOL_SIZE`), `DataProtection__KeyPath=/keys` (volumen `dpkeys`; sin
+  esa ruta la API no arranca), `Database__MigrateOnStartup=false` (las
+  migraciones las corre `deploy.sh`), `Tenancy__PlatformBaseDomain`,
+  `PublicApiBaseUrl` y `MercadoPago__PublicApiBaseUrl` (`https://api.<dominio>`),
+  `Admin__BaseUrl` (`https://admin.<dominio>`, link del aviso de stock bajo),
+  los `RedirectUri` / `AdminReturnUrl` de Mercado Pago, Mercado Libre, Meta
+  Ads y redes sociales, `Storefront__RevalidateUrl`
+  (`http://storefront:3000/internal/revalidate`, por la red interna) y
+  `Sentry__Environment` (= `APP_ENV`).
+- **Tienda** (todo en runtime): `API_URL=http://api:5080` (la API por la red
+  interna), `PLATFORM_BASE_DOMAIN`, `PRIMARY_STORE_SUBDOMAIN`, `APP_ENV`,
+  `REVALIDATE_SECRET` y las que viajan al navegador: `PUBLIC_API_URL`,
+  `PUBLIC_ADMIN_ORIGIN` (link al panel y origen que acepta la vista previa del
+  editor) y `PUBLIC_SENTRY_DSN`. Las `NEXT_PUBLIC_*` de
+  `storefront/.env.example` quedan para desarrollo: Next las hornea al
+  compilar, así que en el servidor no se leen.
+- **Panel**: `APP_ENV`, `VITE_API_URL`, `VITE_STOREFRONT_ORIGIN`
+  (`https://{sub}.<dominio>`), `VITE_PRIMARY_STORE_SUBDOMAIN`,
+  `VITE_SENTRY_DSN` y `VITE_BRAND_NAME`, leídas **al arrancar el contenedor**
+  (`admin/docker-config.sh` escribe `config.js`), no horneadas. En desarrollo
+  salen de `admin/.env.local`.
+
+La API tiene además claves que el compose no pasa y que en producción
+quedan en su default: `Cors__AllowedOrigins` (orígenes extra; hace falta
+recién con el primer dominio propio de una tienda, ver Seguridad), los cupos
+de `RateLimiting__*`, `Email__MaxRetries` y las tarifas de referencia
+`Notifications__*`. Se suman como variable en el compose si alguna vez hace
+falta cambiarlas.
 
 ### Imágenes de las tiendas (storage)
 
@@ -134,8 +232,8 @@ Alta, una sola vez:
    buckets (no uses uno de cuenta entera).
 4. Completar `MEDIA_*` en `.env.prod`.
 
-Con MinIO propio en vez de R2: `Media__BucketInPublicUrl=true`,
-`Media__EnsureBucketOnStartup=true` y **exponelo por un dominio público**
+Con MinIO propio en vez de R2: `MEDIA_BUCKET_IN_PUBLIC_URL=true`,
+`MEDIA_ENSURE_BUCKET=true` y **exponelo por un dominio público**
 (ej. `media.tudominio.com` detrás de Caddy). No alcanza con `localhost:9000`:
 en producción `next/image` bloquea los upstreams que resuelven a IP privada y
 todas las fotos de la tienda quedan rotas.
@@ -143,32 +241,6 @@ todas las fotos de la tienda quedan rotas.
 Migrar de un proveedor a otro es copiar los objetos entre buckets: las URLs
 guardadas en la base apuntan al dominio viejo, así que hay que mantenerlo vivo
 o reescribirlas.
-
-Correo Argentino no necesita env vars: las credenciales MiCorreo son **por
-tienda** y viven cifradas en la DB (las carga el merchant desde el admin).
-
-Integraciones opcionales de plataforma (vacío = apagado, el panel lo dice):
-`MercadoLibre__*` (canal Mercado Libre), `MetaAds__*` (ROAS real) y `Social__Meta__*` /
-`Social__X__*` (redes sociales; Telegram no necesita credenciales). El detalle
-de cada una — qué conseguir y dónde — está en
-[configuracion.md](./configuracion.md); el compose de prod ya mapea todas desde
-`.env.prod`.
-
-### Storefront (Next.js)
-En el servidor, todo en runtime: `API_URL` (la API por la red interna),
-`APP_ENV`, y las que viajan al navegador —
-`PUBLIC_API_URL`, `PUBLIC_ADMIN_ORIGIN` (link al panel y validación del origin
-del editor de temas), `PUBLIC_SENTRY_DSN`. `REVALIDATE_SECRET` (en `.env.prod`) lo
-comparten la API y el storefront: con él, publicar un diseño o cambiar el
-catálogo se ve en la tienda al toque; vacío, tarda 30 a 60 s.
-
-Las `NEXT_PUBLIC_*` de `storefront/.env.example` siguen existiendo para
-desarrollo: Next las hornea al compilar, así que en el servidor no se leen.
-
-### Admin (Vite)
-En el servidor: `APP_ENV`, `VITE_API_URL`, `VITE_STOREFRONT_ORIGIN`,
-`VITE_SENTRY_DSN` — leídas **al arrancar el contenedor**, no horneadas. En
-desarrollo salen de `admin/.env.local` como siempre.
 
 ## Reverse proxy / TLS
 
@@ -184,7 +256,7 @@ momento — que además choca contra el límite semanal de Let's Encrypt cuando 
 varias tiendas.
 
 Para **dominios propios de merchants** sigue el on-demand, validado contra
-`/tenants/resolve` de la API de producción, y hay que agregarlos a
+`/api/v1/tenants/resolve` de la API de producción (el `ask` de `on_demand_tls` en `infra/edge/Caddyfile`), y hay que agregarlos a
 `Cors__AllowedOrigins`. Si tu DNS no está en Cloudflare, Caddy tiene plugins
 para otros proveedores; el resto de la configuración no cambia.
 
@@ -244,6 +316,7 @@ Settings → Environments → production → Required reviewers).
 **Deploy a mano** (las migraciones son un paso explícito, NO corren al boot):
 
 ```bash
+cd /srv/tiendafy && git pull            # el compose y los scripts del commit nuevo
 ./infra/deploy.sh prod sha-a1b2c3d
 curl -s https://api.TU_DOMINIO/version   # ¿corre el sha que esperabas?
 ```
@@ -269,7 +342,7 @@ seguridad): el deploy no lo hace solo, a propósito, porque reinicia la base.
 En un horario tranquilo:
 
 ```bash
-cd infra/docker
+cd /srv/tiendafy/infra/docker
 docker compose -f docker-compose.stack.yml --env-file .env.prod pull postgres pg-backup
 docker compose -f docker-compose.stack.yml --env-file .env.prod up -d postgres pg-backup
 ```
@@ -331,6 +404,7 @@ docker run --rm -v "$PWD/restaurado:/out" \
 Restaurar la base:
 
 ```bash
+cd /srv/tiendafy
 # 1. Copiar el dump adentro del contenedor de postgres
 docker cp infra/docker/backups/prod/tiendafy-YYYYMMDD-HHMM.dump tiendafy-prod-postgres-1:/tmp/r.dump
 # 2. Crear una DB de verificación y restaurar ahí (NUNCA pisar tiendafy directo)
@@ -345,6 +419,7 @@ Si además se perdió el volumen `dpkeys` (servidor nuevo), restaurar el keyring
 del MISMO día que el dump, con la API frenada:
 
 ```bash
+cd /srv/tiendafy/infra/docker
 docker compose -f docker-compose.stack.yml --env-file .env.prod stop api
 docker run --rm -v tiendafy-prod_dpkeys:/keys -v "$PWD/backups/prod:/b:ro" alpine \
   sh -c 'tar xzf /b/dpkeys-AAAAMMDD-HHMM.tgz -C /keys && chown -R 1654:1654 /keys'
@@ -438,8 +513,10 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   públicas del storefront (products, pages publicadas, theme, orders/{id}) quedan
   abiertas a propósito. La sesión del comprador queda atada a su tienda (no se
   reusa el bearer cambiando `X-Tenant-Id`).
-- **Rate limiting** (`AddRateLimiter`): global 300/min por IP + estricto 10/5min por
-  IP y endpoint en login/registro (admin y shop), contacto y validación de cupón.
+- **Rate limiting** (`AddRateLimiter`): global 300/min por IP (sin techo para el
+  storefront que pide desde la red interna) + estricto 10/5min por IP y endpoint
+  en login/registro (admin y shop), contacto y validación de cupón, y 15/5min en
+  los endpoints de pago (contra el card-testing).
   ⚠️ El límite es **por instancia**. Con varias réplicas, poné el throttling también
   en el proxy (nginx `limit_req` / Cloudflare) o un store distribuido.
 - **SSRF**: la importación de imágenes por URL solo busca hosts públicos (bloquea
@@ -463,8 +540,12 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
-referrer y permissions policy) y la tienda desde `next.config.ts` (CSP, nosniff,
-referrer; sin `X-Frame-Options` porque el editor la previsualiza en un iframe).
+referrer y permissions policy) y la tienda desde `storefront/next.config.ts`
+(nosniff, referrer; sin `X-Frame-Options` porque el editor la previsualiza en
+un iframe) más el CSP, que lo pone `storefront/src/proxy.ts` en cada respuesta
+porque depende de la API del ambiente (`storefront/src/lib/csp.ts`). Caddy suma
+HSTS, nosniff y referrer en los sitios que no los ponen (`security_headers` del
+`infra/edge/Caddyfile`).
 
 **Lo pone el borde / el servidor:** HTTPS con redirect desde HTTP (Caddy) y
 ningún puerto de la base ni de las apps abierto a internet (todo escucha en

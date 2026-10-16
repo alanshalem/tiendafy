@@ -1,7 +1,7 @@
 # ADR 0001: Monolito Modular en .NET 10 LTS
 
 **Date**: 2026-06-11
-**Status**: Accepted
+**Status**: Accepted, salvo el host Worker con RabbitMQ y Hangfire: lo reemplazó [0005](./0005-segundo-plano-con-polling-a-postgres.md)
 **Decision Makers**: Alan Shalem
 
 ## Estado (15-oct-2026)

@@ -10,9 +10,9 @@ se marca como reemplazada y se escribe un ADR nuevo.
 
 ## Lista
 
-| # | Título | Estado al 15-oct-2026 |
+| # | Título | Estado al 16-oct-2026 |
 | --- | --- | --- |
-| [0001](./0001-monolito-modular-en-dotnet.md) | Monolito modular en .NET | Vigente. 21 módulos; sin host Worker ni broker (ver 0005); fronteras verificadas por tests |
+| [0001](./0001-monolito-modular-en-dotnet.md) | Monolito modular en .NET | Vigente. 21 módulos; el host Worker con broker lo reemplazó 0005; fronteras verificadas por tests |
 | [0002](./0002-next-y-vite.md) | Storefront en Next.js + panel en Vite | Vigente. Next 16 con App Router y Data Cache, no SSG/ISR por build ni CDN |
 | [0003](./0003-multi-tienda-con-rls.md) | Multi-tenancy con base compartida y RLS | Parcial: base compartida con `tenant_id` sí; RLS no. Aislamiento por query filters de EF + test que los exige |
 | [0004](./0004-una-imagen-y-un-compose.md) | Una imagen para todos los ambientes y un solo compose | Vigente e implementado. Staging pendiente |

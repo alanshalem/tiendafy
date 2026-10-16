@@ -1,6 +1,6 @@
 # Email (Resend)
 
-Todos los emails de Tiendafy salen por [Resend](https://resend.com/docs) con su API HTTP: los transaccionales de cada tienda (pagos, envíos, reembolsos, cuenta), los avisos automáticos (stock, favoritos, reseñas, carritos) y las campañas de email marketing. Los de la plataforma (verificación y reset del admin, invitaciones al panel) usan el mismo transporte sin el layout de la tienda.
+Todos los emails de Tiendafy salen por [Resend](https://resend.com/docs) con su API HTTP: los transaccionales de cada tienda (pagos, envíos, reembolsos, factura con el PDF, cuenta), los avisos automáticos (stock, favoritos, reseñas, carritos, stock bajo al equipo) y las campañas de email marketing. Los de la plataforma (verificación y reset del admin, invitaciones al panel) usan el mismo transporte sin el layout de la tienda.
 
 WhatsApp tiene su propia integración (Cloud API de Meta, credenciales por tienda): ver [whatsapp.md](whatsapp.md).
 
@@ -17,13 +17,14 @@ WhatsApp tiene su propia integración (Cloud API de Meta, credenciales por tiend
 
 | Pieza | Archivo |
 |---|---|
-| Transporte crudo (Resend, reintentos, Idempotency-Key, modo dev) | `backend/src/Api/Notifications/EmailSender.cs` (`EmailOptions`, `IEmailSender`, `EmailSender`) |
+| Transporte crudo (Resend, reintentos, Idempotency-Key, adjuntos, modo dev) | `backend/src/Api/Notifications/EmailSender.cs` (`EmailOptions`, `IEmailSender`, `EmailSender`, `EmailAttachment`) |
 | Layout brandeado + contador de uso | `backend/src/Api/Notifications/BrandedEmailSender.cs` (`BrandedEmailSender`, `EmailLayout`) |
 | Catálogo de plantillas (defaults) | `backend/src/Modules/Notifications/Notifications.Infrastructure/EmailTemplateCatalog.cs` |
 | Render: override del tenant o default + variables `{{var}}` | `backend/src/Modules/Notifications/Notifications.Infrastructure/EmailTemplates.cs` |
 | Emails de pedido | `backend/src/Api/Notifications/OrderNotifier.cs`, `OrderEmail.cs` |
 | Emails de la cuenta del comprador (verificar, cambiar contraseña) | `backend/src/Api/Notifications/ShopperAccountEmails.cs`, llamado desde `Api/Endpoints/ShopAuthEndpoints.cs` |
 | Carritos abandonados | `backend/src/Api/Notifications/AbandonedCartWorker.cs` |
+| Factura con el PDF adjunto | `backend/src/Api/Fiscal/InvoiceEmail.cs` |
 | Webhook de Resend (firma svix, tag del tenant) | `backend/src/Api/Notifications/ResendWebhook.cs` |
 | Endpoints de campañas, baja, tracking y webhook | `backend/src/Api/Endpoints/CampaignEndpoints.cs` |
 | Endpoints de plantillas y uso | `backend/src/Api/Endpoints/EmailTemplateEndpoints.cs` |
@@ -81,13 +82,15 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `confirmacion-pago` | prendida | `Api/Orders/PaidOrderSideEffects.cs` |
 | `confirmacion-envio` / `lista-para-retirar` | prendidas | `Api/Orders/OrderFulfillment.cs` (según sea envío o retiro) |
 | `pedir-resena` | prendida | `ReviewRequestWorker` (días después del despacho) |
-| `aviso-stock` | prendida | `BackInStockWorker` y `Api/Purchasing/StockAlertService.cs` ("Avisame cuando ingrese") |
+| `aviso-stock` | prendida | `BackInStockWorker` (los pedidos de "Avisame cuando ingrese") |
 | `cancelacion-compra` | apagada | `RefundedOrderSideEffects` y `OfflinePayments`. Si está apagada, el reembolso igual avisa con un texto genérico (`OrderEmail.Refund`) |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
 | `carritos-abandonados` | prendida | `AbandonedCartWorker` (1 h después de un checkout con email que no terminó en una venta pagada; una sola vez) |
 | `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` |
 | `cambio-contrasena` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/forgot` |
-| `factura` | apagada | **Hoy no se usa**: ver "Pendiente" |
+| `factura` | apagada | `Api/Fiscal/InvoiceEmail.cs`, cuando la venta obtiene el CAE (desde `FiscalEmissionWorker` o el botón "Facturar"), con el PDF adjunto. Sale una sola vez por comprobante (se reclama con `BuyerNotifiedAtUtc`), nunca para notas de crédito, ventas de Mercado Libre ni ventas sin email |
+
+El aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertService.cs`) también pasa por `BrandedEmailSender` (tag de uso `stock-bajo`), pero no es una plantilla editable: no figura en el catálogo.
 
 Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión. Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña) salen siempre.
 
@@ -133,11 +136,9 @@ Estados de la campaña: `draft`, `scheduled`, `sending`, `sent`, `cancelled`.
 - **Preview**: en `/configuracion/emails-automaticos` el editor muestra la plantilla con el layout real (`POST /api/v1/email-templates/preview`). En `/marketing`, la campaña tiene preview y "Enviar prueba".
 - **Envío real**: cargá una API key de prueba y `Email:From` de un dominio verificado, y mandá una campaña de prueba a tu casilla.
 - **Webhook**: desde el panel de Resend podés reenviar un evento a tu endpoint (sale con un timestamp nuevo, así que pasa la ventana de 5 minutos). Sin `Email:WebhookSecret` el endpoint da 404 (es lo esperado).
-- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada y supresión) y `EmailTemplateTests.cs`. En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
+- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada y supresión), `EmailTemplateTests.cs` y `FiscalWorkerTests.cs` (el email `factura` con el PDF, una sola vez). En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
 
 ## Pendiente
 
 - Confirmar en el panel de Resend de producción que el webhook esté creado y que `EMAIL_WEBHOOK_SECRET` esté cargado en el `.env` del stack: sin eso, los rebotes no se suprimen.
-- La plantilla `factura` sigue sin usarse: no hay envío de factura por email, y el texto dice "Adjuntamos" pero el transporte no soporta adjuntos. Editarla o apagarla en el panel hoy no cambia nada.
-- Las fixtures del panel (`test-fixtures/api.json`, ruta `/api/v1/email-templates`) son de antes de este cambio: todavía listan `confirmacion-compra` y `bienvenida` y no traen `alwaysOn`. Se regeneran con `pnpm fixtures:api`.
 - No hay alta manual de supresiones desde el panel (el motivo `manual` existe en la entidad pero nada lo usa).

@@ -16,7 +16,10 @@ las credenciales.
   y máximo. La tienda elige cuáles ofrecer.
 - **Lista sucursales** por provincia para que el comprador elija dónde retirar.
 - **Da de alta el envío** en MiCorreo desde la venta (panel → detalle de la
-  venta → Correo Argentino).
+  venta → Correo Argentino), con la reserva previa contra altas duplicadas.
+- **Consulta el seguimiento** desde el panel, con el número que cargó el
+  comercio, y le muestra al comprador el link del formulario público de
+  Correo Argentino.
 - **No baja etiquetas**: MiCorreo no las entrega por API, se imprimen desde su
   web. La impresión en lote lo dice ("imprimila desde MiCorreo") en vez de
   fallar.
@@ -52,7 +55,9 @@ Todo es **por tienda**. No hay env vars de plataforma para Correo Argentino.
 | `POST /shipping/correo/quote` | público (tenant) | Cotización del checkout |
 | `GET /shipping/correo/agencies?province=X` | público (tenant) | Sucursales que reciben paquetes, por código de provincia de una letra |
 | `POST /admin/orders/{id}/correo-shipment` | `orders.fulfill` | Alta del envío en MiCorreo (una sola vez por venta) |
-| `GET /admin/orders/{id}/correo-shipment` | `orders.read` | El alta de esa venta, si se hizo desde el panel |
+| `GET /admin/orders/{id}/correo-shipment` | `orders.read` | El alta de esa venta, si se hizo desde el panel (o el aviso de un alta a revisar) |
+| `POST /admin/orders/{id}/correo-shipment/review/record` | `orders.fulfill` | Alta a revisar: "Se creó", la registra sin número |
+| `POST /admin/orders/{id}/correo-shipment/review/release` | `orders.fulfill` | Alta a revisar: "No se creó", suelta la reserva |
 | `GET /admin/shipping/correo/tracking?shippingId=` | `orders.read` | Eventos de seguimiento, del más nuevo al más viejo |
 
 ## Configuración
@@ -169,6 +174,7 @@ confirmarlo con una cuenta real.
 - Confirmar si MiCorreo deduplica por `extOrderId` (hoy no importa: el guard
   es nuestro) y el formato real de la fecha de los eventos de tracking (se
   lee `dd-mm-aaaa hh:mm`, ISO o `aaaa-mm-dd`).
-- El alta registrada no entra en Despacho ni en la impresión en lote (no hay
-  etiqueta por API).
+- Despacho y la impresión en lote reconocen las ventas de Correo por el
+  nombre del medio de envío, no por el alta registrada: no muestran si ya se
+  dio de alta en MiCorreo (y la etiqueta no existe por API).
 - Etiquetas: no hay API; seguir imprimiéndolas desde MiCorreo.

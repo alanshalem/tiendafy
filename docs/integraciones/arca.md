@@ -14,9 +14,13 @@ homologación, después de producción) para emitir el primer CAE de verdad.
 - **Nota de crédito automática** cuando una venta se reembolsa por completo
   (y cuando Mercado Libre informa una venta facturada como cancelada o
   devuelta), al mismo receptor y con la misma clase que la factura, que va
-  referenciada.
+  referenciada. Solo en las tiendas con la emisión automática prendida: con
+  la facturación a mano no se encola ninguna (ver Pendiente).
 - **Emisión manual** desde Ventas (con documento y condición de IVA que puede
-  completar el comercio) y comprobantes sueltos sin orden.
+  completar el comercio) y facturas sueltas sin orden.
+- **Ventas de Mercado Libre**: se facturan a consumidor final, con el botón
+  "Facturar" o solas si la conexión de Mercado Libre tiene la auto-factura
+  prendida (es otra opción, aparte de la de la tienda).
 - **Consulta al padrón A5**: quién es un CUIT y su condición frente al IVA.
 - **PDF** del comprobante con el QR de ARCA (adjunto en el email "factura" si
   la tienda prendió esa plantilla), **libro IVA ventas** del mes en CSV y un
@@ -52,12 +56,16 @@ del 21% (el envío se factura como ítem gravado al 21%).
 | Email "factura" con el PDF | `backend/src/Api/Fiscal/InvoiceEmail.cs` |
 | Endpoints de configuración, padrón y emisión suelta | `backend/src/Api/Endpoints/FiscalEndpoints.cs` |
 | Facturar una orden, estado fiscal y PDF | `backend/src/Api/Endpoints/OrderEndpoints.cs` |
+| PDF para el comprador (desde su pedido) | `backend/src/Api/Endpoints/ShopOrdersEndpoints.cs` (`/shop/orders/{id}/invoice.pdf`) |
+| Facturar una venta de Mercado Libre | `backend/src/Api/Endpoints/MeliEndpoints.cs` (`POST /admin/meli/orders/{meliOrderId}/invoice`) |
 | Disparadores | `Api/Orders/PaidOrderSideEffects.cs`, `OrderFulfillment.cs`, `RefundedOrderSideEffects.cs`, `Api/Meli/MeliSyncService.cs` |
 | Panel | `admin/src/pages/Settings/FiscalInvoicing.tsx` (Configuración → Facturación) |
 
 Tablas: `fiscal_configs`, `fiscal_points_of_sale`, `fiscal_certificates`,
 `fiscal_access_tokens`, `fiscal_documents`, `fiscal_sequences`,
-`fiscal_emission_jobs`.
+`fiscal_emission_jobs`. En la misma base del módulo vive `store_legal_info`
+(los datos legales que la tienda muestra en el pie y el precio sin impuestos
+nacionales), que no interviene en la facturación.
 
 ## Configuración
 
@@ -71,8 +79,8 @@ Casi todo es por tienda y se carga en el panel:
 | Certificado | `POST /fiscal/certificate/csr`, `POST /fiscal/certificate/activate` | Ver el flujo abajo |
 | ¿Se puede facturar? | `GET /api/v1/fiscal/readiness` | Emisor + certificado activo + punto de venta |
 
-Permisos: `FiscalConfig` para configurar, `FiscalEmit` para emitir y consultar
-el padrón.
+Permisos: `FiscalConfig` para configurar, probar la conexión y bajar el libro
+IVA; `FiscalEmit` para emitir, reintentar un job y consultar el padrón.
 
 Del servidor:
 
@@ -137,9 +145,10 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    local es un espejo y se corrige si quedó desfasada.
 6. Reconciliación: cada comprobante de la serie que quedó `Pending` se consulta
    con `FECompConsultar`. Si ARCA lo tiene con el mismo receptor e importe, se
-   adopta su CAE (y si era de esta venta, no se emite otro). Si el número es
-   mayor al último de ARCA, nunca llegó. Si ARCA no lo confirma, se frena la
-   serie hasta revisarlo a mano.
+   adopta su CAE (y si era de esta venta, no se emite otro); si lo tiene con
+   otro receptor o importe, el número quedó usado por otro comprobante y el
+   nuestro se marca así. Si el número es mayor al último de ARCA, nunca llegó.
+   Si ARCA no lo confirma, se frena la serie hasta revisarlo a mano.
 7. **Write-ahead**: el comprobante se graba `Pending` con su número antes de
    pedir el CAE.
 8. `FECAESolicitar`. Autorizado: guarda CAE, vencimiento y observaciones, y
@@ -149,8 +158,9 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    el próximo intento. Solo un SOAP Fault es rechazo.
 
 **Automática.** Los disparadores encolan un job único por (tienda, orden,
-tipo) si la facturación está habilitada y automática, y si el disparador
-coincide. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
+tipo) si la facturación está habilitada (se habilita sola al activar un
+certificado del mismo ambiente que el emisor) y automática; la factura,
+además, solo si el disparador coincide. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
 transitorios con espera de 1, 2, 4… hasta 60 minutos (8 intentos) y manda a
 fallidos los rechazos de ARCA y la falta de documento del comprador, porque
 reintentar no los arregla. Un job tomado (`Processing`) hace más de 15
@@ -171,7 +181,9 @@ condición frente al IVA, guardada en `receptor_condicion`) y la clase: A → NC
 A, B → NC B, C → NC C, con la factura en `CbtesAsoc`. El documento con que se
 encola (el de la venta, o ninguno en Mercado Libre) no se usa: ARCA rechaza
 una NC de otra clase o a otro receptor (10123). Por el monto reembolsado, una
-sola por orden.
+sola por orden. No hay nota de crédito suelta: `POST /fiscal/emit` con
+`creditNote` responde `Fiscal.NcNeedsOrder`, porque la NC necesita la factura
+de la orden que acredita.
 
 **Libro IVA.** `GET /fiscal/documents/export?year&month`: comprobantes
 autorizados del ambiente en que factura la tienda (columna "Ambiente";
@@ -287,7 +299,7 @@ Homologación:
 Para el detalle de la API de ARCA, en la máquina de desarrollo hay skills
 locales fuera del repo (`.claude/skills/afip/`: WSAA, certificados, emisión,
 tipos de comprobante, padrones, troubleshooting) y el
-[portal de web services de ARCA](https://www.afip.gob.ar/ws/) (sección
+[portal de web services de ARCA](https://www.arca.gob.ar/ws/) (sección
 Documentación: manuales de WSAA y WSFEv1).
 
 ## Pendiente
@@ -301,5 +313,10 @@ Documentación: manuales de WSAA y WSFEv1).
   automática no consulta el padrón y el checkout no pide la condición: un RI
   persona física recibe B salvo que el comercio facture a mano.
 - **Reembolsos parciales**: no generan nota de crédito (una por orden).
+- **Nota de crédito con la facturación a mano**: si la tienda no tiene la
+  emisión automática prendida, un reembolso total no encola la NC y desde el
+  panel no hay cómo emitirla: la factura de una venta devuelta queda viva. Lo
+  mismo con las ventas de Mercado Libre facturadas por la auto-factura de la
+  conexión si la tienda no tiene la automática.
 - **Email "factura" en ventas de Mercado Libre**: no sale (no son órdenes de
   la tienda y ML no da el email del comprador).
