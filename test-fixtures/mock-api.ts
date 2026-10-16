@@ -16,7 +16,7 @@ import fixtures from './api.json';
 
 type Json = unknown;
 
-export interface ApiCall {
+interface ApiCall {
   method: string;
   path: string;
   body: Json;
@@ -30,7 +30,7 @@ export interface MockApi {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
-export const routes = (fixtures as { routes: Record<string, Json> }).routes;
+const routes = (fixtures as { routes: Record<string, Json> }).routes;
 export const fixtureTenantId = (fixtures as { tenantId: string }).tenantId;
 
 /** La misma normalización que ApiFixturesExport.Normalize del backend. */

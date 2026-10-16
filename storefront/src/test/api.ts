@@ -7,7 +7,7 @@
 import { vi } from 'vitest';
 import { createMockApi, fixture, fixtureTenantId, type MockApi } from '../../../test-fixtures/mock-api';
 
-export type { ApiCall, MockApi } from '../../../test-fixtures/mock-api';
+export type { MockApi } from '../../../test-fixtures/mock-api';
 export { fixture, fixtureTenantId, normalize } from '../../../test-fixtures/mock-api';
 
 /** Instala el fetch simulado, con la tienda sembrada resolviendo por host. */

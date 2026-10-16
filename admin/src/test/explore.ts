@@ -7,6 +7,5 @@ import { vi } from 'vitest';
 import { createExplorer } from '../../../test-fixtures/explore';
 
 export type { User } from '../../../test-fixtures/explore';
-export { SKIP } from '../../../test-fixtures/explore';
 
 export const { settle, fill, press, explore, watchCrashes } = createExplorer({ act, screen, within }, vi);

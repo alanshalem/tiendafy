@@ -6,6 +6,4 @@ import { act, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { createExplorer } from '../../../test-fixtures/explore';
 
-export type { User } from '../../../test-fixtures/explore';
-
-export const { settle, fill, press, explore, watchCrashes } = createExplorer({ act, screen, within }, vi);
+export const { settle, explore, watchCrashes } = createExplorer({ act, screen, within }, vi);

@@ -40,7 +40,7 @@ function TestRouter({ path, children }: { path: string; children: ReactNode }) {
   );
 }
 
-export function Providers({ children, path = '/' }: { children: ReactNode; path?: string }) {
+function Providers({ children, path = '/' }: { children: ReactNode; path?: string }) {
   // Un cliente por test: sin reintentos (un 404 de las fixtures es definitivo)
   // y sin cache compartido entre tests.
   const client = new QueryClient({

@@ -49,7 +49,7 @@ function tryServer(
  * `<Suspense>` muestra su fallback y lo de adentro no se ejecuta. Es lo que ve
  * el visitante en el primer pintado, antes de que el server termine.
  */
-export async function resolveServer(node: ReactNode, pending = false): Promise<ReactNode> {
+async function resolveServer(node: ReactNode, pending = false): Promise<ReactNode> {
   if (Array.isArray(node)) return Promise.all(node.map((n) => resolveServer(n, pending)));
   if (!isValidElement(node)) return node;
 

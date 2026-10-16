@@ -7,7 +7,7 @@ import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fixture } from './api';
 
-export type AnyPage = (props: never) => Promise<ReactNode> | ReactNode;
+type AnyPage = (props: never) => Promise<ReactNode> | ReactNode;
 
 export const product = fixture<{ slug: string; name: string }>('/api/v1/products/by-slug/x');
 const productSlug = product.slug;

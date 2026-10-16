@@ -5,8 +5,8 @@
 import { vi } from 'vitest';
 import { createMockApi, type MockApi } from '../../../test-fixtures/mock-api';
 
-export type { ApiCall, MockApi } from '../../../test-fixtures/mock-api';
-export { fixture, normalize } from '../../../test-fixtures/mock-api';
+export type { MockApi } from '../../../test-fixtures/mock-api';
+export { fixture } from '../../../test-fixtures/mock-api';
 
 /** Instala el fetch simulado para el test. */
 export function mockApi(): MockApi {

@@ -31,10 +31,10 @@ export interface User {
 }
 
 /** Se llama con cada diálogo que se abre, recién abierto (antes de tocarlo). */
-export type OnDialog = (dialog: HTMLElement, opener: HTMLElement) => Promise<void> | void;
+type OnDialog = (dialog: HTMLElement, opener: HTMLElement) => Promise<void> | void;
 
 /** Lo que no se aprieta: salir de la sesión dejaría el resto sin probar. */
-export const SKIP = /cerrar sesi[oó]n|salir/i;
+const SKIP = /cerrar sesi[oó]n|salir/i;
 
 const usable = (el: HTMLElement) =>
   el.isConnected && !el.hasAttribute('disabled') && !el.hasAttribute('readonly');

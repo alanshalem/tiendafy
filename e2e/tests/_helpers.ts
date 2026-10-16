@@ -21,7 +21,7 @@ export const SEED = process.env.E2E_SEED === '1';
 export const ADMIN_STATE = path.join(__dirname, '.auth', 'admin.json');
 
 /** Credenciales del seed de dev (fuente: backend DevAdminSeeder). */
-export const SEED_ADMIN = { email: 'admin@tiendafy.local', password: 'password123' };
+const SEED_ADMIN = { email: 'admin@tiendafy.local', password: 'password123' };
 
 /**
  * Completa el formulario de login del admin y lo envía. NO incluye la
