@@ -76,7 +76,7 @@ Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`)
 
 - Conectá una cuenta de prueba de Meta, cargá tu número como tester y usá "Enviar prueba" en `/configuracion/whatsapp-automatico` (manda `hello_world`).
 - Prendé `confirmacion-pago` con una plantilla aprobada y marcá como pagada una orden con tu teléfono.
-- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos) y `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada) y `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago).
+- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos), `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada) y `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago).
 
 ## Pendiente
 
