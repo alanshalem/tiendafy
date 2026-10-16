@@ -453,7 +453,7 @@ export const ENVIOS = {
       {
         heading: 'Despachar escaneando',
         steps: [
-          'En la solapa “Despachar escaneando”, escaneá con la cámara (o un lector) el QR del remito. También podés tocar “Escanear” en un pedido de la cola, y ya entra elegido.',
+          'En la solapa “Despachar escaneando”, escaneá con la cámara (o un lector) el QR del remito, o escribí el número del pedido (#1042). También podés tocar “Escanear” en un pedido de la cola, y ya entra elegido.',
           'Escaneá cada producto al meterlo en la caja (código de barras o SKU): la lista marca lo juntado, y si algo no va en ese pedido o sobra, avisa en el momento.',
           'Con todo completo, cargá el seguimiento (si el envío ya está creado con el correo, viene cargado) y tocá “Despachar”. En un pedido de retiro el botón es “Lista para retirar”. El comprador recibe el aviso como siempre.',
         ],
