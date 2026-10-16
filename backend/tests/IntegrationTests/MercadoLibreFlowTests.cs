@@ -678,6 +678,61 @@ public sealed class MercadoLibreFlowTests
         Assert.False(await fiscal.EmissionJobs.AsNoTracking().AnyAsync(j => j.OrderId == row.Id));
     }
 
+    [Fact]
+    public async Task Una_factura_de_homologacion_no_cuenta_en_produccion_y_la_auto_factura_la_hace_de_verdad()
+    {
+        // La lista marcaba "Facturada" (y la contaba en sus filtros) una venta
+        // con solo una factura de prueba, y la auto-factura no la volvía a
+        // facturar en producción.
+        var (merchant, userId) = await ConnectedAsync("mlh");
+        _ = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, autoInvoiceEnabled = false });
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var saleId = userId * 10 + 4;
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "paid", itemId, 1));
+        async Task SyncAsync()
+        {
+            await NotifyAsync(userId, $"/orders/{saleId}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+        Task<long[]> ListAsync(string estado) => merchant.GetAsync($"/api/v1/admin/meli/orders?limit=25&estado={estado}")
+            .ContinueWith(t => t.Result.GetProperty("items").EnumerateArray().Select(o => o.GetProperty("meliOrderId").GetInt64()).ToArray());
+        Task<int> UnbilledOnHomeAsync() => merchant.GetAsync("/api/v1/home/todo")
+            .ContinueWith(t => t.Result.GetProperty("mercadoLibre").GetProperty("unbilled").GetInt32());
+
+        await SyncAsync();
+        await merchant.PostAsync($"/api/v1/admin/meli/orders/{saleId}/invoice", new { });
+        Assert.Equal([saleId], await ListAsync(MeliOrderFilters.Billed));
+        Assert.Equal(0, await UnbilledOnHomeAsync());
+
+        // En producción la de prueba no cuenta: la venta vuelve a "sin facturar".
+        await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
+        Assert.Empty(await ListAsync(MeliOrderFilters.Billed));
+        Assert.Equal([saleId], await ListAsync(MeliOrderFilters.Unbilled));
+        Assert.Equal(1, await UnbilledOnHomeAsync());
+        var row = Assert.Single((await merchant.GetAsync("/api/v1/admin/meli/orders?limit=25")).GetProperty("items").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("fiscalDocumentId").ValueKind);
+
+        // Con la auto-factura de ML prendida, el próximo aviso la factura de verdad.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, autoInvoiceEnabled = true });
+        await SyncAsync();
+        Assert.Equal([saleId], await ListAsync(MeliOrderFilters.Billed));
+        Assert.Equal(0, await UnbilledOnHomeAsync());
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/meli/orders/{saleId}/invoice")).StatusCode);
+
+        var orderId = await MeliOrderIdAsync(merchant.TenantId, saleId);
+        using var scope = _factory.Services.CreateScope();
+        var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+        var environments = await fiscal.Documents.AsNoTracking()
+            .Where(d => d.OrderId == orderId && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
+            .Select(d => d.Environment).ToListAsync();
+        Assert.Equal(
+            [global::Fiscal.Core.Domain.FiscalEnvironment.Homologacion, global::Fiscal.Core.Domain.FiscalEnvironment.Produccion],
+            environments.Order());
+    }
+
     private async Task<Guid> MeliOrderIdAsync(Guid tenantId, long meliOrderId)
     {
         using var scope = _factory.Services.CreateScope();

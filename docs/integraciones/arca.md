@@ -251,8 +251,11 @@ homologación no tiene validez fiscal), del mes en hora argentina.
 actual y el de cada comprobante: el panel muestra como factura de la venta la
 del ambiente actual (marcada "de prueba" si es homologación) y la de otro
 ambiente aparte, dicha como tal. El PDF (`invoice.pdf`, en el panel y en la
-cuenta del comprador) y el botón de facturar de Mercado Libre miran solo el
-ambiente actual.
+cuenta del comprador) y, en Mercado Libre, el botón "Facturar", la marca
+"Facturada" del listado, sus filtros, el contador "sin facturar" del Inicio y
+la auto-factura miran solo el ambiente actual (`Api/Meli/MeliInvoices.cs`):
+una venta de ML con solo una factura de homologación figura sin facturar en
+producción y la auto-factura la factura de verdad en el próximo aviso.
 
 ## Lo que aprendimos de la API real
 

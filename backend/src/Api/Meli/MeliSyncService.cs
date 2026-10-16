@@ -30,6 +30,7 @@ public sealed class MeliSyncService(
     IStockRepository stock, Api.Orders.KitStockService kits,
     global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter,
     global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
+    global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscal,
     ILogger<MeliSyncService> logger)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Web;
@@ -161,10 +162,12 @@ public sealed class MeliSyncService(
         }
 
         // Auto-facturación (opt-in por conexión) a consumidor final. Si ARCA
-        // rechaza, queda el botón manual "Facturar" en el panel.
-        if (row.IsPaid && row.FiscalDocumentId is null)
+        // rechaza, queda el botón manual "Facturar" en el panel. Una venta con
+        // factura de otro ambiente (homologación) se factura de verdad: esa no
+        // existe para ARCA de producción.
+        if (row.IsPaid && await AutoInvoiceEnabledAsync(tenantId, ct)
+            && !await MeliInvoices.CountsAsync(fiscal, tenantId, row.FiscalDocumentId, ct))
         {
-            if (!await AutoInvoiceEnabledAsync(tenantId, ct)) return;
             try
             {
                 var emitted = await emitter.EmitAsync(

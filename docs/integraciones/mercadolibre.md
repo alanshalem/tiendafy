@@ -73,6 +73,7 @@ orquestación en la Api.
 | `backend/src/Api/Meli/MeliStockSyncWorker.cs` | Cada 5 min empuja stock y precio por diferencia. |
 | `backend/src/Api/Meli/MeliListingPayload.cs` | Cuerpo del `POST /items` al publicar. |
 | `backend/src/Api/Meli/MeliOrderFilters.cs` | Búsqueda y filtros del listado y de los contadores del Inicio (misma regla). |
+| `backend/src/Api/Meli/MeliInvoices.cs` | Qué comprobante cuenta como la factura de una venta: solo el del ambiente actual (listado, filtros, Inicio, "Facturar" y auto-factura). |
 | `backend/src/Api/Inbox/MeliInboxSource.cs` | Preguntas y packs sin leer para la bandeja unificada. |
 | `backend/src/Api/Endpoints/MeliEndpoints.cs` | Todos los endpoints del canal. |
 | `admin/src/pages/MercadoLibre.tsx` y `admin/src/pages/mercadolibre-*.tsx` | Página `/mercadolibre`: ventas, preguntas, publicaciones, reclamos. |
@@ -195,7 +196,9 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
    (`CreditNoteIssued`): encolada, ya encolada o "no corresponde" (nadie emite
    solo, o la factura es de otro ambiente) no se vuelven a intentar en el
    próximo aviso; solo un error al encolar sí. Si está cobrada, sin
-   comprobante y con auto-factura prendida, emite a consumidor final.
+   factura del ambiente actual y con auto-factura prendida, emite a
+   consumidor final (una factura de homologación no cuenta en producción:
+   ver `MeliInvoices`).
 
 **Tiendafy → ML.** `MeliStockSyncWorker`, cada 5 min, toma las conexiones con
 stock **o** precio prendidos (nunca las de demo) y, de cada una, los vínculos

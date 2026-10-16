@@ -67,7 +67,8 @@ public static class HomeEndpoints
                 {
                     mercadoLibre = new
                     {
-                        unbilled = await MeliOrderFilters.OnlyUnbilled(meli.Orders.AsNoTracking()).CountAsync(ct),
+                        unbilled = await MeliOrderFilters.OnlyUnbilled(meli.Orders.AsNoTracking(),
+                            await MeliInvoices.NotCountingAsync(fiscal, tid.Value, ct)).CountAsync(ct),
                         unanswered = await UnansweredQuestionsAsync(connection, tokens, meliClient, ct),
                     };
                 }

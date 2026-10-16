@@ -18,7 +18,12 @@ public static class MeliOrderFilters
     public const string AwaitingPayment = "pendientes";
     public const string Cancelled = "canceladas";
 
-    public static IQueryable<MeliOrder> Apply(MeliDbContext db, string? search, string? estado)
+    /// <param name="notCounting">
+    /// Comprobantes vinculados que no cuentan como factura (de otro ambiente,
+    /// ver <see cref="MeliInvoices.NotCountingAsync"/>): la venta figura sin facturar.
+    /// </param>
+    public static IQueryable<MeliOrder> Apply(
+        MeliDbContext db, string? search, string? estado, IReadOnlyCollection<Guid?> notCounting)
     {
         var text = search?.Trim().TrimStart('#').Trim();
         IQueryable<MeliOrder> query = db.Orders;
@@ -40,8 +45,8 @@ public static class MeliOrderFilters
         query = query.AsNoTracking();
         return estado switch
         {
-            Unbilled => OnlyUnbilled(query),
-            Billed => query.Where(o => o.FiscalDocumentId != null),
+            Unbilled => OnlyUnbilled(query, notCounting),
+            Billed => query.Where(o => o.FiscalDocumentId != null && !notCounting.Contains(o.FiscalDocumentId)),
             Paid => query.Where(o => MeliOrder.EarningStatuses.Contains(o.Status)),
             AwaitingPayment => query.Where(o =>
                 o.Status == "payment_required" || o.Status == "payment_in_process" || o.Status == "confirmed"),
@@ -51,11 +56,11 @@ public static class MeliOrderFilters
     }
 
     /// <summary>
-    /// Cobradas, con importe y sin comprobante: lo que el endpoint de
-    /// facturación acepta facturar (ver <see cref="MeliOrder.IsPaid"/>).
+    /// Cobradas, con importe y sin factura del ambiente actual: lo que el
+    /// endpoint de facturación acepta facturar (ver <see cref="MeliOrder.IsPaid"/>).
     /// </summary>
-    public static IQueryable<MeliOrder> OnlyUnbilled(IQueryable<MeliOrder> query) =>
+    public static IQueryable<MeliOrder> OnlyUnbilled(IQueryable<MeliOrder> query, IReadOnlyCollection<Guid?> notCounting) =>
         query.Where(o => MeliOrder.EarningStatuses.Contains(o.Status)
-            && o.FiscalDocumentId == null
+            && (o.FiscalDocumentId == null || notCounting.Contains(o.FiscalDocumentId))
             && (o.PaidAmount > 0 || o.TotalAmount > 0));
 }

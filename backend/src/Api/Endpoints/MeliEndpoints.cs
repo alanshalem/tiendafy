@@ -234,13 +234,16 @@ public static class MeliEndpoints
         // Busca por comprador, número de venta o producto, y filtra por estado
         // de cobro y de facturación (ver MeliOrderFilters).
         sales.MapGet("/orders", async (
-            ITenantContext tenant, MeliDbContext db, int? offset, int? limit, string? q, string? estado,
-            CancellationToken ct) =>
+            ITenantContext tenant, MeliDbContext db, global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
+            int? offset, int? limit, string? q, string? estado, CancellationToken ct) =>
         {
             var take = Math.Clamp(limit ?? 25, 1, 100);
             var skip = Math.Max(0, offset ?? 0);
 
-            var query = MeliOrderFilters.Apply(db, q, estado)
+            // Facturada = con factura del ambiente actual: una de homologación
+            // no cuenta en producción (la venta se puede facturar de verdad).
+            var notCounting = await MeliInvoices.NotCountingAsync(fiscalDb, tenant.TenantId.Value, ct);
+            var query = MeliOrderFilters.Apply(db, q, estado, notCounting)
                 .OrderByDescending(o => o.DateCreatedUtc);
             var total = await query.CountAsync(ct);
             var rows = await query.Skip(skip).Take(take).ToListAsync(ct);
@@ -267,7 +270,9 @@ public static class MeliEndpoints
                     // apagada no descontó nada y no dice que sí.
                     stockDiscounted = o.StockDiscounted,
                     stockReturned = o.StockReverted,
-                    o.FiscalDocumentId,
+                    // La factura del ambiente actual (null si no tiene, o si la
+                    // que tiene es de otro ambiente).
+                    fiscalDocumentId = notCounting.Contains(o.FiscalDocumentId) ? null : o.FiscalDocumentId,
                 }),
             });
         });
@@ -365,9 +370,7 @@ public static class MeliEndpoints
                 return Error.Validation("Meli.NotPaid", "Solo se facturan ventas pagadas.").ToProblem();
             // Ya facturada en el ambiente en que factura hoy la tienda. Una de
             // homologación no cuenta en producción: se puede facturar de verdad.
-            if (order.FiscalDocumentId is { } linked && await fiscalDb.Documents.AsNoTracking().AnyAsync(d =>
-                    d.Id == linked && d.TenantId == tenant.TenantId.Value
-                    && fiscalDb.Configs.Any(c => c.TenantId == d.TenantId && c.Environment == d.Environment), ct))
+            if (await MeliInvoices.CountsAsync(fiscalDb, tenant.TenantId.Value, order.FiscalDocumentId, ct))
                 return Error.Conflict("Meli.AlreadyInvoiced", "Esta venta ya tiene comprobante emitido.").ToProblem();
 
             var minor = order.BillableMinorUnits;
