@@ -28,6 +28,7 @@ describe('qk: las mismas claves de antes', () => {
     [qk.inventory(S), ['inventory', S]],
     [qk.inventoryOf(S, 'v1,v2'), ['inventory', S, 'v1,v2']],
     [qk.inventoryOfProduct(S, 'v1'), ['inventory', S, 'product', 'v1']],
+    [qk.inventoryLedger(S, 'v1'), ['inventory', S, 'ledger', 'v1']],
     [qk.variantCosts(S), ['variant-costs', S]],
     [qk.variantCosts(S, 'p1,p2'), ['variant-costs', S, 'p1,p2']],
     [qk.priceListsPicker(S), ['price-lists-picker', S]],
@@ -101,6 +102,7 @@ describe('qk: invalidar por prefijo', () => {
     const pairs: [readonly unknown[], readonly unknown[]][] = [
       [qk.inventoryOf(S, 'v1'), qk.inventory(S)],
       [qk.inventoryOfProduct(S, 'v1'), qk.inventory(S)],
+      [qk.inventoryLedger(S, 'v1'), qk.inventory(S)],
       [qk.variantCosts(S, 'p1'), qk.variantCosts(S)],
       [qk.order(S, 'o1'), qk.orders(S)],
       [qk.ordersList(S, ''), qk.orders(S)],

@@ -3,6 +3,7 @@ using Api.Storefront;
 using Identity.Infrastructure;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
+using Orders.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 
 namespace Api.Endpoints;
@@ -136,25 +137,59 @@ public static class InventoryEndpoints
             return Results.Ok(new { item.VariantId, item.Available, item.Reserved });
         });
 
-        // Ledger de movimientos por variante (auditoría del merchant).
+        // Ledger de movimientos por variante (auditoría del merchant): el
+        // historial de stock de Inventario. Las reservas y las ventas cobradas
+        // no traen motivo; se cruzan con la venta que las hizo (la línea de la
+        // orden guarda su reserva) para que el historial diga "venta #1043" y
+        // no un "Reservado" suelto que nadie puede rastrear.
         inventory.MapGet("/{variantId:guid}/ledger", async (
-            Guid variantId, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
+            Guid variantId, ITenantContext tenant, IStockRepository repository,
+            OrdersDbContext ordersDb, CancellationToken ct) =>
         {
-            var movements = await repository.GetLedgerAsync(tenant.TenantId, variantId, 50, ct);
+            var movements = await repository.GetLedgerAsync(tenant.TenantId, variantId, LedgerSize, ct);
+
+            var reservationIds = movements.Where(m => m.ReservationId is not null)
+                .Select(m => m.ReservationId).Distinct().ToList();
+            List<LedgerOrder> lines = reservationIds.Count == 0
+                ? []
+                : await ordersDb.Orders.AsNoTracking()
+                    .Where(o => o.TenantId == tenant.TenantId)
+                    .SelectMany(o => o.Items.Where(i => reservationIds.Contains(i.ReservationId)),
+                        (o, i) => new LedgerOrder(i.ReservationId, o.Id, o.Number))
+                    .ToListAsync(ct);
+            var orderByReservation = lines
+                .GroupBy(x => x.ReservationId!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
             return Results.Ok(new
             {
-                items = movements.Select(m => new
+                items = movements.Select(m =>
                 {
-                    type = m.Type.ToString(),
-                    m.Quantity,
-                    m.Reason,
-                    m.OccurredAtUtc,
+                    var order = m.ReservationId is { } rid ? orderByReservation.GetValueOrDefault(rid) : null;
+                    return new
+                    {
+                        type = m.Type.ToString(),
+                        m.Quantity,
+                        m.Reason,
+                        m.OccurredAtUtc,
+                        orderId = order?.OrderId,
+                        orderNumber = order is { Number: > 0 } ? order.Number : (int?)null,
+                    };
                 }),
+                // El historial muestra los últimos movimientos, no todos: la
+                // pantalla lo aclara cuando llega al tope.
+                limit = LedgerSize,
             });
         });
 
         return group;
     }
+
+    /// <summary>Cuántos movimientos trae el historial de una variante (los más nuevos).</summary>
+    private const int LedgerSize = 50;
+
+    /// <summary>La venta que reservó (y después cobró) un movimiento de stock.</summary>
+    private sealed record LedgerOrder(Guid? ReservationId, Guid OrderId, int Number);
 }
 
 public sealed record SetStockRequest(int Available, string? Reason, int? ExpectedAvailable = null);

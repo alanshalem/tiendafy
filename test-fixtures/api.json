@@ -3456,21 +3456,28 @@
           "type": "Sold",
           "quantity": 0,
           "reason": null,
-          "occurredAtUtc": "2026-10-15T20:51:38.584568Z"
+          "occurredAtUtc": "2026-10-15T20:51:38.584568Z",
+          "orderId": "458126a2-1271-40fb-9d05-fa7762e1e31f",
+          "orderNumber": 1160
         },
         {
           "type": "Reserved",
           "quantity": -1,
           "reason": null,
-          "occurredAtUtc": "2026-10-15T20:51:38.515432Z"
+          "occurredAtUtc": "2026-10-15T20:51:38.515432Z",
+          "orderId": "458126a2-1271-40fb-9d05-fa7762e1e31f",
+          "orderNumber": 1160
         },
         {
           "type": "Initial",
           "quantity": 50,
           "reason": "carga inicial de test",
-          "occurredAtUtc": "2026-10-15T20:51:30.273607Z"
+          "occurredAtUtc": "2026-10-15T20:51:30.273607Z",
+          "orderId": null,
+          "orderNumber": null
         }
-      ]
+      ],
+      "limit": 50
     },
     "/api/v1/inventory/summary": {
       "variants": 5,

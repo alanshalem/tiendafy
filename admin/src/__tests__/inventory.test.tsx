@@ -1,11 +1,13 @@
 /**
  * Inventario: corregir el stock de una variante (solo números; vacío es 0),
- * filtrar lo que no tiene o tiene poco, buscar, y bajar las etiquetas QR de la
- * página.
+ * filtrar lo que no tiene o tiene poco, buscar, bajar las etiquetas QR de la
+ * página y ver el historial de movimientos de cada variante.
  */
 import { screen, waitFor, within } from '@testing-library/react';
+import axe from 'axe-core';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { a11yViolations } from '../../../test-fixtures/a11y';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
@@ -132,6 +134,87 @@ describe('inventario', () => {
     api.on('GET', '/api/v1/products/labels', { detail: 'Demasiadas variantes.' }, 400);
     await user.click(screen.getByRole('button', { name: 'Etiquetas QR de esta página' }));
     expect(await screen.findByText('Demasiadas variantes.')).toBeInTheDocument();
+  });
+
+  describe('historial de stock de una variante', () => {
+    const historyButton = () =>
+      screen.getByRole('button', {
+        name: `Historial de stock de ${product.name}${
+          variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''
+        }`,
+      });
+    const ledger = fixture<{ items: { orderId: string | null; orderNumber: number | null }[] }>(
+      '/api/v1/inventory/:id/ledger',
+    );
+    const sale = ledger.items.find((m) => m.orderId)!;
+
+    it('cada movimiento dice qué pasó, cuánto cambió y de qué venta fue', async () => {
+      const { api, user } = await openInventory();
+      await user.click(historyButton());
+      const panel = within(await screen.findByRole('dialog', { name: 'Historial de stock' }));
+      expect(await panel.findByText(/Alta de stock/)).toBeInTheDocument();
+      expect(api.calls.some((c) => c.path === `/api/v1/inventory/${variant.id}/ledger`)).toBe(true);
+
+      // La carga inicial suma, con su motivo; la reserva resta; la venta cobrada no vuelve a restar.
+      expect(panel.getByText('carga inicial de test')).toBeInTheDocument();
+      expect(panel.getByText('Entraron 50')).toBeInTheDocument();
+      expect(panel.getByText('Salieron 1')).toBeInTheDocument();
+      expect(panel.getByText('Sin cambio en el disponible')).toBeInTheDocument();
+      expect(panel.getByText('Ya se había descontado al apartarse.')).toBeInTheDocument();
+
+      // La reserva y la venta llevan a la venta que se llevó el stock.
+      const links = panel.getAllByRole('link', { name: `Venta #${sale.orderNumber}` });
+      expect(links).toHaveLength(2);
+      expect(links[0]).toHaveAttribute('href', `/ventas?order=${sale.orderId}`);
+      // Pocos movimientos: no hace falta aclarar que hay un tope.
+      expect(panel.queryByText(/Se muestran los últimos/)).not.toBeInTheDocument();
+      expect(await a11yViolations(axe)).toEqual([]);
+    });
+
+    it('sin movimientos lo dice; con el tope, aclara que son los últimos; si falla, deja reintentar', async () => {
+      const { api, user } = await openInventory((a) =>
+        a.on('GET', '/api/v1/inventory/:id/ledger', { items: [], limit: 50 }),
+      );
+      await user.click(historyButton());
+      expect(await screen.findByText('Sin movimientos todavía')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+      const many = Array.from({ length: 2 }, (_, i) => ({
+        type: 'Adjustment',
+        quantity: i + 1,
+        reason: `Conteo ${i + 1}`,
+        occurredAtUtc: '2026-10-15T12:00:00Z',
+        orderId: null,
+        orderNumber: null,
+      }));
+      api.on('GET', '/api/v1/inventory/:id/ledger', { items: many, limit: 2 });
+      await user.click(historyButton());
+      expect(await screen.findByText('Se muestran los últimos 2 movimientos.')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+      api.on('GET', '/api/v1/inventory/:id/ledger', { detail: 'La base no responde.' }, 503);
+      await user.click(historyButton());
+      expect(await screen.findByText('No se pudo cargar el historial de stock.')).toBeInTheDocument();
+      expect(screen.getByText(/La base no responde/)).toBeInTheDocument();
+      api.on('GET', '/api/v1/inventory/:id/ledger', { items: many, limit: 50 });
+      await user.click(screen.getByRole('button', { name: /Reintentar/ }));
+      expect(await screen.findByText('Conteo 2')).toBeInTheDocument();
+    });
+
+    it('quien solo puede ver el stock también ve el historial', async () => {
+      const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
+      const { user } = await openInventory((a) =>
+        a.on('GET', '/api/v1/me/permissions', {
+          ...perms,
+          permissions: perms.permissions.filter((p) => p !== 'inventory.write'),
+        }),
+      );
+      expect(screen.getByLabelText(stockLabel)).toHaveAttribute('readonly');
+      await user.click(historyButton());
+      expect(await screen.findByRole('dialog', { name: 'Historial de stock' })).toBeInTheDocument();
+    });
   });
 
   it('sin productos invita a cargarlos', async () => {

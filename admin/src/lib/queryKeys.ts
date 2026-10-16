@@ -42,6 +42,8 @@ export const qk = {
   /** Stock de las variantes de un producto (la edición). */
   inventoryOfProduct: (store: StoreId, variantIds: string) =>
     ['inventory', store, 'product', variantIds] as const,
+  /** El historial de movimientos de una variante: guardar stock lo refresca (mismo prefijo). */
+  inventoryLedger: (store: StoreId, variantId: string) => ['inventory', store, 'ledger', variantId] as const,
   variantCosts: (store: StoreId, ...page: [] | [productIds: string]) =>
     ['variant-costs', store, ...page] as const,
   priceListsPicker: (store: StoreId) => ['price-lists-picker', store] as const,

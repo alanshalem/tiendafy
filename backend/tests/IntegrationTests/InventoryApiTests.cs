@@ -59,6 +59,44 @@ public sealed class InventoryApiTests(ApiFactory factory)
         Assert.Contains(ledger.EnumerateArray(), m => m.GetProperty("reason").GetString() == "Conteo");
     }
     [Fact]
+    public async Task El_libro_dice_que_venta_reservo_y_se_llevo_el_stock()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "inv-ledger");
+        var (_, variant) = await merchant.CreateProductAsync("Kettlebell 12kg", priceMinor: 30_000_00, stock: 5);
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId = variant, quantity = 2 } },
+            paymentMethod = "cash",
+            buyerEmail = "mostrador@test.local",
+            buyerName = "Cliente de mostrador",
+        })).GetProperty("id").GetGuid();
+        var number = (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("number").GetInt32();
+
+        var ledger = await merchant.GetAsync($"/api/v1/inventory/{variant}/ledger");
+        Assert.Equal(50, ledger.GetProperty("limit").GetInt32());
+        var items = ledger.GetProperty("items").EnumerateArray().ToList();
+
+        // La reserva y la venta cobrada dicen de qué venta son: sin eso el
+        // historial mostraba un "Reservado" que nadie podía rastrear.
+        var reserved = Assert.Single(items, m => m.GetProperty("type").GetString() == "Reserved");
+        Assert.Equal(-2, reserved.GetProperty("quantity").GetInt32());
+        Assert.Equal(orderId, reserved.GetProperty("orderId").GetGuid());
+        Assert.Equal(number, reserved.GetProperty("orderNumber").GetInt32());
+        var sold = Assert.Single(items, m => m.GetProperty("type").GetString() == "Sold");
+        Assert.Equal(orderId, sold.GetProperty("orderId").GetGuid());
+
+        // La carga inicial no es de ninguna venta.
+        var initial = Assert.Single(items, m => m.GetProperty("type").GetString() == "Initial");
+        Assert.Equal(JsonValueKind.Null, initial.GetProperty("orderId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, initial.GetProperty("orderNumber").ValueKind);
+
+        // Otra tienda no ve el libro ni las ventas de esta.
+        var other = await Merchant.CreateAsync(factory, "inv-ledger-otra");
+        var foreign = await other.GetAsync($"/api/v1/inventory/{variant}/ledger");
+        Assert.Empty(foreign.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
     public async Task Ajuste_con_stock_esperado_no_pisa_una_venta_del_medio()
     {
         var merchant = await Merchant.CreateAsync(factory, "inv-cas");

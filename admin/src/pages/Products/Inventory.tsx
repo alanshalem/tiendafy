@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { History } from 'lucide-react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../../lib/queryKeys';
 import { Badge, Button, Card, Input, useToast, PageHeader, SearchInput } from '@tiendafy/ui';
@@ -17,6 +18,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
+import { StockHistoryModal, type StockHistoryTarget } from './StockHistory';
 
 interface VariantDto {
   id: string;
@@ -69,6 +71,8 @@ export function InventoryPage() {
   // que viaja como `expectedAvailable`. Con el de la consulta del momento, una
   // venta que refrescara la tabla mientras se tipeaba pasaría inadvertida.
   const [drafts, setDrafts] = useState<Record<string, { value: string; seen: number }>>({});
+  // La variante cuyo historial de stock está abierto.
+  const [history, setHistory] = useState<StockHistoryTarget | null>(null);
   const list = useListParams(LIST_DEFAULTS);
   const [search, setSearch] = useListSearch(list);
   const page = list.values.pagina;
@@ -290,13 +294,13 @@ export function InventoryPage() {
                   const draft = drafts[variant.id];
                   const value = draft?.value ?? String(current?.available ?? '');
                   const changed = draft !== undefined && draft.value !== String(current?.available ?? '');
+                  const variantLabel =
+                    variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
 
                   return (
                     <tr key={variant.id} className="border-b border-border last:border-b-0">
                       <td className="px-4 py-2.5 font-medium text-fg">{vi === 0 ? product.name : ''}</td>
-                      <td className="px-4 py-2.5 text-fg-muted">
-                        {variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única'}
-                      </td>
+                      <td className="px-4 py-2.5 text-fg-muted">{variantLabel}</td>
                       <td className="px-4 py-2.5 text-fg-subtle">{variant.sku}</td>
                       <td className="px-4 py-2.5 text-center">
                         {current && current.reserved > 0 ? (
@@ -329,22 +333,42 @@ export function InventoryPage() {
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-right">
-                        {changed && canAdjust && (
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          {changed && canAdjust && (
+                            <Button
+                              size="sm"
+                              loading={save.isPending && save.variables?.variantId === variant.id}
+                              onClick={() =>
+                                save.mutate({
+                                  variantId: variant.id,
+                                  available: parseInt(value || '0', 10),
+                                  expectedAvailable: draft!.seen,
+                                })
+                              }
+                            >
+                              Guardar
+                            </Button>
+                          )}
                           <Button
                             size="sm"
-                            loading={save.isPending && save.variables?.variantId === variant.id}
+                            variant="ghost"
+                            title="Historial de stock"
+                            aria-label={`Historial de stock de ${product.name}${
+                              variant.optionValues.length > 0 ? ` (${variantLabel})` : ''
+                            }`}
                             onClick={() =>
-                              save.mutate({
+                              setHistory({
                                 variantId: variant.id,
-                                available: parseInt(value || '0', 10),
-                                expectedAvailable: draft!.seen,
+                                productName: product.name,
+                                variantLabel,
+                                sku: variant.sku,
                               })
                             }
                           >
-                            Guardar
+                            <History className="h-4 w-4" aria-hidden />
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -356,6 +380,7 @@ export function InventoryPage() {
       </Card>
 
       <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+      <StockHistoryModal target={history} onClose={() => setHistory(null)} />
       <HelpLink id="productos" />
     </div>
   );

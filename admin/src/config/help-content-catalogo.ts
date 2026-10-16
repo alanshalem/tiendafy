@@ -52,6 +52,7 @@ export const CATALOGO = {
         paragraphs: [
           'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano. Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés.',
           'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo y cuántas variantes están sin stock o por agotarse.',
+          'Para saber por qué una variante tiene el stock que tiene, tocá el reloj al final de su fila: se abre su historial, del cambio más nuevo al más viejo. Cada renglón dice qué pasó (alta, ajuste, apartado por una compra, venta cobrada, o stock que volvió porque la compra se canceló o no se pagó a tiempo), cuánto entró o salió, el motivo, y —si fue una venta— un link a esa venta. Muestra los últimos 50 movimientos.',
         ],
         blocks: [
           {
