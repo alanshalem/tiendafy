@@ -63,13 +63,13 @@ public sealed class MercadoPagoFlowTests
             new { returnUrl = "https://phishing.example.com" });
         Assert.Equal(HttpStatusCode.BadRequest, badUrl.StatusCode);
 
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/checkout/preferences",
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/checkout/preferences",
             new { id = "pref-123", init_point = "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-123" });
         var pay = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay", new { returnUrl = shopper.ReturnUrl });
         var orderId = pay.GetProperty("orderId").GetGuid();
         Assert.Contains("pref-123", pay.GetProperty("initPoint").GetString());
 
-        var preference = _factory.ExternalHttp.SentTo($"{Api}/v1/checkout/preferences").Last();
+        var preference = _factory.ExternalHttp.SentTo($"{Api}/checkout/preferences").Last();
         Assert.Equal(orderId.ToString(), preference.Headers["X-Idempotency-Key"]);
         Assert.Contains("\"marketplace_fee\":1000", preference.Body); // 2,5 % de 40.000
         Assert.Contains("TIENDA TEST", preference.Body);

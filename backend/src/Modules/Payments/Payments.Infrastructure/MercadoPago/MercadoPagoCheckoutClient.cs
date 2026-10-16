@@ -63,7 +63,8 @@ public sealed class MercadoPagoCheckoutClient(
         if (!string.IsNullOrWhiteSpace(connection.StatementDescriptor))
             body["statement_descriptor"] = connection.StatementDescriptor;
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/v1/checkout/preferences");
+        // Sin /v1: la API de preferences de Checkout Pro no está versionada como /v1/payments.
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/checkout/preferences");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         req.Headers.TryAddWithoutValidation("X-Idempotency-Key", request.OrderId.ToString());
         req.Content = JsonContent.Create(body);
