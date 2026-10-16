@@ -1,6 +1,6 @@
 ---
 name: afip-padrones-validaciones
-description: Validar un CUIT, consultar el padrón de ARCA (constancia de inscripción, getPersona_v2) para saber la condición frente al IVA, y los catálogos FEParamGet* de WSFEv1. Usala al tocar PadronA5Client, Cuit o ReceptorResolver.
+description: Validar un CUIT, consultar el padrón de ARCA (constancia de inscripción, getPersona_v2) para saber la condición frente al IVA, y los catálogos FEParamGet* de WSFEv1. Usala al tocar ConstanciaInscripcionClient, Cuit o ReceptorResolver.
 ---
 
 # ARCA: CUIT, padrón y catálogos
@@ -30,30 +30,61 @@ activo en el padrón (10017) o en IVA (10063).
 ## Padrón: constancia de inscripción (`getPersona_v2`)
 
 Tiendafy lo usa para saber quién es un CUIT y su condición frente al IVA
-(`Fiscal.Infrastructure/Padron/PadronA5Client.cs`, endpoint
-`personaServiceA5`, namespace `http://a5.soap.ws.server.puc.sr/`).
+(`Fiscal.Infrastructure/Padron/ConstanciaInscripcionClient.cs` y
+`ConstanciaInscripcionResponse.cs`).
 
-- **Servicio de WSAA**: el código pide TA para `ws_sr_padron_a5`. El catálogo
-  de ARCA marca **ws_sr_padron_a5 como deprecado** y lo reemplaza por
-  `ws_sr_constancia_inscripcion` (mismo `getPersona_v2`). Si un certificado
-  nuevo no consigue autorización para A5, ese es el motivo: hay que migrar el
-  id de servicio (y la autorización del certificado) al de constancia.
+Confirmado en el manual oficial "Consulta a Padrón Constancia de Inscripción",
+**v4.1, marzo 2026**
+(<https://www.afip.gob.ar/ws/WSCI/manual_ws_sr_ws_constancia_inscripcion.pdf>):
+
+- **Id del servicio para WSAA: `ws_sr_constancia_inscripcion`.** Es el viejo
+  `ws_sr_padron_a5` renombrado (v2.0 del manual, nov-2017); el catálogo de
+  ARCA marca el viejo como **deprecado**. Tiendafy pide TA para el nuevo y, si
+  WSAA lo rechaza (certificado asociado solo al viejo), cae a
+  `ws_sr_padron_a5`; el diagnóstico de conexión avisa que hay que asociar el
+  nuevo.
+- **Mismo web service**: URL `…/sr-padron/webservices/personaServiceA5`,
+  namespace `http://a5.soap.ws.server.puc.sr/`, métodos `dummy`,
+  `getPersona_v2` y `getPersonaList_v2` (hasta 250 claves; `getPersona` y
+  `getPersonaList` siguen por compatibilidad).
+- **Hosts**: el manual v4.1 da `awshomo.arca.gob.ar` / `aws.arca.gob.ar`,
+  pero el 16-oct-2026 `awshomo.arca.gob.ar` **no resolvía** (DNS).
+  `aws.arca.gob.ar`, `aws.afip.gov.ar` y `awshomo.afip.gov.ar` contestan el
+  mismo WSDL. Tiendafy usa los de `afip.gov.ar`.
 - El certificado necesita autorización aparte para el servicio del padrón,
-  además de `wsfe`, y su propio TA.
-- Request: `token`, `sign`, `cuitRepresentada` (el CUIT que consulta) e
-  `idPersona` (el consultado). `SOAPAction: ""`.
-- Los hijos de `personaReturn` vienen **sin namespace**: buscalos por
-  `LocalName`.
-- Un CUIT inexistente vuelve como **SOAP Fault**, no como respuesta vacía.
+  además de `wsfe`, y su propio TA (en homologación, desde WSASS).
+- Request: `token`, `sign`, `cuitRepresentada` (tiene que estar en las
+  relaciones del token) e `idPersona` (el consultado). `SOAPAction: ""`.
+- Respuesta (`personaReturn`, hijos **sin namespace**, todos opcionales en el
+  WSDL): `metadata`, `datosGenerales`, `datosRegimenGeneral`,
+  `datosMonotributo`, `errorConstancia`, `errorRegimenGeneral`,
+  `errorMonotributo`. `datosGenerales` trae `tipoPersona` (FISICA/JURIDICA),
+  `apellido`/`nombre` o `razonSocial`, `domicilioFiscal`, `estadoClave`,
+  `caracterizacion`… `impuesto` trae `idImpuesto`, `descripcionImpuesto`,
+  `estadoImpuesto` (p. ej. `AC`), `motivo` y `periodo`.
+  `categoriaAutonomo` y `categoriaMonotributo` también traen `idImpuesto`:
+  leé los de `impuesto`, no cualquier `idImpuesto`.
+- `errorConstancia` trae `error` (uno o varios), `idPersona` y también
+  `nombre`/`apellido`: leé el nombre como hijo directo de `datosGenerales`.
+  `errorRegimenGeneral` y `errorMonotributo` traen `error` y un `mensaje` fijo
+  ("No cumple con las condiciones para enviar datos del régimen general /
+  monotributo"): **sin ese bloque de datos la condición no se puede deducir**.
+- CUIT inexistente: en `getPersona_v2` vuelve como **SOAP Fault** ("No existe
+  persona con ese Id"); en `getPersonaList_v2`, como `errorConstancia` de esa
+  persona.
 - Cómo deduce Tiendafy la condición: `datosMonotributo` presente →
-  Monotributo (6); impuesto 30 en `datosRegimenGeneral` → RI (1); impuesto 32
-  → Exento (4); si no → consumidor final (5).
-- 11-feb-2026: `getPersona_v2` suma el tag opcional `fechaSolicitud` dentro de
-  `caracterizacion` (caracterización 639, Ganancias simplificada).
+  Monotributo (6), aunque también tenga régimen general (un monotributista
+  empleador figura con el impuesto 301); impuesto 30 en `datosRegimenGeneral`
+  → RI (1); impuesto 32 → Exento (4); sin régimen general por un
+  `errorRegimenGeneral`/`errorMonotributo` → `Padron.NoCondition` (no se
+  adivina); si no → consumidor final (5).
+- Feb-2026 (v3.9-4.1): `impuesto` suma `motivo` y `estadoImpuesto`;
+  `caracterizacion` suma `fechaSolicitud` (la 639 es Ganancias simplificada,
+  Ley 27.779). El anexo 5.3 lista los mensajes de error de la constancia.
 
-Manual: catálogo de web services de ARCA
-(<https://www.afip.gob.ar/ws/documentacion/catalogo.asp>), "Padrón Constancia
-de Inscripción".
+Catálogo de web services de ARCA:
+<https://www.afip.gob.ar/ws/documentacion/catalogo.asp> ("Padrón Constancia de
+Inscripción").
 
 ## Catálogos de WSFEv1 (`FEParamGet*`)
 
@@ -94,4 +125,4 @@ observa. Ids y combinaciones válidas por clase: skill
 | 10242 / 10243 | `CondicionIVAReceptorId` no permitido / no válido para la clase | `FEParamGetCondicionIvaReceptor` |
 | 10245 (obs.) → 10246 | Falta la condición: hoy observa, desde el 1-dic-2026 rechaza | Mandarla siempre |
 | Fault del padrón "no existe persona" | CUIT inexistente | Mostrarlo como dato inválido, no como caída |
-| Fault de autorización en el padrón | Certificado sin autorización al servicio del padrón | Autorizarlo (ver arriba lo de A5 deprecado) |
+| Fault de autorización en el padrón | Certificado sin autorización al servicio del padrón | Asociarle `ws_sr_constancia_inscripcion` (el viejo `ws_sr_padron_a5` está deprecado) |

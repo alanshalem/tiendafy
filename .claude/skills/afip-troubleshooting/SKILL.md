@@ -17,7 +17,7 @@ description: Diagnóstico de fallas contra ARCA (TLS dh key too small, faults de
 ```
 
 En Tiendafy: `POST /api/v1/fiscal/test-connection` corre los pasos
-(certificado, WSAA, `FECompUltimoAutorizado`, puntos de venta) y
+(certificado, WSAA, `FECompUltimoAutorizado`, puntos de venta y padrón) y
 `POST /fiscal/health` hace `FEDummy`. Los mensajes de ARCA se muestran tal
 cual más una explicación si está en `Fiscal.Core/Domain/ArcaErrorCatalog.cs`
 (hoy: 600, 10016, `alreadyAuthenticated`, `notAuthorized`). Solo se agregan
@@ -46,7 +46,23 @@ negocian ECDHE: por eso "anda en homologación y revienta en producción".
 - Ningún host de ARCA habla TLS 1.3 hoy (oct-2026).
 
 **Hosts:** siempre explícitos por ambiente. El certificado TLS de producción no
-cubre `.gob.ar`: no derivar hosts reemplazando el dominio.
+cubre `.gob.ar`: no derivar hosts reemplazando el dominio. Aunque un manual
+nuevo dé la URL en `arca.gob.ar`, probala antes: el 16-oct-2026
+`awshomo.arca.gob.ar` (padrón de homologación, del manual de constancia v4.1)
+no resolvía por DNS.
+
+## Padrón (constancia de inscripción)
+
+| Síntoma | Causa | Qué hacer |
+|---|---|---|
+| WSAA rechaza el TRA de `ws_sr_constancia_inscripcion` (`coe.notAuthorized`) | El certificado no está asociado a ese servicio | Asociarlo (WSASS en homologación, Administrador de Relaciones en producción). Tiendafy cae a `ws_sr_padron_a5` si ese sí está asociado |
+| El diagnóstico avisa "anda con el servicio viejo" | Certificado asociado solo a `ws_sr_padron_a5`, deprecado por ARCA | Asociarle `ws_sr_constancia_inscripcion` antes de que ARCA corte el viejo |
+| SOAP Fault "No existe persona con ese Id" | CUIT inexistente (en homologación, cualquier CUIT que no esté en los datos de prueba) | Es un dato inválido, no una caída |
+| `Padron.NoCondition` | Vino `errorRegimenGeneral`/`errorMonotributo` sin los datos de ese régimen (mensaje fijo "No cumple con las condiciones para enviar datos…") | No se adivina: el comercio elige la condición a mano |
+| `errorConstancia` con texto (constancia bloqueada, domicilio incompleto, CUIT limitada…) | Lo explica el anexo 5.3 del manual de constancia v4.1 | Mostrar el texto de ARCA tal cual |
+
+El paso del padrón en el diagnóstico es opcional: un aviso ahí no deja la
+conexión en rojo. Detalle: skill `afip-padrones-validaciones`.
 
 ## Errores de infraestructura (`Errors`)
 
