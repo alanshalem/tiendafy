@@ -54,7 +54,7 @@ export function FiscalInvoicingPage() {
       <SettingsHeader
         title="Facturación electrónica (ARCA)"
         description="Conectá tu tienda con ARCA para emitir facturas oficiales de tus ventas."
-        action={<ExportLibroIva />}
+        action={<ExportLibroIva config={canConfig && !loading && config ? config : undefined} />}
       />
 
       {!canConfig ? (
@@ -98,8 +98,15 @@ function NoPermission() {
 
 // ---- Libro IVA ventas --------------------------------------------------------
 
-/** El CSV mensual que pide el contador: comprobantes aprobados con neto/IVA/total. */
-function ExportLibroIva() {
+/**
+ * El CSV mensual que pide el contador: comprobantes aprobados con neto/IVA/total.
+ * Son los del ambiente en que factura la tienda; uno de homologación (pruebas,
+ * sin validez fiscal) lleva "-homologacion" en el nombre, igual que el que
+ * arma el backend, para que no se confunda con el real. El nombre lo pone el
+ * panel porque el de la respuesta no se puede leer desde otro origen. Hasta
+ * tener la configuración (y el permiso para verla) no se sabe el ambiente.
+ */
+function ExportLibroIva({ config }: { config: FiscalConfigDto | undefined }) {
   const { toast } = useToast();
   const now = new Date();
   const [period, setPeriod] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
@@ -111,7 +118,9 @@ function ExportLibroIva() {
     setBusy(true);
     try {
       const blob = await api.download(`/api/v1/fiscal/documents/export?year=${year}&month=${month}`);
-      downloadBlob(blob, `libro-iva-ventas-${period}.csv`);
+      // Sin ambiente elegido, el backend usa homologación: el nombre también.
+      const suffix = config?.environment === 'PRODUCCION' ? '' : '-homologacion';
+      downloadBlob(blob, `libro-iva-ventas-${period}${suffix}.csv`);
     } catch (err) {
       toast(errMsg(err, 'No se pudo exportar el período.'), { variant: 'error' });
     } finally {
@@ -131,7 +140,7 @@ function ExportLibroIva() {
       <button
         type="button"
         onClick={download}
-        disabled={busy}
+        disabled={busy || config === undefined}
         className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border-strong px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
         title="CSV con los comprobantes aprobados del mes: fecha, tipo, número, neto, IVA, total y CAE."
       >

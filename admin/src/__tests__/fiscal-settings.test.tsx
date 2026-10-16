@@ -249,4 +249,27 @@ describe('facturación electrónica', () => {
       ),
     );
   });
+
+  it.each([
+    ['HOMOLOGACION', 'libro-iva-ventas-2026-09-homologacion.csv'],
+    ['PRODUCCION', 'libro-iva-ventas-2026-09.csv'],
+  ])('libro IVA en %s: se baja como %s', async (environment, expected) => {
+    const names: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      names.push(this.download);
+    });
+    try {
+      const { api, user } = await open({ ...BASE, environment, certificate: ACTIVE_CERT }, [POS]);
+      api.on('GET', '/api/v1/fiscal/documents/export', 'Fecha;Tipo');
+      const month = document.querySelector<HTMLInputElement>('input[type=month]')!;
+      await user.clear(month);
+      await user.type(month, '2026-09');
+      await user.click(screen.getByRole('button', { name: /Libro IVA/ }));
+      await waitFor(() => expect(names).toEqual([expected]));
+    } finally {
+      click.mockRestore();
+    }
+  });
 });
