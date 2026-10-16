@@ -427,8 +427,8 @@ function MetaAdsSection({
   if (!status.configured)
     return (
       <p className="text-xs text-fg-muted">
-        Pauta de Meta: la integración no está configurada en la plataforma (claves MetaAds:AppId / AppSecret).
-        Cuando actives publicidad, conectala acá para ver el ROAS real.
+        Pauta de Meta: la conexión con Meta todavía no está habilitada en Tiendafy (la habilita quien
+        administra la plataforma). Cuando lo esté, conectá acá tu cuenta de publicidad para ver el ROAS real.
       </p>
     );
 

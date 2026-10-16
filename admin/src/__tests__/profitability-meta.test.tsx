@@ -48,7 +48,8 @@ describe('rentabilidad: pauta de Meta Ads', () => {
     await openProfitability((a) =>
       a.on('GET', `${META}/status`, status({ configured: false, connected: false })),
     );
-    expect(screen.getByText(/la integración no está configurada en la plataforma/)).toBeInTheDocument();
+    expect(screen.getByText(/la conexión con Meta todavía no está habilitada/)).toBeInTheDocument();
+    expect(screen.queryByText(/MetaAds:AppId/)).toBeNull();
   });
 
   it('sin conectar: conectar lleva a Meta; si falla, lo dice', async () => {

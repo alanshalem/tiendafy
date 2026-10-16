@@ -200,7 +200,8 @@ function ShipmentModal({
         <p className="text-xs text-fg-muted">
           Revisá antes de confirmar:{' '}
           <span className="font-medium text-fg">el envío es real y consume saldo de tu cuenta Zipnova</span>{' '}
-          (no hay modo de prueba). Zipnova exige nombre, documento, email y teléfono del destinatario.
+          (salvo que el soporte de Zipnova te haya habilitado la modalidad de prueba). Zipnova exige nombre,
+          documento, email y teléfono del destinatario.
         </p>
 
         <div className="grid gap-2.5 sm:grid-cols-2">

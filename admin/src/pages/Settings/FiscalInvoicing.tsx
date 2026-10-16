@@ -89,8 +89,9 @@ function NoPermission() {
       </span>
       <h3 className="mt-3 text-base font-semibold text-fg">No tenés permiso para la facturación</h3>
       <p className="mx-auto mt-1 max-w-sm text-sm text-fg-muted">
-        La configuración fiscal solo la pueden tocar los roles Dueño, Administrador o Finanzas. Si necesitás
-        acceso, pedile a un administrador de la tienda que ajuste tu rol.
+        Para entrar acá hace falta el permiso “Configurar la facturación (ARCA)”. Si lo necesitás, pedile al
+        dueño o a un administrador de la tienda que te lo dé, en tu rol o solo a vos (Configuración →
+        Usuarios).
       </p>
     </div>
   );
