@@ -1,4 +1,7 @@
 using System.Net;
+using Customers.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -86,6 +89,8 @@ public sealed class ContactFlowTests
         // El honeypot lleno: responde OK pero no guarda.
         await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/newsletter", new { email = "bot@spam.com", website = "http://spam" });
 
-        Assert.Equal(1, (await merchant.GetAsync("/api/v1/newsletter/count")).GetProperty("count").GetInt32());
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        Assert.Equal(1, await db.NewsletterSubscribers.IgnoreQueryFilters().CountAsync(x => x.TenantId == merchant.TenantId));
     }
 }

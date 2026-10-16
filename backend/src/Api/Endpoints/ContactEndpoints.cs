@@ -204,13 +204,6 @@ public static class ContactEndpoints
             return Results.Ok(new { ok = true });
         }).RequireRateLimiting("auth");
 
-        // Cuántos suscriptores hay (para el panel).
-        news.MapGet("/count", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
-        {
-            var tid = tenant.TenantId.Value;
-            return Results.Ok(new { count = await db.NewsletterSubscribers.CountAsync(x => x.TenantId == tid, ct) });
-        }).RequirePermission(Permission.MessagesRead);
-
         return group;
     }
 

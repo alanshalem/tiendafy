@@ -4208,9 +4208,6 @@
       "adAccountName": null,
       "connectedAtUtc": null
     },
-    "/api/v1/newsletter/count": {
-      "count": 0
-    },
     "/api/v1/notifications/usage": {
       "email": {
         "month": 2,
