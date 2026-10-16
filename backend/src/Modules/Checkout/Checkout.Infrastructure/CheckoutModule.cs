@@ -38,6 +38,7 @@ public static class CheckoutModule
         services.AddSingleton<ShippingSecretProtector>();
 
         // Correo Argentino (API MiCorreo): cotización en checkout + envíos desde admin.
+        // Cotizar corta antes, a los MiCorreoClient.QuoteTimeout.
         services.AddMemoryCache();
         services.AddHttpClient<MiCorreoClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
 

@@ -150,6 +150,14 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
             : id;
     }
 
+    /// <summary>
+    /// Tope de la cotización. Está en el camino del checkout, que deja de
+    /// esperar a los 10 s: con los 15 s del HttpClient, una respuesta lenta
+    /// llegaba cuando el comprador ya no la esperaba. Mismo criterio que
+    /// <see cref="ZipnovaClient.QuoteTimeout"/>; incluye pedir el JWT si hace falta.
+    /// </summary>
+    public static readonly TimeSpan QuoteTimeout = TimeSpan.FromSeconds(8);
+
     /// <summary>POST /rates — cotiza a domicilio y a sucursal en una sola llamada.</summary>
     public async Task<MiCorreoRatesResponse> GetRatesAsync(
         MiCorreoCredentials creds, string customerId, string originPostalCode, string destinationPostalCode,
@@ -168,7 +176,9 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
                 length = package.LengthCm,
             },
         };
-        var body = await SendAsync(creds, HttpMethod.Post, "/rates", payload, ct);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(QuoteTimeout);
+        var body = await SendAsync(creds, HttpMethod.Post, "/rates", payload, timeout.Token);
         return JsonSerializer.Deserialize<MiCorreoRatesResponse>(body, Json)
             ?? throw new MiCorreoException("Respuesta de cotización vacía.");
     }
