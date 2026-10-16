@@ -162,6 +162,7 @@ broker de mensajes; ver [ADR 0005](./adr/0005-segundo-plano-con-polling-a-postgr
 | `ThemeScheduleWorker` | 30 s | Publica los diseños programados |
 | `OfflinePaymentExpiryWorker` | 1 min | Vence las órdenes de transferencia/efectivo no pagadas |
 | `ExpiredReservationsJob` | 30 s | Libera reservas de stock vencidas (siempre prendido) |
+| `ExpiredCheckoutWorker` | 1 min | Cierra los checkouts con el plazo cumplido: vencidos (sin reservas activas ni venta cobrada) o completados (terminaron en venta cobrada) |
 | `ProductImportWorker` / `ProductImageImportWorker` | cola en memoria | Importación de productos por CSV y de imágenes por URL (siempre prendidos) |
 
 ## 3. Servicios externos
@@ -261,6 +262,16 @@ sequenceDiagram
 Payway (en el momento o, si quedó en el medio, cuando `PaywayReconciliationWorker`
 lo reconsulta) y la venta manual del panel llegan al mismo `PaidOrderSideEffects`;
 la venta manual no manda WhatsApp.
+
+La sesión de checkout tiene 30 minutos: desde que se arma, y de nuevo desde
+que se envía (lo mismo que dura la reserva). `Open` → `Submitted` al reservar;
+después `ExpiredCheckoutWorker` la cierra: `Completed` si terminó en una venta
+cobrada, `Expired` si venció sin reservas activas (una transferencia pendiente
+estira la reserva y la sesión espera). Una sesión vencida no se envía ni se
+paga ("La compra venció: volvé a empezar desde el carrito"); la tienda arma
+una sesión nueva en cada intento de pago, así que el comprador nunca queda
+trabado. Carritos abandonados cuenta todo lo que no es `Completed` y no tiene
+venta cobrada: las vencidas son carritos abandonados.
 
 ## 5. Multi-tenancy
 

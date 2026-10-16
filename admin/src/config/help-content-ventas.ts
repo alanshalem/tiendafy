@@ -579,7 +579,7 @@ export const VENTAS = {
               ['Mensajes posventa', 'El chat con el comprador de cada venta, en un modal del panel'],
               [
                 'Stock unificado',
-                'Una venta en ML descuenta stock acá; tu stock se empuja a las publicaciones vinculadas',
+                'Con “Sincronizar stock” prendido, una venta en ML descuenta stock acá y tu stock se empuja a las publicaciones vinculadas',
               ],
               [
                 'Publicar desde el catálogo',
