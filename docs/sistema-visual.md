@@ -35,8 +35,8 @@ de decoración que compita con los datos.
   estado en oscuro. Lo revisan `e2e/tests/accesibilidad.spec.ts` y axe en los
   tests de componentes de cada pantalla y cada diálogo.
 - **Componentes**: siempre `@tiendafy/ui` (`Button`, `Input`, `Select`,
-  `Table`, `Modal`, `Tabs`, `Toast`, `Confirm`, `PageHeader`, `EmptyList`,
-  `StatCard`…). Si falta uno, se agrega a la librería; no se improvisa en la
+  `Table`, `Modal`, `Tabs`, `Toast`, `Confirm`, `PageHeader`, `EmptyList`…).
+  Si falta uno, se agrega a la librería; no se improvisa en la
   pantalla. Clases de layout repetidas van en `admin/src/lib/styles.ts`.
 - **Logo**: `LogoMark`, un cuadrado redondeado con el color primario y la
   inicial de la marca de la instalación (`VITE_BRAND_NAME`, por defecto
