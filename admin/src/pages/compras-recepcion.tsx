@@ -217,8 +217,9 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
  * El proveedor de la OC: se elige de la lista, y ahí la compra queda atada a
  * su ficha y su cuenta corriente. Sigue aceptando texto libre —las compras
  * viejas se cargaron así y no hay por qué obligar a dar de alta a alguien a
- * quien se le compra una sola vez—, pero sin ficha no hay saldo que actualizar
- * cuando se cargue la factura.
+ * quien se le compra una sola vez—: al guardar, el backend (SupplierLinker)
+ * la ata a la ficha que se llama igual o crea una. Solo una compra vieja ya
+ * confirmada puede quedar sin ficha, y su factura no mueve ningún saldo.
  */
 export function SupplierField({
   supplierId,
@@ -279,9 +280,11 @@ export function SupplierField({
           }}
         />
       )}
-      {!supplierId && suppliers.length > 0 && (
+      {!supplierId && suppliers.length > 0 && supplierName.trim() !== '' && (
         <p className="mt-1 text-xs text-fg-subtle">
-          Sin ficha, la factura de esta compra no va a impactar en la cuenta corriente.
+          {disabled
+            ? 'Esta compra quedó sin ficha de proveedor y su factura no suma a ninguna cuenta corriente. En Proveedores, “Traer de mis compras” la ata a una ficha.'
+            : `Al guardar, la compra queda en la ficha de “${supplierName.trim()}” (si no hay una con ese nombre, se crea) y su factura suma a esa cuenta corriente.`}
         </p>
       )}
     </div>
