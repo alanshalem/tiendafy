@@ -7555,13 +7555,18 @@
         {
           "id": "04347111-9c7d-4917-a3df-9594fbf5ee32",
           "orderId": "458126a2-1271-40fb-9d05-fa7762e1e31f",
-          "orderNumber": null,
-          "customerEmail": "comprador@demo.local",
+          "orderNumber": 1160,
+          "orderLabel": "#1160",
           "status": "OPEN",
           "unreadForCustomer": 0,
-          "unreadForStaff": 1,
           "createdAtUtc": "2026-10-15T20:51:38.919654Z",
-          "lastMessageAtUtc": "2026-10-15T20:51:38.952754Z"
+          "lastMessageAtUtc": "2026-10-15T20:51:38.952754Z",
+          "lastMessage": {
+            "body": "¿Cuándo llega mi pedido?",
+            "attachmentName": null,
+            "isFromStaff": false,
+            "createdAtUtc": "2026-10-15T20:51:38.952753Z"
+          }
         }
       ]
     },

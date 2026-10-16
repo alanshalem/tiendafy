@@ -211,7 +211,30 @@ public sealed partial class ShopperFlowTests
         var waiting = await merchant.GetAsync("/api/v1/support/conversations?filter=waiting");
         Assert.Equal(0, waiting.GetProperty("total").GetInt32());
         Assert.Equal(1, waiting.GetProperty("allCount").GetInt32());
-        Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
+
+        // "Mis conversaciones" en la cuenta: el pedido con su número, lo sin
+        // leer y el último mensaje (acá, la etiqueta que mandó la tienda, sin texto).
+        var orderNumber = Assert.Single(mine.GetProperty("items").EnumerateArray()).GetProperty("number").GetInt32();
+        var listed = Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
+        Assert.Equal(conversationId, listed.GetProperty("id").GetGuid());
+        Assert.Equal(orderId, listed.GetProperty("orderId").GetGuid());
+        Assert.Equal(orderNumber, listed.GetProperty("orderNumber").GetInt32());
+        Assert.Equal($"#{orderNumber}", listed.GetProperty("orderLabel").GetString());
+        Assert.Equal(0, listed.GetProperty("unreadForCustomer").GetInt32());
+        Assert.True(listed.GetProperty("lastMessage").GetProperty("isFromStaff").GetBoolean());
+        Assert.Equal("", listed.GetProperty("lastMessage").GetProperty("body").GetString());
+        Assert.Equal("etiqueta.png", listed.GetProperty("lastMessage").GetProperty("attachmentName").GetString());
+        Assert.False(listed.TryGetProperty("customerEmail", out _));
+
+        // La tienda contesta otra vez: queda sin leer, con el texto en un renglón.
+        await merchant.PostAsync($"/api/v1/support/conversations/{conversationId}/messages", new { body = "¿Algo más?\nSaludos" });
+        // Otra compra suya con el chat abierto pero sin escribir: no hay nada que mostrar.
+        var otherOrderId = await merchant.CreateSaleAsync(buyerEmail: email);
+        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/support/conversations", new { orderId = otherOrderId });
+        listed = Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
+        Assert.Equal(1, listed.GetProperty("unreadForCustomer").GetInt32());
+        Assert.Equal("¿Algo más? Saludos", listed.GetProperty("lastMessage").GetProperty("body").GetString());
+        Assert.True(listed.GetProperty("lastMessage").GetProperty("attachmentName").ValueKind == JsonValueKind.Null);
 
         var closed = await merchant.PostAsync($"/api/v1/support/conversations/{conversationId}/close", new { });
         Assert.Equal("closed", closed.GetProperty("status").GetString(), ignoreCase: true);

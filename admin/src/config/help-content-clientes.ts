@@ -120,6 +120,7 @@ export const CLIENTES = {
         heading: 'Cómo funciona',
         paragraphs: [
           'El cliente, desde su cuenta → Mis pedidos, toca “Consultar sobre este pedido” y abre un chat ligado a esa compra. Puede escribir y adjuntar fotos (JPG/PNG) o PDF de hasta 10 MB.',
+          'Todas sus consultas le quedan juntas en su cuenta, en “Mis conversaciones”: con el número de pedido, el último mensaje y cuáles tienen respuestas tuyas sin leer. Tocando una retoma el chat de esa compra.',
           'Vos respondés desde Chat posventa en el menú —una lista con todas las conversaciones, las no leídas primero y con contador— o desde la Bandeja, junto con el resto de los canales.',
         ],
         blocks: [{ type: 'path', segments: ['Chat posventa'] }],

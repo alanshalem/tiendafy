@@ -392,7 +392,8 @@ public sealed class InboxService(
     private static InboxAssignee? Assignee(InboxThreadState? state) =>
         state?.AssignedUserId is { } id ? new InboxAssignee(id, state.AssignedUserName ?? "") : null;
 
-    private static string Preview(string text)
+    /// <summary>Un renglón de vista previa: sin saltos de línea y hasta 160 caracteres.</summary>
+    internal static string Preview(string text)
     {
         var flat = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return Text.Cap(flat, 160);

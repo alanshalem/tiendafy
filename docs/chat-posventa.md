@@ -75,7 +75,7 @@ Comprador (`/api/v1/shop/support`, sesión de comprador + `X-Tenant-Id`):
 | Método | Ruta | Qué hace |
 | --- | --- | --- |
 | POST | `/conversations` | Abre (o devuelve) la conversación de un pedido propio y pagado |
-| GET | `/conversations` | Mis conversaciones |
+| GET | `/conversations` | Mis conversaciones: las que tienen al menos un mensaje, la más reciente primero, con `orderNumber`/`orderLabel`, `unreadForCustomer` y `lastMessage` (texto en un renglón de hasta 160 caracteres, o el nombre del adjunto, y si lo escribió la tienda) |
 | GET | `/conversations/{id}/messages` | Los últimos 500 mensajes + marca leído (comprador); adjuntos con URL firmada |
 | POST | `/conversations/{id}/messages` | Enviar texto |
 | POST | `/conversations/{id}/attachments` | Enviar adjunto (multipart `file` + `body` opcional) |
@@ -98,7 +98,11 @@ endpoints de `/api/v1/support`.
 
 - **Tienda**: Mi cuenta → Mis pedidos → "Consultar sobre este pedido" (en
   pedidos que no estén pendientes de pago, fallidos ni cancelados) → modal de
-  chat con texto y adjuntos.
+  chat con texto y adjuntos. Todas sus consultas están en Mi cuenta → **Mis
+  conversaciones** (`/cuenta/conversaciones`, también en el menú de la cuenta
+  del header): cada una con el pedido, el último mensaje, la fecha y cuántas
+  respuestas tiene sin leer; tocarla abre el mismo chat de esa compra, y al
+  cerrarlo la lista se vuelve a pedir (abrirlo la marcó leída).
 - **Panel**: "Chat posventa" (`/posventa`): lista con filtros y no leídos,
   hilo estilo mensajería con "Ver anteriores", adjuntar y cerrar. La misma
   conversación aparece en la Bandeja (`/bandeja`) con el canal "posventa".

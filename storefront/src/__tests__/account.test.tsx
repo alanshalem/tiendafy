@@ -231,6 +231,10 @@ describe('con la sesión iniciada', () => {
     await user.click(screen.getByRole('button', { name: 'Mi cuenta' }));
     expect(screen.getByText(me.email)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Mi cuenta y pedidos/ })).toHaveAttribute('href', '/cuenta');
+    expect(screen.getByRole('link', { name: /Mis conversaciones/ })).toHaveAttribute(
+      'href',
+      '/cuenta/conversaciones',
+    );
     expect(screen.getByRole('link', { name: /Mis favoritos/ })).toHaveAttribute('href', '/favoritos');
 
     await user.click(screen.getByText('afuera'));
@@ -247,6 +251,10 @@ describe('con la sesión iniciada', () => {
     expect(screen.getByText(`Hola, ${me.name.split(' ')[0]}`)).toBeInTheDocument();
     expect(screen.getByText('Pagado')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(orders.items[0]!.items[0]!.productName))).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Mis conversaciones/ })).toHaveAttribute(
+      'href',
+      '/cuenta/conversaciones',
+    );
   });
 
   it('muestra estados desconocidos tal cual, el seguimiento y la cuenta sin pedidos', async () => {

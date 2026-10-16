@@ -52,6 +52,10 @@ export const PAGES: Record<
     url: '/cuenta/verificar?token=abc',
     load: () => import('../app/cuenta/verificar/page'),
   },
+  '/cuenta/conversaciones': {
+    url: '/cuenta/conversaciones',
+    load: () => import('../app/cuenta/conversaciones/page'),
+  },
   '/cuenta/pedidos/[id]': {
     url: '/cuenta/pedidos/00000000-0000-0000-0000-000000000001',
     params: { id: '00000000-0000-0000-0000-000000000001' },

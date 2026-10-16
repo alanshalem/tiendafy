@@ -74,6 +74,13 @@ export function AccountButton() {
             <Icon name="user" className="h-4 w-4" /> Mi cuenta y pedidos
           </Link>
           <Link
+            href={href('/cuenta/conversaciones')}
+            onClick={() => setMenu(false)}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]"
+          >
+            <Icon name="chat" className="h-4 w-4" /> Mis conversaciones
+          </Link>
+          <Link
             href={href('/favoritos')}
             onClick={() => setMenu(false)}
             className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]"

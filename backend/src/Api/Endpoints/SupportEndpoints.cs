@@ -64,18 +64,33 @@ public static class SupportEndpoints
             return Results.Created($"/api/v1/shop/support/conversations/{conv.Id}", ToDto(conv));
         });
 
-        // Mis conversaciones.
+        // Mis conversaciones (la página "Mis conversaciones" de la cuenta): con
+        // el número de pedido y el último mensaje. Las que el comprador abrió
+        // y no llegó a escribir no aparecen: no hay nada que leer en ellas.
         shop.MapGet("/conversations", async (
-            HttpContext http, ITenantContext tenant, CustomersDbContext customersDb, SupportDbContext db, CancellationToken ct) =>
+            HttpContext http, ITenantContext tenant, CustomersDbContext customersDb, SupportDbContext db,
+            global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb, CancellationToken ct) =>
         {
             var customer = await ShopAuth.ResolveAsync(http, customersDb, ct);
             if (customer is null) return Results.Unauthorized();
 
             var items = await db.Conversations.AsNoTracking()
-                .Where(c => c.TenantId == tenant.TenantId.Value && c.CustomerId == customer.Id)
+                .Where(c => c.TenantId == tenant.TenantId.Value && c.CustomerId == customer.Id
+                    && db.Messages.Any(m => m.ConversationId == c.Id))
                 .OrderByDescending(c => c.LastMessageAtUtc)
                 .ToListAsync(ct);
-            return Results.Ok(new { items = items.Select(ToDto) });
+            var ids = items.Select(c => c.Id).ToList();
+            var last = (await db.Messages.AsNoTracking()
+                    .Where(m => ids.Contains(m.ConversationId))
+                    .GroupBy(m => m.ConversationId)
+                    .Select(g => g.OrderByDescending(m => m.CreatedAtUtc).First())
+                    .ToListAsync(ct))
+                .ToDictionary(m => m.ConversationId);
+            var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, items.Select(c => c.OrderId), ct);
+            return Results.Ok(new
+            {
+                items = items.Select(c => ForCustomer(c, numbers.GetValueOrDefault(c.OrderId), last.GetValueOrDefault(c.Id))),
+            });
         });
 
         // Mensajes del hilo (y marca leído para el cliente).
@@ -350,6 +365,30 @@ public static class SupportEndpoints
         c.UnreadForStaff,
         c.CreatedAtUtc,
         c.LastMessageAtUtc,
+    };
+
+    /// <summary>
+    /// Una fila de "Mis conversaciones": el pedido (#1042), si hay respuestas
+    /// sin leer y el último mensaje (texto en un renglón, o el nombre del
+    /// adjunto si vino sin texto). Sin el email ni lo que lleva el equipo.
+    /// </summary>
+    private static object ForCustomer(Conversation c, int orderNumber, SupportMessage? last) => new
+    {
+        c.Id,
+        c.OrderId,
+        orderNumber = orderNumber > 0 ? orderNumber : (int?)null,
+        orderLabel = OrderLabel.For(orderNumber, c.OrderId),
+        status = c.Status.ToString().ToUpperInvariant(),
+        c.UnreadForCustomer,
+        c.CreatedAtUtc,
+        c.LastMessageAtUtc,
+        lastMessage = last is null ? null : new
+        {
+            body = Api.Inbox.InboxService.Preview(last.Body),
+            attachmentName = last.AttachmentName,
+            last.IsFromStaff,
+            last.CreatedAtUtc,
+        },
     };
 }
 

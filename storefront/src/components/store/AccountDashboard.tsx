@@ -129,7 +129,13 @@ export function AccountDashboard() {
           </h1>
           <p className="text-sm text-fg-muted">{user?.email}</p>
         </div>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Link
+            href={href('/cuenta/conversaciones')}
+            className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden /> Mis conversaciones
+          </Link>
           <Link
             href={href('/favoritos')}
             className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"
