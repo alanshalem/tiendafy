@@ -74,6 +74,11 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
   suma también ahí, o esa clase no se resuelve contra la de la base.
 - **Paquetes de `shared/` con peers** (React): el panel necesita `resolve.dedupe`
   o el bundle termina con dos Reacts y la pantalla en negro.
+- **Skills.** Las del proyecto se versionan en `.claude/skills/<nombre>/SKILL.md`
+  (un solo nivel: más adentro Claude Code no las carga; el resto de `.claude/`
+  se ignora). ARCA en `afip-*`, Mercado Pago en `mercadopago-*`; origen y cómo
+  se actualizan en `.claude/skills/README.md`. Una ruta de API que diga una
+  skill se confirma en la documentación oficial antes de usarla en el código.
 
 ## Lecciones que costaron caro
 

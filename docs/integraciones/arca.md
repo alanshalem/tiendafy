@@ -296,9 +296,9 @@ Homologación:
 4. Emitir un comprobante suelto (`POST /fiscal/emit`) o facturar una venta de
    prueba, y bajar el PDF.
 
-Para el detalle de la API de ARCA, en la máquina de desarrollo hay skills
-locales fuera del repo (`.claude/skills/afip/`: WSAA, certificados, emisión,
-tipos de comprobante, padrones, troubleshooting) y el
+Para el detalle de la API de ARCA están las skills del repo
+(`.claude/skills/afip-*`: WSAA, certificados, emisión, tipos de comprobante,
+padrones, troubleshooting) y el
 [portal de web services de ARCA](https://www.arca.gob.ar/ws/) (sección
 Documentación: manuales de WSAA y WSFEv1).
 

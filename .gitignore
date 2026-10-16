@@ -1,5 +1,7 @@
-# Claude Code local config / vendored skills
-.claude/
+# Claude Code: lo local (settings.local.json, worktrees/, locks) queda afuera;
+# las skills del proyecto se versionan (ver .claude/skills/README.md).
+.claude/*
+!.claude/skills/
 
 # IDE
 .vscode/
