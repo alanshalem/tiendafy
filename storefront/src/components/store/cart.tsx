@@ -74,7 +74,7 @@ interface Suggested {
 }
 
 /** El producto de muestra del carrito en la vista previa (ver CartDrawer). */
-export function sampleCartLine(product?: Suggested): CartLine {
+function sampleCartLine(product?: Suggested): CartLine {
   return product
     ? {
         variantId: product.variantId,

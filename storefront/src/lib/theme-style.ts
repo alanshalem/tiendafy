@@ -89,7 +89,7 @@ export function mutedText(theme: ThemeConfig): string {
 }
 
 /** Un color de estado como texto: a 4,5:1 sobre el fondo y sobre un sombreado leve del texto. */
-export function statusInk(theme: ThemeConfig, rgb: string): string {
+function statusInk(theme: ThemeConfig, rgb: string): string {
   const { text, bg } = theme.colors;
   return readableOn(rgb, [bg, mixRgb(bg, text, 0.06)]);
 }

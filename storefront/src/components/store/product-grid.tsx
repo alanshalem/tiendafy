@@ -95,7 +95,7 @@ export function RailArrows({
   );
 }
 
-export interface ProductGridProps {
+interface ProductGridProps {
   title: string;
   subtitle?: string;
   products: StoreProduct[];

@@ -10,7 +10,7 @@
  * el cliente los lee de ahí. Si no están —desarrollo, o un render viejo— cae a
  * las variables de build de siempre.
  */
-export interface RuntimeConfig {
+interface RuntimeConfig {
   apiUrl: string;
   adminOrigin: string;
   sentryDsn: string;

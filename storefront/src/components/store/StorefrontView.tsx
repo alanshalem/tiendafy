@@ -8,9 +8,6 @@ import { StoreHome } from './StoreHome';
 import { StoreRoot } from './StoreRoot';
 import { StoreWhatsApp } from './StoreWhatsApp';
 
-// Se re-exporta para quien lo importaba de acá.
-export { CONTENT_ID } from './StoreRoot';
-
 interface StorefrontViewProps {
   tenantId: string;
   tenantName: string;

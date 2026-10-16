@@ -173,7 +173,7 @@ export function quoteHint(keys: CarrierKey[]): string {
 }
 
 /** Lo que contesta un correo al cotizar (opciones crudas, o el motivo si no pudo). */
-export interface CarrierQuoteResponse {
+interface CarrierQuoteResponse {
   options?: Record<string, unknown>[];
   /** Un aviso con 200: el correo contestó pero no cotizó (ej. "CP inexistente"). */
   error?: string;
@@ -203,5 +203,3 @@ export async function requestCarrierQuote(
   const data = (await res.json().catch(() => null)) as CarrierQuoteResponse | null;
   return { ok: res.ok, data };
 }
-
-export type { QuoteInput };

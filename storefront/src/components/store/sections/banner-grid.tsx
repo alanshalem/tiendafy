@@ -14,7 +14,7 @@ import {
 } from './image-overlay';
 
 /** Lo que la grilla necesita de cada banner (promo o categoría). */
-export interface GridBanner {
+interface GridBanner {
   image: string;
   mobileImage?: string;
   alt: string;
@@ -25,7 +25,7 @@ export interface GridBanner {
 }
 
 /** Cuántas columnas por pantalla: celular, tablet (≥ 640 px) y computadora (≥ 1024 px). */
-export interface GridColumns {
+interface GridColumns {
   mobile: number;
   tablet: number;
   desktop: number;
@@ -49,7 +49,7 @@ const COLS_VAR: Record<string, string> = {
 };
 
 /** `sizes` de next/image según las columnas: que baje la foto del tamaño en que se ve. */
-export function gridSizes(cols: GridColumns, fullWidth: boolean): string {
+function gridSizes(cols: GridColumns, fullWidth: boolean): string {
   const vw = (n: number) => `${Math.round(100 / n)}vw`;
   const desktop = fullWidth ? vw(cols.desktop) : `${Math.round(CONTAINER / cols.desktop)}px`;
   return `(max-width: 639px) ${vw(cols.mobile)}, (max-width: 1023px) ${vw(cols.tablet)}, ${desktop}`;

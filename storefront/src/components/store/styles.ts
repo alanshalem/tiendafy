@@ -10,7 +10,7 @@
  * encendido; sobre un pie o una sección con color propio, que redefinen
  * `--color-fg`, el campo también los sigue.
  */
-export const FIELD = 'border border-fg/20 bg-fg/[0.03] text-fg placeholder:text-fg-muted';
+const FIELD = 'border border-fg/20 bg-fg/[0.03] text-fg placeholder:text-fg-muted';
 
 /** Campo de texto — alto 11. */
 export const INPUT_11 = `h-11 w-full rounded-md ${FIELD} px-3 text-sm`;

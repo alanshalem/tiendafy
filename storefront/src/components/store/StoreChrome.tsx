@@ -131,7 +131,7 @@ function Frame({
   );
 }
 
-export interface StoreChromeProps {
+interface StoreChromeProps {
   tenantId: string;
   tenantName: string;
   theme: ThemeConfig;

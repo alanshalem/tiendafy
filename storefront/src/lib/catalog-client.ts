@@ -37,7 +37,7 @@ export async function fetchProductsByIdsClient(ids: string[], tenantId: string):
 }
 
 /** Una categoría como la devuelve la API (la ruta arma su link: ver category-url). */
-export interface SuggestedCategory {
+interface SuggestedCategory {
   id: string;
   name: string;
   slug: string;

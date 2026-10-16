@@ -10,7 +10,7 @@ import type { InfoItemData, SectionRenderProps } from '../section-types';
  * ítems con que arranca el editor (el registro), así lo que se edita es lo
  * que se ve.
  */
-export const DEFAULT_INFO_ITEMS: readonly InfoItemData[] = SECTION_REGISTRY['info-bar'].defaults.items ?? [];
+const DEFAULT_INFO_ITEMS: readonly InfoItemData[] = SECTION_REGISTRY['info-bar'].defaults.items ?? [];
 
 // Columnas en pantallas grandes según cuántos ítems hay: antes era siempre
 // 3, y con 4 el cuarto quedaba solo en otra fila.

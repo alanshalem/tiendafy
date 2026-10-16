@@ -26,7 +26,7 @@ export interface StoreLegal {
  */
 const cache = new Map<string, Promise<StoreLegal | null>>();
 
-export function loadStoreLegal(tenantId: string): Promise<StoreLegal | null> {
+function loadStoreLegal(tenantId: string): Promise<StoreLegal | null> {
   let p = cache.get(tenantId);
   if (!p) {
     p = clientJsonTenant<StoreLegal>('/api/v1/store/legal', tenantId);

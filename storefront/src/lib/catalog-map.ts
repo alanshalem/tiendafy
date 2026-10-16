@@ -60,7 +60,7 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
 }
 
 /** Largo del resumen de la descripción: lo que muestra el "Producto destacado". */
-export const EXCERPT_MAX = 200;
+const EXCERPT_MAX = 200;
 
 /**
  * La descripción en una línea y cortada en una palabra: el resumen del

@@ -14,7 +14,7 @@ import { StoreImage } from '../StoreImage';
 import { SectionButton } from './section-button';
 
 /** Forma de la foto de cada categoría. */
-export const SHAPE_CLASS = {
+const SHAPE_CLASS = {
   circle: 'aspect-square rounded-full',
   square: 'aspect-square rounded-lg',
   portrait: 'aspect-[3/4] rounded-lg',
@@ -41,7 +41,7 @@ interface Tile {
 }
 
 /** Una categoría: su foto (o la inicial, si no tiene) y su nombre, todo un link. */
-export function CategoryTile({
+function CategoryTile({
   node,
   title,
   image,

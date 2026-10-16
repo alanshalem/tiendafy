@@ -20,9 +20,8 @@ export const useSectionStyle = () => useContext(SectionStyleContext);
 
 /**
  * ¿La página de la tienda es oscura (el texto que se le calcula encima es
- * blanco)? Lo provee StorefrontView. Lo leen las secciones que agregan un
+ * blanco)? Lo provee StoreChrome. Lo leen las secciones que agregan un
  * recuadro pensando en una página clara: sobre una oscura no hace falta, y
  * pisaba lo que había elegido el comercio.
  */
 export const DarkPageContext = createContext(false);
-export const useDarkPage = () => useContext(DarkPageContext);

@@ -8,14 +8,14 @@ export interface CarrierTracking {
   url: string | null;
 }
 
-export interface TimelineStep {
+interface TimelineStep {
   key: 'received' | 'paid' | 'fulfilled' | 'delivered' | 'cancelled' | 'refunded' | string;
   label: string;
   atUtc: string | null;
   done: boolean;
 }
 
-export interface OrderViewItem {
+interface OrderViewItem {
   variantId: string;
   productName: string;
   variantDescription: string;
@@ -29,7 +29,7 @@ export interface OrderViewItem {
  * completa la API cuando el medio de pago los necesita; mientras no venga,
  * la página no muestra nada.
  */
-export interface PaymentInstructions {
+interface PaymentInstructions {
   title?: string;
   text: string;
 }
@@ -101,7 +101,7 @@ export const trackingHref = (token: string) => `/seguimiento?t=${encodeURICompon
 export const repentHref = (number: number | string) =>
   `/arrepentimiento?pedido=${encodeURIComponent(String(number))}`;
 
-export type TrackResult = { ok: true; order: OrderView } | { ok: false; error: string };
+type TrackResult = { ok: true; order: OrderView } | { ok: false; error: string };
 
 /**
  * Busca un pedido por email + número, o por el link firmado de los mails.

@@ -33,7 +33,7 @@ const PADDING_BOTTOM: Record<SectionSpacing, string> = {
  * pantalla, y decidirlo en el cliente hacía que la sección apareciera y
  * desapareciera al hidratar. El corte es el `md` de Tailwind (768 px).
  */
-export const HIDE_ON_CLASS = { mobile: 'max-md:hidden', desktop: 'md:hidden' } as const;
+const HIDE_ON_CLASS = { mobile: 'max-md:hidden', desktop: 'md:hidden' } as const;
 
 function frameProps(section: ThemeSection): { className: string; style?: CSSProperties } | null {
   const { style, hideOn } = section;

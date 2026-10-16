@@ -142,7 +142,7 @@ const RAIL_DESKTOP: Record<number, string> = {
   5: 'sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-5rem)/5)]',
 };
 
-export interface GridColumns {
+interface GridColumns {
   columns: number;
   mobileColumns: 1 | 2;
 }

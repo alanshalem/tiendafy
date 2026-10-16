@@ -11,42 +11,20 @@ import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme } from '@
 
 // Re-export para que el resto del storefront siga importando desde '@/lib/theme'.
 export type {
-  ThemeColors,
-  ThemeFonts,
-  ThemeHeader,
-  ThemeAnnouncement,
-  ComingSoonConfig,
   SectionType,
   ThemeSection,
   ProductListConfig,
-  ProductDetailConfig,
-  CartConfig,
   ContactConfig,
-  FooterConfig,
   IconKit,
   ThemeConfig,
-  ButtonStyle,
   // Secciones del inicio (registro compartido).
   SectionStyle,
   SectionSpacing,
-  SectionHideOn,
   SectionDataMap,
-  BannerItem,
-  BannersData,
-  BrandsData,
-  CarouselData,
-  FaqData,
-  FaqItem,
-  HeroVideoData,
-  ImageTextData,
-  InfoBarData,
   InfoItemData,
   InstagramData,
-  InstitutionalData,
-  NewsletterData,
   ProductsData,
   TestimonialItem,
-  TestimonialsData,
 } from '@tiendafy/types';
 import { applyStoreOffers, type StoreOffers } from './store-offers';
 
@@ -125,14 +103,4 @@ export async function resolvePageTheme(
 
 // Lo que se usa también en el navegador (colores, columnas, variables CSS)
 // vive en theme-style: re-exportado para quien lo importaba de acá.
-export {
-  buttonVars,
-  colClass,
-  isDarkTheme,
-  mutedText,
-  primaryInk,
-  productGridClass,
-  ratioClass,
-  statusInk,
-  themeToStyle,
-} from './theme-style';
+export { buttonVars, colClass, mutedText, primaryInk, productGridClass, themeToStyle } from './theme-style';

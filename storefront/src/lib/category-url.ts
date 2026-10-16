@@ -9,7 +9,7 @@
  *
  * Sin imports de servidor: lo usan el header y el listado en el navegador.
  */
-export interface CategoryRef {
+interface CategoryRef {
   id: string;
   path?: string | null;
 }

@@ -41,7 +41,7 @@ export const offlineDiscountOf = (amount: number, percent: number): number =>
 export const priceWithOfflineDiscount = (amount: number, percent: number): number =>
   amount - offlineDiscountOf(amount, percent);
 
-export interface CheckoutTotalsInput {
+interface CheckoutTotalsInput {
   /** Productos a precio de lista. */
   subtotal: number;
   /** El cupón aplicado (ya validado por el servidor), si hay. */
@@ -54,7 +54,7 @@ export interface CheckoutTotalsInput {
   offlinePercent: number | undefined;
 }
 
-export interface CheckoutTotals {
+interface CheckoutTotals {
   /** El descuento del cupón, tal cual vino. */
   discount: number;
   /** El % por pagar a mano que se aplica (0 si paga con tarjeta). */

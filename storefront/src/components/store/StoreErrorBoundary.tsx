@@ -19,7 +19,7 @@ const NEXT_CONTROL_FLOW = [
   'DYNAMIC_SERVER_USAGE',
 ];
 
-export function isNextControlFlow(error: unknown): boolean {
+function isNextControlFlow(error: unknown): boolean {
   const digest = (error as { digest?: unknown } | null)?.digest;
   return typeof digest === 'string' && NEXT_CONTROL_FLOW.some((d) => digest.startsWith(d));
 }

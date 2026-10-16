@@ -9,9 +9,6 @@ import { PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
 import { FaqJsonLd, homeHasTitle, StoreHome, visibleSections } from './StoreHome';
 
-// Se re-exportan para quien los importaba de acá.
-export { homeHasTitle, isPageTitleSection } from './StoreHome';
-
 /** Envoltorio con animación de entrada/salida: colapsa el alto + fade + leve desplazamiento. */
 function PresenceItem({ show, children }: { show: boolean; children: ReactNode }) {
   return (

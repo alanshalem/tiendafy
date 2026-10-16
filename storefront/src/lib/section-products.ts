@@ -18,7 +18,7 @@ import type { StoreProduct } from '@/components/store/ProductCard';
 export type SectionProductsMap = Record<string, StoreProduct[]>;
 
 /** Trae los productos de un origen; null si no se pudo (API caída o sin el endpoint). */
-export type SourceFetcher = (source: ProductSource, limit: number) => Promise<StoreProduct[] | null>;
+type SourceFetcher = (source: ProductSource, limit: number) => Promise<StoreProduct[] | null>;
 
 /**
  * Clave estable de un plan: la misma query que va a la API (más el respaldo).
@@ -41,10 +41,7 @@ export function sectionPlans(sections: ThemeSection[]): Map<string, SectionProdu
 }
 
 /** Lo resuelto para una sección; undefined si no es de productos o todavía no llegó. */
-export function productsForSection(
-  section: ThemeSection,
-  resolved: SectionProductsMap,
-): StoreProduct[] | undefined {
+function productsForSection(section: ThemeSection, resolved: SectionProductsMap): StoreProduct[] | undefined {
   const plan = sectionProductPlan(section);
   return plan ? resolved[planKey(plan)] : undefined;
 }

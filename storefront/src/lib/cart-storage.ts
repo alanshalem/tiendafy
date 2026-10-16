@@ -60,14 +60,9 @@ const doneKey = (storeKey: string) => `tiendafy.done.${storeKey}`;
  */
 export const CART_SYNC_EVENT = 'tiendafy:cart-sync';
 
-export function notifyCartChanged(storeKey: string): void {
+function notifyCartChanged(storeKey: string): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(CART_SYNC_EVENT, { detail: { key: cartStorageKey(storeKey) } }));
-}
-
-export function saveCart<T>(storeKey: string, lines: T[]): void {
-  writeJson(cartStorageKey(storeKey), lines);
-  notifyCartChanged(storeKey);
 }
 
 /**

@@ -68,7 +68,7 @@ export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_UR
 }
 
 /** Un producto en el sitemap: su slug y cuándo cambió por última vez (si la API lo dice). */
-export interface SitemapEntry {
+interface SitemapEntry {
   slug: string;
   /** ISO 8601. Falta en una respuesta de antes de existir el campo. */
   lastmod?: string;
@@ -222,5 +222,5 @@ export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> 
 /** ProductDto del backend → StoreProduct para grillas/cards. Null si no tiene variantes. */
 
 // Los tipos y mappers puros viven en catalog-map (importable desde el cliente).
-export type { VariantDto, ProductDto } from './catalog-map';
+export type { ProductDto } from './catalog-map';
 export { toStoreProduct, toStoreProducts } from './catalog-map';

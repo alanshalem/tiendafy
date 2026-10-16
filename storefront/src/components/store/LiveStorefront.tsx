@@ -27,7 +27,7 @@ import { StoreWhatsApp } from './StoreWhatsApp';
  * solo en la vista previa.
  */
 
-export interface LiveStorefrontProps {
+interface LiveStorefrontProps {
   tenantId: string;
   tenantName: string;
   theme: ThemeConfig;

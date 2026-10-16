@@ -18,9 +18,9 @@ import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
 /** Menos que esto no se busca (la API tampoco): con una letra aparece medio catálogo. */
-export const SUGGEST_MIN_LENGTH = 2;
+const SUGGEST_MIN_LENGTH = 2;
 /** Lo que se espera entre teclas antes de preguntar: no un pedido por letra. */
-export const SUGGEST_DEBOUNCE_MS = 200;
+const SUGGEST_DEBOUNCE_MS = 200;
 const SUGGEST_LIMIT = 6;
 
 /** La URL de resultados para lo escrito (o el listado entero, sin texto). */

@@ -6,13 +6,13 @@ import { orderStatusLabel } from '@/lib/orders';
 import { StoreImage } from './StoreImage';
 
 /** Borde y fondo suave con los colores de la tienda: se leen en temas claros y oscuros. */
-export const CARD = 'rounded-2xl border border-[rgb(var(--color-fg)/0.12)] p-5';
+const CARD = 'rounded-2xl border border-[rgb(var(--color-fg)/0.12)] p-5';
 
 /**
  * Lo que sigue después de comprar, según en qué está el pedido. Es lo primero
  * que se pregunta quien acaba de pagar ("¿y ahora qué?").
  */
-export function nextStepText(order: Pick<OrderView, 'status' | 'isPickup'>): string | null {
+function nextStepText(order: Pick<OrderView, 'status' | 'isPickup'>): string | null {
   switch (order.status) {
     case 'PENDINGPAYMENT':
       return 'Apenas se acredite el pago te avisamos por email y empezamos a preparar el pedido.';

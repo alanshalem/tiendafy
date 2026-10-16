@@ -37,7 +37,7 @@ const V_ALIGN = { top: 'justify-start', center: 'justify-center', bottom: 'justi
  * celular, si hay. Siempre hay un botón para pausarlo (WCAG 2.2.2).
  *
  * El título es el h1 de la portada solo si el hero la abre y se ve en todos
- * los dispositivos (ver isPageTitleSection en HomeSections); más abajo es
+ * los dispositivos (ver isPageTitleSection en StoreHome); más abajo es
  * una sección más, con su h2.
  */
 export function HeroVideoSection({ section, data, lead }: SectionRenderProps<'hero-video'>) {

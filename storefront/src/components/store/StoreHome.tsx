@@ -12,7 +12,7 @@ import { faqPageJsonLd } from './sections/faq';
  * (un h1 en el medio de la página desordena el índice que arman Google y los
  * lectores de pantalla).
  */
-export function isPageTitleSection(section: ThemeSection, index: number): boolean {
+function isPageTitleSection(section: ThemeSection, index: number): boolean {
   return (
     index === 0 &&
     section.visible &&

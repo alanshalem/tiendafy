@@ -1,6 +1,6 @@
 import { apiUrl, problemMessage, tenantHeaders } from './api-client';
 
-export type ContactSubmit = { ok: true; reference: string | null } | { ok: false; error: string };
+type ContactSubmit = { ok: true; reference: string | null } | { ok: false; error: string };
 
 /**
  * Envía el formulario público de contacto (también usado por el botón de

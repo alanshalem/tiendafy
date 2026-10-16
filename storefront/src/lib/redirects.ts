@@ -16,7 +16,7 @@ import { resolveTenant } from '@/lib/tenancy';
  * con JS. Ahora se consulta solo donde nace un 404 de verdad (ver
  * notFoundUnlessRedirected), antes de mandar nada.
  */
-export async function redirectTarget(): Promise<string | null> {
+async function redirectTarget(): Promise<string | null> {
   try {
     // Lo deja el proxy: un componente de servidor no puede saber por su
     // cuenta qué URL se pidió.

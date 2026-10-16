@@ -7,11 +7,7 @@ import type { StoreProduct } from './ProductCard';
 import { PreviewContext } from './preview';
 import { DarkPageContext, LeadSectionContext } from './section-context';
 import { SectionBody } from './section-body';
-// ProductCard vive en su propio archivo; re-exportamos para consumidores externos
-// (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
-export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
-export type { SectionRenderProps } from './section-types';
-export { LeadSectionContext } from './section-context';
+export type { StoreProduct } from './ProductCard';
 export { HomeSections } from './HomeSections';
 
 /*
@@ -23,7 +19,7 @@ export { HomeSections } from './HomeSections';
  */
 
 /** Texto descriptivo para el botón "Editar {label}" del preview (educa al usuario). */
-export const SECTION_LABELS = Object.fromEntries(
+const SECTION_LABELS = Object.fromEntries(
   SECTION_TYPES.map((t) => [t, SECTION_REGISTRY[t].previewLabel]),
 ) as Record<SectionType, string>;
 

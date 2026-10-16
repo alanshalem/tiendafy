@@ -65,7 +65,7 @@ interface ProductOption {
 }
 
 /** Un renglón de la ficha técnica, ya resuelto contra su definición. */
-export interface SpecRow {
+interface SpecRow {
   name: string;
   value: string;
 }

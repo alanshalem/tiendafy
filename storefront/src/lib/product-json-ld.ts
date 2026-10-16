@@ -12,7 +12,7 @@ export interface ProductForJsonLd {
 }
 
 /** Lo que el schema necesita de la tienda (no del producto). */
-export interface StoreForJsonLd {
+interface StoreForJsonLd {
   /**
    * Desde cuánto el envío es gratis (centavos; 0 o nada = no hay envío gratis
    * por monto). Es el único costo de envío que se sabe sin el código postal:
@@ -22,7 +22,7 @@ export interface StoreForJsonLd {
 }
 
 /** Días para arrepentirse de una compra online (Ley 24.240 de Defensa del Consumidor, art. 34). */
-export const RETURN_DAYS = 10;
+const RETURN_DAYS = 10;
 
 /**
  * La política de devolución: el botón de arrepentimiento obliga a aceptar la
@@ -126,7 +126,7 @@ export function productJsonLd(
 // ------------------------------------------------------------------ reseñas
 
 /** Lo que el schema necesita de las reseñas (la primera página de la ficha). */
-export interface ReviewsForJsonLd {
+interface ReviewsForJsonLd {
   summary: { average: number; count: number };
   items: { rating: number; title: string | null; body: string; authorName: string; createdAtUtc: string }[];
 }

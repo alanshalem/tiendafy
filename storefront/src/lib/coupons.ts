@@ -1,6 +1,6 @@
 import { apiUrl, tenantHeaders } from './api-client';
 
-export type CouponValidation =
+type CouponValidation =
   { ok: true; code: string; discount: number; freeShipping: boolean } | { ok: false; error: string };
 
 /**

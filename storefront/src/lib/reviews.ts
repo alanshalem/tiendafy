@@ -20,7 +20,7 @@ export interface PublicReview {
   createdAtUtc: string;
 }
 
-export interface ReviewsSummary {
+interface ReviewsSummary {
   average: number;
   count: number;
   /** Cantidad por estrellas: índice 0 = 1 estrella … índice 4 = 5 estrellas. */

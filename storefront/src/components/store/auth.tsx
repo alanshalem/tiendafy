@@ -49,7 +49,7 @@ export function useAuth(): AuthContextValue {
  * pregunta es la página misma, y además cubre al que cambió la clave con el
  * link del mail, que también deja la sesión iniciada—.
  */
-export function shouldAskForSession({
+function shouldAskForSession({
   cachedUser,
   pendingGoogle,
   onAccountPage,

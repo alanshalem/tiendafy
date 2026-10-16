@@ -22,7 +22,7 @@ import { InitialFallback } from './InitialFallback';
  * Los ids vistos en esta tienda, del último al primero. Se actualiza solo si
  * otro componente suma una vista (la ficha) o si cambia en otra pestaña.
  */
-export function useRecentlyViewedIds(tenantId: string): string[] {
+function useRecentlyViewedIds(tenantId: string): string[] {
   const [ids, setIds] = useState<string[]>([]);
   useEffect(() => {
     if (!tenantId) return;

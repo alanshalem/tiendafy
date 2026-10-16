@@ -19,7 +19,7 @@ const CATEGORY_LIMIT = 8;
 const PRODUCT_LIMIT = 4;
 
 /** El link de WhatsApp para un número cargado como venga ("+54 9 11 …"). */
-export const whatsappHref = (phone: string, text?: string) =>
+const whatsappHref = (phone: string, text?: string) =>
   `https://wa.me/${phone.replace(/\D/g, '')}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 
 /**

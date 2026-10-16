@@ -5,24 +5,7 @@ import type { StoreProduct } from './ProductCard';
 // (@tiendafy/types, sections/registry.ts): de ahí salen también el
 // normalizador y la validación del backend. Se re-exportan para quien los
 // importaba desde acá.
-export type {
-  BannerItem,
-  BannersData,
-  BrandsData,
-  CarouselData,
-  FaqData,
-  FaqItem,
-  HeroVideoData,
-  ImageTextData,
-  InfoBarData,
-  InfoItemData,
-  InstagramData,
-  InstitutionalData,
-  NewsletterData,
-  ProductsData,
-  TestimonialItem,
-  TestimonialsData,
-} from '@/lib/theme';
+export type { InfoItemData, InstagramData, ProductsData, TestimonialItem } from '@/lib/theme';
 
 /**
  * Lo que recibe el renderer de un tipo de sección. `data` ya viene

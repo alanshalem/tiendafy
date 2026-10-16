@@ -7,8 +7,6 @@ import { StoreLink } from './StoreLink';
 import { useHoverMenu } from './useHoverMenu';
 import type { NavItem } from './header-menu';
 
-export type { NavItem } from './header-menu';
-
 /** `useLayoutEffect` avisa en el render del servidor; ahí no hay nada que medir. */
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 

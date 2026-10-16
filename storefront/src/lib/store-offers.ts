@@ -21,7 +21,7 @@ export interface StoreOffers {
 }
 
 /** El tema con las ofertas de la tienda ya aplicadas (ver applyStoreOffers). */
-export type ThemeWithOffers = ThemeConfig & { storeOffers?: StoreOffers | null };
+type ThemeWithOffers = ThemeConfig & { storeOffers?: StoreOffers | null };
 
 /** Las ofertas que vinieron con el tema, si vinieron. */
 export function offersOf(theme: ThemeConfig): StoreOffers | null {

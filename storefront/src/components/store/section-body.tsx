@@ -6,7 +6,7 @@ import { SectionFrame } from './SectionFrame';
 import { SECTION_RENDERERS } from './sections/registry';
 import type { SectionRenderProps } from './section-types';
 
-export interface SectionBodyProps {
+interface SectionBodyProps {
   section: ThemeSection;
   products: StoreProduct[];
   storeName: string;

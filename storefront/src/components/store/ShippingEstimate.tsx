@@ -20,7 +20,7 @@ interface OwnMethod {
 }
 
 /** Una opción de envío para mostrar: propia o cotizada por un correo. */
-export interface EstimateOption {
+interface EstimateOption {
   key: string;
   name: string;
   price: MoneyDto;
