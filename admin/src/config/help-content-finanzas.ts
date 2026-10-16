@@ -10,7 +10,7 @@ export const FINANZAS = {
       {
         heading: 'Qué resuelve',
         paragraphs: [
-          'El sistema sabía cuánto vendías, pero no dónde quedaba la plata. Cobrabas por Mercado Pago, por transferencia y en efectivo, y para saber cuánto había en la caja del local había que contarla.',
+          'Saber cuánto vendiste no te dice dónde está la plata: una parte en Mercado Pago, otra en el banco, otra en la caja del local. Tesorería te lo ordena.',
           'Tesorería son tus cuentas: la caja del mostrador, la caja chica, cada cuenta bancaria. Cada una tiene un saldo que NO se guarda como un número suelto: se calcula sumando su saldo inicial y todos sus movimientos. Por eso el saldo nunca puede quedar discutido con el listado — son la misma cosa.',
         ],
         blocks: [{ type: 'path', segments: ['Tesorería', 'Cajas y bancos'] }],
@@ -28,15 +28,15 @@ export const FINANZAS = {
             type: 'callout',
             tone: 'tip',
             title: 'El saldo inicial es el único número que cargás a mano',
-            text: 'Es la foto del día que empezás a usar el sistema. Si te equivocás, editás la cuenta y listo — pero conviene contarla bien una vez y no volver a tocarla.',
+            text: 'Es la foto del día que empezás a usar el sistema, y se carga solo al crear la cuenta: después no se edita (tampoco el tipo ni la moneda). Si te equivocaste, corregilo con un movimiento de entrada o salida que diga “Corrección del saldo inicial”. Conviene contarla bien una vez.',
           },
         ],
       },
       {
         heading: 'Movimientos y transferencias',
         paragraphs: [
-          'Un movimiento es cualquier entrada o salida que no viene de un cobro o un pago: un gasto, un retiro del dueño, un aporte. Se carga con concepto y, si querés, una referencia (número de comprobante, de cheque).',
-          'Una transferencia mueve plata de una cuenta tuya a otra: del efectivo al banco, por ejemplo. No es un ingreso ni un gasto, así que quedan los dos movimientos atados entre sí y no infla los totales de entradas y salidas.',
+          'Con el botón “Movimiento” cargás cualquier entrada o salida que no viene de un cobro o un pago de Cuentas corrientes: un gasto, un retiro del dueño, un aporte. Lleva concepto y, si querés, una referencia (número de comprobante, de cheque).',
+          'Con “Transferir” (aparece cuando tenés dos cuentas o más) movés plata de una cuenta tuya a otra: del efectivo al banco, por ejemplo. No es un ingreso ni un gasto, así que quedan los dos movimientos atados entre sí y no infla los totales de entradas y salidas.',
         ],
         blocks: [
           {
@@ -52,6 +52,14 @@ export const FINANZAS = {
         paragraphs: [
           'Los cobros y pagos que registrás en Cuentas corrientes mueven la caja o el banco automáticamente: cuando cobrás una factura, la plata entra a la cuenta que elegiste en el mismo acto. No hay que cargarlo dos veces.',
           'El total por moneda que ves arriba suma solo las cuentas activas, y nunca mezcla monedas: sumar pesos con dólares no significa nada.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Las ventas no entran solas a la caja',
+            text: 'Lo que cobrás por la tienda (Mercado Pago, Payway, transferencia, efectivo al retirar) y las ventas manuales cobradas en el momento no generan movimientos en Tesorería. Cuando la plata llega a tu banco o a tu caja, cargala con “Movimiento”. Lo único que entra solo son los cobros y pagos de Cuentas corrientes.',
+          },
         ],
       },
     ],
@@ -96,7 +104,7 @@ export const FINANZAS = {
       {
         heading: 'De dónde salen los movimientos',
         paragraphs: [
-          'La mayoría entran solos. Una venta manual con medio de pago "Cuenta corriente" carga la deuda del cliente. La factura que cargás en una orden de compra carga la deuda con el proveedor.',
+          'La mayoría entran solos. Una venta manual o un presupuesto aceptado con el cobro "Cuenta corriente (queda debiendo)" carga la deuda del cliente. Si después reembolsás esa venta, el reembolso no devuelve plata: baja la deuda (o le deja saldo a favor si ya la había pagado). La factura que cargás en una orden de compra carga la deuda con el proveedor.',
           'A mano se cargan dos cosas: el saldo que venía de antes del sistema, y las correcciones. Las dos con el botón "Ajuste", que siempre pide un motivo — un saldo que cambia sin dejar rastro es un saldo que no podés defender cuando el cliente lo discuta.',
         ],
         blocks: [{ type: 'path', segments: ['Tesorería', 'Cuentas corrientes'] }],
@@ -139,6 +147,7 @@ export const FINANZAS = {
         paragraphs: [
           'En Ventas, tocá "Venta manual" y elegí el cobro "Cuenta corriente (queda debiendo)". La venta se cierra igual que cualquier otra —descuenta stock, factura si tenés la facturación automática activa, cuenta en las estadísticas— y lo único distinto es que la plata todavía no entró: el total queda como deuda del cliente.',
           'Hace falta elegir un cliente de la agenda. Sin ficha no hay a quién anotarle la deuda, así que el sistema no deja avanzar.',
+          'Lo mismo vale para un presupuesto: al aceptarlo, en “Cómo se cobra” elegí “Cuenta corriente (queda debiendo)”.',
         ],
       },
     ],

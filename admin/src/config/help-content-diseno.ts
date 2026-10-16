@@ -164,7 +164,15 @@ export const DISENO = {
       {
         heading: 'Copiar el diseño de otra tienda',
         paragraphs: [
-          'Si manejás más de una tienda, “Copiar el diseño de otra tienda” trae a tu borrador lo PUBLICADO de la otra: colores, fuentes, encabezado, pie y secciones. Los productos, el logo y los datos de contacto de cada tienda no se tocan, y tu tienda no cambia hasta que publiques.',
+          'Si manejás más de una tienda, “Copiar el diseño de otra tienda” trae a tu borrador lo PUBLICADO de la otra: colores, fuentes, encabezado, pie y secciones. Los productos de cada tienda no se tocan, y tu tienda no cambia hasta que publiques.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Revisá lo que es propio de cada tienda',
+            text: 'La copia trae el diseño entero de la otra tienda, también su logo, sus datos de contacto, el botón de WhatsApp y los textos para Google. Antes de publicar, revisá Logo de la tienda, Contacto y Botón de WhatsApp. Si te arrepentís, se deshace con Ctrl+Z.',
+          },
         ],
       },
       {

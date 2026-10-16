@@ -43,9 +43,9 @@ export const LEGAL = {
           'El certificado es el “DNI” de tu tienda ante ARCA: sin él, ARCA no acepta pedidos de factura. Se obtiene con un ida y vuelta simple:',
         ],
         steps: [
-          'Tocá “Generar solicitud (CSR)” y descargá el archivo.',
-          'Entrá a ARCA con tu clave fiscal → “Administración de Certificados Digitales” → creá un alias y subí el CSR.',
-          'ARCA te devuelve el certificado firmado: copialo y pegalo en el panel. Listo.',
+          'Tocá “Generar solicitud (CSR)” y después “Descargar CSR”.',
+          'Entrá a ARCA con tu clave fiscal → “Administración de Certificados Digitales” → creá un alias y subí el CSR. En Homologación el trámite se hace en el WSASS, el autoservicio de prueba de ARCA, no en el portal de producción.',
+          'ARCA te devuelve el certificado firmado (un archivo .pem o .crt): abrilo con un editor, copiá todo, pegalo en “Pegá acá el certificado firmado por ARCA” y tocá “Activar certificado”.',
           'Después, en “Administrador de Relaciones de Clave Fiscal”, autorizá al servicio “Facturación Electrónica” (wsfe) para ese alias.',
         ],
       },
@@ -53,7 +53,7 @@ export const LEGAL = {
         heading: 'Tu clave privada nunca sale de acá',
         paragraphs: [
           'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA. Si alguien la tuviera podría facturar en tu nombre — por eso se cuida así.',
-          'Además, solo los roles Dueño, Administrador y Finanzas pueden tocar la configuración fiscal o emitir comprobantes; un vendedor o soporte no puede.',
+          'Además, de entrada solo Dueño, Administrador y Finanzas pueden tocar la configuración fiscal o emitir comprobantes; un vendedor o soporte no puede. Si en tu tienda lo hace otra persona, se habilita para su rol en Configuración → Roles y permisos, o solo para esa persona como excepción en Configuración → Usuarios.',
         ],
         blocks: [
           {
@@ -106,16 +106,40 @@ export const LEGAL = {
         ],
       },
       {
-        heading: 'Ventas de Mercado Libre',
-        paragraphs: [
-          'Las ventas que llegan de Mercado Libre también se facturan desde acá. En Configuración → Mercado Libre, “Facturar automáticamente las ventas de ML” emite el comprobante de cada venta pagada, a consumidor final. Si está apagado, o ARCA rechazó alguna, en Canales de venta → Mercado Libre → Ventas tenés el botón “Facturar” en cada una, y las ya facturadas se marcan “Facturada”.',
+        heading: 'Facturar varias ventas juntas',
+        steps: [
+          'En Ventas, tildá las ventas que querés facturar.',
+          'En la barra de arriba, tocá “Facturar” y confirmá. Se emite una factura real por cada venta cobrada, con el documento que dejó el comprador.',
+          'Se facturan de a una, con el avance a la vista. Al terminar, un resumen dice cuántas salieron y, por número de pedido (#1042), cuáles se saltearon o fallaron y por qué. Las que fallaron quedan tildadas para reintentar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Las ventas sin cobrar se saltean, y las que ya tienen factura no se vuelven a facturar: si se corta a la mitad, podés repetirlo sin duplicar nada. Si la facturación todavía no está configurada, en lugar del botón ves el link para configurarla.',
+          },
         ],
       },
       {
-        heading: 'Libro de IVA ventas',
+        heading: 'El email con la factura',
         paragraphs: [
-          'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA ventas”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total y CAE). Es lo que te pide tu contador.',
-          'El de compras sale de Compras e importaciones, con el botón “Libro IVA compras”.',
+          'Si querés que el comprador reciba la factura por email, prendé la plantilla “Factura” en Configuración → E-mails automáticos (viene apagada). Sale una sola vez por factura, apenas ARCA da el CAE, con el PDF adjunto: el mismo que el comprador puede bajar desde su cuenta.',
+          'No se manda en las ventas de Mercado Libre ni en las ventas cargadas a mano sin email del comprador.',
+        ],
+      },
+      {
+        heading: 'Ventas de Mercado Libre',
+        paragraphs: [
+          'Las ventas que llegan de Mercado Libre también se facturan desde acá. En Configuración → Mercado Libre, “Facturar automáticamente las ventas de ML” emite el comprobante de cada venta pagada, a consumidor final. Si está apagado, o ARCA rechazó alguna, en Canales de venta → Mercado Libre → Ventas tenés el botón “Facturar” en cada una (o tildás varias y usás “Facturar seleccionadas”), y las ya facturadas se marcan “Facturada”.',
+          'Si una venta de Mercado Libre ya facturada se cancela o se reembolsa, la nota de crédito sale sola.',
+        ],
+      },
+      {
+        heading: 'Libro de IVA ventas y compras',
+        paragraphs: [
+          'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA ventas”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total, CAE y ambiente). Es lo que te pide tu contador.',
+          'Entran solo los comprobantes del ambiente en el que estás facturando: mientras estés en Homologación, el libro es de prueba y la columna “Ambiente” lo dice en cada fila. El mes se cuenta en hora argentina: una factura del 31 a las 23 h es de ese mes.',
+          'El de compras sale de Compras e importaciones → Órdenes de compra, con el botón “Libro IVA compras”: junta las facturas de proveedores que cargaste en cada compra.',
         ],
       },
       {
@@ -136,7 +160,8 @@ export const LEGAL = {
       {
         heading: 'Reembolsos y notas de crédito',
         paragraphs: [
-          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada y queda devuelta del todo, Tiendafy la emite automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada y queda devuelta del todo, Tiendafy la emite automáticamente, del mismo tipo que la factura y al mismo comprador — el círculo fiscal queda cerrado sin trámites manuales. El PDF se baja desde el mismo recuadro de la venta.',
+          'Un reembolso parcial no emite nota de crédito: consultá con tu contador cómo registrarlo.',
         ],
       },
       {
@@ -248,7 +273,7 @@ export const LEGAL = {
         heading: 'Botón de arrepentimiento',
         paragraphs: [
           'La Resolución 424/2020 obliga a ofrecer un “Botón de Arrepentimiento” accesible desde la home: el comprador puede revocar la compra dentro de los 10 días corridos de recibida, sin costo.',
-          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa: la solicitud llega a Mensajes de contacto marcada con la etiqueta roja “Arrepentimiento” (la solapa “Arrepentimientos” las junta), el comprador recibe un email de acuse con su número de constancia, y si informó un número de pedido válido, el mensaje trae el link “Ver venta (reembolsar desde ahí)” para hacer el reembolso en el momento.',
+          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa: la solicitud llega a Mensajes de contacto (y a la Bandeja) marcada con la etiqueta roja “Arrepentimiento” (la solapa “Arrepentimientos” de Mensajes de contacto las junta), el comprador recibe un email de acuse con su número de constancia, y si informó un número de pedido válido, el mensaje trae el link “Ver venta (reembolsar desde ahí)” para hacer el reembolso en el momento.',
         ],
         blocks: [
           {
@@ -262,7 +287,7 @@ export const LEGAL = {
         heading: 'Términos y condiciones / Política de privacidad',
         paragraphs: [
           'Tu tienda publica automáticamente Términos y condiciones y Política de privacidad genéricos en /terminos y /privacidad, enlazados desde el pie.',
-          'Si querés textos propios, creá en Páginas una página con la URL “terminos” o “privacidad”: tu versión reemplaza a la genérica automáticamente.',
+          'Si querés textos propios, creá en Páginas de contenido una página con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”): tu versión reemplaza a la genérica automáticamente.',
         ],
       },
       {
@@ -341,6 +366,7 @@ export const LEGAL = {
         blocks: [{ type: 'path', segments: ['Configuración', 'Datos legales'] }],
         paragraphs: [
           'Si ya configuraste la facturación electrónica, la razón social, el CUIT y la condición se toman de ahí mientras no cargues otros: no hace falta escribirlos dos veces.',
+          'Completá lo que haga falta y tocá “Guardar” en la barra de abajo.',
         ],
       },
       {
@@ -353,7 +379,8 @@ export const LEGAL = {
       {
         heading: 'Precio sin impuestos nacionales',
         paragraphs: [
-          'La Ley 27.743 creó el régimen de transparencia fiscal al consumidor, y la Resolución 4/2025 de la Secretaría de Industria y Comercio pide mostrar, debajo del precio final y con letra más chica, el precio sin IVA ni otros impuestos nacionales indirectos. La tienda lo hace sola en la ficha de cada producto y en los listados.',
+          'La Ley 27.743 creó el régimen de transparencia fiscal al consumidor, y la Resolución 4/2025 de la Secretaría de Industria y Comercio pide mostrar, debajo del precio final y con letra más chica, el precio sin IVA ni otros impuestos nacionales indirectos. La tienda lo hace sola en la ficha de cada producto, en los listados, en el carrito y en el checkout.',
+          'Viene prendida: aunque no cargues nada, se calcula como Responsable Inscripto con IVA 21 % (o con la condición que tengas en Facturación). Elegí tu condición y la alícuota, y mirá en la vista previa cómo queda debajo de un precio de ejemplo. El interruptor de la tarjeta la apaga.',
         ],
         blocks: [
           {

@@ -9,7 +9,8 @@ export const CLIENTES = {
       {
         heading: 'Cuentas de cliente',
         paragraphs: [
-          'Tus compradores pueden crear una cuenta en tu tienda (email y contraseña, con verificación por email). Con cuenta ven sus pedidos, guardan favoritos y acceden al chat posventa.',
+          'Tus compradores pueden crear una cuenta en tu tienda (email y contraseña, con verificación por email, o con su cuenta de Google si la plataforma lo tiene activado). Con cuenta ven sus pedidos, guardan favoritos y sus direcciones (el checkout se las completa solo) y acceden al chat posventa.',
+          'Sin cuenta también pueden seguir su compra: el link “Seguí tu pedido” de los emails abre el estado del pedido sin pedir datos.',
         ],
       },
       {
@@ -35,7 +36,7 @@ export const CLIENTES = {
         paragraphs: [
           'Tocá el nombre de un cliente para abrir su ficha. Arriba tenés los botones para escribirle por WhatsApp (con el número ya armado con el 54 9), por email o llamarlo, y el resumen: total gastado, cantidad de compras, ticket promedio y última compra.',
           'Debajo está su historia de compras, de la más nueva a la más vieja, con el estado de cada venta; el número te lleva a esa venta en Ventas. Las ventas se vinculan por el email: si un cliente no tiene email cargado, cargáselo para ver lo que compró.',
-          'También tenés sus notas internas y etiquetas (“mayorista”, “VIP”, “gimnasio”), que se editan ahí mismo, y —si tenés acceso a Finanzas— el saldo de su cuenta corriente con los últimos movimientos.',
+          'También tenés sus notas internas y etiquetas (“mayorista”, “VIP”, “gimnasio”), que se editan ahí mismo, y —si tenés el permiso “Tesorería y cuentas corrientes”— el saldo de su cuenta corriente con los últimos movimientos.',
         ],
         blocks: [
           { type: 'path', segments: ['Clientes', 'nombre del cliente'] },
@@ -49,7 +50,7 @@ export const CLIENTES = {
       {
         heading: 'Lista de precios del cliente',
         paragraphs: [
-          'Si a un cliente le asignás una lista de precios (por ejemplo “Mayorista”), las ventas manuales y los presupuestos que le hagas usan esos precios solos. La tienda online sigue mostrando el precio de lista. Más en el artículo “Listas de precios”.',
+          'Si a un cliente le asignás una lista de precios (por ejemplo “Mayorista”) —en “Editar cliente”, campo “Lista de precios”—, las ventas manuales y los presupuestos que le hagas usan esos precios solos. La tienda online sigue mostrando el precio de lista. Más en el artículo “Listas de precios”.',
         ],
       },
       {
@@ -95,9 +96,10 @@ export const CLIENTES = {
       {
         heading: 'Asignar, marcar y archivar',
         paragraphs: [
-          'Asigná cada conversación a alguien del equipo para que no la contesten dos personas (o nadie). Solo aparecen quienes pueden atender ese canal según Roles y permisos. “Tomarla” te la asigna a vos, y la solapa “Mías” junta las tuyas.',
-          'Abrir una conversación la marca leída (también en su pantalla de siempre). Si querés volver a mirarla después, “No leída”.',
-          'Archivar la saca de la lista hasta que el cliente vuelva a escribir: ahí reaparece sola, sin leer. Lo archivado se ve en la solapa “Archivadas”.',
+          'Asigná cada conversación a alguien del equipo para que no la contesten dos personas (o nadie). Solo aparecen quienes pueden atender ese canal según Roles y permisos. “Tomarla” te la asigna a vos.',
+          'Arriba tenés las solapas: “Abiertas”, “Sin leer”, “Mías” (las asignadas a vos), “Sin asignar” y “Archivadas”.',
+          'Abrir una conversación la marca leída (también en su pantalla de siempre). Si querés volver a mirarla después, tocá “No leída”.',
+          '“Archivar” la saca de la lista hasta que el cliente vuelva a escribir: ahí reaparece sola, sin leer. Lo archivado se ve en la solapa “Archivadas”, y “Desarchivar” la devuelve a mano.',
         ],
       },
       {
@@ -151,7 +153,9 @@ export const CLIENTES = {
     sections: [
       {
         heading: 'Qué se envía',
-        paragraphs: ['Están agrupados en tres. Activás cada uno por separado.'],
+        paragraphs: [
+          'Están agrupados en tres. Cada uno tiene su interruptor, salvo los de la cuenta, que dicen “Siempre se envía”.',
+        ],
         blocks: [
           { type: 'path', segments: ['Configuración', 'E-mails automáticos'] },
           {
@@ -160,13 +164,16 @@ export const CLIENTES = {
             rows: [
               [
                 'Ventas',
-                'Instrucciones de pago (transferencia o efectivo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro), Confirmación de envío (con seguimiento), Cancelación de compra y Factura',
+                'Instrucciones de pago (a quien eligió transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro, en lugar de la de envío), Confirmación de envío (con seguimiento), Pedido de reseña (unos días después del despacho), Cancelación de compra y Factura (con el PDF adjunto, cuando la venta tiene su CAE)',
               ],
               [
                 'Cuenta de usuarios',
-                'Activación de cuenta y Cambio de contraseña. Estos dos salen siempre: sin ellos tus clientes no pueden entrar a su cuenta. Podés cambiarles el texto.',
+                'Activación de cuenta y Cambio de contraseña. Estos dos salen siempre: sin ellos tus clientes no pueden entrar a su cuenta. Podés cambiarles el texto, no apagarlos.',
               ],
-              ['Promociones', 'Carritos abandonados, Bajó un favorito y Volvió un favorito'],
+              [
+                'Promociones',
+                'Carritos abandonados (una hora después de que alguien deja la compra a medias), Avisame cuando ingrese, Bajó un favorito y Volvió un favorito',
+              ],
             ],
           },
           {
@@ -180,7 +187,7 @@ export const CLIENTES = {
       {
         heading: 'Con la estética de tu tienda',
         paragraphs: [
-          'Todos los emails salen con un diseño profesional: tu logo (el del editor de tema), tu color primario, la tabla del pedido con fotos de los productos, subtotal, descuento, envío y total, y la dirección de entrega.',
+          'Todos los emails salen con un diseño profesional: tu logo (el del editor de diseño), tu color primario, la tabla del pedido con fotos de los productos, subtotal, descuento, envío y total, y la dirección de entrega.',
           'Si todavía no subiste logo, se muestra el nombre de la tienda. Subilo en Canales de venta → Tienda online.',
         ],
       },
@@ -203,8 +210,15 @@ export const CLIENTES = {
               ['{{total}}', 'El total pagado'],
               ['{{items}}', 'La tabla de productos con fotos y precios'],
               ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],
-              ['{{product}}', 'El producto favorito (solo en los avisos de favoritos)'],
-              ['{{price}}', 'Su precio nuevo (solo en los avisos de favoritos)'],
+              ['{{product}}', 'El producto (solo en los avisos de favoritos y de “Avisame cuando ingrese”)'],
+              [
+                '{{price}}',
+                'Su precio de hoy (solo en los avisos de favoritos y de “Avisame cuando ingrese”)',
+              ],
+              [
+                '{{payment_instructions}}',
+                'Los datos para pagar: monto, cuenta o local y hasta cuándo (solo en Instrucciones de pago)',
+              ],
             ],
           },
         ],
@@ -224,9 +238,10 @@ export const CLIENTES = {
         ],
       },
       {
-        heading: 'Envío real',
+        heading: 'Reembolsos y cancelaciones',
         paragraphs: [
-          'En desarrollo los emails se registran en los logs. En producción se envían por Resend con la clave que configures.',
+          '“Cancelación de compra” sale cuando una venta por transferencia o efectivo se cancela sola porque venció el plazo para pagar, y cuando reembolsás una venta entera. Si cancelás a mano una venta sin cobrar desde Ventas, no se le avisa al comprador: escribile vos.',
+          'Un reembolso siempre le avisa al comprador: si tenés “Cancelación de compra” apagada, le llega igual un aviso corto de que se le devolvió la plata. Las ventas de mostrador sin email no reciben nada.',
         ],
       },
       {
@@ -317,7 +332,7 @@ export const CLIENTES = {
             type: 'callout',
             tone: 'warning',
             title: 'Requisitos de plataforma en producción',
-            text: 'El tracking de aperturas/clicks y los links de baja necesitan PublicApiBaseUrl configurada en el servidor, y la supresión automática de rebotes necesita el webhook de Resend. El detalle está en el centro de ayuda, en Administrar la plataforma → Qué conseguir y dónde se carga cada cosa.',
+            text: 'Para contar aperturas y clicks, para que funcione el link de baja y para dejar de escribirles solo a los emails que rebotan, quien administra la plataforma tiene que completar dos ajustes del servidor. Si las aperturas quedan siempre en cero, avisale. El detalle está en el centro de ayuda, en Administrar la plataforma → Qué conseguir y dónde se carga cada cosa.',
           },
         ],
       },
@@ -363,8 +378,8 @@ export const CLIENTES = {
       {
         heading: 'Qué conviene activar',
         paragraphs: [
-          'Los tipos de mensaje disponibles son: Confirmación de compra, Confirmación de pago, Pedido en camino, Listo para retirar, Reembolso / cancelación y Carritos abandonados.',
-          'Los transaccionales rinden oro: confirmación de pago, pedido en camino (con seguimiento) y listo para retirar. El de carritos abandonados es marketing para Meta: usalo con moderación y solo con clientes que marcaron “Quiero recibir novedades” — abusar degrada la calidad de tu número y Meta te limita el volumen.',
+          'Los que salen hoy: Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso / cancelación (cuando reembolsás una venta entera) y Carritos abandonados. La tarjeta “Confirmación de compra” todavía no se manda en ningún momento: el aviso de la compra sale con la confirmación de pago.',
+          'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta y le llega a cualquiera que dejó su teléfono en el checkout, sin mirar si aceptó recibir novedades: usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
         ],
       },
       {
@@ -418,7 +433,7 @@ export const CLIENTES = {
           'Dirección del local o showroom.',
           'Teléfono de contacto.',
           'WhatsApp.',
-          'Si querés, prendé “Mostrar formulario de contacto” para que te escriban desde la tienda: los mensajes llegan a Mensajes de contacto.',
+          'Si querés, prendé “Mostrar formulario de contacto” para que te escriban desde la tienda: los mensajes llegan a Mensajes de contacto y a la Bandeja.',
         ],
         blocks: [
           { type: 'path', segments: ['Canales de venta', 'Tienda online', 'Contacto'] },
@@ -590,7 +605,7 @@ export const CLIENTES = {
       {
         heading: 'Si una red falla',
         paragraphs: [
-          'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en su detalle ves exactamente qué red falló y por qué (token vencido, límite de la red, imagen inválida). Reconectás la cuenta o corregís el post, y lo volvés a programar.',
+          'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en su detalle ves exactamente qué red falló y por qué (acceso vencido, límite de la red, imagen inválida). Reconectás la cuenta o corregís el post y tocás “Reintentar”: vuelve a mandar solo a las redes que fallaron.',
         ],
       },
     ],

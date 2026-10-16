@@ -9,14 +9,14 @@ export const CATALOGO = {
       {
         heading: 'Cargar un producto',
         steps: [
-          'En Productos → Agregar, cargá nombre, descripción, precio y fotos (la primera es la principal y sale en los emails).',
-          'Si tiene talles o colores, definí opciones y variantes: cada combinación tiene su propio SKU, precio y stock.',
-          'Cargá el peso y las medidas del paquete de una unidad: con eso cotizan los correos en el checkout.',
+          'En Productos, tocá “Agregar producto” y cargá nombre, descripción, precio y fotos (la primera es la portada y sale en los emails).',
+          'Si tiene talles o colores, marcá “Este producto tiene variantes” y cargá hasta tres opciones: cada combinación tiene su propio SKU, precio y stock.',
+          'En “Envío”, cargá el peso y las medidas del paquete de una unidad: con eso cotizan los correos en el checkout.',
           'Asignale categorías para que aparezca en los filtros de tu tienda.',
-          'Publicalo. Los borradores y archivados no se ven en la tienda.',
+          'Marcá “Mostrar en la tienda” y tocá “Guardar producto”. Sin esa marca queda en borrador: los borradores y los archivados no se ven en la tienda.',
         ],
         blocks: [
-          { type: 'path', segments: ['Productos', 'Agregar'] },
+          { type: 'path', segments: ['Productos', 'Agregar producto'] },
           {
             type: 'callout',
             tone: 'tip',
@@ -26,23 +26,32 @@ export const CATALOGO = {
           {
             type: 'callout',
             tone: 'info',
-            title: 'Precio tachado = oferta',
-            text: 'Un producto con precio anterior (tachado) cuenta como “en oferta” en toda la tienda: entra al filtro “Solo ofertas” del listado y a las secciones de productos en oferta del inicio.',
+            title: 'Precio promocional = oferta',
+            text: 'Si cargás un “Precio promocional”, la tienda cobra ese y muestra el precio normal tachado. Un producto así cuenta como “en oferta” en toda la tienda: entra al filtro “Solo ofertas” del listado y a las secciones de productos en oferta del inicio.',
           },
         ],
       },
       {
         heading: 'La lista de productos',
         paragraphs: [
-          'La búsqueda no distingue tildes ni el orden de las palabras: “remera negra” encuentra “Remera Negra Oversize” y “negra remera” también. Los filtros, la búsqueda y la página se recuerdan mientras trabajás.',
+          'La búsqueda no distingue tildes ni el orden de las palabras: “remera negra” encuentra “Remera Negra Oversize” y “negra remera” también. También busca por SKU. Los filtros, la búsqueda y la página se recuerdan mientras trabajás.',
+          'Arriba de la lista, los recuadros “Publicados”, “En borrador”, “Sin foto” y “Sin costo cargado” te dicen qué falta completar: tocá uno para filtrar por eso.',
           'Tildá varios productos para Publicar, Archivar o Eliminar en lote. Al terminar te dice cuántos salieron bien y cuáles no, y por qué.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Eliminar todo el catálogo',
+            text: 'Solo el dueño de la tienda ve, en el menú ⋮ de la lista, “Eliminar todos los productos”. Pide escribir ELIMINAR para confirmar y no se puede deshacer: antes, bajate una copia con “Exportar e importar”.',
+          },
         ],
       },
       {
         heading: 'Inventario y reservas',
         paragraphs: [
-          'El stock se controla por variante en Productos → Inventario. Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés.',
-          'El historial de movimientos de cada variante muestra entradas, ventas y reservas.',
+          'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano. Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés.',
+          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo y cuántas variantes están sin stock o por agotarse.',
         ],
         blocks: [
           {
@@ -63,6 +72,7 @@ export const CATALOGO = {
         heading: 'Subir o bajar precios en masa',
         paragraphs: [
           'En Productos → Costos, “Repreciar en masa” cambia los precios de todo el catálogo o de una categoría con un porcentaje (+ sube, − baja) y un redondeo: terminación $990, al $1.000 o al $100 más cercano, o sin redondeo. Los precios tachados se ajustan en la misma proporción, así una oferta sigue siendo oferta. Los productos archivados no se tocan.',
+          'El botón lo ve quien tiene el permiso “Listas de precios y repreciación”.',
         ],
         blocks: [
           { type: 'path', segments: ['Productos', 'Costos', 'Repreciar en masa'] },
@@ -105,7 +115,7 @@ export const CATALOGO = {
       {
         heading: 'Límites a tener en cuenta',
         paragraphs: [
-          'Un componente no puede ser a su vez un kit (sin kits anidados). El descuento de componentes ocurre al confirmarse el pago; si un componente no tiene fila de stock, se crea con lo que corresponda descontar en cero (queda auditado en los movimientos).',
+          'Un componente no puede ser a su vez un kit (sin kits anidados). El descuento de componentes ocurre al confirmarse el pago, y el stock de una pieza nunca queda en negativo: si no alcanzaba, queda en cero y conviene revisarla en Inventario.',
         ],
       },
     ],
@@ -133,8 +143,8 @@ export const CATALOGO = {
       {
         heading: 'Preparar pedido (anti errores de despacho)',
         steps: [
-          'En la solapa “Preparar pedido”, elegí un pedido pagado sin despachar.',
-          'Escaneá cada producto al meterlo en la caja: la lista marca en verde lo juntado.',
+          'En la solapa “Preparar pedido”, elegí un pedido pagado sin despachar: aparece con su número de pedido (#1042) y el email del comprador.',
+          'Escaneá cada producto al meterlo en la caja (o tipeá el código): la lista marca en verde lo juntado.',
           'Si escaneás algo que NO va en ese pedido, la alerta salta antes de despachar — se acabó mandar el disco de 15 kg en vez del de 25.',
           'Con todo verificado aparece “Pedido completo y verificado.”: cargá el número de seguimiento si lo tenés y tocá “Marcar enviada”. El comprador recibe el aviso en el momento, sin pasar por la computadora.',
           'Para muchos pedidos juntos (picking de varios, etiquetas y remitos en lote) está Ventas › Despacho.',
@@ -143,7 +153,7 @@ export const CATALOGO = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Marcar enviada desde el escáner pide el permiso de despachar ventas. Sin él, el escáner te deja preparar el pedido y te pide que lo cierre alguien que pueda despachar.',
+            text: 'Marcar enviada desde el escáner pide el permiso de despachar ventas. Sin él, el escáner te deja preparar el pedido y te pide que lo marque como enviado alguien que pueda despachar.',
           },
         ],
       },
@@ -172,7 +182,7 @@ export const CATALOGO = {
         heading: 'El ciclo de una compra',
         paragraphs: [
           'En Compras e importaciones tocá “Nueva compra”. La orden arranca como borrador: proveedor, moneda (típicamente USD), tipo de cambio estimado, lead time y los productos con su costo unitario FOB. Mientras es borrador podés editar todo.',
-          'Al confirmarla, la vas moviendo por los estados reales de una importación: en producción → en tránsito → en aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles.',
+          'Cuando el proveedor la acepta, tocá “Confirmada”. Después la vas moviendo con los botones de estado por los pasos reales de una importación: En producción → En tránsito → En aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles. “Cancelar OC” la anula sin tocar stock ni costos.',
         ],
       },
       {
@@ -180,11 +190,19 @@ export const CATALOGO = {
         paragraphs: [
           'En la tarjeta “Gastos del embarque”, con “+ Gasto”, cargá el flete, el seguro, los aranceles, el despachante y el IVA de aduana, en la moneda de la orden o directo en pesos. El sistema los prorratea entre los productos según su valor: la diferencia entre creer que un disco cuesta USD 4 y saber que puesto en tu depósito cuesta USD 6,80.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Los gastos se cargan antes de confirmar',
+            text: 'Igual que los productos y los costos, los gastos solo se editan mientras la compra es borrador. Si todavía no tenés los números finales, cargalos estimados antes de tocar “Confirmada”.',
+          },
+        ],
       },
       {
         heading: 'Recibir la mercadería',
         steps: [
-          'Tocá «Recibir» cuando llega el contenedor y confirmá cuántas unidades entraron de cada ítem (podés recibir menos de lo pedido).',
+          'Tocá «Recibir» cuando llega el contenedor y confirmá cuántas unidades entraron de cada ítem (podés recibir menos de lo pedido). También podés escanear las cajas: cada código suma una unidad.',
           'Poné el tipo de cambio definitivo del despacho.',
           'Al confirmar: el stock sube solo y el costo de cada variante queda fijado al landed cost — Estadísticas → Rentabilidad pasa a calcular la ganancia con el costo real importado.',
         ],
@@ -200,8 +218,8 @@ export const CATALOGO = {
       {
         heading: 'La factura del proveedor y el libro de IVA compras',
         paragraphs: [
-          'En la tarjeta “Comprobante del proveedor” de la orden cargás su factura: tipo, número, fecha, CUIT, neto e IVA (o “Leer factura” para que la IA te la proponga desde el PDF). Con la factura cargada nace la deuda con el proveedor en Cuentas corrientes.',
-          'Arriba de Compras e importaciones elegís el mes y tocás “Libro IVA compras”: baja un CSV, listo para Excel, con todas las compras del mes que tienen la factura cargada. El de ventas sale de Configuración → Facturación.',
+          'En la tarjeta “Comprobante del proveedor” de la orden cargás su factura: tipo, número, fecha, CUIT, neto e IVA (o “Leer factura” para que la IA te la proponga desde el PDF). Es opcional y se puede cargar después de recibir, que es cuando suele llegar el papel. Con la factura cargada nace la deuda con el proveedor en Cuentas corrientes.',
+          'Arriba de Compras e importaciones elegís el mes y tocás “Libro IVA compras”: baja un CSV, listo para Excel, con todas las compras del mes que tienen la factura cargada. El recuadro “Recibidas sin factura” te muestra las que todavía no entran. El de ventas sale de Configuración → Facturación.',
         ],
       },
       {
@@ -239,7 +257,7 @@ export const CATALOGO = {
             rows: [
               [
                 'Página del producto',
-                'Una tabla clara de medidas y materiales, abajo de la descripción. Contesta lo que si no te preguntan por WhatsApp.',
+                'Una tabla clara de medidas y materiales, abajo de la descripción. Contesta lo que, si no, te preguntan por WhatsApp.',
               ],
               [
                 'Filtros del catálogo',
@@ -250,6 +268,11 @@ export const CATALOGO = {
                 'Los campos con equivalente declarado viajan en la publicación. Una ficha completa posiciona mejor y puede entrar al catálogo de ML.',
               ],
             ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Cada campo decide los tres usos por separado: “Mostrarlo en la página del producto”, “Dejar filtrar el catálogo por este campo” y “Atributo equivalente en Mercado Libre” (el código de ML, por ejemplo BRAND o MODEL; si lo dejás vacío, no viaja).',
           },
         ],
       },
@@ -349,7 +372,7 @@ export const CATALOGO = {
       {
         heading: 'Cómo se aplica una lista',
         paragraphs: [
-          'La lista se le asigna al CLIENTE, en su ficha (Clientes → editar → Lista de precios). Después, cada venta manual a ese cliente usa esos precios sin que haya que acordarse.',
+          'La lista se le asigna al CLIENTE, en su ficha (Clientes → Editar → Lista de precios). Después, cada venta manual y cada presupuesto para ese cliente arrancan con esos precios sin que haya que acordarse (si escribís otro precio en un renglón, vale el tuyo).',
           'Por eso en la venta manual el selector de cliente está siempre a la vista, no solo cuando vendés en cuenta corriente: un mayorista también paga en efectivo.',
           'Tu tienda online sigue mostrando el precio del producto. Las listas son para la venta asistida, que es donde sabés quién está comprando.',
         ],
@@ -374,9 +397,9 @@ export const CATALOGO = {
       {
         heading: 'Por qué tener fichas',
         paragraphs: [
-          'Antes el proveedor era un nombre escrito a mano en cada orden de compra, así que "Importadora del Sur", "Import. del Sur" e "importadora sur" eran tres proveedores distintos. Sin ficha no hay historial, no hay saldo y no hay forma de comparar precios entre compras.',
-          'Con la ficha, cada orden de compra se elige de una lista, y la pantalla del proveedor junta lo que le compraste con lo que le debés.',
-          'Si escribís el nombre a mano en una compra, igual queda atada a una ficha: la que ya existe con ese nombre (sin importar mayúsculas) o una nueva. Para las compras que cargaste antes, tocá “Traer de mis compras” en Proveedores: crea las fichas que falten, las ata y les pasa el CUIT de la factura. Las facturas viejas no se asientan solas en la cuenta corriente, para no mostrar deudas que ya pagaste.',
+          'Si el proveedor es un nombre escrito a mano en cada compra, "Importadora del Sur", "Import. del Sur" e "importadora sur" terminan siendo tres proveedores distintos. Sin ficha no hay historial, no hay saldo y no hay forma de comparar precios entre compras.',
+          'Con la ficha, cada orden de compra elige el proveedor de una lista, y la pantalla del proveedor junta lo que le compraste con lo que le debés. Para un proveedor nuevo, dalo de alta primero con “Nuevo proveedor”.',
+          'Toda compra queda atada a una ficha: si el nombre se escribió a mano, a la que ya existe con ese nombre (sin importar mayúsculas) o a una nueva. Para las compras que cargaste antes de tener fichas, tocá “Traer de mis compras” en Proveedores: crea las fichas que falten, las ata y les pasa el CUIT de la factura. Las facturas viejas no se asientan solas en la cuenta corriente, para no mostrar deudas que ya pagaste.',
         ],
         blocks: [{ type: 'path', segments: ['Compras e importaciones', 'Proveedores'] }],
       },
@@ -389,9 +412,9 @@ export const CATALOGO = {
         blocks: [
           {
             type: 'callout',
-            tone: 'warning',
-            title: 'Una orden sin ficha de proveedor no mueve la cuenta corriente',
-            text: 'Podés seguir cargando compras con el proveedor escrito a mano, pero entonces la factura no genera deuda: no hay a quién debérsela. El formulario te lo avisa cuando elegís "sin ficha".',
+            tone: 'info',
+            title: 'Las facturas de antes de tener fichas',
+            text: 'Lo que ataste con “Traer de mis compras” suma al historial del proveedor, pero sus facturas viejas no generan deuda. Si alguna todavía está impaga, cargala en Cuentas corrientes con “Ajuste”, con el motivo.',
           },
         ],
       },
@@ -480,7 +503,7 @@ export const CATALOGO = {
         heading: 'Cuándo un producto está bajo',
         paragraphs: [
           'Con la misma cuenta que Compras › Reposición: lo que se vendió en los últimos 60 días (en la tienda, en Mercado Libre y como parte de kits) contra lo que tarda en llegar una compra más un colchón de 30 días. Para un importador, “quedan 5” no dice nada: importa si alcanzan hasta el próximo embarque.',
-          'Además podés ponerle a un producto un mínimo propio (“avisame con 10 o menos”), que avisa aunque no se haya vendido: sirve para lo nuevo o lo de temporada.',
+          'Además podés ponerle a un producto un mínimo propio (“avisame con 10 o menos”), que avisa aunque no se haya vendido: sirve para lo nuevo o lo de temporada. Se pone desde la pantalla Stock bajo o, para cualquier producto, en Configuración › Alertas de stock, en “Mínimos y productos silenciados”.',
         ],
         blocks: [{ type: 'path', segments: ['Productos', 'Stock bajo'] }],
       },

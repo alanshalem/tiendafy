@@ -10,25 +10,25 @@ export const EMPEZAR = {
         heading: 'El camino completo',
         steps: [
           'Diseñá tu tienda: en Canales de venta → Tienda online arrancá con “Elegí un diseño listo” o una plantilla de inicio, subí tu logo (también aparece en los emails que reciben tus clientes) y seguí la guía “Poné tu tienda linda”. Acordate de tocar “Publicar cambios”.',
-          'Cargá tus productos: en Productos → Agregar, con fotos, precio, variantes, stock y el peso y las medidas para que los correos coticen bien. Si tenés muchos, usá la importación por CSV.',
-          'Conectá Mercado Pago: en Configuración → Medios de pago, con un click autorizás tu cuenta. La plata va directo a vos.',
-          'Definí los envíos: en Configuración → Medios de envío creá al menos uno (domicilio con precio fijo o retiro gratis). Sin esto el checkout no ofrece entrega.',
+          'Cargá tus productos: en Productos, tocá “Agregar producto” y cargá fotos, precio, variantes, stock y el peso y las medidas para que los correos coticen bien. Si tenés muchos, usá “Exportar e importar” y subilos con una planilla.',
+          'Conectá Mercado Pago: en Configuración → Medios de pago, tocá “Conectá tu cuenta de Mercado Pago” y autorizala. La plata va directo a vos. En la misma pantalla podés sumar transferencia y efectivo al retirar, con descuento.',
+          'Definí los envíos: en Configuración → Medios de envío tocá “Agregar medio de envío” y creá al menos uno (envío a domicilio con su precio, que puede ser gratis desde un monto, o retiro en tu local). Sin esto el checkout no ofrece entrega.',
           'Revisá los e-mails automáticos: en Configuración → E-mails automáticos activá los que quieras; salen con tu logo y colores.',
           'Invitá a tu equipo: en Configuración → Usuarios sumá gente con roles (vendedor, catálogo, finanzas, soporte…).',
-          'Compartí tu URL: tu tienda ya vive en tutienda.tiendafy. Cuando quieras, conectá tu dominio propio.',
+          'Compartí tu dirección: tu tienda ya tiene una, la ves en Configuración → Dominios. Cuando quieras, conectá ahí tu dominio propio.',
         ],
       },
       {
         heading: 'Probá una compra de punta a punta',
         paragraphs: [
-          'Antes de difundir tu tienda, hacete una compra de prueba: agregá un producto al carrito, completá el checkout (email → entrega → pago) y pagá con las tarjetas de prueba de Mercado Pago.',
-          'Verificá que la orden aparezca en Ventas, que llegue el email de confirmación y que puedas marcarla como enviada.',
+          'Antes de difundir tu tienda, hacete una compra de prueba: agregá un producto al carrito, completá el checkout (entrega → pago) y pagá con las tarjetas de prueba de Mercado Pago.',
+          'Verificá que la venta aparezca en Ventas con su número de pedido (#1001, #1002…), que llegue el email de confirmación y que puedas marcarla como enviada.',
         ],
         blocks: [
           {
             type: 'checklist',
             items: [
-              'La orden aparece en Ventas como “Pagada”.',
+              'La venta aparece en Ventas como “Pagada”.',
               'Llegó el email de confirmación con tu logo y colores.',
               'Pudiste marcarla como enviada y llegó el aviso de “pedido en camino”.',
               'Si configuraste facturación, la venta muestra su factura con CAE.',
@@ -134,6 +134,14 @@ export const EMPEZAR = {
                 def: 'Lo que se queda la pasarela (Mercado Pago) o el marketplace (ML) por cada venta.',
               },
               {
+                term: 'Número de pedido',
+                def: 'El número correlativo de cada venta de tu tienda (#1042). Es el que ve el comprador en sus mails y en “Seguí tu pedido”, y el que sirve para buscar la venta en el panel.',
+              },
+              {
+                term: 'Cuenta corriente',
+                def: 'Lo que un cliente te debe (o lo que vos le debés a un proveedor), con cada venta o compra y cada pago imputado. Se lleva en Tesorería → Cuentas corrientes.',
+              },
+              {
                 term: 'Contracargo',
                 def: 'El comprador desconoció el pago ante su tarjeta y el dinero se devuelve. Se disputa con evidencia de entrega.',
               },
@@ -191,7 +199,7 @@ export const EMPEZAR = {
               },
               {
                 term: 'Reservado',
-                def: 'Stock apartado por un checkout en curso. Si el pago no llega en 30 minutos, vuelve solo a disponible.',
+                def: 'Stock apartado por un checkout en curso. Si el pago no llega en 30 minutos, vuelve solo a disponible. Con transferencia o efectivo al retirar, queda apartado el tiempo que elegiste en Medios de pago.',
               },
               {
                 term: 'Kit / combo',

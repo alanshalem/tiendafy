@@ -12,7 +12,7 @@ export const ENVIOS = {
           'En Configuración → Medios de envío, tocá “Agregar medio de envío”.',
           'Elegí el tipo: Envío a domicilio (el cliente carga su dirección) o Retiro en punto (vos cargás la dirección y horarios del punto).',
           'Definí el precio (0 = gratis) y, si querés, un plazo o descripción visible, ej: “Llega en 3 a 5 días hábiles”.',
-          'Guardá. Aparece al instante en el checkout de tu tienda.',
+          'Tocá “Crear medio de envío”. Aparece al instante en el checkout de tu tienda.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío'] }],
       },
@@ -20,7 +20,7 @@ export const ENVIOS = {
         heading: 'Cómo lo ve el comprador',
         paragraphs: [
           'En el paso Entrega del checkout, el cliente ve todas las opciones activas con su precio y plazo, y elige una. El costo se suma al total y queda registrado en la orden y en el email de confirmación.',
-          'Podés desactivar un método sin borrarlo (deja de ofrecerse pero conserva el historial).',
+          'Podés desactivar un medio sin borrarlo: editalo y apagá “Activo”. Deja de ofrecerse, pero las ventas que ya lo usaron no cambian.',
         ],
       },
       {
@@ -42,7 +42,7 @@ export const ENVIOS = {
         heading: 'Envío gratis como gancho',
         paragraphs: [
           'Hay tres formas de regalar el envío: un medio de envío con precio 0; un medio con “Gratis desde” (cobra su precio, salvo que los productos sumen ese monto o más); o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',
-          '“Gratis desde” se carga al crear o editar el medio. Se compara con lo que suman los productos antes de cupones y descuentos por transferencia, así el comprador no pierde el envío gratis por elegir cómo pagar. Lo aplica el servidor al cobrar, no solo la pantalla.',
+          '“Gratis desde (opcional)” se carga al crear o editar el medio, y aparece cuando el precio es mayor a 0. Se compara con lo que suman los productos antes de cupones y de descuentos por transferencia o efectivo, así el comprador no pierde el envío gratis por elegir cómo pagar. Lo aplica el sistema al cobrar, no solo la pantalla. Vale para tus tarifas: los correos que cotizan solos cobran siempre lo que cotizan.',
           'Para empujar el ticket, prendé la barra de envío gratis en el editor de diseño (Carrito de compras → “Mostrar barra de envío gratis”): toma el “Gratis desde” más bajo de tus medios activos y le muestra al cliente cuánto le falta.',
         ],
         blocks: [
@@ -91,6 +91,31 @@ export const ENVIOS = {
           },
         ],
       },
+      {
+        heading: 'Retiro en el local: avisá que está listo',
+        paragraphs: [
+          'En una venta de retiro no hay seguimiento: cuando el pedido está armado, abrí la venta y tocá “Lista para retirar”. El comprador recibe el aviso de que puede pasar a buscarlo (el email “Lista para retirar”, y WhatsApp si lo activaste), y la venta queda como “Lista para retirar”.',
+          'Los botones de los correos no aparecen en una venta de retiro: no hay nada que despachar.',
+        ],
+      },
+      {
+        heading: 'Si un envío queda “a revisar”',
+        paragraphs: [
+          'Puede pasar que el correo cree el envío y que la respuesta no llegue a guardarse acá (un corte, una demora). Para no pagar dos envíos, la venta no te deja crear otro y muestra un aviso: “Puede que … haya creado el envío de esta venta, pero no quedó guardado acá”, con lo que haya contestado el correo.',
+        ],
+        steps: [
+          'Entrá al panel del correo (Andreani, Zipnova o MiCorreo) y buscá el envío de esa venta.',
+          'Si está: tocá “Se creó: cargar el número” y pegá el número tal como figura ahí (en MiCorreo el botón es “Se creó: registrarlo”, porque el alta no trae número). Queda como un envío normal.',
+          'Si no está: tocá “Ya lo revisé: no se creó”. Se libera la venta y podés crear el envío de nuevo.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Confirmá “no se creó” solo después de mirar el panel del correo: si en realidad se creó, al volver a crearlo vas a tener un envío duplicado que se paga.',
+          },
+        ],
+      },
     ],
   },
 
@@ -127,9 +152,10 @@ export const ENVIOS = {
         steps: [
           'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Correo Argentino.',
           'Pegá el userToken y el passwordToken. Se guardan cifrados y nunca se vuelven a mostrar.',
-          'Cargá el código postal desde donde despachás.',
+          'Elegí el ambiente y cargá el “CP de origen (despacho)”: el código postal desde donde despachás.',
           'Definí el paquete estimado por unidad (peso y medidas): se usa para los productos que no tienen su peso y sus medidas cargados. Límites de Correo: 25 kg y 150 cm por lado.',
-          'Elegí qué ofrecer: domicilio, sucursal o ambos. Guardá y tocá “Probar cotización” para validar todo con datos reales.',
+          'Elegí qué ofrecer: envío a domicilio, retiro en sucursal de Correo o ambos, y tocá “Guardar”.',
+          'Volvé a abrirlo con “Editar” y tocá “Probar cotización”: valida todo con datos reales.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Correo Argentino'] }],
       },
@@ -152,24 +178,25 @@ export const ENVIOS = {
         heading: 'El flujo completo cuando te compran',
         paragraphs: [
           'Automático: la cotización, el precio (firmado por el servidor, no manipulable), la dirección o sucursal en la venta, y el aviso al cliente cuando marcás enviada.',
-          'Un click: “Crear envío en Correo Argentino” en la venta pagada — importa el envío a tu cuenta de MiCorreo con el destinatario y la dirección precargados, sin retipear nada.',
+          'Un click: “Crear envío en Correo Argentino” en la venta pagada — importa el envío a tu cuenta de MiCorreo con el destinatario y la dirección precargados, sin retipear nada. El alta queda registrada en la venta (“Correo Argentino · alta en MiCorreo”) y no se puede dar de alta dos veces.',
           'Manual (en el panel de MiCorreo, la API de Correo no lo permite de otra forma): pagar el envío, generar la etiqueta y obtener el número de seguimiento. Es igual en todas las plataformas que integran MiCorreo.',
         ],
       },
       {
         heading: 'Despachar un pedido, paso a paso',
         steps: [
-          'En la venta pagada, tocá “Crear envío en Correo Argentino”: se precargan el destinatario y la dirección — revisalos y confirmá.',
-          'El envío queda importado en tu cuenta de MiCorreo (con el número de tu orden).',
+          'En la venta pagada, tocá “Crear envío en Correo Argentino”: se precargan el destinatario y la dirección. Revisalos (la provincia viene en Buenos Aires: cambiala si va a otra) y tocá “Crear envío”. Si el comprador eligió sucursal, el código figura en la dirección de la venta.',
+          'El envío queda importado en tu cuenta de MiCorreo, con el número de tu pedido.',
           'Entrá al panel de MiCorreo: el envío ya está cargado. Pagalo y generá la etiqueta — recién ahí Correo te da el número de seguimiento.',
           'Imprimí la etiqueta, pegala al paquete y llevalo a tu sucursal de Correo.',
           'Volvé a la venta y tocá “Marcar enviada” con ese número de seguimiento: el cliente recibe el email (y WhatsApp si lo activaste) de “pedido en camino” automáticamente.',
+          'Con el número cargado, el botón “Seguimiento” de la venta te dice en qué anda el envío según Correo.',
         ],
       },
       {
         heading: 'Quién paga qué',
         paragraphs: [
-          'El costo del envío lo cobrás VOS en la venta (va sumado al total que paga el comprador por Mercado Pago). Después vos le pagás a Correo el envío real al generar la etiqueta en MiCorreo.',
+          'El costo del envío lo cobrás VOS en la venta (va sumado al total que paga el comprador, con el medio de pago que elija). Después vos le pagás a Correo el envío real al generar la etiqueta en MiCorreo.',
           'Si el peso y las medidas de tus productos están bien cargados, queda neutro. Los productos sin esos datos cotizan con el paquete por defecto: si varían mucho de tamaño, cargales los suyos.',
         ],
       },
@@ -200,7 +227,7 @@ export const ENVIOS = {
         heading: 'Qué necesitás',
         steps: [
           'Una cuenta en Zipnova con al menos un transporte habilitado y saldo.',
-          'Las credenciales de API: en el panel de Zipnova, Configuración → Integraciones → Gestionar credenciales y webhooks. Ahí generás el API Token y el API Secret.',
+          'Las credenciales de API: en el panel de Zipnova, Configuración → Integraciones → Gestionar credenciales. Ahí generás el API Token y el API Secret.',
           'Tu número de cuenta (account ID) — figura en el mismo panel.',
         ],
       },
@@ -211,8 +238,8 @@ export const ENVIOS = {
           'Pegá el API Token y el API Secret. Se guardan cifrados y nunca se vuelven a mostrar.',
           'Elegí el país de tu cuenta (define a qué servidor de Zipnova se habla) y cargá el número de cuenta.',
           'Origen: dejalo vacío para usar el origen por defecto de tu cuenta Zipnova, o poné el ID de una ubicación puntual.',
-          'Definí el paquete estimado por unidad (peso y medidas en cm), para los productos que no tengan los suyos, y guardá.',
-          'Usá “Probar cotización”: cotizar es gratis y valida todo el circuito con datos reales.',
+          'Definí el paquete estimado por unidad (peso y medidas en cm), para los productos que no tengan los suyos, y tocá “Guardar”.',
+          'Volvé a abrirlo con “Editar”: en “Probar cotización” poné una ciudad, provincia y CP y tocá “Cotizar”. Es gratis, no crea nada y valida todo el circuito con datos reales.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Zipnova'] }],
       },
@@ -235,7 +262,7 @@ export const ENVIOS = {
       {
         heading: 'Despachar un pedido, paso a paso',
         steps: [
-          'En la venta pagada, tocá “Crear envío en Zipnova”: se precargan el destinatario y la dirección — revisá y completá provincia y documento (Zipnova exige nombre, documento, email y teléfono).',
+          'En la venta pagada, tocá “Crear envío en Zipnova”: se precargan el destinatario y la dirección — revisá y completá provincia y documento (Zipnova exige nombre, documento, email y teléfono). Confirmá con “Crear envío”.',
           'Al confirmar, el envío queda creado y ves el número de Zipnova, el transporte asignado y su código de seguimiento.',
           'Tocá “Etiqueta PDF”: se descarga lista para imprimir y pegar en el paquete (si recién creaste el envío puede tardar unos minutos en estar disponible).',
           'Despachá según la forma de tu cuenta (retiro del transporte o entrega en punto de despacho).',
@@ -325,8 +352,8 @@ export const ENVIOS = {
         heading: 'Despachar un pedido, paso a paso',
         steps: [
           'En la venta pagada, tocá “Crear envío en Andreani”: se precargan el destinatario y la dirección.',
-          'Revisá los datos. Si el envío es a sucursal, activá esa opción y poné el número de la sucursal donde lo retiran.',
-          'Al confirmar, ves el número de seguimiento. Si el pedido va en varios bultos, cada uno tiene el suyo.',
+          'Revisá los datos. Si el envío es a sucursal, activá “Retiro en sucursal de Andreani” y poné el ID de la sucursal de retiro.',
+          'Tocá “Crear envío”: ves el número de seguimiento. Si el pedido va en varios bultos, cada uno tiene el suyo.',
           'Tocá “Etiqueta PDF” y pegá una etiqueta en cada paquete.',
           'Entregá los paquetes a Andreani según lo pactado en tu contrato.',
           'Usá “Seguimiento” cuando quieras saber por dónde va, y “Marcar enviada” en la venta para que el comprador reciba el aviso.',
@@ -371,8 +398,9 @@ export const ENVIOS = {
       {
         heading: 'Sobre los estados del seguimiento',
         paragraphs: [
-          'Andreani no publica la lista completa de estados que puede informar, así que traducimos los que conocemos y mostramos “Sin novedades” cuando aparece uno que no reconocemos. En ese caso no le avisamos nada al comprador: preferimos no decirle algo que no entendemos del todo.',
-          'El detalle completo del recorrido siempre lo ves en “Seguimiento”, tal como lo informa Andreani.',
+          '“Seguimiento” le pregunta a Andreani por el envío y te muestra el último estado: Generado, Despachado, En tránsito, En reparto, Visita fallida, En sucursal, Entregado o Devuelto. El estado queda anotado al lado del número, en la venta.',
+          'Andreani no publica la lista completa de estados que puede informar, así que traducimos los que conocemos y mostramos “Sin novedades” cuando aparece uno que no reconocemos. Para el recorrido completo, buscá el número de seguimiento en la web de Andreani.',
+          'Cuando Andreani informa “Entregado”, la página “Seguí tu pedido” del comprador lo muestra como entregado. El aviso de “pedido en camino” sale cuando vos marcás la venta como enviada, no por los cambios de estado de Andreani.',
         ],
       },
     ],
@@ -396,10 +424,17 @@ export const ENVIOS = {
       {
         heading: 'La cola de pedidos para preparar',
         paragraphs: [
-          'Lista todo lo cobrado y sin despachar, lo más viejo primero (es lo que más espera el comprador). Filtrá por carrier —Andreani, Zipnova, Correo Argentino, retiro en el local o envío propio— y por fecha de cobro.',
-          'Elegí los pedidos que vas a preparar juntos y usá las acciones de arriba.',
+          'La solapa “Pedidos para preparar” lista todo lo cobrado y sin despachar, lo más viejo primero (es lo que más espera el comprador). Filtrá por envío —Andreani, Zipnova, Correo Argentino, retiro en el local o envío propio— y por fecha de cobro. Cada pedido aparece con su número (#1042) y dice si ya tiene el envío creado.',
+          'Elegí los pedidos que vas a preparar juntos y usá los botones de arriba: “Lista de picking”, “Etiquetas” y “Remitos”.',
         ],
-        blocks: [{ type: 'path', segments: ['Ventas', 'Despacho'] }],
+        blocks: [
+          { type: 'path', segments: ['Ventas', 'Despacho'] },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Las etiquetas, los remitos y “Marcar como enviadas” también están en Ventas: elegí varias ventas de la lista y aparecen en la barra de arriba.',
+          },
+        ],
       },
       {
         heading: 'Lista de picking',
@@ -411,16 +446,16 @@ export const ENVIOS = {
       {
         heading: 'Etiquetas y remitos',
         paragraphs: [
-          'Etiquetas junta en un solo PDF las de Andreani y Zipnova de los pedidos elegidos, y te dice cuáles no tienen: los que todavía no tienen envío creado (se crea desde la venta) y los de Correo Argentino, que no entrega la etiqueta por sistema y se imprime desde MiCorreo.',
+          'Etiquetas junta en un solo PDF las de Andreani y Zipnova de los pedidos elegidos, y te dice cuáles no tienen: los que todavía no tienen envío creado (con el link “Crear el envío”, que abre la venta), los de Correo Argentino, que no entrega la etiqueta por sistema y se imprime desde MiCorreo, y los de retiro, que no llevan.',
           'Remitos arma una hoja por pedido con lo que va en la caja (sin precios: puede ser un regalo), la ubicación de cada producto y un QR para escanear el pedido.',
         ],
       },
       {
         heading: 'Despachar escaneando',
         steps: [
-          'Escaneá el QR del remito o el número de la etiqueta (#A1B2C3D4). También podés tocar “Escanear” en un pedido de la cola.',
-          'Escaneá cada producto al meterlo en la caja: la lista marca lo juntado, y si algo no va en ese pedido o sobra, avisa en el momento.',
-          'Con todo completo, cargá el seguimiento (si el envío ya está creado con el carrier, viene cargado) y tocá “Despachar”. El comprador recibe el aviso como siempre.',
+          'En la solapa “Despachar escaneando”, escaneá con la cámara (o un lector) el QR del remito. También podés tocar “Escanear” en un pedido de la cola, y ya entra elegido.',
+          'Escaneá cada producto al meterlo en la caja (código de barras o SKU): la lista marca lo juntado, y si algo no va en ese pedido o sobra, avisa en el momento.',
+          'Con todo completo, cargá el seguimiento (si el envío ya está creado con el correo, viene cargado) y tocá “Despachar”. En un pedido de retiro el botón es “Lista para retirar”. El comprador recibe el aviso como siempre.',
         ],
         blocks: [
           {

@@ -20,7 +20,7 @@ export const VENTAS = {
         heading: 'Conectá tu cuenta de Mercado Pago',
         paragraphs: [
           'En Configuración → Medios de pago, tocá “Conectá tu cuenta de Mercado Pago”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
-          'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras (requiere rol dueño o administrador).',
+          'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras con “Desconectar cuenta” (de entrada lo pueden hacer el dueño y los administradores; el resto del equipo ve la conexión en modo lectura).',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
       },
@@ -33,7 +33,7 @@ export const VENTAS = {
       {
         heading: 'Checkout Pro vs. Checkout integrado',
         paragraphs: [
-          'En ambos casos los datos de la tarjeta los procesa Mercado Pago: nunca tocan los servidores de tu tienda. Cambiás de modo cuando quieras y aplica al instante.',
+          'Con la cuenta conectada, en “¿Cómo querés cobrar?” elegís uno de los dos. En ambos casos los datos de la tarjeta los procesa Mercado Pago: nunca tocan los servidores de tu tienda. Cambiás de modo cuando quieras y aplica al instante para las compras nuevas.',
         ],
         blocks: [
           {
@@ -47,7 +47,7 @@ export const VENTAS = {
               ],
               [
                 'Medios de pago',
-                'Todos: tarjetas, dinero en cuenta, Rapipago, cuotas',
+                'Todos: tarjetas, dinero en cuenta, Rapipago, Pago Fácil, cuotas',
                 'Tarjetas de crédito y débito, con cuotas',
               ],
               ['Aprobación', 'La mejor tasa (el cliente ya está logueado en MP)', 'Muy buena'],
@@ -59,7 +59,7 @@ export const VENTAS = {
       {
         heading: 'Nombre en el resumen de la tarjeta',
         paragraphs: [
-          'Configurá hasta 22 caracteres que el comprador ve en el resumen de su tarjeta (ej: “MI MARCA”). Reduce desconocimientos y contracargos.',
+          'Configurá hasta 22 caracteres que el comprador ve en el resumen de su tarjeta (ej: “MI MARCA”) y tocá “Guardar”. Reduce desconocimientos y contracargos.',
         ],
       },
       {
@@ -79,7 +79,7 @@ export const VENTAS = {
       {
         heading: 'Si aparece “Hay un aviso de pago que no se pudo procesar”',
         paragraphs: [
-          'Mercado Pago le avisa a tu tienda cada vez que se aprueba un pago. Si uno de esos avisos no se pudo procesar, Medios de pago lo muestra arriba de todo, porque puede haber una venta cobrada que no quedó registrada. Tocá “Reintentar” en cada aviso; si vuelve a fallar, escribinos con el número de pago.',
+          'Mercado Pago le avisa a tu tienda cada vez que se aprueba un pago. Si uno de esos avisos no se pudo procesar después de varios intentos, Medios de pago lo muestra debajo de la tarjeta de Mercado Pago, porque puede haber una venta cobrada que no quedó registrada. Revisá ese pago en Mercado Pago y tocá “Reintentar” en cada aviso; si vuelve a fallar, escribinos con el número de pago. Si está todo bien, ese recuadro no aparece.',
         ],
       },
       {
@@ -143,11 +143,11 @@ export const VENTAS = {
       {
         heading: 'Configurarlo',
         steps: [
-          'En Configuración → Medios de pago, bajá hasta la tarjeta de Payway.',
-          'Cargá el número de comercio y las dos claves.',
-          'Elegí el ambiente: empezá en “Pruebas” hasta que Payway te certifique.',
+          'En Configuración → Medios de pago, buscá la tarjeta de Payway (al lado de la de Mercado Pago).',
+          'Cargá el número de comercio (site ID) y las dos claves.',
+          'Elegí el ambiente: empezá en “Pruebas (sandbox)” y pasá a “Producción — cobra de verdad” cuando Payway te certifique.',
           'Escribí el nombre que querés que aparezca en el resumen de la tarjeta del comprador.',
-          'Elegí las cuotas que vas a ofrecer y guardá.',
+          'En “Cuotas que ofrecés”, marcá los planes y tocá “Guardar”.',
           'Tocá “Probar conexión” para verificar que Payway responde.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago', 'Payway'] }],
@@ -155,7 +155,7 @@ export const VENTAS = {
       {
         heading: 'Las cuotas se acuerdan con Payway',
         paragraphs: [
-          'Payway no tiene forma automática de decirnos qué promociones y planes de cuotas tenés vigentes: eso se pacta con ellos y con los bancos. Las cuotas que elegís en el panel se muestran en el checkout sin recargo.',
+          'Payway no tiene forma automática de decirnos qué promociones y planes de cuotas tenés vigentes: eso se pacta con ellos y con los bancos. Las cuotas que elegís en el panel se muestran en el checkout sin recargo, y son las únicas que se aceptan al cobrar.',
         ],
         blocks: [
           {
@@ -188,8 +188,15 @@ export const VENTAS = {
       {
         heading: 'Si un pago queda en duda',
         paragraphs: [
-          'Payway no nos avisa solo cuando algo cambia, así que ante un corte de conexión le preguntamos directamente qué pasó con ese pago y adoptamos su respuesta. Nunca reintentamos por las nuestras: es así como se cobra dos veces.',
-          'Si ves una venta que quedó sin confirmar, no la vuelvas a cobrar: consultá el estado en el panel de Payway antes de hacer nada.',
+          'Payway no nos avisa solo cuando algo cambia. Si un cobro quedó en el medio (se cortó la conexión, el banco lo dejó en revisión o pidió una validación extra), le volvemos a preguntar solos por ese pago durante tres días: seguido al principio y cada vez más espaciado. Cuando responde, la venta queda Pagada (con su email y su factura, como cualquier cobro) o se cancela y el stock vuelve a la venta. Nunca reintentamos el cobro: es así como se cobra dos veces.',
+          'Si ves una venta que sigue pendiente, no la vuelvas a cobrar: consultá el estado en el panel de Payway antes de hacer nada.',
+        ],
+      },
+      {
+        heading: 'Reembolsar una venta cobrada con Payway',
+        paragraphs: [
+          'Igual que con Mercado Pago: abrí la venta y tocá “Reembolsar”. La plata vuelve por Payway a la tarjeta del comprador, total o en parte.',
+          'Payway no avisa si devolvés desde su portal: hacé los reembolsos siempre desde el panel, así la venta, el stock y la nota de crédito quedan al día. Si al reembolsar ves “Payway ya hizo la devolución, pero el pedido cambió…”, no lo repitas: recargá y revisá la venta.',
         ],
       },
     ],
@@ -215,11 +222,11 @@ export const VENTAS = {
       {
         heading: 'Cómo funciona la transferencia',
         steps: [
-          'Prendé “Transferencia o depósito”, poné el % de descuento y cargá el titular, el CBU/CVU o el alias y, si querés, instrucciones (a dónde mandar el comprobante).',
-          'Elegí cuánto tiempo te guardamos el stock esperando el pago (de 12 horas a una semana).',
-          'En el checkout el comprador elige Transferencia, ve el total con descuento y confirma el pedido. Le mostramos los datos de tu cuenta en la pantalla final y se los mandamos por email (plantilla “Instrucciones de pago”).',
-          'El pedido queda en Ventas como Pendiente. Cuando ves la plata en tu cuenta, abrí la venta y tocá “Registrar pago”: pasa a Pagada, descuenta el stock, le avisa al comprador y, si facturás al cobrar, se factura.',
-          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta. También podés cancelarla vos con “Cancelar venta”.',
+          'Prendé “Transferencia o depósito”, poné el % de descuento y cargá el titular, su CUIT, el banco o billetera, el CBU/CVU o el alias y, si querés, instrucciones (a dónde mandar el comprobante). Tocá “Guardar”.',
+          'Elegí “Cuánto te guardamos el stock” esperando el pago (de 12 horas a una semana).',
+          'En el checkout el comprador elige Transferencia, ve el total con descuento y toca “Confirmar pedido”. Le mostramos los datos de tu cuenta en la pantalla final y se los mandamos por email (plantilla “Instrucciones de pago”). Los datos de la cuenta no se publican en la tienda.',
+          'El pedido queda en Ventas como Pendiente, con el aviso “falta registrar el pago” y hasta cuándo. Cuando ves la plata en tu cuenta, abrí la venta y tocá “Registrar pago”: pasa a Pagada, descuenta el stock, le avisa al comprador y, si facturás al cobrar, se factura.',
+          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta (al comprador le avisamos solo si tenés prendida la plantilla “Cancelación de compra”). También podés cancelarla vos con “Cancelar venta”.',
         ],
         blocks: [
           {
@@ -233,12 +240,18 @@ export const VENTAS = {
             tone: 'tip',
             text: 'El total lo calcula siempre el servidor. Aunque alguien toque la página, el pedido se crea con el descuento que configuraste vos.',
           },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Que no se te pase ninguna',
+            text: 'En Inicio, “Para hacer hoy” te dice cuántas transferencias hay por confirmar y con “Revisar” te lleva a Ventas ya filtrado. En Ventas también podés filtrar por cobro: Transferencia o Efectivo.',
+          },
         ],
       },
       {
         heading: 'Efectivo al retirar',
         paragraphs: [
-          'Si lo prendés, aparece solo cuando el comprador elige retirar en tu local. Lleva el mismo descuento y el mismo plazo que la transferencia; cuando te paga en el mostrador, registrás el pago desde la venta.',
+          'Si lo prendés, aparece solo cuando el comprador elige retirar en tu local (funciona aunque no ofrezcas transferencia). Lleva el mismo descuento y el mismo plazo que la transferencia; cuando te paga en el mostrador, registrás el pago desde la venta con “Registrar pago”.',
         ],
       },
       {
@@ -265,8 +278,8 @@ export const VENTAS = {
       {
         heading: 'El ciclo de una venta',
         paragraphs: [
-          'Cuando un cliente paga, la orden aparece en Ventas como “Pagada” (la confirmación llega por Mercado Pago automáticamente, aunque el cliente cierre el navegador).',
-          'Al expandir una venta ves los productos, el cliente (nombre, email, teléfono, DNI/CUIT y el link “Ver en Clientes” a su ficha), el envío (medio, dirección, seguimiento y en qué anda), la forma de cobro, por dónde entró la venta y las notas del pedido.',
+          'Cada compra aparece en Ventas como “Pendiente” mientras espera el pago y pasa a “Pagada” cuando se acredita. Con Mercado Pago y Payway la confirmación llega sola, aunque el cliente cierre el navegador; una transferencia o un pago en efectivo los registrás vos (ver “Transferencia, efectivo y cuotas sin interés”).',
+          'Al expandir una venta ves los productos (con el cupón y el descuento por transferencia o efectivo, si hubo), el cliente (nombre, email, teléfono, DNI/CUIT y el link “Ver en Clientes” a su ficha), el envío (medio, dirección, seguimiento y en qué anda), la forma de cobro, el canal por el que entró, las notas del pedido y su factura.',
           'Una venta “Enviada” es una que despachaste (o marcaste enviada): el sistema no se entera de cuándo la recibe el comprador, por eso no dice “Entregada”.',
         ],
         blocks: [
@@ -280,11 +293,11 @@ export const VENTAS = {
       {
         heading: 'El número de venta, buscar y exportar',
         paragraphs: [
-          'Cada venta tiene un número corto, como #A1B2C3D4: es el mismo que recibe el comprador, el que va en la etiqueta del correo y el del CSV. Buscá por ese número, por email o por nombre, y filtrá por estado, por fechas (desde / hasta, días completos), por canal (tienda online, venta manual o presupuesto), por envío (por despachar, enviada, lista para retirar…) y por forma de cobro (pago online, efectivo, transferencia, cuenta corriente). La búsqueda, los filtros y la página quedan en la dirección: si recargás o volvés atrás no se pierden, y podés pasarle el link a alguien del equipo.',
-          'La columna “Envío” dice en qué anda cada venta cobrada: por despachar, enviada, para preparar el retiro o lista para retirar. Las ventas de Mercado Libre tienen su propio listado, en Canales de venta → Mercado Libre → Ventas.',
+          'Cada venta tiene su número de pedido, como #1042: es el mismo que recibe el comprador, el que va en la etiqueta del correo y el del CSV (más en “Números de pedido, «Seguí tu pedido» y la cuenta del comprador”). Buscá por ese número (“1042” o “#1042”), por email o por nombre, y filtrá por estado, por fechas (desde / hasta, días completos), por canal (tienda online, venta manual o presupuesto), por envío (por despachar, enviada, lista para retirar…) y por forma de cobro (pago online, efectivo, transferencia, cuenta corriente). La búsqueda, los filtros y la página quedan en la dirección: si recargás o volvés atrás no se pierden, y podés pasarle el link a alguien del equipo.',
+          'La columna “Envío” dice en qué anda cada venta cobrada: por despachar, enviada, preparar para retiro o lista para retirar. Las ventas de Mercado Libre tienen su propio listado, en Canales de venta → Mercado Libre → Ventas.',
           'En el celular, cada venta es una tarjeta con el número, el cliente, el total, el estado y la acción del momento (por ejemplo “Marcar enviada”). Tocala para ver el detalle.',
-          'Arriba ves lo facturado y las ventas de los últimos 30 días, y “Por despachar”: tocalo y la lista se filtra a las ventas pagadas que falta enviar.',
-          '“Exportar” baja un CSV, listo para Excel, con las ventas que estás viendo (respeta la búsqueda y el filtro): número, fecha, estado, comprador, productos, montos, envío, seguimiento, cupón y de dónde vino la venta.',
+          'Arriba ves lo facturado, las ventas cobradas y el ticket promedio de los últimos 30 días (si tu rol puede ver estadísticas), y “Por despachar”: tocalo y la lista se filtra a las ventas cobradas que falta enviar.',
+          '“Exportar” baja un CSV, listo para Excel, con las ventas que estás viendo (respeta la búsqueda y los filtros): número, fecha, estado, comprador, productos, montos, envío, seguimiento, cupón, canal, forma de cobro y de dónde vino la venta.',
         ],
         blocks: [{ type: 'path', segments: ['Ventas', 'Lista de ventas'] }],
       },
@@ -292,15 +305,21 @@ export const VENTAS = {
         heading: 'Despachar un pedido',
         steps: [
           'Expandí la venta y tocá “Marcar enviada”.',
-          'Cargá el código de seguimiento (opcional).',
-          'El cliente recibe el email de “pedido en camino” automáticamente.',
+          'Cargá el código de seguimiento (opcional). Si después lo tenés que corregir o agregar, usá “Editar seguimiento”.',
+          'El cliente recibe el email de “Confirmación de envío” con el link para seguir su pedido.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
             title: 'Pedidos para retirar',
-            text: 'Si el comprador eligió retiro en punto, el botón dice “Lista para retirar”: al tocarlo le avisamos que ya puede pasar a buscarlo, y la venta queda como “Lista para retirar”.',
+            text: 'Si el comprador eligió retirar en tu local, el botón dice “Lista para retirar”: al tocarlo le avisamos que ya puede pasar a buscarlo, y la venta queda como “Lista para retirar”.',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Envíos con Correo Argentino, Zipnova o Andreani',
+            text: 'Si tenés un carrier conectado, el envío se genera desde la misma venta, con su botón. Si alguna vez ves “Puede que … haya creado el envío de esta venta, pero no quedó guardado acá”, revisá el panel del carrier y resolvelo ahí mismo con “Se creó: cargar el número” o “Ya lo revisé: no se creó” (ver “Medios de envío”).',
           },
           {
             type: 'callout',
@@ -314,12 +333,12 @@ export const VENTAS = {
         heading: 'Trabajar con varias ventas a la vez',
         steps: [
           'Tildá las ventas en la lista (o todas las de la página): aparece una barra con “N seleccionadas”. La selección se mantiene aunque cambies de página.',
-          '“Marcar como enviadas” (hasta 100 por vez): cada comprador recibe su aviso. Las que no estaban pagadas o ya estaban enviadas se saltean.',
+          '“Marcar como enviadas” (hasta 100 por vez): cada comprador recibe su aviso, y a los que retiran en el local les avisamos que su pedido está listo. Las que no estaban cobradas o ya estaban enviadas se saltean.',
           '“Etiquetas” junta en un solo PDF las etiquetas de las ventas que ya tienen un envío de carrier generado (el mismo PDF que arma Despacho). Las que no tienen envío, o cuyo carrier no da etiqueta, se listan con el motivo.',
           '“Remitos” baja un PDF con un remito por venta, para imprimir y meter en la caja.',
-          '“Facturar” emite la factura de cada venta cobrada, de a una; las que ya tenían factura no se vuelven a facturar. Si la facturación todavía no está configurada, el botón dice “Configurá la facturación”.',
-          '“Exportar” baja un CSV solo con las ventas elegidas.',
-          'Al terminar cada acción ves cuáles salieron y cuáles no, con el motivo; las que fallaron quedan tildadas para reintentar.',
+          '“Facturar” emite en ARCA la factura de cada venta cobrada, de a una, y te muestra el avance (“Facturando 3 de 10…”). Las que no están cobradas se saltean y las que ya tenían factura no se vuelven a facturar. Si la facturación todavía no está configurada, en lugar del botón ves “Configurá la facturación”.',
+          '“Exportar” baja un CSV solo con las ventas elegidas. “Deseleccionar” vacía la selección.',
+          'Al terminar cada acción ves cuáles salieron y cuáles no, con el número de cada venta (#1042) y el motivo; las que fallaron quedan tildadas para reintentar.',
         ],
         blocks: [
           {
@@ -364,14 +383,15 @@ export const VENTAS = {
       {
         heading: 'Reembolsos totales y parciales',
         paragraphs: [
-          'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional), y la orden pasa a “Reembolsada” o “Reembolso parcial”. Qué pasa con la plata depende de cómo se cobró, y el diálogo te lo dice antes de confirmar: si se pagó online, vuelve por Mercado Pago; si fue en efectivo o por transferencia, la devolvés vos; si fue en cuenta corriente, se le baja la deuda al cliente.',
-          'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo. Cuando la venta queda reembolsada del todo, al comprador le llega el aviso de cancelación y, si tenía factura, sale sola la nota de crédito.',
+          'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional), y la orden pasa a “Reembolsada” o “Reembolso parcial”. Qué pasa con la plata depende de cómo se cobró: si se pagó online, vuelve por el mismo medio (Mercado Pago o Payway) a la tarjeta o cuenta del comprador; si fue en efectivo o por transferencia, la devolvés vos; si fue en cuenta corriente, se le baja la deuda al cliente.',
+          'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo.',
+          'Cuando la venta queda reembolsada del todo, le avisamos al comprador por email (con tu plantilla “Cancelación de compra” si la tenés prendida; si no, con un aviso estándar de reembolso) y, si tenía factura, sale sola la nota de crédito. Un reembolso parcial no manda aviso ni nota de crédito.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
-            text: 'Reembolsar es de los roles dueño, administrador y finanzas (salvo que cambies los permisos). Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos.',
+            text: 'Reembolsar es de los roles dueño, administrador y finanzas (salvo que cambies los permisos). Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos; los de Payway no, así que hacelos desde acá.',
           },
         ],
       },
@@ -398,15 +418,24 @@ export const VENTAS = {
       {
         heading: 'Cancelar una venta que no se cobró',
         paragraphs: [
-          'Una venta pendiente de pago (por ejemplo, un link de Mercado Pago que el cliente nunca pagó) se cancela desde su detalle con “Cancelar venta”. Podés dejar un motivo.',
-          'Al cancelarla se anula el link de pago (deja de aceptar pagos), se libera el stock que tenía reservado y queda escrito quién la canceló, cuándo y por qué. Una venta ya cobrada no se cancela: se reembolsa.',
+          'Una venta pendiente de pago (por ejemplo, un link de Mercado Pago que el cliente nunca pagó, o una transferencia que no llegó) se cancela desde su detalle con “Cancelar venta”. Podés dejar un motivo.',
+          'Al cancelarla se anula el link de pago (deja de aceptar pagos), se libera el stock que tenía reservado y queda escrito quién la canceló, cuándo y por qué. Al comprador no le llega ningún aviso: si hace falta, escribile vos. Una venta ya cobrada no se cancela: se reembolsa.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si te avisamos que no pudimos anular el link en Mercado Pago, la venta queda cancelada igual: si el cliente paga de todos modos, vas a tener que devolverle la plata desde Mercado Pago.',
+          },
         ],
       },
       {
         heading: 'Carritos abandonados',
         paragraphs: [
-          'En Ventas → Carritos abandonados ves quiénes dejaron productos sin pagar. Si activás el email de recuperación, se les envía un recordatorio automático.',
+          'En Ventas → Carritos abandonados ves los checkouts de los últimos 30 días que no terminaron en compra, y el “Valor recuperable”: lo que suman los que dejaron su email.',
+          'A esos les mandamos solos un recordatorio, una sola vez por carrito, más o menos una hora después de que lo dejaron, con la plantilla “Carritos abandonados” de E-mails automáticos (viene prendida; ahí la editás o la apagás). No le llega a quien se dio de baja de tus emails.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'E-mails automáticos'] }],
       },
     ],
   },
@@ -419,9 +448,9 @@ export const VENTAS = {
       {
         heading: 'Cómo es el flujo',
         steps: [
-          'Entrega: el cliente deja su email, elige el medio de envío (domicilio o retiro), completa sus datos (nombre, teléfono, dirección) y su DNI o CUIT para la facturación.',
-          'Pago: ve el resumen de todo lo elegido (con links “Cambiar”), puede agregar notas del pedido y paga según el modo que configures: redirigido a Mercado Pago o con el formulario de tarjeta embebido.',
-          'El costo de envío se suma al total automáticamente y siempre se calcula en el servidor: el cliente no puede manipularlo.',
+          'Entrega: el cliente deja su email, elige el medio de envío (a domicilio, retiro o la cotización de un carrier), completa sus datos (nombre, apellido, teléfono y DNI o CUIT) y, si va a domicilio, la dirección. Si tiene cuenta y una dirección guardada, el formulario se completa solo.',
+          'Pago: ve el resumen de todo lo elegido (con links “Cambiar”), puede agregar la nota del pedido y elige cómo pagar entre lo que tengas activo: Mercado Pago (redirigido o con el formulario de tarjeta en tu tienda, según el modo), tarjeta con Payway, transferencia o efectivo al retirar.',
+          'El costo de envío se suma al total automáticamente y siempre se calcula en el servidor: el cliente no puede manipularlo. Si el medio de envío tiene “gratis desde” un monto y la compra lo alcanza, el resumen lo muestra gratis.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Opciones del checkout'] }],
       },
@@ -459,13 +488,19 @@ export const VENTAS = {
       {
         heading: 'Cupones en el checkout',
         paragraphs: [
-          'El cliente puede aplicar un cupón de descuento desde el resumen del pedido. El descuento se valida y recalcula en el servidor antes de cobrar.',
+          'El cliente puede aplicar un cupón de descuento desde el resumen del pedido (o traerlo ya aplicado desde el carrito). El descuento se valida y recalcula en el servidor antes de cobrar.',
         ],
       },
       {
         heading: 'Si no configuraste envíos',
         paragraphs: [
-          'El paso de entrega se omite y el checkout pide solo los datos de contacto — útil para productos digitales o coordinación manual. Igual te recomendamos crear al menos un medio de envío.',
+          'El checkout no ofrece envío: el comprador deja solo su email y sus datos (sin dirección) y pasa al pago — útil para productos digitales o coordinación manual. Igual te recomendamos crear al menos un medio de envío.',
+        ],
+      },
+      {
+        heading: 'Si no tenés ningún medio de pago activo',
+        paragraphs: [
+          'En vez del checkout, el comprador ve “Comprá escribiéndonos”: un botón para mandarte el pedido por WhatsApp (el número del botón de WhatsApp o el de Contacto) o por email, con el carrito ya escrito. Conectá al menos un medio de pago para vender online.',
         ],
       },
     ],
@@ -480,7 +515,7 @@ export const VENTAS = {
         heading: 'Crear un cupón',
         steps: [
           'En Cupones → Crear cupón, elegí el código (ej: BIENVENIDA10): es lo que el cliente escribe en el carrito.',
-          'Definí el tipo: Porcentaje, Monto fijo o Envío gratis (el envío le sale $0, sea cual sea el medio que elija).',
+          'Definí el tipo de descuento: Porcentaje, Monto fijo o Envío gratis (el envío le sale $0, sea cual sea el medio que elija).',
           'Opcional: compra mínima, vigencia (válido desde / hasta) y límite de usos.',
           'Dejalo activo. El cliente lo ingresa en el carrito o en el checkout y el descuento se aplica al instante; si lo puso en el carrito, viaja solo al checkout.',
         ],
@@ -497,7 +532,7 @@ export const VENTAS = {
         heading: 'Buenas prácticas',
         paragraphs: [
           'Usá códigos cortos y memorables. Poné vigencia para generar urgencia. La columna “Usos” de la lista muestra cuántas veces se usó cada uno (y el máximo, si le pusiste), y el reporte de cupones (Estadísticas → Reporte de cupones) cuánta plata moviste con ellos.',
-          'Desde el menú de cada cupón lo pausás sin borrarlo. El límite de usos es total, no por cliente.',
+          'Desde el menú de cada cupón lo pausás sin borrarlo (“Pausar” / “Activar”) o lo eliminás. El límite de usos es total, no por cliente, y un uso se cuenta cuando la venta se cobra, no cuando alguien lo prueba en el carrito.',
         ],
         blocks: [
           {
@@ -600,7 +635,7 @@ export const VENTAS = {
       {
         heading: 'El panel del canal',
         paragraphs: [
-          'En el menú, Canales de venta → Mercado Libre. Tiene cuatro pestañas: Ventas (con las métricas de los últimos 30 días), Preguntas (respondé las pendientes ahí mismo), Publicaciones (vinculá cada una con tu catálogo, o publicá productos nuevos) y Reclamos.',
+          'En el menú, Canales de venta → Mercado Libre. Tiene cuatro pestañas: Ventas (con las métricas de los últimos 30 días y el botón “Mensajes” de cada venta), Preguntas (respondé las pendientes ahí mismo), Publicaciones (vinculá cada una con tu catálogo, o publicá productos nuevos) y Reclamos. Cada persona ve las pestañas que su rol permite: atender Mercado Libre y publicar son permisos distintos.',
         ],
         blocks: [{ type: 'path', segments: ['Canales de venta', 'Mercado Libre'] }],
       },
@@ -609,7 +644,8 @@ export const VENTAS = {
         steps: [
           'En la pestaña Publicaciones, tocá “Vincular” en cada publicación y elegí el producto (y variante) de tu catálogo que le corresponde.',
           'Activá “Sincronizar stock” en Configuración → Mercado Libre.',
-          'Desde ahí: cada venta en ML descuenta el stock local automáticamente, y los cambios de stock locales se empujan a las publicaciones cada ~5 minutos.',
+          'Desde ahí: cada venta en ML descuenta el stock local automáticamente (y lo devuelve si la venta se cancela), y los cambios de stock locales se empujan a las publicaciones cada ~5 minutos.',
+          'Cada publicación vinculada tiene sus propios interruptores “Stock” y “Precio” en la pestaña Publicaciones: apagalos en la que quieras manejar a mano sin cortar la sincronización del resto.',
         ],
         blocks: [
           {
@@ -658,9 +694,15 @@ export const VENTAS = {
         steps: [
           'En Publicaciones → “Publicar un producto en ML”, elegí un producto activo de tu catálogo.',
           'Mercado Libre sugiere la categoría según el título — elegí la correcta (una categoría mal elegida puede hacer que ML pause la publicación).',
-          'Al publicar, la publicación nace vinculada: el stock ya queda sincronizado.',
+          'Tocá “Publicar”: se crea con el título, las fotos, la descripción, los datos de la ficha técnica que Mercado Libre reconoce y el stock del producto (menos el colchón anti-sobreventa), y nace vinculada.',
         ],
         blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Con qué precio se publica',
+            text: 'Con “Sincronizar precios” prendido, sale con el precio de tu catálogo más el “Recargo para Mercado Libre (%)”. Con la sincronización de precios apagada, sale al mismo precio que en tu tienda: el recargo no se aplica.',
+          },
           {
             type: 'callout',
             tone: 'info',
@@ -706,7 +748,14 @@ export const VENTAS = {
         steps: [
           'Andá a Productos → Costos: vas a ver cada variante con su precio y un campo para el costo (en pesos).',
           'Cargá el costo y tocá Guardar. El margen se calcula al instante para que veas si estás vendiendo demasiado barato.',
-          'Para catálogos grandes usá el CSV: la plantilla de Exportar/Importar ahora tiene la columna «Costo». Exportá, completá esa columna en Excel y volvé a importar.',
+          'Para catálogos grandes usá el CSV: la plantilla de Exportar/Importar tiene la columna «Costo». Exportá, completá esa columna en Excel y volvé a importar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Si cargás tus compras en Compras e importaciones, al recibir la mercadería el costo de cada variante se actualiza solo con lo que te costó de verdad puesta en el depósito, con los gastos que cargaste en esa compra (flete, despachante, impuestos) repartidos entre los productos.',
+          },
         ],
       },
       {
@@ -720,20 +769,21 @@ export const VENTAS = {
       {
         heading: 'Por qué puede decir «X de Y ventas tienen costo»',
         paragraphs: [
-          'La ganancia solo se calcula sobre las ventas cuyos productos tenían costo cargado al momento de venderse — el resto se excluye para no inventar números. A medida que cargues costos, las ventas nuevas van a entrar completas.',
+          'La ganancia solo se calcula sobre las ventas cuyos productos tenían costo cargado al momento de venderse — el resto se excluye para no inventar números. Con “Cargar costos” vas directo a Productos → Costos. A medida que cargues costos, las ventas nuevas van a entrar completas.',
+          'Si ninguna venta del período tiene costo, en lugar de los números ves ese aviso. Y si en el período no hubo ventas, te lo dice y te ofrece mirar un período más largo: no es que falten costos.',
           'El envío cobrado al cliente no se cuenta como ganancia: se asume que cubre lo que le pagás al correo.',
         ],
       },
       {
         heading: 'Ganancia por canal y Mercado Libre',
         paragraphs: [
-          '“Ganancia por canal” separa lo que te deja cada origen de venta, según la marca de origen (utm_source) del link que trajo al comprador: redes, email, publicidad o directo. Cómo marcar tus links está en el artículo “Estadísticas”. La tarjeta “Canal Mercado Libre” usa la comisión real que cobró ML en cada venta, así ves si ese canal te conviene de verdad o solo te mueve volumen.',
+          '“Ganancia por canal” separa lo que te deja cada origen de venta, según la marca de origen (utm_source) del link que trajo al comprador: redes, email, publicidad o directo. Cómo marcar tus links está en el artículo “Estadísticas”. La tarjeta “Canal Mercado Libre” usa la comisión real que cobró ML en cada venta, así ves si ese canal te conviene de verdad o solo te mueve volumen. Ojo: ahí el costo es el de HOY de las variantes vinculadas (no el del día de la venta), y si dice “sin dato” en comisiones, traelas con “Importar últimas ventas” en Configuración → Mercado Libre.',
         ],
       },
       {
         heading: 'El retorno real de tu publicidad en Meta',
         paragraphs: [
-          'Abajo de todo, en “Pauta de Meta Ads”, tocá “Conectar Meta Ads”, autorizá con tu usuario de Facebook y elegí la cuenta publicitaria. Desde ahí ves el gasto del período, la ganancia real del mismo período y el ROAS real, también por campaña.',
+          'Abajo de todo, en “Pauta de Meta Ads”, tocá “Conectar Meta Ads”, autorizá con tu usuario de Facebook y elegí la cuenta publicitaria. Desde ahí ves el gasto del período, la ganancia real del mismo período y el ROAS real, también por campaña. Esta sección aparece siempre, aunque todavía no tengas ventas o costos cargados, para que puedas conectarla desde el primer día.',
           'El ROAS real es ganancia ÷ gasto, no facturación ÷ gasto como lo calcula Meta. Por eso da más bajo, y por eso sirve: menos de 1 (en rojo) significa que la publicidad te cuesta más de lo que te deja.',
         ],
         blocks: [
@@ -765,9 +815,10 @@ export const VENTAS = {
         steps: [
           'En Ventas → Presupuestos, tocá "Nuevo presupuesto".',
           'Elegí el cliente de la agenda. Si tiene lista de precios asignada, los precios se cargan de esa lista solos.',
-          'Agregá los productos buscándolos por nombre o SKU, con la cantidad de cada uno.',
-          'Poné hasta cuándo vale. Por defecto son 15 días.',
-          'Guardá, y cuando se lo mandes marcalo como enviado.',
+          'Agregá los productos buscándolos por nombre o SKU, con la cantidad de cada uno. Si dejás un precio vacío, se completa con el que le toca al cliente; lo podés cambiar línea por línea.',
+          'Si querés, poné un “Descuento ($)” sobre el total y unas “Notas” con las condiciones (entrega, formas de pago).',
+          'En “Válido hasta” poné hasta cuándo vale. Por defecto son 15 días.',
+          'Tocá “Guardar”. Con “Imprimir” lo pasás a papel o a PDF para mandarlo, y cuando se lo mandes tocá “Marcar como enviado”.',
         ],
         blocks: [
           {
@@ -788,15 +839,15 @@ export const VENTAS = {
       {
         heading: 'Cuando el cliente contesta',
         paragraphs: [
-          'Si acepta, tocás "El cliente aceptó" y elegís cómo se cobra: efectivo, transferencia o cuenta corriente. Se crea la venta con los precios del presupuesto, se descuenta el stock y sale la factura si tenés la facturación automática activa.',
-          'Si rechaza, lo marcás como rechazado y podés dejar el motivo. Después se puede reabrir para renegociarlo: no hace falta empezar de cero.',
+          'Si acepta, tocás "El cliente aceptó" y elegís cómo se cobra: efectivo, transferencia o cuenta corriente. Se crea la venta con los precios del presupuesto, se descuenta el stock y sale la factura si tenés la facturación automática activa. El presupuesto queda con el link "Se convirtió en una venta — verla en Ventas" y ya no se edita: si hay que cambiar algo, se hace sobre la venta.',
+          'Si rechaza, tocás "El cliente lo rechazó". Después lo podés reabrir con "Reabrir para renegociar": no hace falta empezar de cero.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
             title: 'Un presupuesto vencido no se acepta',
-            text: 'Con inflación, cerrar al precio del mes pasado es vender a pérdida. Para poder aceptarlo hay que extender la validez, que es un botón aparte justamente para que sea una decisión y no un descuido.',
+            text: 'Con inflación, cerrar al precio del mes pasado es vender a pérdida. Para poder aceptarlo, revisá los precios y tocá “Extender 15 días más”: es un botón aparte justamente para que sea una decisión y no un descuido.',
           },
         ],
       },
@@ -854,7 +905,8 @@ export const VENTAS = {
       {
         heading: 'Seguí tu pedido (sin cuenta)',
         paragraphs: [
-          'En /seguimiento el comprador escribe el email con el que compró y el número de pedido, y ve los pasos (recibido, pago acreditado, despachado o listo para retirar, entregado), el link del correo para seguir el envío y el detalle de la compra. Los mails de confirmación traen un link que lo abre directo, sin escribir nada.',
+          'En /seguimiento el comprador escribe el email con el que compró y el número de pedido, y ve los pasos (recibido, pago acreditado, despachado o listo para retirar, entregado), el link del correo para seguir el envío y el detalle de la compra. Si pagó por transferencia o va a pagar al retirar y todavía no registraste el pago, ahí mismo ve cuánto y cómo pagar. Los mails de confirmación traen un link que lo abre directo, sin escribir nada.',
+          '“Entregado” se marca solo con los envíos de Andreani y Zipnova creados desde el panel, que nos avisan cuando llegan. Con el resto, el último paso que ve el comprador es “Despachado”.',
           'El link está en el pie de la tienda, en “Mi cuenta” y en los mails. Si el email o el número no coinciden, la respuesta es siempre la misma: nadie puede averiguar quién compró en tu tienda probando emails. Y hay un tope de intentos por conexión.',
         ],
       },

@@ -10,7 +10,7 @@ export const EQUIPO = {
         heading: 'Agregar a alguien',
         steps: [
           'En Configuración → Usuarios, tocá “Agregar usuario”, poné su email (y su nombre, si querés), elegí el rol y tocá “Agregar”.',
-          'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña.',
+          'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña. Si ya tenía (por ejemplo, porque trabaja en otra tienda del grupo), entra con la contraseña de siempre.',
           'Listo: al entrar al panel ve solo las secciones y acciones que tiene habilitadas.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Usuarios'] }],
@@ -39,7 +39,7 @@ export const EQUIPO = {
               ],
               [
                 'Vendedor',
-                'Ventas (ver, registrar y despachar), presupuestos, Mercado Libre, clientes, chat y mensajes',
+                'Ventas (ver, registrar y despachar), presupuestos, Mercado Libre, clientes, chat, mensajes, reseñas y estadísticas',
                 'Devolver plata, ver costos ni configurar',
               ],
               [
@@ -54,7 +54,7 @@ export const EQUIPO = {
               ],
               [
                 'Soporte',
-                'Chat posventa, mensajes, preguntas de Mercado Libre y ver las ventas',
+                'Chat posventa, mensajes, reseñas, preguntas de Mercado Libre y ver las ventas y los clientes',
                 'Modificar ventas o configuración',
               ],
             ],
@@ -71,7 +71,8 @@ export const EQUIPO = {
         steps: [
           'En Configuración → Roles y permisos tenés una grilla: cada fila es una funcionalidad, cada columna un rol.',
           'Tildá o destildá: vale desde el próximo clic de esa gente, sin que tengan que volver a entrar.',
-          'Lo que cambiaste respecto de fábrica queda marcado con un punto; “Restaurar” vuelve el rol a como venía.',
+          'Lo que cambiaste respecto de fábrica queda marcado con un punto; “Restaurar”, arriba de la columna, vuelve el rol a como venía (las excepciones de cada persona se mantienen).',
+          'Lo que mueve plata, toca la facturación o da más accesos lleva la marca “sensible”: pensalo dos veces antes de dárselo a un rol.',
           'Algunas cosas necesitan otra para servir (devolver plata necesita ver las ventas): se tildan juntas.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Roles y permisos'] }],
@@ -80,9 +81,10 @@ export const EQUIPO = {
         heading: 'Excepciones para una persona',
         steps: [
           'Si a alguien puntual le hace falta algo que su rol no trae (o al revés), no hace falta cambiarle el rol.',
-          'En Configuración → Usuarios, tocá el botón “Permisos de esta persona” de su fila, tildá o destildá y guardá.',
+          'En Configuración → Usuarios, tocá el ícono de ajustes de su fila (“Permisos de esta persona”), tildá o destildá y guardá.',
           'Esa persona queda marcada como “Personalizado”. “Volver a lo del rol” le saca las excepciones.',
-          'Si le cambiás el rol, las excepciones se borran: eran para el puesto anterior.',
+          'Si le cambiás el rol, las excepciones se borran: eran para el puesto anterior. El panel te avisa antes.',
+          'La columna “Accesos sensibles” cuenta cuántos permisos de ese tipo tiene cada persona: sirve para revisar de un vistazo quién puede devolver plata o sumar gente.',
         ],
       },
       {
@@ -104,7 +106,7 @@ export const EQUIPO = {
               'Nadie asigna un rol por encima del propio ni toca a alguien de su mismo rango.',
               'Solo un dueño puede nombrar o modificar dueños, y la tienda nunca queda sin dueño.',
               'Crear tiendas nuevas es de dueños; editar, archivar o borrar una tienda, solo de su dueño.',
-              'Nadie se cambia sus propios permisos.',
+              'Nadie se da excepciones a sí mismo. Bajarte el rol sí podés, y el panel te pide confirmar porque podrías quedarte sin acceso a esta pantalla.',
               'Cada cambio queda en “Actividad del equipo”, al pie de Configuración → Usuarios: quién, qué y cuándo.',
             ],
           },

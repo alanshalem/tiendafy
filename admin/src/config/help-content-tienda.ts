@@ -14,18 +14,18 @@ export const TIENDA = {
           'Dejá tildado “Publicada” para que se vea. Destildada queda como borrador, invisible para tus clientes.',
         ],
         blocks: [
-          { type: 'path', segments: ['Páginas de contenido', 'Crear página'] },
+          { type: 'path', segments: ['Canales de venta', 'Páginas de contenido'] },
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Si creás una página con la URL “terminos” o “privacidad”, reemplaza automáticamente a la versión genérica que publica tu tienda.',
+            text: 'Si creás una página con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”), reemplaza automáticamente a la versión genérica que publica tu tienda.',
           },
         ],
       },
       {
         heading: 'Dónde se ven',
         paragraphs: [
-          'Las páginas publicadas aparecen solas al final del menú del encabezado (ahí las podés ocultar, renombrar o mover desde Encabezado → Menú) y, si lo prendés, en el pie de página con “Mostrar links a tus páginas de contenido”.',
+          'Las páginas publicadas aparecen solas al final del menú del encabezado (ahí las podés ocultar, renombrar o mover desde Encabezado → Menú) y en el pie de página, si le agregás una columna “Páginas de contenido” en Pie de página → Columnas.',
           'Además se pueden elegir como destino de cualquier botón, banner o link del editor de diseño: en el selector de links, solapa Página → Tus páginas.',
         ],
       },
@@ -49,7 +49,7 @@ export const TIENDA = {
             rows: [
               [
                 'Visión general',
-                'Facturación, ventas cobradas, ticket promedio y clientes, cada uno con su variación contra el período anterior. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas y lo más vendido.',
+                'Facturación, ventas cobradas, ticket promedio y clientes, cada uno con su variación contra el período anterior. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas, lo más vendido y un resumen de tu tienda hoy (productos publicados, categorías, cupones activos, páginas).',
               ],
               [
                 'Productos',
@@ -57,7 +57,7 @@ export const TIENDA = {
               ],
               [
                 'Ventas y clientes',
-                'Clientes nuevos, pedidos por estado y los días de la semana con más ventas.',
+                'Facturación, ventas pagadas, ticket promedio, clientes nuevos, pedidos por estado y los días de la semana con más ventas.',
               ],
               [
                 'Rentabilidad',
@@ -79,14 +79,16 @@ export const TIENDA = {
       {
         heading: 'Elegir el período',
         paragraphs: [
-          'Arriba de cada pantalla elegís las fechas: hoy, últimos 7, 30 o 90 días, este mes, este año o un rango personalizado. Las variaciones (el número verde o rojo al lado de cada indicador) comparan contra el período anterior del mismo largo. El período queda en la dirección, así que podés mandarle a alguien el link de lo que estás mirando.',
+          'Arriba de cada pantalla elegís las fechas: hoy, últimos 7, 30 o 90 días, este mes, este año o un rango personalizado. Si no elegís nada, se muestran los últimos 30 días. Las variaciones (el número verde o rojo al lado de cada indicador) comparan contra el período anterior del mismo largo.',
+          'El período es uno solo para todas las pantallas de estadísticas: si elegís “Este mes” en Visitas y pasás a Rentabilidad, sigue siendo este mes. También queda en la dirección, así que podés mandarle a alguien el link de lo que estás mirando.',
+          'Los días se cuentan en hora argentina: una venta de las 23:30 cuenta en ese día, no en el siguiente.',
         ],
       },
       {
         heading: 'De dónde vienen tus ventas',
         paragraphs: [
-          'Cada visita y cada venta guardan de dónde vino el comprador: la marca utm_source del link por el que entró la primera vez en esa visita. Con eso se arman “De dónde llegan tus ventas” (Visión general), “Fuentes de tráfico” (Visitas) y “Ganancia por canal” (Rentabilidad). Lo que llega sin marca cuenta como directo.',
-          'Los posts que armás en Redes sociales ya marcan sus links solos. Para el resto —el link de tu bio, un aviso, un mensaje masivo de WhatsApp— agregale vos la marca al final: tutienda.com/productos?utm_source=instagram.',
+          'Cada visita y cada venta guardan de dónde vino el comprador: la marca utm_source del link por el que entró en esa visita. Con eso se arman “De dónde llegan tus ventas” (Visión general), “Fuentes de tráfico” (Visitas) y “Ganancia por canal” (Rentabilidad). Lo que llega sin marca cuenta como directo.',
+          'Los links a productos que agregás a un post desde Redes sociales ya salen marcados (como “redes”). Para el resto —el link de tu bio, un aviso, un mensaje masivo de WhatsApp— agregale vos la marca al final: tutienda.com/productos?utm_source=instagram.',
         ],
         blocks: [
           {
@@ -99,7 +101,7 @@ export const TIENDA = {
       {
         heading: 'Quién las ve',
         paragraphs: [
-          'De fábrica: dueño, administrador, vendedor y finanzas; Rentabilidad, solo quien puede ver costos. Los roles catálogo y soporte no acceden a los números del negocio. Lo podés cambiar en Configuración → Roles y permisos.',
+          'De fábrica, las estadísticas las ven dueño, administrador, vendedor y finanzas. Rentabilidad va aparte, con el permiso de ver costos: dueño, administrador, catálogo y finanzas. Soporte no ve ninguna. Lo podés cambiar en Configuración → Roles y permisos.',
         ],
       },
     ],
@@ -114,9 +116,10 @@ export const TIENDA = {
       {
         heading: 'Tu título y descripción en Google',
         paragraphs: [
-          'En el editor de diseño (Canales de venta → Tienda online → Identidad → “Cómo aparecés en Google”) definís el título y la descripción que se muestran en los resultados de búsqueda. Un buen título: “Marca — qué vendés” en menos de 60 caracteres; la descripción, un gancho de hasta 160.',
+          'En el editor de diseño (Canales de venta → Tienda online → Logo de la tienda, en el bloque “Cómo aparecés en Google”) definís el título y la descripción que se muestran en los resultados de búsqueda, con una vista previa de cómo se ven en un celular. Un buen título: “Marca — qué vendés” en menos de 60 caracteres; la descripción, un gancho de hasta 160.',
+          'Como todo el diseño, el título y la descripción nuevos le llegan a Google recién cuando publicás.',
         ],
-        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Identidad'] }],
+        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Logo de la tienda'] }],
       },
       {
         heading: 'Lo que la tienda hace sola',
@@ -199,6 +202,7 @@ export const TIENDA = {
         paragraphs: [
           'Con "Pedir permiso antes de medir" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga nunca y no se vuelve a preguntar. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
           'Si el navegador manda la señal de "no me rastreen" (Global Privacy Control), se toma como un no sin preguntar.',
+          'El interruptor “Medición encendida” corta todas las herramientas de golpe sin borrar lo que cargaste: sirve si algo se rompe o querés la tienda limpia por un rato.',
         ],
         blocks: [
           {
@@ -261,6 +265,11 @@ export const TIENDA = {
             tone: 'info',
             text: 'Al visitante le llega una redirección permanente (un 308, el equivalente moderno del clásico 301). Google las trata igual: le pasa a la dirección nueva el posicionamiento de la vieja.',
           },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'La redirección actúa solo cuando la dirección vieja ya no existe en tu tienda. Si en esa dirección hay una página o un producto vivo, se muestra eso y la redirección no se usa.',
+          },
         ],
       },
       {
@@ -280,7 +289,7 @@ export const TIENDA = {
       {
         heading: 'Subdominio gratis',
         paragraphs: [
-          'Apenas creás la tienda tenés una URL del tipo tutienda.tiendafy. En desarrollo es tutienda.localhost:3000. Ya funciona, no hace falta configurar nada.',
+          'Apenas creás la tienda tiene su dirección gratis: la ves en Configuración → Dominios, marcada “Siempre disponible”, con el botón “Abrir”. Ya funciona, no hace falta configurar nada, y sigue andando aunque después conectes tu dominio propio.',
         ],
       },
       {
