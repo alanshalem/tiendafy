@@ -9,7 +9,7 @@ import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { VariantPicker } from '../../components/VariantPicker';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
 import { useListParams, useListSearch } from '../../lib/useListParams';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
@@ -163,7 +163,7 @@ export function KitsPage() {
           <div className={TABLE_CARD}>
             <div className={TABLE_SCROLL_X}>
               <table className="w-full text-sm">
-                <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                <thead className={TABLE_HEAD_STICKY}>
                   <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                     <th className="px-4 py-2.5 font-medium">Kit</th>
                     <th className="px-4 py-2.5 font-medium">Componentes</th>

@@ -12,7 +12,7 @@ import { useCallback, useSyncExternalStore } from 'react';
  * Sin matchMedia (tests, render en servidor) responde `false`: la vista de
  * escritorio, que es la que cubren los tests existentes.
  */
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
   const subscribe = useCallback(
     (onChange: () => void) => {
       if (typeof window === 'undefined' || !window.matchMedia) return () => {};
@@ -34,10 +34,7 @@ export function useMediaQuery(query: string): boolean {
  * seis columnas en 390 px mostraba Número, Fecha y Cliente, y el total y el
  * estado —lo que se mira primero— quedaban fuera de la pantalla.
  */
-export const MOBILE_QUERY = '(max-width: 767px)';
+const MOBILE_QUERY = '(max-width: 767px)';
 
 /** ¿Es una pantalla de teléfono? Se dibuja una sola de las dos vistas (tabla o tarjetas), no las dos. */
 export const useIsMobile = (): boolean => useMediaQuery(MOBILE_QUERY);
-
-/** El mismo corte con el nombre que usan Ventas y Mercado Libre. */
-export const useIsNarrow = useIsMobile;

@@ -28,7 +28,7 @@ import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
-import { TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
 
 interface VariantCost {
@@ -217,7 +217,7 @@ export function CostsPage() {
       <Card flush>
         <div className={TABLE_SCROLL_X}>
           <table className="w-full min-w-[640px] text-sm">
-            <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+            <thead className={TABLE_HEAD_STICKY}>
               <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                 <th className="px-4 py-2.5 font-medium">Producto</th>
                 <th className="px-4 py-2.5 font-medium">Variante</th>

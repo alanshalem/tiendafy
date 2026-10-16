@@ -28,7 +28,7 @@ import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { useListParams, useListSearch } from '../lib/useListParams';
 import { useFiscalReady } from '../lib/useFiscalReady';
-import { useIsNarrow } from '../lib/useMediaQuery';
+import { useIsMobile } from '../lib/useMediaQuery';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { ListStats } from '../components/stats/ListStats';
 
@@ -124,7 +124,7 @@ export function VentasTab() {
   const { can } = usePermissions();
   const canEmit = can('fiscal.emit');
   const fiscalReady = useFiscalReady();
-  const narrow = useIsNarrow();
+  const narrow = useIsMobile();
   const { toast } = useToast();
   const confirm = useConfirm();
   const [chatOrder, setChatOrder] = useState<MeliOrder | null>(null);

@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate, formatNumber } from '../../lib/format';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
 import { ListCard, ListCardList } from '../../components/ListCards';
@@ -430,7 +430,7 @@ export function UsersNotificationsPage() {
             <div className={TABLE_CARD}>
               <div className={TABLE_SCROLL_X}>
                 <table className="w-full text-sm">
-                  <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                  <thead className={TABLE_HEAD_STICKY}>
                     <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium text-fg-muted">
                       <th className="px-4 py-2.5">Nombre</th>
                       <th className="px-4 py-2.5">Email</th>

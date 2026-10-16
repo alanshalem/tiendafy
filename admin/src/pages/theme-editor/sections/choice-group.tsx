@@ -214,12 +214,3 @@ export function LayoutIcon({ layout }: { layout: 'grid' | 'carousel' | 'stack' }
     </Svg>
   );
 }
-
-/** Opciones de proporción como selector visual ("16x9" → dibujo + "16:9"). */
-export function ratioChoices<V extends string>(values: readonly V[], labels?: Partial<Record<V, string>>) {
-  return values.map((v) => ({
-    value: v,
-    label: labels?.[v] ?? v.replace('x', ':'),
-    icon: <RatioIcon ratio={v} />,
-  }));
-}

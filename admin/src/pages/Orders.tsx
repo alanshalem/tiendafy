@@ -27,7 +27,7 @@ import { ORDER_CHANNEL, ORDER_PAYMENT, ORDER_SHIPPING, refundEffect, toOptions }
 import { orderLabel } from '../lib/orderNumber';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
-import { useIsNarrow } from '../lib/useMediaQuery';
+import { useIsMobile } from '../lib/useMediaQuery';
 import { HelpLink } from '../components/HelpLink';
 import { ManualSaleModal } from './orders-manual';
 import { RefundDialog } from './orders-refund';
@@ -151,7 +151,7 @@ export function OrdersPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
-  const narrow = useIsNarrow();
+  const narrow = useIsMobile();
   const [manualOpen, setManualOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

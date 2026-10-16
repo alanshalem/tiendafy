@@ -11,7 +11,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import {
   itemLabel,
   MODE_LABEL,
@@ -188,7 +188,7 @@ export function StockBajoPage() {
         ) : (
           <div className={TABLE_SCROLL_X}>
             <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+              <thead className={TABLE_HEAD_STICKY}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                   {canBuy && (
                     <th className="w-10 px-3 py-2.5">

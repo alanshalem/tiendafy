@@ -22,7 +22,7 @@ import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
@@ -238,7 +238,7 @@ function ComprasList({
           <div className={TABLE_CARD}>
             <div className={TABLE_SCROLL_X}>
               <table className="w-full text-sm">
-                <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                <thead className={TABLE_HEAD_STICKY}>
                   <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                     <th className="px-4 py-2.5 font-medium">Proveedor</th>
                     <th className="px-4 py-2.5 font-medium">Referencia</th>
@@ -379,7 +379,7 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
       <div className={TABLE_CARD}>
         <div className={TABLE_SCROLL_X}>
           <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+            <thead className={TABLE_HEAD_STICKY}>
               <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                 <th className="px-4 py-2.5 font-medium">Producto</th>
                 <th className="px-4 py-2.5 font-medium">SKU</th>

@@ -170,9 +170,6 @@ export const RATIO_LABEL: Record<string, string> = {
   original: 'La de la foto (sin recortar)',
 };
 
-export const ratioOptions = (values: readonly string[]) =>
-  values.map((v) => ({ value: v, label: RATIO_LABEL[v] ?? v }));
-
 /**
  * Subir varias fotos de una vez y que cada una sea un ítem nuevo (una
  * diapositiva, un logo). Las subidas terminan de a una: cada ítem se suma a

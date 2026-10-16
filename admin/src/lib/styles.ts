@@ -99,12 +99,6 @@ export const TABLE_HEAD_TEXT =
   '[&_th]:text-xs [&_th]:font-medium [&_th]:normal-case [&_th]:tracking-normal [&_th]:text-fg-muted';
 
 /**
- * Igual que TABLE_HEAD_STICKY. Antes uno iba sobre blanco y otro sobre gris
- * según la pantalla; ahora todos los encabezados van sobre gris, como <Table>.
- */
-export const TABLE_HEAD_STICKY_SUBTLE = TABLE_HEAD_STICKY;
-
-/**
  * Envoltorio de las tablas anchas, las que no entran y hay que correr de
  * costado. En pantalla grande deja de ser contenedor de scroll —ahí ya entran
  * sobradas, así que el scroll horizontal nunca se usaba— y recién entonces el
