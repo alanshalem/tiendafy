@@ -29,6 +29,8 @@ X-Idempotency-Key: {id de la orden}
   "issuer_id": "310",
   "payer": { "email": "comprador@example.com",
              "identification": { "type": "DNI", "number": "12345678" } },
+  "three_d_secure_mode": "optional",
+  "capture": true,
   "binary_mode": false,
   "external_reference": "{id de la orden}",
   "notification_url": "https://api.example.com/api/v1/payments/webhooks/mercadopago",
@@ -37,9 +39,10 @@ X-Idempotency-Key: {id de la orden}
 }
 ```
 
-Respuesta: `id`, `status`, `status_detail`. Tiendafy aplica el resultado en el
-momento; el webhook queda de respaldo y es el que trae la comisión
-(`transaction_details.net_received_amount` no viene en la respuesta del cobro).
+Respuesta: `id`, `status`, `status_detail` (y `three_ds_info` si hay desafío,
+ver abajo). Tiendafy aplica el resultado en el momento; el webhook queda de
+respaldo y es el que trae la comisión (`transaction_details.net_received_amount`
+no viene en la respuesta del cobro).
 
 ## Reglas duras
 
@@ -56,22 +59,35 @@ momento; el webhook queda de respaldo y es el que trae la comisión
 ## 3DS
 
 `binary_mode: false` **no alcanza** para pedir 3DS. Hay que mandar
-`three_d_secure_mode`:
+`three_d_secure_mode` (la guía oficial documenta estos dos valores):
 
 | Valor | Efecto |
 |---|---|
 | `not_supported` (default) | Sin 3DS |
-| `optional` (recomendado) | Mercado Pago decide por riesgo |
-| `mandatory` | Siempre |
+| `optional` (recomendado, el que usa Tiendafy desde el 16-oct-2026) | Mercado Pago y el banco deciden por riesgo |
 
-Si hay challenge: `status: pending`, `status_detail: pending_challenge` y
-`three_ds_info { external_resource_url, creq }`. El front tiene que mostrar el
-challenge (un iframe que postea `creq` a esa URL, o el Status Screen Brick con
-el `payment_id`); el comprador tiene unos 5 minutos. El resultado final llega
-por webhook.
+Con 3DS la guía pide además `capture: true` y `binary_mode: false` (el pago
+queda `pending` mientras el comprador responde).
 
-Hoy Tiendafy manda `binary_mode: false` pero no `three_d_secure_mode`, así que
-no pide 3DS.
+Si hay desafío: `status: pending`, `status_detail: pending_challenge` y
+`three_ds_info { external_resource_url, creq }` (la URL es el ACS del banco,
+p. ej. `https://acs-public.tp.mastercard.com/api/v1/browser_Challenges`).
+
+- Tiendafy devuelve a la tienda `challenge { paymentId, externalResourceUrl,
+  creq }` desde `/pay-onsite` (solo con URL https absoluta) y deja la orden
+  pendiente. La tienda lo muestra con el Status Screen Brick
+  (`mercadopago-bricks`).
+- El desafío tiene que **empezar dentro de los 30 s** de creado el pago (si no,
+  se rechaza); empezado, el comprador tiene unos 5 minutos.
+- Al terminar, el iframe hace `postMessage({ status: 'COMPLETE' })`: solo dice
+  que terminó, no cómo salió. El estado final se sabe por webhook o
+  consultando el pago, y la actualización no es instantánea.
+- Finales: `approved`/`accredited`; `rejected`/`cc_rejected_3ds_challenge`
+  (desafío fallido); `pending`/`pending_challenge` (sin completar);
+  `cancelled`/`expired` (24 h pendiente).
+- Pruebas: solo en sandbox con credenciales de prueba (en producción no anda ni
+  con usuarios de prueba). Mastercard `5483 9281 6457 4623` supera el desafío,
+  `5361 9568 0611 7557` no lo autoriza; CVV 123, vence 11/30.
 
 ## Estados y `status_detail` frecuentes
 
@@ -106,5 +122,6 @@ cambia si algún día se migra:
 ## Docs
 
 - Payments: <https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/overview>
-- 3DS: <https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/how-tos/integrate-3ds>
+- 3DS (Checkout API): <https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/how-tos/integrate-3ds>
+- 3DS (Checkout Bricks): <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/how-tos/integrate-3ds>
 - Migrar a Orders: <https://www.mercadopago.com.ar/developers/es/docs/checkout-api-orders/resources/migrate-payments-to-orders>

@@ -57,6 +57,13 @@ export const VENTAS = {
         ],
       },
       {
+        heading: 'Cuando el banco pide confirmar la compra',
+        paragraphs: [
+          'Con el Checkout integrado, a veces el banco de la tarjeta pide que el comprador confirme que es él antes de aprobar el pago (por ejemplo, con un código que le llega al celular o desde la app del banco). Lo decide el banco según el riesgo de cada compra; vos no tenés que configurar nada.',
+          'El comprador lo resuelve ahí mismo, sin salir de tu tienda. Mientras tanto la venta figura como “Pendiente” y se actualiza sola cuando el banco responde. Si no lo confirma, el pago se cancela y la venta pasa a “Fallida”, con los productos liberados; Mercado Pago puede tardar hasta un día en avisarlo.',
+        ],
+      },
+      {
         heading: 'Nombre en el resumen de la tarjeta',
         paragraphs: [
           'Configurá hasta 22 caracteres que el comprador ve en el resumen de su tarjeta (ej: “MI MARCA”) y tocá “Guardar”. Reduce desconocimientos y contracargos.',

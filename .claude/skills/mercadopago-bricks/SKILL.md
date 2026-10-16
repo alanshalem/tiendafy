@@ -49,20 +49,49 @@ initMercadoPago(publicKey, { locale: 'es-AR' });   // una vez, en el cliente
 - Medios que no son tarjeta (`ticket`, `mercadoPago`) necesitan que el backend
   sepa cobrarlos; hoy Tiendafy cobra tarjeta. Para "dinero en cuenta" el Brick
   necesita además un `preferenceId` (Checkout Pro).
-- La CSP de la tienda tiene que permitir los dominios del SDK (scripts, frames
-  y conexiones a `*.mercadopago.com` y `*.mercadolibre.com`).
+- La CSP de la tienda (`storefront/src/lib/csp.ts`) tiene que permitir el SDK
+  y lo que él carga: `sdk.mercadopago.com` es solo el cargador; cada Brick
+  (`payment.js`, `statusScreen.js` y sus partes) es un `<script>` de
+  `https://http2.mlstatic.com/frontend-assets/op-cho-bricks/build/<versión>/components/`
+  y sus textos se piden con fetch al mismo host (`script-src` y
+  `connect-src`). Mercado Pago no publica la lista: sale de leer el SDK
+  (v3.19.0, oct-2026). Iframes y API: `*.mercadopago.com`.
 
 ## Status Screen Brick
 
-Muestra el resultado de un pago y resuelve el challenge 3DS:
+Muestra el resultado de un pago y resuelve el desafío 3DS. Es lo que
+recomienda la guía oficial de 3DS con Bricks, y lo que usa Tiendafy desde el
+16-oct-2026 en `storefront/src/components/store/CardChallenge.tsx` cuando
+`/pay-onsite` devuelve `challenge` (ver `mercadopago-checkout-api`):
 
 ```tsx
 import { StatusScreen } from '@mercadopago/sdk-react';
-<StatusScreen initialization={{ paymentId }} />   // id de PAGO, no de orden
+<StatusScreen
+  initialization={{
+    paymentId,                                   // id de PAGO, no de orden
+    additionalInfo: { externalResourceURL, creq }, // three_ds_info del pago
+  }}
+  locale="es-AR"
+  onReady={onReady}
+  onError={onError}
+/>
 ```
 
-Si algún día se activa 3DS (`three_d_secure_mode`), es la forma más simple de
-mostrar el challenge cuando el pago vuelve `pending_challenge`.
+- Arma en NUESTRA página un `<iframe>` y un `<form method="post">` hacia
+  `externalResourceURL` (el ACS del banco emisor, distinto por banco) y lo
+  envía solo. Por eso la CSP de `/checkout` abre `frame-src` y `form-action`
+  a `https:` (solo esa ruta).
+- El desafío tiene que empezar dentro de los 30 s de creado el pago: montarlo
+  apenas vuelve el cobro.
+- `@mercadopago/sdk-react` vuelve a montar el Brick si cambian
+  `initialization`, `customization`, `onReady` u `onError`: memorizarlos
+  (`useMemo`/`useCallback`). Montarlo de nuevo repostea el `creq`.
+- Al terminar, el iframe del banco manda `postMessage({ status: 'COMPLETE' })`
+  a la ventana; el Brick consulta el pago y muestra el resultado. Tiendafy
+  escucha ese mensaje para ir a su pantalla de resultado (que consulta la
+  orden) y además consulta la orden cada 4 s por si el aviso no llega.
+- El iframe del Brick trae `min-width: 600px`: en celular, envolverlo en un
+  contenedor con scroll horizontal.
 
 ## Problemas típicos
 
@@ -73,5 +102,9 @@ mostrar el challenge cuando el pago vuelve `pending_challenge`.
 | Queda "procesando" para siempre | `onSubmit` no devuelve la promesa | `async` y `throw` en el error |
 | Dos formularios | Montado dos veces (Strict Mode, re-render con otra key) | Un solo montaje estable |
 | Status Screen "no encontrado" | Se pasó otro id | `paymentId` de Mercado Pago |
+| El Brick no aparece y la consola habla de CSP | Falta `http2.mlstatic.com` en `script-src`/`connect-src` | Ver `csp.ts` |
+| El desafío del banco queda en blanco | `frame-src`/`form-action` sin el ACS del banco (página que no es `/checkout`) | Mostrarlo solo en `/checkout` |
+| El desafío se rechaza solo | Empezó más de 30 s después de crear el pago | Montar el Status Screen apenas vuelve el cobro |
 
-Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing>
+Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing>,
+3DS con Bricks: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/how-tos/integrate-3ds>

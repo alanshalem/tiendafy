@@ -41,7 +41,7 @@ botón de conectar no lleva a ningún lado y no entran webhooks).
 | Aplicar el resultado a la orden | `backend/src/Modules/Orders/Orders.Core/Features/SettlePaymentHandler.cs` |
 | Reembolsar y cancelar | `backend/src/Api/Orders/OrderRefundService.cs` (auditoría en `payment_refunds`) |
 | Panel | `admin/src/pages/Settings/MercadoPagoConnect.tsx` |
-| Tienda | `storefront/src/components/store/CheckoutClient.tsx` (`@mercadopago/sdk-react`) |
+| Tienda | `storefront/src/components/store/CheckoutClient.tsx` (`@mercadopago/sdk-react`), desafío 3DS en `CardChallenge.tsx`, CSP en `storefront/src/lib/csp.ts` |
 
 Purposes de Data Protection (no cambiarlos: se pierde todo lo cifrado):
 `Tiendafy.Payments.MercadoPagoTokens.v1` y `Tiendafy.Payments.MercadoPagoOAuthState.v1`.
@@ -93,9 +93,41 @@ se valida contra dominios propios (`SafeRedirect`).
 
 **Checkout integrado.** El Brick tokeniza con la `publicKey` del vendedor
 (`GET /payments/mercadopago/public-config`), y `POST /checkout/{id}/pay-onsite`
-cobra en `/v1/payments` con `binary_mode=false` (deja lugar al challenge 3DS).
-El resultado se aplica en el momento; el webhook queda de respaldo y es el
-que trae la comisión (la respuesta del cobro no informa el neto).
+cobra en `/v1/payments` con `three_d_secure_mode=optional`, `capture=true` y
+`binary_mode=false`. El resultado se aplica en el momento; el webhook queda de
+respaldo y es el que trae la comisión (la respuesta del cobro no informa el
+neto).
+
+**Desafío del banco (3DS).** Con `optional`, Mercado Pago y el banco deciden
+por riesgo si el comprador tiene que confirmar el pago. Sin desafío, el pago
+vuelve `approved` (o `rejected`) como siempre. Con desafío vuelve `pending` /
+`pending_challenge` con `three_ds_info { external_resource_url, creq }`:
+
+1. La API deja la orden pendiente y contesta
+   `challenge: { paymentId, externalResourceUrl, creq }` (solo si la URL es
+   https absoluta; si no, `challenge: null` y el pago se resuelve por webhook).
+2. La tienda (`CardChallenge.tsx`) monta en el momento el **Status Screen
+   Brick** con `initialization: { paymentId, additionalInfo: { externalResourceURL, creq } }`.
+   El Brick arma en la página un iframe y le postea el `creq` a la URL del
+   banco. El desafío tiene que empezar dentro de los 30 s de creado el pago
+   y el comprador tiene unos 5 minutos para responderlo.
+3. Al terminar, el iframe manda `postMessage({ status: 'COMPLETE' })`. Eso
+   solo dice que terminó, no cómo salió: la tienda va a
+   `/checkout/pending?order=…`, que consulta el estado real de la orden.
+   Mientras el desafío está a la vista, la tienda además consulta la orden
+   cada 4 s y, si el webhook ya la resolvió, va directo al resultado.
+4. El resultado final llega por webhook del mismo pago: `approved` paga la
+   orden; `rejected` / `cc_rejected_3ds_challenge` la marca fallida. Un pago
+   que nunca se confirma queda `pending_challenge` y Mercado Pago lo pasa a
+   `cancelled` / `expired` a las 24 h.
+
+CSP de la tienda (`storefront/src/lib/csp.ts`): la URL del desafío es el
+servidor de autenticación (ACS) del banco emisor de la tarjeta (en la doc
+oficial, `acs-public.tp.mastercard.com`), distinto para cada banco, así que en
+`/checkout`, y solo ahí, `frame-src` y `form-action` aceptan cualquier origen
+`https:`. Además los Bricks bajan su código y sus textos de
+`https://http2.mlstatic.com` (`script-src` y `connect-src`): eso no lo publica
+Mercado Pago, sale de leer el SDK (`sdk.mercadopago.com/js/v2`, v3.19.0).
 
 **Webhook.** `POST /api/v1/payments/webhooks/mercadopago` es público. Valida la
 firma, guarda `(type, data.id, user_id)` en `payment_webhook_events` y contesta
@@ -165,6 +197,13 @@ no acepte pagos, después se cancela la orden y se liberan las reservas.
   tienda**: se resuelve por el `user_id` del body. Una tienda solo puede ver o
   revivir eventos de su propio `user_id`.
 - Refunds: hasta 180 días después del pago.
+- `binary_mode=false` **no pide 3DS**: el default de `three_d_secure_mode` es
+  `not_supported`. Hasta el 16-oct-2026 el código mandaba solo
+  `binary_mode=false` con un comentario que decía lo contrario, y el 3DS no se
+  pedía nunca. La guía oficial documenta solo `not_supported` y `optional`, y
+  pide `optional` con captura automática y `binary_mode` apagado.
+- El 3DS solo se prueba en sandbox con credenciales de prueba: en producción
+  no anda ni con usuarios de prueba.
 - El cobro del Brick va por la API de pagos (`/v1/payments`). Mercado Pago
   ahora ofrece la Orders API (`/v1/orders`) para integraciones nuevas, pero no
   anunció la baja de `/v1/payments`, y su guía de migración avisa que la
@@ -174,9 +213,12 @@ no acepte pagos, después se cancela la orden y se liberan las reservas.
 ## Cómo probar
 
 Automático: `backend/tests/IntegrationTests/MercadoPagoFlowTests.cs` (con API
-falsa), `UnitTests/Orders/SettlePaymentHandlerTests.cs`,
+falsa, incluido el pago con desafío del banco), `UnitTests/Orders/SettlePaymentHandlerTests.cs`,
 `UnitTests/Payments/OAuthCallbackHandlerTests.cs`,
-`UnitTests/Api/OrderRefundLocksTests.cs`.
+`UnitTests/Payments/MercadoPagoCardPaymentTests.cs` (body con 3DS y lectura de
+`three_ds_info`), `UnitTests/Api/OrderRefundLocksTests.cs`; en la tienda,
+`storefront/src/__tests__/checkout.test.tsx`, `card-challenge.test.tsx` y
+`csp.test.ts`.
 
 A mano, con cuentas de prueba de Mercado Pago:
 
@@ -193,7 +235,10 @@ A mano, con cuentas de prueba de Mercado Pago:
 6. Comprá en la tienda con el comprador de prueba. Con
    [tarjetas de prueba](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/test/cards)
    el resultado lo decide el nombre del titular: `APRO` aprueba, `OTHE`
-   rechaza, `CONT` queda pendiente.
+   rechaza, `CONT` queda pendiente. Para el desafío del banco (modo `API`,
+   credenciales de prueba): Mastercard `5483 9281 6457 4623` lo supera y
+   `5361 9568 0611 7557` no lo autoriza (código 123, vence 11/30); en la
+   pantalla del banco de prueba se aprieta "Confirmar".
 7. Reembolsá desde Ventas (total o parcial) y mirá el historial
    (`GET /orders/{id}/refunds`).
 
@@ -217,9 +262,15 @@ A mano, con cuentas de prueba de Mercado Pago:
   tiene (la oficial es `POST /checkout/preferences`, sin `/v1`); ese día se
   corrigió. Nunca se había probado contra Mercado Pago de verdad: esa compra
   chica es la primera.
+- **Probar el desafío del banco (3DS) en sandbox** con las dos tarjetas de
+  arriba, en modo `API`: que el desafío aparezca dentro de la tienda (CSP
+  incluida), que el aprobado termine en "¡Pago aprobado!" y el no autorizado
+  en "No se pudo completar el pago". Está probado solo contra la API falsa.
 
 Docs oficiales: [Checkout Pro](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing),
 [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing),
+3DS con [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/how-tos/integrate-3ds)
+y con [Checkout API](https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/how-tos/integrate-3ds),
 [OAuth](https://www.mercadopago.com.ar/developers/es/docs/security/oauth/introduction),
 [Webhooks](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks),
 [referencia de la API](https://www.mercadopago.com.ar/developers/es/reference) (pagos, preferences, reembolsos).
