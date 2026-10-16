@@ -112,7 +112,7 @@ public static class CheckoutEndpoints
             var result = await handler.HandleAsync(new SubmitCheckoutCommand(
                 tenant.TenantId, id, request.Email ?? string.Empty,
                 request.Name, request.LastName, request.Phone, request.DocNumber, request.Notes,
-                request.ShippingMethodId, request.Address, quote), ct);
+                request.ShippingMethodId, request.Address, quote, request.AcceptsMarketing), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         });
 
@@ -297,7 +297,9 @@ public sealed record SubmitCheckoutRequest(
     Guid? ShippingMethodId = null,
     string? Address = null,
     string? ShippingQuoteToken = null,
-    string? CorreoAgency = null);
+    string? CorreoAgency = null,
+    // "Quiero recibir novedades": sin tildar (o sin mandar) es que no.
+    bool AcceptsMarketing = false);
 
 public sealed record CheckoutSettingsRequest(
     bool SingleColumn,

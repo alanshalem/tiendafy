@@ -15,7 +15,8 @@ public sealed record SubmitCheckoutCommand(
     string? Notes = null,
     Guid? ShippingMethodId = null,
     string? ShippingAddress = null,
-    QuotedShipping? Quote = null);
+    QuotedShipping? Quote = null,
+    bool AcceptsMarketing = false);
 
 /// <summary>
 /// Envío cotizado en vivo (Correo Argentino), YA validado por la capa API:
@@ -96,6 +97,7 @@ public sealed class SubmitCheckoutHandler(
         }
 
         session.SetRecipient(command.BuyerName, command.BuyerLastName, command.Phone, command.DocNumber, command.Notes);
+        session.SetMarketingConsent(command.AcceptsMarketing);
 
         // Fase de reservas, con compensación ante el primer fallo.
         var reserved = new Dictionary<Guid, Guid>(); // variantId → reservationId

@@ -76,6 +76,19 @@ public class SubmitCheckoutSagaTests
         Assert.Equal(2, inventory.Reserved.Count);
         Assert.Empty(inventory.Released);
         Assert.Equal(1, repository.Saves);
+        Assert.False(session.AcceptsMarketing); // sin tildar "Quiero recibir novedades", no hay consentimiento
+    }
+
+    [Fact]
+    public async Task Submit_guarda_si_el_comprador_acepto_recibir_novedades()
+    {
+        var session = TwoItemSession(out _, out _);
+        var handler = new SubmitCheckoutHandler(new FakeCheckoutRepository(session), new FakeShippingMethods(), new FakeInventory());
+
+        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com", AcceptsMarketing: true));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(session.AcceptsMarketing);
     }
 
     [Fact]

@@ -236,6 +236,10 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<bool>("AcceptsMarketing")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepts_marketing");
+
                     b.Property<string>("BuyerLastName")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")

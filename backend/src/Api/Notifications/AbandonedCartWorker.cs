@@ -95,7 +95,8 @@ public sealed class AbandonedCartWorker(
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
 
             var to = s.Email!.Trim();
-            if (!suppressed.Contains((s.TenantId.Value, to.ToLowerInvariant())) && !BrandedEmailSender.IsPlaceholder(to))
+            var unsubscribed = suppressed.Contains((s.TenantId.Value, to.ToLowerInvariant()));
+            if (!unsubscribed && !BrandedEmailSender.IsPlaceholder(to))
             {
                 var storeUrl = links.For(t.CustomDomain, t.Subdomain, "https");
                 var rendered = await templates.RenderAsync(s.TenantId.Value, Template, new Dictionary<string, string>
@@ -110,10 +111,16 @@ public sealed class AbandonedCartWorker(
                     && await email.SendAsync(s.TenantId.Value, to, rendered.Subject, rendered.Html, ct, Template))
                     sent++;
             }
-            // WhatsApp solo si la sesión llegó a cargar teléfono (paso Entrega)
-            // y la tienda tiene la plantilla de carrito abandonado activada.
-            await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
-                s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
+            // WhatsApp solo si la sesión llegó a cargar teléfono (paso Entrega),
+            // la tienda tiene la plantilla de carrito abandonado activada y el
+            // comprador dio su consentimiento: tildó "Quiero recibir novedades"
+            // en el checkout y no se dio de baja de las novedades de la tienda
+            // (la misma lista de supresión que el email). Meta lo cuenta como
+            // marketing y exige que la persona haya aceptado; antes salía a
+            // cualquiera que hubiera dejado su teléfono para el envío.
+            if (s.AcceptsMarketing && !unsubscribed)
+                await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
+                    s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
             s.MarkRecoveryEmailed();
         }
 

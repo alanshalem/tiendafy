@@ -83,17 +83,66 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
         Assert.Single(factory.ExternalHttp.EmailsTo(otherEmail));
     }
 
+    /// <summary>
+    /// El WhatsApp de carrito abandonado es marketing para Meta: sale solo a
+    /// quien tildó "Quiero recibir novedades" en el checkout y no se dio de baja
+    /// de las novedades de la tienda. Antes salía a cualquiera que hubiera
+    /// dejado su teléfono para el envío.
+    /// </summary>
+    [Fact]
+    public async Task El_WhatsApp_sale_solo_con_consentimiento()
+    {
+        // Sin tildar: no sale.
+        var (silent, _, silentCheckout) = await AbandonedCartAsync("acw1", acceptsMarketing: false);
+        var silentMessages = await ConnectWhatsAppAsync(silent);
+        await RunUntilProcessedAsync(silentCheckout);
+        Assert.Empty(factory.ExternalHttp.SentTo(silentMessages));
+
+        // Tildó, pero después se dio de baja de las novedades: tampoco.
+        var (unsubscribed, unsubscribedEmail, unsubscribedCheckout) = await AbandonedCartAsync("acw2");
+        var unsubscribedMessages = await ConnectWhatsAppAsync(unsubscribed);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+            db.EmailSuppressions.Add(EmailSuppression.Create(unsubscribed.TenantId, unsubscribedEmail, "unsubscribe"));
+            await db.SaveChangesAsync();
+        }
+        await RunUntilProcessedAsync(unsubscribedCheckout);
+        Assert.Empty(factory.ExternalHttp.SentTo(unsubscribedMessages));
+
+        // Tildó y sigue suscripto: sale, al teléfono que dejó.
+        var (agreed, _, agreedCheckout) = await AbandonedCartAsync("acw3");
+        var agreedMessages = await ConnectWhatsAppAsync(agreed);
+        await RunUntilProcessedAsync(agreedCheckout);
+        var body = Assert.Single(factory.ExternalHttp.SentTo(agreedMessages)).Body!;
+        Assert.Contains("carrito_olvidado", body, StringComparison.Ordinal);
+        Assert.Contains("5491155556666", body, StringComparison.Ordinal);
+    }
+
     // ---------------------------------------------------------------- helpers
 
+    /// <summary>WhatsApp conectado con la plantilla de carrito abandonado prendida; devuelve la URL de envío.</summary>
+    private async Task<string> ConnectWhatsAppAsync(Merchant merchant)
+    {
+        var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
+        var messages = $"{Api.MetaAds.MetaGraph.ApiBaseUrl}/{phoneNumberId}/messages";
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-acw" });
+        await merchant.PutAsync("/api/v1/whatsapp/templates/carritos-abandonados",
+            new { enabled = true, metaTemplateName = "carrito_olvidado", languageCode = "es_AR" });
+        factory.ExternalHttp.OnJson(HttpMethod.Post, messages, new { messages = new[] { new { id = "wamid.acw" } } });
+        return messages;
+    }
+
     /// <summary>Una tienda con un checkout completo y sin pagar de hace dos horas.</summary>
+    /// <param name="acceptsMarketing">Si el comprador tildó "Quiero recibir novedades".</param>
     private async Task<(Merchant Merchant, string Email, Guid CheckoutId)> AbandonedCartAsync(
-        string tag, bool upperCase = false, string? address = null)
+        string tag, bool upperCase = false, string? address = null, bool acceptsMarketing = true)
     {
         var merchant = await Merchant.CreateAsync(factory, tag);
         var email = address ?? $"indeciso-{merchant.Subdomain}@mail.com";
         var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
         var checkoutId = await new Shopper(merchant).CheckoutAsync(variantId,
-            email: upperCase ? email.ToUpperInvariant() : email);
+            email: upperCase ? email.ToUpperInvariant() : email, acceptsMarketing: acceptsMarketing);
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();

@@ -48,7 +48,8 @@ public sealed class Shopper(Merchant store)
     /// costo de envío) y stock reservado. Devuelve el id de la sesión.
     /// </summary>
     public async Task<Guid> CheckoutAsync(Guid variantId, int quantity = 1, Guid? shippingMethodId = null,
-        string? quoteToken = null, string? address = null, string email = "comprador@test.local")
+        string? quoteToken = null, string? address = null, string email = "comprador@test.local",
+        bool acceptsMarketing = false)
     {
         var session = await ExpectJsonAsync(HttpMethod.Post, "/api/v1/checkout",
             new { lines = new[] { new { variantId, quantity } } });
@@ -64,6 +65,7 @@ public sealed class Shopper(Merchant store)
             shippingMethodId,
             address,
             shippingQuoteToken = quoteToken,
+            acceptsMarketing,
         });
         return id;
     }

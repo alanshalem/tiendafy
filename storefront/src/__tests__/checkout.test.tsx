@@ -444,6 +444,8 @@ describe('checkout: pago', () => {
       shippingMethodId: pickup.id,
       address: null,
       shippingQuoteToken: null,
+      // Sin tildar "Quiero recibir novedades": sin consentimiento.
+      acceptsMarketing: false,
     });
     expect(posted('/pay')[0]).toMatchObject({ couponCode: null, utmSource: 'instagram' });
     // La venta queda anotada con el id de la ORDEN: es el que vuelve en ?order=.
@@ -455,6 +457,22 @@ describe('checkout: pago', () => {
     expect(browser.goTo).toHaveBeenCalledWith('https://mp.example.com/pay/1');
     // Se fue a pagar: el carrito sigue hasta que la compra se confirme.
     expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
+  });
+
+  it('"Quiero recibir novedades" arranca sin tildar y, tildado, viaja con la compra', async () => {
+    store();
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay`, {
+      orderId: ORDER,
+      initPoint: 'https://mp.example.com/pay/1',
+    });
+    const user = await open();
+    const consent = screen.getByRole('checkbox', { name: /Quiero recibir novedades/ });
+    expect(consent).not.toBeChecked();
+    await user.click(consent);
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Pagar con Mercado Pago' }));
+    await settle(3);
+    expect(posted('/submit')[0]).toMatchObject({ acceptsMarketing: true });
   });
 
   it('si no hay stock, lo dice y deja reintentar', async () => {

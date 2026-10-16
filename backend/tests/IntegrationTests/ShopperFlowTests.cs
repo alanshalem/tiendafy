@@ -233,8 +233,8 @@ public sealed partial class ShopperFlowTests
         var email = $"indeciso-{merchant.Subdomain}@mail.com";
         var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
 
-        // Completó el checkout pero no pagó, hace dos horas.
-        var checkoutId = await shopper.CheckoutAsync(variantId, email: email);
+        // Completó el checkout (tildando "Quiero recibir novedades") pero no pagó, hace dos horas.
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: email, acceptsMarketing: true);
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();

@@ -54,7 +54,7 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 | `confirmacion-envio` | `pedido_en_camino` | nombre, orden, seguimiento ("a coordinar" si no hay) | Despacho |
 | `lista-para-retirar` | `listo_para_retirar` | nombre, orden | Pedido de retiro listo |
 | `cancelacion-compra` | `pedido_reembolsado` | nombre, orden, total | Reembolso total. No en la cancelación de una venta sin cobrar ni en un reembolso parcial: el texto sugerido dice que se devolvió la plata (esos dos avisan solo por email) |
-| `carritos-abandonados` | `carrito_abandonado` | nombre, tienda | `AbandonedCartWorker`, solo si el checkout llegó a cargar teléfono |
+| `carritos-abandonados` | `carrito_abandonado` | nombre, tienda | `AbandonedCartWorker`, solo si el checkout llegó a cargar teléfono y hay consentimiento (ver abajo) |
 
 `WhatsAppNotifier` para cada evento:
 
@@ -69,7 +69,7 @@ Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`)
 
 - **Fuera de la ventana de 24 horas solo se pueden mandar plantillas aprobadas**. Por eso el contenido vive en Meta y Tiendafy solo guarda el nombre. Ver [Templates](https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates).
 - **En modo de prueba** la app solo entrega a números registrados como testers: el `POST /test` lo avisa en el mensaje de error.
-- **Carrito abandonado es marketing para Meta**: tiene otra tarifa y otras reglas de consentimiento. El panel lo advierte.
+- **Carrito abandonado es marketing para Meta**: tiene otra tarifa y Meta exige que la persona haya aceptado recibir mensajes del negocio ([política de WhatsApp Business](https://whatsappbusiness.com/policy/)). Sale solo con consentimiento: el comprador tildó "Quiero recibir novedades y ofertas por email y WhatsApp" en el checkout (`CheckoutSession.AcceptsMarketing`, viene sin tildar) y su email no está en la lista de supresión de la tienda (`email_suppressions`: se dio de baja, rebotó o marcó spam). Antes salía a cualquiera que hubiera dejado teléfono para el envío.
 - **Los celulares argentinos llevan `549`** en la Cloud API; con `54` solo, el mensaje no llega a celulares.
 
 ## Cómo probar

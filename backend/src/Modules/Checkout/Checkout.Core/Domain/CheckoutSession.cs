@@ -35,6 +35,14 @@ public sealed class CheckoutSession : AggregateRoot
     public string? DocNumber { get; private set; }
     public string? Notes { get; private set; }
 
+    /// <summary>
+    /// Si el comprador tildó "Quiero recibir novedades" en el checkout. Es el
+    /// consentimiento que piden los recordatorios de carrito abandonado (email
+    /// y WhatsApp): sin él, no se le escribe. Arranca en false: nadie lo da por
+    /// no tocar nada.
+    /// </summary>
+    public bool AcceptsMarketing { get; private set; }
+
     // Envío elegido: snapshot de método y costo al momento del submit.
     public Guid? ShippingMethodId { get; private set; }
     public string? ShippingMethodName { get; private set; }
@@ -131,6 +139,9 @@ public sealed class CheckoutSession : AggregateRoot
         DocNumber = Text.Clip(docNumber, 20);
         Notes = Text.Clip(notes, 500);
     }
+
+    /// <summary>Lo que respondió el comprador a "Quiero recibir novedades" (paso Entrega).</summary>
+    public void SetMarketingConsent(bool accepts) => AcceptsMarketing = accepts;
 
     /// <summary>Snapshot del envío elegido: el costo queda congelado en la sesión.</summary>
     public Result SetShipping(Guid methodId, string methodName, Money cost, string? address)

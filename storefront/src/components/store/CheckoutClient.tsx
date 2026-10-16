@@ -211,6 +211,9 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   // Fallo al cargar lo que el checkout necesita (no "no está configurado").
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // "Quiero recibir novedades": sin tildar de entrada. Es el consentimiento que
+  // piden los recordatorios de carrito abandonado (email y WhatsApp).
+  const [acceptsMarketing, setAcceptsMarketing] = useState(false);
 
   // Paso Pago
   const [notes, setNotes] = useState('');
@@ -580,6 +583,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
         address: formattedAddress(),
         shippingQuoteToken: selectedQuote?.token ?? null,
         correoAgency: selectedQuote?.needsAgency ? agencyCode : null,
+        acceptsMarketing,
       }),
     });
     if (!submitRes.ok) {
@@ -933,6 +937,22 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                   autoCapitalize: 'none',
                   spellCheck: false,
                 })}
+                <label className="mt-3 flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="acceptsMarketing"
+                    checked={acceptsMarketing}
+                    onChange={(e) => setAcceptsMarketing(e.target.checked)}
+                    aria-describedby={`${formId}-marketing-hint`}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Quiero recibir novedades y ofertas por email y WhatsApp
+                    <span id={`${formId}-marketing-hint`} className="block text-xs text-fg-muted">
+                      Si dejás la compra sin terminar, te mandamos un recordatorio.
+                    </span>
+                  </span>
+                </label>
               </section>
 
               {/* El foco viene acá si falta elegir el envío. */}
