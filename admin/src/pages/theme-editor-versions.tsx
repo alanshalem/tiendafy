@@ -153,9 +153,13 @@ export function CopyFromStoreModal({
   return (
     <Modal open={open} onClose={onClose} title="Copiar el diseño de otra tienda">
       <p className="mb-3 text-sm text-fg-muted">
-        Se copia lo <strong>publicado</strong> de la otra tienda a tu borrador: colores, fuentes, encabezado,
-        pie y secciones. Tu tienda no cambia hasta que publiques. Los productos, el logo cargado y los datos
-        de contacto de cada tienda no se tocan.
+        Se copia a tu borrador el diseño <strong>publicado</strong> de la otra tienda, entero: colores,
+        fuentes, encabezado, pie y secciones, y también su logo, sus datos de contacto, el botón de WhatsApp y
+        los textos para Google. Los productos de cada tienda no se tocan.
+      </p>
+      <p className="mb-3 text-sm text-fg-muted">
+        Tu tienda no cambia hasta que publiques: antes, revisá Logo de la tienda, Contacto y Botón de
+        WhatsApp.
       </p>
       {others.length === 0 ? (
         <p className="py-2 text-sm text-fg-muted">No tenés otra tienda para copiar.</p>
