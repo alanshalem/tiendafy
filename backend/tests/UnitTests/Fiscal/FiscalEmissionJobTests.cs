@@ -83,6 +83,23 @@ public class FiscalEmissionJobTests
     }
 
     [Fact]
+    public void Restart_empieza_de_cero_con_los_datos_nuevos()
+    {
+        // Terminó con una factura de homologación: en producción no cuenta.
+        var j = NewJob();
+        j.MarkProcessing();
+        j.MarkDone(Guid.NewGuid());
+        j.Restart(50000, null);
+        Assert.Equal(FiscalJobStatus.Pending, j.Status);
+        Assert.Equal(0, j.Attempts);
+        Assert.Null(j.FiscalDocumentId);
+        Assert.Null(j.LastError);
+        Assert.Equal(50000, j.GrossMinorUnits);
+        Assert.Null(j.BuyerDoc);
+        Assert.True(j.NextAttemptUtc <= DateTime.UtcNow);
+    }
+
+    [Fact]
     public void LastError_TruncatedTo1000()
     {
         var j = NewJob();

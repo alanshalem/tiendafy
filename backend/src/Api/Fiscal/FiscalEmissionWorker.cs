@@ -70,10 +70,14 @@ public sealed class FiscalEmissionWorker(
                     // reconciliación de un pedido cuya respuesta se había perdido).
                     // No es un error, y reintentarlo hasta agotar los intentos
                     // terminaba marcando como fallida una venta bien facturada.
+                    // El del ambiente actual, que es el que el emisor miró: uno de
+                    // homologación no da por hecha una venta en producción.
                     var isCredit = job.Kind == FiscalJobKind.CreditNote;
+                    var env = await db.Configs.AsNoTracking().Where(c => c.TenantId == job.TenantId)
+                        .Select(c => c.Environment).FirstOrDefaultAsync(ct);
                     var existing = await db.Documents.AsNoTracking()
                         .Where(d => d.TenantId == job.TenantId && d.OrderId == job.OrderId
-                                    && d.Result == FiscalResult.Authorized
+                                    && d.Environment == env && d.Result == FiscalResult.Authorized
                                     && (isCredit
                                         ? d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC
                                         : d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC))

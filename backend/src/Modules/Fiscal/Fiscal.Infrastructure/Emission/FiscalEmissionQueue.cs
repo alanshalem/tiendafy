@@ -21,16 +21,18 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
         if (cfg is null || !cfg.Enabled || !cfg.AutoInvoiceEnabled) return false;
         if (cfg.Trigger != source) return false; // el evento no es el trigger configurado
 
-        // Ya facturada o ya encolada (idempotencia por orden).
+        // Ya facturada en este ambiente o ya encolada (idempotencia por orden).
+        // Una factura de homologación no cuenta en producción: ahí no existe.
         var alreadyInvoiced = await db.Documents.AsNoTracking().AnyAsync(
-            d => d.TenantId == tenantId && d.OrderId == orderId
+            d => d.TenantId == tenantId && d.OrderId == orderId && d.Environment == cfg.Environment
               && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC
               && d.Result == FiscalResult.Authorized, ct);
         if (alreadyInvoiced) return false;
 
-        var alreadyQueued = await db.EmissionJobs.AsNoTracking().AnyAsync(
+        var existing = await db.EmissionJobs.FirstOrDefaultAsync(
             j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.Invoice, ct);
-        if (alreadyQueued) return false;
+        if (existing is not null)
+            return await RestartIfFromOtherEnvironmentAsync(existing, cfg.Environment, grossMinorUnits, buyerDoc, ct);
 
         db.EmissionJobs.Add(FiscalEmissionJob.Create(tenantId, orderId, FiscalJobKind.Invoice, grossMinorUnits, buyerDoc));
         try
@@ -64,9 +66,12 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
               && d.Result == FiscalResult.Authorized, ct);
         if (!hasInvoice) return CreditNoteEnqueueResult.NotApplicable;
 
-        var alreadyQueued = await db.EmissionJobs.AsNoTracking().AnyAsync(
+        var existing = await db.EmissionJobs.FirstOrDefaultAsync(
             j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.CreditNote, ct);
-        if (alreadyQueued) return CreditNoteEnqueueResult.AlreadyQueued;
+        if (existing is not null)
+            return await RestartIfFromOtherEnvironmentAsync(existing, cfg.Environment, grossMinorUnits, buyerDoc, ct)
+                ? CreditNoteEnqueueResult.Queued
+                : CreditNoteEnqueueResult.AlreadyQueued;
 
         db.EmissionJobs.Add(FiscalEmissionJob.Create(tenantId, orderId, FiscalJobKind.CreditNote, grossMinorUnits, buyerDoc));
         try
@@ -80,5 +85,28 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
             // Carrera con otro enqueue: el índice único (tenant,orden,tipo) lo atajó.
             return CreditNoteEnqueueResult.AlreadyQueued;
         }
+    }
+
+    /// <summary>
+    /// El job de la orden ya existe. Si terminó con un comprobante de otro
+    /// ambiente (lo facturado en homologación no existe para ARCA de
+    /// producción), vuelve a empezar: hay uno solo por (tienda, orden, tipo).
+    /// Si no, ya está en curso o hecho. Los que no terminaron se emiten en el
+    /// ambiente configurado cuando el worker los tome, así que siguen valiendo.
+    /// </summary>
+    /// <returns>true si se reencoló.</returns>
+    private async Task<bool> RestartIfFromOtherEnvironmentAsync(
+        FiscalEmissionJob job, FiscalEnvironment env, long grossMinorUnits, string? buyerDoc, CancellationToken ct)
+    {
+        if (job is not { Status: FiscalJobStatus.Done, FiscalDocumentId: { } documentId }) return false;
+        var otherEnvironment = await db.Documents.AsNoTracking().AnyAsync(
+            d => d.TenantId == job.TenantId && d.Id == documentId && d.Environment != env, ct);
+        if (!otherEnvironment) return false;
+
+        job.Restart(grossMinorUnits, buyerDoc);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Job {Kind} reencolado en {Env}: el anterior terminó en otro ambiente (tenant {Tenant}, orden {Order}).",
+            job.Kind, env, job.TenantId, job.OrderId);
+        return true;
     }
 }

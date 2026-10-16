@@ -203,6 +203,68 @@ public sealed class FiscalFlowTests
     }
 
     [Fact]
+    public async Task Lo_facturado_en_homologacion_no_cuenta_en_produccion()
+    {
+        // Una venta facturada de prueba se tiene que poder facturar de verdad
+        // después de pasar a producción: antes el "ya facturada" no miraba el
+        // ambiente y la venta quedaba sin factura válida para siempre.
+        var merchant = await Merchant.CreateAsync(_factory, "fie");
+        var arca = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        var posId = (await merchant.GetAsync("/api/v1/fiscal/points-of-sale")).GetProperty("items")[0].GetProperty("id").GetGuid();
+
+        // Una facturada a mano y otra por la automática, las dos en homologación.
+        var manual = await merchant.CreateSaleAsync(priceMinor: 10_000_00);
+        Assert.True((await merchant.PostAsync($"/api/v1/orders/{manual}/invoice", new { })).GetProperty("authorized").GetBoolean());
+        await merchant.PutAsync("/api/v1/fiscal/config/emission", new
+        {
+            autoInvoice = true,
+            trigger = "PAYMENT",
+            defaultPointOfSaleId = posId,
+            consumerFinalThresholdMinorUnits = 0L,
+        });
+        var automatic = await merchant.CreateSaleAsync(priceMinor: 20_000_00);
+        await RunEmissionUntilAsync(automatic, "Done");
+
+        // Dentro del mismo ambiente, la idempotencia sigue igual.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{manual}/invoice")).StatusCode);
+
+        // Pasa a producción, con su certificado. La venta muestra la factura
+        // de prueba como tal, no ofrece su PDF y se puede facturar de nuevo.
+        await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
+        await merchant.PutAsync("/api/v1/fiscal/config/emission", new
+        {
+            autoInvoice = true,
+            trigger = "FULFILLMENT",
+            defaultPointOfSaleId = posId,
+            consumerFinalThresholdMinorUnits = 0L,
+        });
+        var status = await merchant.GetAsync($"/api/v1/orders/{manual}/fiscal");
+        Assert.Equal("PRODUCCION", status.GetProperty("environment").GetString());
+        Assert.Equal("HOMOLOGACION", Assert.Single(status.GetProperty("documents").EnumerateArray()).GetProperty("environment").GetString());
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Get, $"/api/v1/orders/{manual}/invoice.pdf")).StatusCode);
+
+        var real = await merchant.PostAsync($"/api/v1/orders/{manual}/invoice", new { });
+        Assert.True(real.GetProperty("authorized").GetBoolean(), real.ToString());
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{manual}/invoice")).StatusCode);
+        await merchant.ExpectOkAsync(HttpMethod.Get, $"/api/v1/orders/{manual}/invoice.pdf");
+        Assert.Contains(_factory.ExternalHttp.SentTo(FakeArca.WsfeProduccion), r => r.Body!.Contains("FECAESolicitar"));
+
+        // La automática: el job que terminó en homologación vuelve a empezar
+        // cuando llega el disparador, y el worker factura en producción.
+        await merchant.PostAsync($"/api/v1/orders/{automatic}/fulfill", new { tracking = (string?)null });
+        await RunEmissionUntilAsync(automatic, "Done");
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        var docs = await db.Documents.AsNoTracking().Where(d => d.OrderId == automatic && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized).ToListAsync();
+        Assert.Equal(
+            [global::Fiscal.Core.Domain.FiscalEnvironment.Homologacion, global::Fiscal.Core.Domain.FiscalEnvironment.Produccion],
+            docs.Select(d => d.Environment).Order());
+        var job = await db.EmissionJobs.AsNoTracking().SingleAsync(j => j.OrderId == automatic);
+        Assert.Equal(docs.Single(d => d.Environment == global::Fiscal.Core.Domain.FiscalEnvironment.Produccion).Id, job.FiscalDocumentId);
+    }
+
+    [Fact]
     public async Task El_libro_IVA_corta_el_mes_en_hora_argentina_y_no_mezcla_ambientes()
     {
         var merchant = await Merchant.CreateAsync(_factory, "fib");

@@ -5896,6 +5896,7 @@
       ]
     },
     "/api/v1/orders/:id/fiscal": {
+      "environment": null,
       "documents": [],
       "jobs": []
     },

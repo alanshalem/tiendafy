@@ -354,8 +354,13 @@ public static class OrderEndpoints
             var jobs = await fiscalDb.EmissionJobs.AsNoTracking()
                 .Where(j => j.TenantId == tid && j.OrderId == id)
                 .ToListAsync(ct);
+            var env = await fiscalDb.Configs.AsNoTracking().Where(c => c.TenantId == tid)
+                .Select(c => (global::Fiscal.Core.Domain.FiscalEnvironment?)c.Environment).FirstOrDefaultAsync(ct);
             return Results.Ok(new
             {
+                // El ambiente en que factura hoy la tienda (null sin configurar):
+                // una factura de homologación no cuenta en producción.
+                environment = env?.ToString().ToUpperInvariant(),
                 documents = docs.Select(OrderComprobantePresenter.FiscalDocDto),
                 jobs = jobs.Select(j => new
                 {

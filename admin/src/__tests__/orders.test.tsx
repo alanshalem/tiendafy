@@ -294,6 +294,27 @@ describe('ventas: facturación de la venta', () => {
     expect(api.calls.some((c) => c.path === `/api/v1/orders/${paid.id}/invoice.pdf`)).toBe(true);
   });
 
+  it('en producción, la factura de homologación no cuenta: se dice de prueba y se puede facturar', async () => {
+    const prueba = { ...factura, environment: 'HOMOLOGACION' };
+    await panel({ environment: 'PRODUCCION', documents: [prueba], jobs: [] });
+    expect(
+      screen.getByText(/La Factura B 0003-00000042 es de homologación: de prueba, sin validez fiscal/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/· CAE 7412/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Facturar ahora/ })).toBeInTheDocument();
+  });
+
+  it('facturando en homologación, la factura se marca de prueba', async () => {
+    await panel({
+      environment: 'HOMOLOGACION',
+      documents: [{ ...factura, environment: 'HOMOLOGACION' }],
+      jobs: [],
+    });
+    expect(screen.getByText(/Factura B 0003-00000042 · CAE 7412/)).toBeInTheDocument();
+    expect(screen.getByText('· de prueba (homologación)')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Facturar ahora/ })).not.toBeInTheDocument();
+  });
+
   it('esperando a ARCA no ofrece volver a facturar; en proceso lo dice', async () => {
     await panel(docs([{ ...factura, result: 'Pending', cae: null }]));
     expect(screen.getByText(/Esperando confirmación de ARCA/)).toBeInTheDocument();

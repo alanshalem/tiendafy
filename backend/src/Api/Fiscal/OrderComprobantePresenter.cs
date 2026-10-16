@@ -108,6 +108,9 @@ public static class OrderComprobantePresenter
         observations = d.Observations,
         errors = d.Errors,
         d.CreatedAtUtc,
+        // Homologación o producción: el panel muestra la del ambiente actual y
+        // marca la otra como de prueba (o como que no cuenta en este ambiente).
+        environment = d.Environment.ToString().ToUpperInvariant(),
     };
 
 }

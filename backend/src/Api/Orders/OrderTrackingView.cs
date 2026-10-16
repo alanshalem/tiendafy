@@ -66,9 +66,12 @@ public sealed class OrderTrackingView(
         var showAddress = access != OrderViewAccess.ById
             || DateTime.UtcNow - order.CreatedAtUtc < FreshOrderWindow;
 
+        // La factura del ambiente en que factura la tienda: la de homologación
+        // es de prueba y el PDF tampoco la ofrece.
         var invoiceAvailable = access == OrderViewAccess.Owner
             && await fiscal.Documents.AsNoTracking().AnyAsync(d =>
                 d.TenantId == tenantGuid && d.OrderId == order.Id
+                && fiscal.Configs.Any(c => c.TenantId == tenantGuid && c.Environment == d.Environment)
                 && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized
                 && d.CbteTipo != global::Fiscal.Core.Domain.CbteTipo.NotaCreditoA
                 && d.CbteTipo != global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB

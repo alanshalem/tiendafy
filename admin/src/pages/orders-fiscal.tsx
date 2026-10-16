@@ -18,6 +18,8 @@ interface FiscalDoc {
   cae: string | null;
   caeVto: string | null;
   errors: string | null;
+  /** HOMOLOGACION | PRODUCCION. */
+  environment?: string;
 }
 interface FiscalJob {
   id: string;
@@ -27,6 +29,8 @@ interface FiscalJob {
   lastError: string | null;
 }
 interface FiscalStatus {
+  /** En qué ambiente factura hoy la tienda (null sin configurar). */
+  environment?: string | null;
   documents: FiscalDoc[];
   jobs: FiscalJob[];
 }
@@ -41,6 +45,7 @@ const CBTE_LABEL: Record<string, string> = {
 };
 const nro = (d: FiscalDoc) => `${String(d.ptoVta).padStart(4, '0')}-${String(d.number).padStart(8, '0')}`;
 const isNc = (t: string) => t.startsWith('NotaCredito');
+const HOMOLOGACION = 'HOMOLOGACION';
 
 /** Estado fiscal (ARCA) de una orden: comprobantes + jobs, con facturar/reintentar. */
 export function FiscalPanel({
@@ -68,12 +73,22 @@ export function FiscalPanel({
     () => setData(null),
   );
 
-  const invoice = data?.documents.find((d) => !isNc(d.cbteTipo) && d.result === 'Authorized');
+  // Solo cuenta lo del ambiente en que factura hoy la tienda: una factura de
+  // homologación no existe para ARCA de producción, y la venta se puede
+  // facturar de verdad. La de prueba se muestra aparte, dicha como tal.
+  const env = data?.environment ?? null;
+  const docs = data?.documents ?? [];
+  const current = docs.filter((d) => !env || !d.environment || d.environment === env);
+  const invoice = current.find((d) => !isNc(d.cbteTipo) && d.result === 'Authorized');
+  const otherEnvInvoice = docs.find(
+    (d) => !current.includes(d) && !isNc(d.cbteTipo) && d.result === 'Authorized',
+  );
   // Se pidió el CAE y la respuesta no llegó: puede estar autorizado del lado de
   // ARCA. Mientras tanto no se ofrece "Facturar ahora": emitir otra vez es
   // exactamente la factura duplicada que se quiere evitar.
-  const awaiting = data?.documents.find((d) => d.result === 'Pending');
-  const creditNote = data?.documents.find((d) => isNc(d.cbteTipo) && d.result === 'Authorized');
+  const awaiting = current.find((d) => d.result === 'Pending');
+  const creditNote = current.find((d) => isNc(d.cbteTipo) && d.result === 'Authorized');
+  const testing = env === HOMOLOGACION;
   const failedJob = data?.jobs.find((j) => j.status === 'Failed');
   const activeJob = data?.jobs.find((j) => j.status === 'Pending' || j.status === 'Processing');
   const payable = orderStatus === 'PAID' || orderStatus === 'FULFILLED';
@@ -147,6 +162,7 @@ export function FiscalPanel({
                 {CBTE_LABEL[invoice.cbteTipo] ?? invoice.cbteTipo} {nro(invoice)} · CAE {invoice.cae}
                 {invoice.caeVto ? ` (vence ${invoice.caeVto})` : ''}
               </span>
+              {testing && <span className="text-fg-muted">· de prueba (homologación)</span>}
               <button
                 onClick={() => downloadPdf('invoice')}
                 className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-2xs font-medium text-fg hover:bg-bg-muted"
@@ -170,6 +186,13 @@ export function FiscalPanel({
             </div>
           ) : (
             <div className="text-fg-muted">Sin factura para esta orden.</div>
+          )}
+          {otherEnvInvoice && (
+            <div className="text-fg-muted">
+              {otherEnvInvoice.environment === HOMOLOGACION
+                ? `La ${CBTE_LABEL[otherEnvInvoice.cbteTipo] ?? otherEnvInvoice.cbteTipo} ${nro(otherEnvInvoice)} es de homologación: de prueba, sin validez fiscal. No cuenta en producción.`
+                : `La ${CBTE_LABEL[otherEnvInvoice.cbteTipo] ?? otherEnvInvoice.cbteTipo} ${nro(otherEnvInvoice)} es de producción: no cuenta mientras la tienda factura en homologación.`}
+            </div>
           )}
           {creditNote && (
             <div className="flex items-center gap-2">

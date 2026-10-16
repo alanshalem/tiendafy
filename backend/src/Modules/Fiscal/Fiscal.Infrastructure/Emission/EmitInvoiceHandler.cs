@@ -42,16 +42,18 @@ public sealed class EmitInvoiceHandler(
             return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.NotConfigured",
                 "Falta configurar la facturación (datos del emisor)."));
 
+        var env = cfg.Environment;
+
         // Guarda anti-duplicado (camino manual y automático): una orden no se
-        // factura ni se acredita dos veces. Acá es el corte barato; la que vale
-        // se repite con el lock de la venta tomado, más abajo.
-        if (await AlreadyIssuedAsync(cmd, ct) is { } duplicate)
+        // factura ni se acredita dos veces en el mismo ambiente. Acá es el
+        // corte barato; la que vale se repite con el lock de la venta tomado,
+        // más abajo.
+        if (await AlreadyIssuedAsync(cmd, env, ct) is { } duplicate)
             return Result.Failure<EmitInvoiceResult>(duplicate);
 
         var cuitResult = Cuit.Create(cfg.Cuit);
         if (cuitResult.IsFailure) return Result.Failure<EmitInvoiceResult>(cuitResult.Error);
         var cuit = cuitResult.Value;
-        var env = cfg.Environment;
 
         // Punto de venta: el pasado en el comando o el default de la config.
         var ptoVtaResult = await ResolvePointOfSaleAsync(cmd, cfg, ct);
@@ -141,7 +143,7 @@ public sealed class EmitInvoiceHandler(
                 await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [takeOrder], ct);
             try
             {
-                if (orderLockKey is not null && await AlreadyIssuedAsync(cmd, ct) is { } issuedMeanwhile)
+                if (orderLockKey is not null && await AlreadyIssuedAsync(cmd, env, ct) is { } issuedMeanwhile)
                     return Result.Failure<EmitInvoiceResult>(issuedMeanwhile);
 
                 await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [lockKey], ct);
@@ -168,25 +170,34 @@ public sealed class EmitInvoiceHandler(
     }
 
     /// <summary>
-    /// La venta ya tiene el comprobante que se pide: factura autorizada (si se
-    /// factura) o nota de crédito autorizada (si se acredita). Una segunda NC
-    /// chocaría con el índice único DESPUÉS de que ARCA la autorizó: CAE
-    /// emitido y perdido. Null = se puede seguir. Sin orden no hay con qué comparar.
+    /// La venta ya tiene, en este ambiente, el comprobante que se pide:
+    /// factura autorizada (si se factura) o nota de crédito autorizada (si se
+    /// acredita). Una segunda NC chocaría con el índice único DESPUÉS de que
+    /// ARCA la autorizó: CAE emitido y perdido. Null = se puede seguir. Sin
+    /// orden no hay con qué comparar.
+    ///
+    /// <para>
+    /// Solo cuenta lo del ambiente en que se emite: una factura de
+    /// homologación no existe para ARCA de producción (ni al revés), así que
+    /// una venta que se facturó de prueba se puede facturar de verdad después
+    /// de pasar a producción. Dentro del mismo ambiente la idempotencia no
+    /// cambia, y la reconciliación ya iba por serie, que incluye el ambiente.
+    /// </para>
     /// </summary>
-    private async Task<Error?> AlreadyIssuedAsync(EmitInvoiceCommand cmd, CancellationToken ct)
+    private async Task<Error?> AlreadyIssuedAsync(EmitInvoiceCommand cmd, FiscalEnvironment env, CancellationToken ct)
     {
         if (cmd.OrderId is not { } orderId) return null;
 
         if (!cmd.CreditNote)
         {
             var invoiced = await db.Documents.AsNoTracking().AnyAsync(
-                d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
+                d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Environment == env && d.Result == FiscalResult.Authorized
                   && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC, ct);
             return invoiced ? Error.Conflict("Fiscal.AlreadyInvoiced", "Esta orden ya tiene una factura autorizada.") : null;
         }
 
         var credited = await db.Documents.AsNoTracking().AnyAsync(
-            d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
+            d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Environment == env && d.Result == FiscalResult.Authorized
               && (d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC), ct);
         return credited ? Error.Conflict("Fiscal.AlreadyCredited", "Esta orden ya tiene una nota de crédito autorizada.") : null;
     }

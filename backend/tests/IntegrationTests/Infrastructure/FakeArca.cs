@@ -51,6 +51,12 @@ public sealed partial class FakeArca
     public const string Wsfe = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
     public const string Padron = "https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5";
 
+    // Producción: el mismo ARCA simulado contesta en los hosts productivos,
+    // para probar lo que pasa al cambiar de ambiente.
+    public const string WsaaProduccion = "https://wsaa.afip.gov.ar/ws/services/LoginCms";
+    public const string WsfeProduccion = "https://servicios1.afip.gov.ar/wsfev1/service.asmx";
+    public const string PadronProduccion = "https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5";
+
     private readonly Dictionary<string, long> _last = [];
     private readonly Dictionary<string, (string DocTipo, string DocNro, string ImpTotal, string Cae, string Vto)> _authorized = [];
 
@@ -71,9 +77,12 @@ public sealed partial class FakeArca
 
     public FakeArca(FakeHttp http)
     {
-        http.On(HttpMethod.Post, Wsaa, (_, _) => WsaaFault is { } fault ? Fault(fault) : Xml(LoginTicket()));
-        http.On(HttpMethod.Post, Wsfe, (req, body) => HandleWsfe(req.Headers.GetValues("SOAPAction").First(), body!));
-        http.On(HttpMethod.Post, Padron, (_, _) => PadronFault is { } fault ? Fault(fault) : Xml(Persona()));
+        foreach (var wsaa in new[] { Wsaa, WsaaProduccion })
+            http.On(HttpMethod.Post, wsaa, (_, _) => WsaaFault is { } fault ? Fault(fault) : Xml(LoginTicket()));
+        foreach (var wsfe in new[] { Wsfe, WsfeProduccion })
+            http.On(HttpMethod.Post, wsfe, (req, body) => HandleWsfe(req.Headers.GetValues("SOAPAction").First(), body!));
+        foreach (var padron in new[] { Padron, PadronProduccion })
+            http.On(HttpMethod.Post, padron, (_, _) => PadronFault is { } fault ? Fault(fault) : Xml(Persona()));
     }
 
     private HttpResponseMessage HandleWsfe(string action, string body)
@@ -183,12 +192,22 @@ public static class FiscalSetup
     /// </summary>
     public static async Task ConfigureFiscalAsync(this Merchant merchant, int pointOfSale = 3)
     {
+        await merchant.SwitchFiscalEnvironmentAsync("HOMOLOGACION");
+        await merchant.PostAsync("/api/v1/fiscal/points-of-sale", new { number = pointOfSale, label = "Web" });
+    }
+
+    /// <summary>
+    /// Pasa la tienda a otro ambiente con su propio certificado (ARCA usa uno
+    /// por ambiente), como lo haría el comercio desde el panel.
+    /// </summary>
+    public static async Task SwitchFiscalEnvironmentAsync(this Merchant merchant, string environment)
+    {
         await merchant.PutAsync("/api/v1/fiscal/config", new
         {
             cuit = FakeArca.Cuit,
             businessName = "Tienda SA",
             condition = "RESPONSABLE_INSCRIPTO",
-            environment = "HOMOLOGACION",
+            environment,
         });
         var csr = await merchant.PostAsync("/api/v1/fiscal/certificate/csr", new { alias = "tiendafy-test" });
         await merchant.PostAsync("/api/v1/fiscal/certificate/activate", new
@@ -196,6 +215,5 @@ public static class FiscalSetup
             certificateId = csr.GetProperty("certificateId").GetGuid(),
             certificatePem = TestCa.Sign(csr.GetProperty("csrPem").GetString()!),
         });
-        await merchant.PostAsync("/api/v1/fiscal/points-of-sale", new { number = pointOfSale, label = "Web" });
     }
 }

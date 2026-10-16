@@ -131,8 +131,10 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
 **Emisión** (`EmitInvoiceHandler`), en este orden:
 
 1. Cortes previos, sin llamar a ARCA: la orden ya tiene factura (o nota de
-   crédito) autorizada; consumidor final anónimo por encima del umbral; el
-   comprador es la propia tienda.
+   crédito) autorizada **en el ambiente actual**; consumidor final anónimo por
+   encima del umbral; el comprador es la propia tienda. Lo de homologación no
+   cuenta en producción (ni al revés): una venta facturada de prueba se
+   factura de verdad después de pasar a producción.
 2. Receptor: 11 dígitos con verificador válido = CUIT; 7 u 8 = DNI; si no,
    consumidor final anónimo. La condición frente al IVA declarada (comercio o
    padrón) gana; si no hay, prefijo 30, 33 o 34 = Responsable Inscripto y
@@ -163,7 +165,9 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
 **Automática.** Los disparadores encolan un job único por (tienda, orden,
 tipo) si la facturación está habilitada (se habilita sola al activar un
 certificado del mismo ambiente que el emisor) y automática; la factura,
-además, solo si el disparador coincide. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
+además, solo si el disparador coincide. Si el job de esa orden ya terminó con
+un comprobante de otro ambiente (homologación), vuelve a empezar en el
+actual. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
 transitorios con espera de 1, 2, 4… hasta 60 minutos (8 intentos) y manda a
 fallidos los rechazos de ARCA y la falta de documento del comprador, porque
 reintentar no los arregla. Un job tomado (`Processing`) hace más de 15
@@ -191,6 +195,13 @@ de la orden que acredita.
 **Libro IVA.** `GET /fiscal/documents/export?year&month`: comprobantes
 autorizados del ambiente en que factura la tienda (columna "Ambiente";
 homologación no tiene validez fiscal), del mes en hora argentina.
+
+**Ambientes en la venta.** `GET /orders/{id}/fiscal` devuelve el ambiente
+actual y el de cada comprobante: el panel muestra como factura de la venta la
+del ambiente actual (marcada "de prueba" si es homologación) y la de otro
+ambiente aparte, dicha como tal. El PDF (`invoice.pdf`, en el panel y en la
+cuenta del comprador) y el botón de facturar de Mercado Libre miran solo el
+ambiente actual.
 
 ## Lo que aprendimos de la API real
 

@@ -113,6 +113,23 @@ public sealed class FiscalEmissionJob
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Vuelve a empezar de cero un job que terminó con un comprobante de otro
+    /// ambiente (la factura de homologación no existe para ARCA de producción):
+    /// lo hecho no cuenta, y el job es uno solo por (tienda, orden, tipo).
+    /// </summary>
+    public void Restart(long grossMinorUnits, string? buyerDoc)
+    {
+        GrossMinorUnits = grossMinorUnits;
+        BuyerDoc = buyerDoc;
+        Status = FiscalJobStatus.Pending;
+        Attempts = 0;
+        LastError = null;
+        FiscalDocumentId = null;
+        NextAttemptUtc = DateTime.UtcNow;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
     /// <summary>Reintento manual desde el admin: vuelve a la cola.</summary>
     public void Requeue()
     {

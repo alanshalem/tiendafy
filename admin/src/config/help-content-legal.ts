@@ -155,6 +155,11 @@ export const LEGAL = {
             tone: 'warning',
             text: 'El certificado de Homologación NO sirve en Producción: ARCA usa certificados separados por ambiente. Al pasar a Producción hay que repetir el trámite del certificado una vez más.',
           },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Lo que facturaste en Homologación no cuenta en Producción: esas facturas son de prueba y no existen para ARCA. En el detalle de la venta se ven aparte, marcadas como de prueba, y la venta se puede facturar de verdad con “Facturar ahora”.',
+          },
         ],
       },
       {

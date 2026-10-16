@@ -13,19 +13,24 @@ namespace Api.Fiscal;
 /// </summary>
 public static class OrderInvoicePdf
 {
-    /// <summary>El archivo, o NotFound si la venta no tiene ese comprobante autorizado.</summary>
+    /// <summary>
+    /// El archivo, o NotFound si la venta no tiene ese comprobante autorizado
+    /// en el ambiente en que factura la tienda. Una factura de homologación no
+    /// tiene validez fiscal: en producción no se ofrece como la de la venta.
+    /// </summary>
     public static async Task<IResult> DownloadAsync(
         FiscalDbContext fiscalDb, IComprobantePdfRenderer pdf,
         Guid tenantId, Guid orderId, Order? order, bool creditNote, CancellationToken ct)
     {
+        var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
+        if (cfg is null) return Results.NotFound();
+
         var docs = await fiscalDb.Documents.AsNoTracking()
-            .Where(d => d.TenantId == tenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized)
+            .Where(d => d.TenantId == tenantId && d.OrderId == orderId && d.Environment == cfg.Environment
+                        && d.Result == FiscalResult.Authorized)
             .OrderByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
         var doc = docs.FirstOrDefault(d => OrderComprobantePresenter.IsNc(d.CbteTipo) == creditNote);
         if (doc is null) return Results.NotFound();
-
-        var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
-        if (cfg is null) return Results.NotFound();
 
         var (bytes, fileName) = Render(pdf, doc, order, cfg);
         return Results.File(bytes, "application/pdf", fileName);

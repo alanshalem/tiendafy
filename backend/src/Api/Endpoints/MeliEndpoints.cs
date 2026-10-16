@@ -355,6 +355,7 @@ public static class MeliEndpoints
         var fiscal = group.MapGroup("/admin/meli").RequirePermission(Permission.FiscalEmit);
         fiscal.MapPost("/orders/{meliOrderId:long}/invoice", async (
             long meliOrderId, ITenantContext tenant, MeliDbContext db,
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
             global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
         {
             var order = await db.Orders.FirstOrDefaultAsync(o => o.MeliOrderId == meliOrderId, ct);
@@ -362,7 +363,11 @@ public static class MeliEndpoints
                 return Error.NotFound("Meli.OrderNotFound", "Esa venta no existe.").ToProblem();
             if (!order.IsPaid)
                 return Error.Validation("Meli.NotPaid", "Solo se facturan ventas pagadas.").ToProblem();
-            if (order.FiscalDocumentId is not null)
+            // Ya facturada en el ambiente en que factura hoy la tienda. Una de
+            // homologación no cuenta en producción: se puede facturar de verdad.
+            if (order.FiscalDocumentId is { } linked && await fiscalDb.Documents.AsNoTracking().AnyAsync(d =>
+                    d.Id == linked && d.TenantId == tenant.TenantId.Value
+                    && fiscalDb.Configs.Any(c => c.TenantId == d.TenantId && c.Environment == d.Environment), ct))
                 return Error.Conflict("Meli.AlreadyInvoiced", "Esta venta ya tiene comprobante emitido.").ToProblem();
 
             var minor = order.BillableMinorUnits;
