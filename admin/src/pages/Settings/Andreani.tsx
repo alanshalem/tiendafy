@@ -34,6 +34,17 @@ interface AndreaniConfig {
   unitVolumeCm?: number;
 }
 
+/** El que trae Andreani si el contrato no dice otro (AndreaniConfig.DefaultVolumetricFactor). */
+const DEFAULT_VOLUMETRIC_FACTOR = 0.35;
+
+/** Coeficiente de aforo válido: mayor a 0 y hasta 10 g/cm³, como valida el backend. Vacío = el de siempre. */
+function parseFactor(text: string): number | null | undefined {
+  if (text.trim() === '') return null;
+  // Un coeficiente chico (hasta 10) no tiene miles: la coma o el punto son el decimal.
+  const n = /^\d*[.,]?\d+$/.test(text.trim()) ? Number(text.trim().replace(',', '.')) : NaN;
+  return Number.isFinite(n) && n > 0 && n <= 10 ? n : undefined;
+}
+
 export function AndreaniCard() {
   const { config, load } = useCarrierConfig<AndreaniConfig>('/api/v1/admin/shipping/andreani');
   const [open, setOpen] = useState(false);
@@ -117,6 +128,9 @@ function ConfigModal({
   const [length, setLength] = useState(String(config.defaultLengthCm ?? 30));
   const [width, setWidth] = useState(String(config.defaultWidthCm ?? 20));
   const [height, setHeight] = useState(String(config.defaultHeightCm ?? 15));
+  const [factor, setFactor] = useState(
+    formatNumber(config.volumetricFactor ?? DEFAULT_VOLUMETRIC_FACTOR, { maximumFractionDigits: 3 }),
+  );
   const [active, setActive] = useState(config.active ?? true);
 
   // Las credenciales nunca vuelven del servidor: escribir una ya es un cambio.
@@ -142,6 +156,7 @@ function ConfigModal({
       length,
       width,
       height,
+      factor,
       active,
     },
     onClose,
@@ -150,8 +165,11 @@ function ConfigModal({
   const [testing, setTesting] = useState(false);
 
   const volume = (Number(length) || 0) * (Number(width) || 0) * (Number(height) || 0);
+  const parsedFactor = parseFactor(factor);
+  const factorInvalid = parsedFactor === undefined;
 
   const save = async () => {
+    if (factorInvalid) return;
     setSaving(true);
     try {
       await api.put('/api/v1/admin/shipping/andreani', {
@@ -162,7 +180,9 @@ function ConfigModal({
         branchPickupContract: branchContract.trim() || null,
         originBranch: originBranch.trim() || null,
         useQa,
-        volumetricFactor: null,
+        // Vacío vuelve al de siempre; antes se mandaba siempre null y guardar
+        // pisaba el coeficiente del contrato con el de fábrica.
+        volumetricFactor: parsedFactor,
         senderName: senderName.trim() || null,
         senderEmail: senderEmail.trim() || null,
         senderDocumentType: senderDocType.trim() || null,
@@ -219,7 +239,7 @@ function ConfigModal({
               Probar conexión
             </Button>
           )}
-          <Button onClick={save} loading={saving}>
+          <Button onClick={save} loading={saving} disabled={factorInvalid}>
             Guardar
           </Button>
         </>
@@ -370,6 +390,14 @@ function ConfigModal({
               />
             </FormField>
           </div>
+
+          <FormField
+            label="Coeficiente de aforo (g por cm³)"
+            hint={`El que figura en tu contrato con Andreani: con cuánto peso cuenta cada cm³ del paquete. Si no sabés, dejá ${formatNumber(DEFAULT_VOLUMETRIC_FACTOR, { maximumFractionDigits: 3 })}.`}
+            error={factorInvalid ? 'Tiene que ser mayor a 0 y hasta 10.' : undefined}
+          >
+            <Input value={factor} onChange={(e) => setFactor(e.target.value)} inputMode="decimal" />
+          </FormField>
 
           <p className="text-xs text-fg-subtle">
             Volumen por unidad: {formatNumber(volume)} cm³

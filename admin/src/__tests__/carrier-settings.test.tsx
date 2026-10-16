@@ -46,7 +46,37 @@ describe('Andreani', () => {
     expect(sent(api, 'PUT', '/api/v1/admin/shipping/andreani')).toMatchObject({
       weightGrams: 1000,
       lengthCm: 30,
+      volumetricFactor: 0.35,
     });
+  });
+
+  it('el coeficiente de aforo del contrato se conserva, se edita con coma y se valida', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/andreani', {
+      configured: true,
+      username: 'usuario',
+      hasPassword: true,
+      homeDeliveryContract: '300006611',
+      volumetricFactor: 0.25,
+    });
+    const user = userEvent.setup();
+    renderApp(PAGE);
+
+    await user.click((await card('Andreani')).getByRole('button', { name: 'Editar' }));
+    const modal = within(await screen.findByRole('dialog'));
+    const factor = modal.getByLabelText(/Coeficiente de aforo/);
+    expect(factor).toHaveValue('0,25');
+
+    await user.clear(factor);
+    await user.type(factor, '12');
+    expect(modal.getByText('Tiene que ser mayor a 0 y hasta 10.')).toBeInTheDocument();
+    expect(modal.getByRole('button', { name: /Guardar/ })).toBeDisabled();
+
+    await user.clear(factor);
+    await user.type(factor, '0,3');
+    await user.click(modal.getByRole('button', { name: /Guardar/ }));
+    await waitFor(() => expect(sent(api, 'PUT', '/api/v1/admin/shipping/andreani')).toBeDefined());
+    expect(sent(api, 'PUT', '/api/v1/admin/shipping/andreani')).toMatchObject({ volumetricFactor: 0.3 });
   });
 
   it('editar muestra los datos guardados y deja desconectar', async () => {
