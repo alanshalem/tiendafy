@@ -229,7 +229,8 @@ describe('compras: factura del proveedor', () => {
     await user.type(screen.getByPlaceholderText('0001-00001234'), '0001-00000042');
     await user.type(screen.getByLabelText('Fecha'), '2026-10-01');
     const [net, vat] = screen.getAllByPlaceholderText('0,00');
-    await user.type(net!, '1000,50');
+    // Con coma decimal y punto de miles, como dice el placeholder (antes viajaban como null).
+    await user.type(net!, '1.000,50');
     await user.type(vat!, '210,11');
     await user.click(screen.getByRole('button', { name: /Guardar comprobante/ }));
     await settle(2);
@@ -237,7 +238,17 @@ describe('compras: factura del proveedor', () => {
       supplierTaxId: '30712345678',
       invoiceType: 'A',
       invoiceNumber: '0001-00000042',
+      invoiceNetArs: 1000.5,
+      invoiceVatArs: 210.11,
     });
+  });
+
+  it('un importe que no se entiende no se guarda como vacío', async () => {
+    await openPo({ status: 'RECEIVED' });
+    const [net] = screen.getAllByPlaceholderText('0,00');
+    await userEvent.setup().type(net!, '12abc');
+    expect(screen.getByText('No es un importe.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Guardar comprobante/ })).toBeDisabled();
   });
 
   it('la IA lee la factura escaneada, se revisa y se usa', async () => {

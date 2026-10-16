@@ -346,7 +346,7 @@ function CouponModal({
       ? true
       : type === 'Percentage'
         ? Number(value) >= 1 && Number(value) <= 100
-        : parseFloat(value.replace(',', '.')) > 0;
+        : toCents(value) > 0;
 
   return (
     <Modal

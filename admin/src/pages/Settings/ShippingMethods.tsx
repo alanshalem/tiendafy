@@ -3,6 +3,7 @@ import { Calculator, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
 import { Button, Modal, Switch, cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
+import { parseMoneyInput } from '../../lib/price';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
@@ -295,11 +296,14 @@ function MethodDialog({
     onClose,
   );
 
-  const parsedPrice = price.trim() === '' ? 0 : Number(price.replace(',', '.'));
+  // El lector de importes del panel (centavos): "1.500,50", "1500.50" y "1500,5"
+  // son lo mismo. La API recibe la unidad mayor.
+  const parsedPrice = price.trim() === '' ? 0 : parseMoneyInput(price) / 100;
   const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 0;
   const nameValid = name.trim().length > 0;
   const pickupValid = kind !== 'PICKUP' || pickupAddress.trim().length > 0;
-  const parsedFreeAbove = freeAbove.trim() === '' ? null : Number(freeAbove.replace(/\D/g, ''));
+  // Antes se borraba todo lo que no fuera dígito: "50000,50" quedaba en 5.000.050.
+  const parsedFreeAbove = freeAbove.trim() === '' ? null : parseMoneyInput(freeAbove) / 100;
   const freeAboveValid =
     parsedFreeAbove === null || (Number.isFinite(parsedFreeAbove) && parsedFreeAbove >= 0);
   const valid = nameValid && priceValid && pickupValid && freeAboveValid;

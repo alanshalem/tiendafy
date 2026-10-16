@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { declaredValueFromOrder, parseAddress, type ShippingOrderLike } from '../lib/shipping';
+import {
+  declaredValueFromOrder,
+  parseAddress,
+  parseDeclaredValue,
+  type ShippingOrderLike,
+} from '../lib/shipping';
 
 const order = (total: number): ShippingOrderLike => ({
   id: 'o1',
@@ -45,5 +50,15 @@ describe('declaredValueFromOrder', () => {
   it('convierte el total en unidades menores a pesos enteros', () => {
     expect(declaredValueFromOrder(order(1299950))).toBe('13000');
     expect(declaredValueFromOrder(order(100))).toBe('1');
+  });
+});
+
+describe('parseDeclaredValue', () => {
+  it('lee el valor como lo escribe una persona: miles con punto, centavos con coma', () => {
+    expect(parseDeclaredValue('13000')).toBe(13000);
+    expect(parseDeclaredValue('50.000')).toBe(50000); // con Number() eran 50
+    expect(parseDeclaredValue('50000,50')).toBe(50000.5); // con Number() era 0
+    expect(parseDeclaredValue('')).toBe(0);
+    expect(parseDeclaredValue('abc')).toBe(0);
   });
 });

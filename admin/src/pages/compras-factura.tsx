@@ -6,6 +6,7 @@ import { Badge, Button, Card, FormField, Input, useToast, Spinner } from '@tiend
 import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
+import { parseMoneyInput } from '../lib/price';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
 import { CONFIDENCE_TONE } from './compras-tipos';
@@ -56,6 +57,11 @@ export function VatBookDownload() {
   );
 }
 
+/** Pesos de un campo de importe: null si está vacío, NaN si no se entiende. */
+function amountOrNull(text: string): number | null {
+  return text.trim() === '' ? null : parseMoneyInput(text) / 100;
+}
+
 /**
  * La factura del proveedor: lo que el contador necesita para el libro de IVA
  * compras. Es opcional y se puede cargar después de recibir la mercadería —
@@ -73,6 +79,11 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
   const [net, setNet] = useState(po.invoiceNetArs != null ? String(po.invoiceNetArs) : '');
   const [vat, setVat] = useState(po.invoiceVatArs != null ? String(po.invoiceVatArs) : '');
   const [scan, setScan] = useState<ScannedInvoice | null>(null);
+  // Con el lector de importes del panel: el placeholder dice "0,00" y con
+  // Number() "1500,00" era NaN, que viaja como null y borraba el importe.
+  const netArs = amountOrNull(net);
+  const vatArs = amountOrNull(vat);
+  const amountsInvalid = Number.isNaN(netArs) || Number.isNaN(vatArs);
 
   const save = useMutation({
     mutationFn: () =>
@@ -81,8 +92,8 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
         invoiceType: type.trim() || null,
         invoiceNumber: number.trim() || null,
         invoiceDateUtc: date ? new Date(`${date}T00:00:00Z`).toISOString() : null,
-        invoiceNetArs: net ? Number(net) : null,
-        invoiceVatArs: vat ? Number(vat) : null,
+        invoiceNetArs: netArs,
+        invoiceVatArs: vatArs,
       }),
     onSuccess: () => {
       toast('Comprobante guardado. Ya entra en el libro de IVA compras.', { variant: 'success' });
@@ -135,7 +146,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
         <FormField label="Fecha">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </FormField>
-        <FormField label="Neto ($)">
+        <FormField label="Neto ($)" error={Number.isNaN(netArs) ? 'No es un importe.' : undefined}>
           <Input
             value={net}
             onChange={(e) => setNet(e.target.value)}
@@ -143,7 +154,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
             placeholder="0,00"
           />
         </FormField>
-        <FormField label="IVA ($)">
+        <FormField label="IVA ($)" error={Number.isNaN(vatArs) ? 'No es un importe.' : undefined}>
           <Input
             value={vat}
             onChange={(e) => setVat(e.target.value)}
@@ -153,7 +164,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
         </FormField>
       </div>
       <div className="mt-3 flex justify-end">
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+        <Button onClick={() => save.mutate()} disabled={save.isPending || amountsInvalid}>
           {save.isPending ? <Spinner inline /> : null}
           Guardar comprobante
         </Button>

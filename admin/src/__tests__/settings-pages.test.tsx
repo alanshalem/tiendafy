@@ -47,7 +47,9 @@ describe('medios de envío propios', () => {
     expect(api.calls.some((c) => c.method === 'POST')).toBe(false); // retiro sin dirección
 
     await user.selectOptions(dialog.getByLabelText('Tipo'), 'DELIVERY');
-    await user.type(dialog.getByPlaceholderText('0 = gratis'), '1500,50');
+    await user.type(dialog.getByPlaceholderText('0 = gratis'), '1.500,50');
+    // Con centavos: antes se borraba la coma y "50000,50" quedaba en 5.000.050.
+    await user.type(dialog.getByPlaceholderText('Ej.: 50000'), '50000,50');
     await user.type(dialog.getByPlaceholderText('Llega en 3 a 5 días hábiles'), 'En el día');
     await user.click(dialog.getByRole('switch', { name: 'Activo' }));
     await user.click(dialog.getByRole('button', { name: 'Crear medio de envío' }));
@@ -56,6 +58,7 @@ describe('medios de envío propios', () => {
       name: 'Moto CABA',
       kind: 'DELIVERY',
       price: 1500.5,
+      freeAbove: 50000.5,
       description: 'En el día',
       pickupAddress: null,
       active: false,

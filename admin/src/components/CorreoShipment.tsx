@@ -5,6 +5,7 @@ import { api, errMsg } from '../lib/api';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
+  parseDeclaredValue,
   parseAddress,
   shipmentTriggerCls,
   type ShippingOrderLike,
@@ -239,7 +240,7 @@ function ShipmentModal({
         provinceCode: province,
         postalCode: cp.trim() || null,
         agency: agency.trim() || null,
-        declaredValue: Number(declared) || 0,
+        declaredValue: parseDeclaredValue(declared),
       });
       setDone(res);
       toast(

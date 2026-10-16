@@ -6,6 +6,7 @@ import { downloadBlob } from '../lib/download';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
+  parseDeclaredValue,
   parseAddress,
   shipmentTriggerCls,
   type ShippingOrderLike,
@@ -224,7 +225,7 @@ function ShipmentModal({
         city: city.trim(),
         postalCode: zipcode.trim(),
         extras: extras.trim() || null,
-        declaredValue: Number(declared) || 0,
+        declaredValue: parseDeclaredValue(declared),
         toBranch,
         branchId: toBranch ? branchId.trim() : null,
       });

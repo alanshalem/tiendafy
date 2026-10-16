@@ -6,6 +6,7 @@ import { downloadBlob } from '../lib/download';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
+  parseDeclaredValue,
   parseAddress,
   shipmentTriggerCls,
   type ShippingOrderLike,
@@ -173,7 +174,7 @@ function ShipmentModal({
         city: city.trim(),
         state: stateName.trim(),
         zipcode: zipcode.trim(),
-        declaredValue: Number(declared) || 0,
+        declaredValue: parseDeclaredValue(declared),
       });
       toast(res.alreadyExisted ? 'Esta venta ya tenía un envío en Zipnova' : 'Envío creado en Zipnova', {
         variant: 'success',

@@ -3,6 +3,7 @@ import { Button, Checkbox, Modal, cn, Spinner } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { refundEffect } from '../lib/orderFacets';
+import { parseMoneyInput } from '../lib/price';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { money, type Order, type RefundRecord } from './Orders';
 
@@ -48,7 +49,8 @@ export function RefundDialog({
     };
   }, [order.id]);
 
-  const parsed = Number(amount.replace(',', '.'));
+  // El lector de importes del panel: "1.500" son mil quinientos (con Number eran 1,50).
+  const parsed = parseMoneyInput(amount) / 100;
   const amountValid = mode === 'total' || (Number.isFinite(parsed) && parsed > 0 && parsed <= refundable);
 
   return (

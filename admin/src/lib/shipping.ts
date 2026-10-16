@@ -3,6 +3,7 @@
  * Zipnova): antes vivían duplicadas verbatim en cada componente.
  */
 import type { MoneyDto } from '@tiendafy/types';
+import { parseMoneyInput } from './price';
 
 /** Subconjunto de la orden que necesitan los flujos de envío. */
 export interface ShippingOrderLike {
@@ -46,6 +47,16 @@ export function parseAddress(raw: string | null): {
 /** Valor declarado sugerido: el total de la orden en pesos enteros. */
 export const declaredValueFromOrder = (order: ShippingOrderLike): string =>
   String(Math.round(order.total.amount / 100));
+
+/**
+ * El valor declarado que escribió la persona, en pesos, con el lector de
+ * importes del panel: "50.000" son cincuenta mil (con `Number` eran 50) y
+ * "50000,50" lleva sus centavos (antes era 0). Lo que no se entiende, 0.
+ */
+export function parseDeclaredValue(text: string): number {
+  const pesos = parseMoneyInput(text) / 100;
+  return Number.isFinite(pesos) && pesos > 0 ? pesos : 0;
+}
 
 /** Botón secundario chico de las acciones de envío en la fila de la venta. */
 export const shipmentTriggerCls =
