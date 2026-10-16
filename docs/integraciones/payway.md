@@ -87,7 +87,14 @@ la tokenización no depende de él.
 3. `PaywayClient.ChargeAsync` **abre la fila del intento antes de llamar a
    Payway**, con `site_transaction_id = TF-{orderId:N}-{intento}` e índice
    único `(tenant, site_transaction_id)` y `(tenant, order, attempt_number)`.
-   Si la orden ya tiene un intento aprobado, no cobra (`Payway.AlreadyPaid`).
+   Solo se vuelve a cobrar una orden cuyo último intento fue rechazado (el
+   comprador prueba otra tarjeta). Con uno aprobado o sin resolver (en
+   revisión, 3DS, timeout), el mismo pedido repetido recibe ese resultado y a
+   Payway no le llega otro cobro; con uno todavía esperando respuesta,
+   `Payway.InProgress`. La orden es una por sesión de checkout (índice único
+   en `orders.checkout_session_id`): el doble clic o la otra pestaña sobre la
+   misma compra reusan la misma orden, así que estos intentos se cuentan
+   sobre ella.
 4. `POST /payments` con `payment_type: "single"`, la IP real del comprador,
    `establishment_name` y el `payment_method_id` deducido de la marca. Timeout
    de 35 s (Payway admite entre 20 y 30 s con carga).

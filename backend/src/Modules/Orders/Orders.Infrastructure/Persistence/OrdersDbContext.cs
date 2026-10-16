@@ -125,6 +125,14 @@ public sealed class OrdersDbContext : DbContext
         // en el panel. El contador ya lo garantiza; esto frena una escritura a mano.
         order.HasIndex(o => new { o.TenantId, o.Number }).IsUnique();
         order.HasIndex(o => o.PaymentId);
+        // Una compra de la tienda produce como mucho UNA venta: un doble clic,
+        // un reintento del navegador o dos pestañas pidiendo pagar la misma
+        // sesión de checkout reusan la orden en vez de crear otra (ver
+        // OrderRepository.AddOncePerCheckoutAsync). Las ventas que no nacen de
+        // un checkout (manuales, presupuestos, el seed) llevan un id propio que
+        // no se repite. Sirve además a los barridos que cruzan sesiones con
+        // órdenes (checkouts vencidos, carritos abandonados).
+        order.HasIndex(o => o.CheckoutSessionId).IsUnique();
         // El worker de vencimientos busca las pendientes con plazo vencido.
         order.HasIndex(o => new { o.Status, o.PaymentDueAtUtc });
         order.Ignore(o => o.DomainEvents);

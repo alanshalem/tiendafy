@@ -8,9 +8,22 @@ using SharedKernel.Common;
 
 namespace Api.Orders;
 
+/// <summary>La orden de un checkout y si nació en este pedido o ya existía (ver CheckoutOrderFactory).</summary>
+public sealed record CheckoutOrder(Order Order, bool IsNew);
+
 /// <summary>
 /// La orden que nace de un checkout enviado, para cualquier medio de pago:
 /// Checkout Pro, tarjeta en la tienda, Payway, transferencia o efectivo.
+///
+/// Una sesión de checkout produce como mucho UNA orden. Un doble clic, un
+/// reintento del navegador o dos pestañas que piden pagar la misma compra
+/// reciben la orden que ya estaba (<see cref="CheckoutOrder.IsNew"/> en false)
+/// mientras siga pendiente, y un error claro si ya se pagó, se canceló o se
+/// rechazó. Lo garantiza el índice único de <c>orders.checkout_session_id</c>,
+/// también cuando los dos pedidos llegan en el mismo instante. Quien cobra con
+/// una orden reusada no tiene que volver a cobrar lo que ya se cobró: Mercado
+/// Pago lo frena con la clave de idempotencia (el id de la orden) y Payway con
+/// el intento en curso (ver PaywayClient).
 ///
 /// Vivía como un <c>internal static</c> de diez parámetros en OrderEndpoints, y
 /// OfflinePaymentService lo llamaba desde ahí: un servicio dependiendo de la
@@ -18,6 +31,7 @@ namespace Api.Orders;
 /// </summary>
 public sealed class CheckoutOrderFactory(
     ICheckoutRepository checkouts,
+    IOrderRepository orders,
     DiscountsDbContext discountsDb,
     CreateOrderHandler createOrder,
     ICatalogCheckoutQuery catalogQuery,
@@ -27,21 +41,28 @@ public sealed class CheckoutOrderFactory(
     /// Crea la Order desde un checkout enviado, aplicando el cupón validado
     /// server-side. Con <paramref name="offline"/>, además el descuento y el
     /// plazo de la transferencia o el efectivo (ver Order.UseOfflinePayment).
+    /// Si la sesión ya tiene su orden, devuelve esa (ver <see cref="Reuse"/>).
     /// </summary>
-    public async Task<Result<Order>> CreateAsync(
+    public async Task<Result<CheckoutOrder>> CreateAsync(
         TenantId tenantId, Guid sessionId, string? couponCode, string? utmSource,
         CancellationToken ct, OfflinePaymentPlan? offline = null)
     {
+        // Antes que el estado de la sesión: una sesión ya pagada puede figurar
+        // completada o vencida, y lo que el comprador tiene que saber es que
+        // la compra ya está pagada, no que "venció".
+        if (await orders.GetByCheckoutSessionAsync(tenantId, sessionId, ct) is { } existing)
+            return Reuse(existing, offline);
+
         var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
-        if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
+        if (session is null) return Result.Failure<CheckoutOrder>(Error.NotFound("Checkout", sessionId));
         // Vencida (marcada o con el plazo cumplido): sus reservas ya volvieron o
         // están por volver al stock, así que no se cobra sobre ella. El
         // comprador arranca otra compra desde el carrito, que sigue intacto.
         if (session.IsExpired(DateTime.UtcNow))
-            return Result.Failure<Order>(Error.Conflict("Checkout.Expired",
+            return Result.Failure<CheckoutOrder>(Error.Conflict("Checkout.Expired",
                 "La compra venció: volvé a empezar desde el carrito."));
         if (session.Status != CheckoutStatus.Submitted)
-            return Result.Failure<Order>(Error.Conflict("Checkout.NotSubmitted",
+            return Result.Failure<CheckoutOrder>(Error.Conflict("Checkout.NotSubmitted",
                 "El checkout debe estar enviado (con stock reservado) antes de pagar."));
 
         // Cupón: NUNCA confiar en el descuento del cliente; recalcular server-side.
@@ -89,7 +110,7 @@ public sealed class CheckoutOrderFactory(
         var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
-        return await createOrder.HandleAsync(new CreateOrderCommand(
+        var placed = await createOrder.HandleAsync(new CreateOrderCommand(
             tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
             discount.IsZero ? null : discount, code.Length > 0 ? code : null,
             ShippingCost: shippingCost,
@@ -102,5 +123,43 @@ public sealed class CheckoutOrderFactory(
             UtmSource: utmSource,
             IsPickup: isPickup,
             OfflinePayment: offline), ct);
+        if (placed.IsFailure) return Result.Failure<CheckoutOrder>(placed.Error);
+
+        // Otro pedido sobre la misma sesión la creó en el mismo instante.
+        return placed.Value.IsNew
+            ? new CheckoutOrder(placed.Value.Order, true)
+            : Reuse(placed.Value.Order, offline);
+    }
+
+    /// <summary>
+    /// Qué hacer con la orden que ya tenía la sesión. Pendiente y con el mismo
+    /// medio, se sigue con ella. Con otro medio no: el monto de una
+    /// transferencia trae su descuento y el de una tarjeta no, así que no se
+    /// cobra una con el otro (y para cambiar de medio, el checkout arranca una
+    /// compra nueva). Pagada, cancelada o rechazada, un error que lo diga: el
+    /// stock de una rechazada ya volvió a la venta, no se puede cobrar encima.
+    /// </summary>
+    private static Result<CheckoutOrder> Reuse(Order order, OfflinePaymentPlan? offline)
+    {
+        if (order.Status == OrderStatus.PendingPayment)
+        {
+            var sameMethod = offline is null
+                ? !order.IsOfflinePayment
+                : order.PaymentProvider == offline.Provider;
+            return sameMethod
+                ? new CheckoutOrder(order, false)
+                : Result.Failure<CheckoutOrder>(Error.Conflict("Checkout.OtherMethod",
+                    "Esta compra ya se está pagando con otro medio. Si querés cambiarlo, volvé a empezar desde el carrito."));
+        }
+
+        return Result.Failure<CheckoutOrder>(order.Status switch
+        {
+            OrderStatus.Cancelled => Error.Conflict("Checkout.OrderCancelled",
+                "Esta compra se canceló. Volvé a empezar desde el carrito."),
+            OrderStatus.Failed => Error.Conflict("Checkout.PaymentFailed",
+                "El pago de esta compra no se aprobó. Volvé a empezar desde el carrito para intentar de nuevo."),
+            _ => Error.Conflict("Checkout.AlreadyPaid",
+                "Esta compra ya está pagada: no hace falta volver a pagarla."),
+        });
     }
 }

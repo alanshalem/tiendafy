@@ -91,6 +91,17 @@ se colapsan en uno solo por el neto, porque la preference no tiene descuento a
 nivel orden. `external_reference` = id de la orden. El `returnUrl` del cliente
 se valida contra dominios propios (`SafeRedirect`).
 
+**Una compra, una orden.** Una sesión de checkout produce como mucho una orden
+(índice único en `orders.checkout_session_id`, ver `CheckoutOrderFactory`): un
+doble clic, un reintento del navegador o dos pestañas sobre la misma compra
+reusan la orden pendiente, también si llegan en el mismo instante. Con la
+orden reusada, la preference y el cobro salen con la misma
+`X-Idempotency-Key` (el id de la orden), así que Mercado Pago devuelve el pago
+o la preference que ya había en vez de crear otro. Si la orden ya está pagada,
+cancelada o rechazada, el segundo pedido recibe un 409 que lo dice
+(`Checkout.AlreadyPaid`, `Checkout.OrderCancelled`, `Checkout.PaymentFailed`);
+si la compra ya se está pagando por transferencia, `Checkout.OtherMethod`.
+
 **Checkout integrado.** El Brick tokeniza con la `publicKey` del vendedor
 (`GET /payments/mercadopago/public-config`), y `POST /checkout/{id}/pay-onsite`
 cobra en `/v1/payments` con `three_d_secure_mode=optional`, `capture=true` y

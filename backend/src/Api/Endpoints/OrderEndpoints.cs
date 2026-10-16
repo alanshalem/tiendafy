@@ -28,8 +28,10 @@ public static class OrderEndpoints
             IOrderRepository orders,
             IMercadoPagoPaymentService mp,
             IConfiguration cfg,
+            ILoggerFactory loggers,
             CancellationToken ct) =>
         {
+            var logger = loggers.CreateLogger("Api.Checkout.Pay");
 
             // El returnUrl (back_urls de MP) viene del cliente: validar que sea
             // un dominio propio o MP redirige al comprador post-pago a un sitio
@@ -39,9 +41,13 @@ public static class OrderEndpoints
                 return Error.Validation("Checkout.BadReturnUrl",
                     "La URL de retorno no es válida.").ToProblem();
 
+            // Un segundo pedido sobre la misma compra (doble clic, reintento,
+            // otra pestaña) reusa la orden pendiente: la preference sale con la
+            // misma clave de idempotencia (el id de la orden), así que Mercado
+            // Pago devuelve la que ya había en vez de abrir otro link.
             var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
-            var order = orderResult.Value;
+            var order = orderResult.Value.Order;
 
             // El envío viaja como ítem más de la preference (MP no tiene campo aparte
             // en este flujo); el monto sale del snapshot de la orden, no del cliente.
@@ -62,8 +68,22 @@ public static class OrderEndpoints
 
             if (prefResult.IsFailure) return prefResult.Error.ToProblem();
 
-            order.AttachPreference(prefResult.Value.PreferenceId);
-            await orders.SaveChangesAsync(ct);
+            // La primera preference es la que queda anotada (la que se vence
+            // al cancelar la venta); si dos pedidos llegan juntos, el segundo
+            // guardado choca con el primero (xmin) y se queda con la de él.
+            if (order.PreferenceId is null)
+            {
+                order.AttachPreference(prefResult.Value.PreferenceId);
+                try
+                {
+                    await orders.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    logger.LogInformation(
+                        "La orden {OrderId} ya tenía preference de otro pedido simultáneo; se devuelve el link igual.", order.Id);
+                }
+            }
             return Results.Ok(new { orderId = order.Id, initPoint = prefResult.Value.InitPoint });
         }).RequireTenant().RequireRateLimiting("payments");
 
@@ -81,9 +101,13 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
+            // Con la orden reusada (doble clic, reintento, otra pestaña) el cobro
+            // sale con la misma clave de idempotencia, el id de la orden: si ya
+            // había uno —aprobado, en proceso o esperando el 3DS—, Mercado Pago
+            // devuelve ese en vez de cobrar otra vez, y acá se contesta lo mismo.
             var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
-            var order = orderResult.Value;
+            var order = orderResult.Value.Order;
 
             var payResult = await mp.CreateCardPaymentAsync(new CreateCardPaymentRequest(
                 tenant.TenantId, order.Id, order.Total.ToDecimal(),
@@ -93,8 +117,7 @@ public static class OrderEndpoints
             var card = payResult.Value;
 
             // Aplicar el resultado ya (el webhook es backup, idempotente).
-            await paidEffects.RunIfJustPaidAsync(
-                await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct), ct);
+            await SettleNowAsync(settle, paidEffects, order.Id, card.Status, card.PaymentId, ct);
 
             // Si el banco pide confirmar el pago (3DS), la orden queda pendiente
             // y la tienda muestra el desafío con estos datos; el resultado final
@@ -141,9 +164,12 @@ public static class OrderEndpoints
                         ? "La tienda no ofrece pagar en un pago. Elegí una de las opciones de cuotas."
                         : $"La tienda no ofrece pagar en {installments} cuotas. Elegí una de las opciones de cuotas.").ToProblem();
 
+            // Con la orden reusada, Payway no se vuelve a cobrar si ya hay un
+            // intento aprobado o sin resolver: ChargeAsync devuelve ese (no hay
+            // idempotencia del lado de Payway; la lleva PaywayClient).
             var orderResult = await orderFactory.CreateAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
-            var order = orderResult.Value;
+            var order = orderResult.Value.Order;
 
             // El total sale del snapshot de la orden, nunca de lo que mande el
             // navegador, y ya está en centavos: la unidad que espera Payway.
@@ -164,8 +190,7 @@ public static class OrderEndpoints
             // que no supimos interpretar la dejan pendiente a propósito: se
             // despacha cuando Payway confirma, no antes.
             if (charge.IsApproved && charge.ProviderPaymentId is { } paymentId)
-                await paidEffects.RunIfJustPaidAsync(
-                    await settle.HandleAsync(order.Id, "approved", paymentId, ct: ct), ct);
+                await SettleNowAsync(settle, paidEffects, order.Id, "approved", paymentId, ct);
 
             return Results.Ok(new
             {
@@ -538,6 +563,28 @@ public static class OrderEndpoints
         }).RequirePermission(Permission.FiscalEmit);
 
         return group;
+    }
+
+    /// <summary>
+    /// Aplica a la orden el resultado de un cobro hecho en el mismo pedido. Si
+    /// otro pedido sobre la misma compra (doble clic, otra pestaña) lo aplicó
+    /// en el mismo instante, este guardado choca con el suyo (xmin) y no queda
+    /// nada por hacer: la venta ya está pagada y sus efectos corren en el otro.
+    /// </summary>
+    private static async Task SettleNowAsync(
+        SettlePaymentHandler settle, Api.Orders.PaidOrderSideEffects paidEffects,
+        Guid orderId, string status, string paymentId, CancellationToken ct)
+    {
+        Result<SettleResult> settled;
+        try
+        {
+            settled = await settle.HandleAsync(orderId, status, paymentId, ct: ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return;
+        }
+        await paidEffects.RunIfJustPaidAsync(settled, ct);
     }
 
     /// <summary>Quién hizo la acción, para dejarlo escrito: su nombre, si no su id, y si no "admin".</summary>

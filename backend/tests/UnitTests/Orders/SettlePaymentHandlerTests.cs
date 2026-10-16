@@ -27,6 +27,8 @@ public class SettlePaymentHandlerTests
         public IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, OrderListFilter filter) => AsyncEnumerable.Empty<Order>();
         public Task<int> CountAsync(TenantId tenantId, OrderListFilter filter, CancellationToken ct = default) => Task.FromResult(0);
         public Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Order>>([]);
+        public Task<Order?> GetByCheckoutSessionAsync(TenantId tenantId, Guid checkoutSessionId, CancellationToken ct = default) => Task.FromResult(order);
+        public Task<(Order Order, bool IsNew)> AddOncePerCheckoutAsync(Order order, CancellationToken ct = default) => Task.FromResult((order, true));
         public Task AddAsync(Order order, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) { Saves++; return Task.CompletedTask; }
     }

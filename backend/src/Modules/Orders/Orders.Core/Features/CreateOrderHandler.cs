@@ -21,16 +21,24 @@ public sealed record CreateOrderCommand(
 /// </summary>
 public sealed record OfflinePaymentPlan(string Provider, int DiscountPercent, DateTime DueAtUtc);
 
+/// <summary>La orden del checkout y si nació en este pedido (false: ya había una de esa sesión y es esa).</summary>
+public sealed record PlacedOrder(Order Order, bool IsNew);
+
 public sealed class CreateOrderHandler(IOrderRepository repository)
 {
-    public async Task<Result<Order>> HandleAsync(CreateOrderCommand command, CancellationToken ct = default)
+    /// <summary>
+    /// Crea la orden de una sesión de checkout. Una sesión produce como mucho
+    /// una: si otro pedido sobre la misma sesión la creó primero (aunque sea en
+    /// el mismo instante), devuelve esa con <c>IsNew = false</c>.
+    /// </summary>
+    public async Task<Result<PlacedOrder>> HandleAsync(CreateOrderCommand command, CancellationToken ct = default)
     {
         var result = Order.Create(
             command.TenantId, command.CheckoutSessionId, command.BuyerEmail, command.Currency,
             command.Lines.Select(l => (l.VariantId, l.ProductName, l.VariantDescription, l.Sku, l.UnitPrice, l.Quantity, l.ReservationId, l.UnitCost)).ToList(),
             command.Discount, command.CouponCode);
 
-        if (result.IsFailure) return result;
+        if (result.IsFailure) return Result.Failure<PlacedOrder>(result.Error);
 
         result.Value.SetUtmSource(command.UtmSource);
         result.Value.SetShippingAndBuyer(
@@ -41,11 +49,10 @@ public sealed class CreateOrderHandler(IOrderRepository repository)
         if (command.OfflinePayment is { } plan)
         {
             var offline = result.Value.UseOfflinePayment(plan.Provider, plan.DiscountPercent, plan.DueAtUtc);
-            if (offline.IsFailure) return Result.Failure<Order>(offline.Error);
+            if (offline.IsFailure) return Result.Failure<PlacedOrder>(offline.Error);
         }
 
-        await repository.AddAsync(result.Value, ct);
-        await repository.SaveChangesAsync(ct);
-        return result;
+        var (order, isNew) = await repository.AddOncePerCheckoutAsync(result.Value, ct);
+        return new PlacedOrder(order, isNew);
     }
 }

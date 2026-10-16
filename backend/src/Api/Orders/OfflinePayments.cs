@@ -65,8 +65,13 @@ public sealed class OfflinePaymentService(
         var built = await orderFactory.CreateAsync(
             tenantId, sessionId, couponCode, utmSource,
             ct, new OfflinePaymentPlan(OfflinePayments.Wire(method), options.DiscountPercent, dueAt));
-        if (built.IsFailure) return built;
-        var order = built.Value;
+        if (built.IsFailure) return Result.Failure<Order>(built.Error);
+        var order = built.Value.Order;
+
+        // Doble clic o reintento sobre la misma compra: la venta ya está hecha,
+        // con su reserva estirada y su email enviado. Se devuelve la misma, sin
+        // repetir nada.
+        if (!built.Value.IsNew) return order;
 
         // La reserva del checkout dura media hora (lo que tarda una tarjeta); el
         // que transfiere tiene horas. Si alguna ya no se puede estirar, la venta

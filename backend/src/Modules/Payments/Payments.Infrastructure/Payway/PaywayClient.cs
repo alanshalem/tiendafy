@@ -58,7 +58,8 @@ public sealed class PaywayClient(
 
         var attempt = await OpenAttemptAsync(request, ct);
         if (attempt.IsFailure) return Result.Failure<PaywayChargeResult>(attempt.Error);
-        var row = attempt.Value;
+        if (attempt.Value.Existing is { } existing) return existing;
+        var row = attempt.Value.Row!;
 
         var body = new Dictionary<string, object?>
         {
@@ -277,20 +278,38 @@ public sealed class PaywayClient(
     }
 
     /// <summary>
+    /// El intento nuevo (<c>Row</c>) o, si no corresponde cobrar otra vez, lo
+    /// que ya se sabe del anterior (<c>Existing</c>).
+    /// </summary>
+    private sealed record AttemptOpening(PaywayPaymentAttempt? Row, PaywayChargeResult? Existing);
+
+    /// <summary>
     /// Abre la fila del intento ANTES de llamar a Payway. Si el proceso se cae
     /// en el medio, el registro queda y se puede averiguar qué pasó.
+    ///
+    /// Solo se cobra de nuevo una orden cuyo último intento fue rechazado (el
+    /// comprador prueba con otra tarjeta). Si fue aprobado o todavía no se
+    /// resolvió (en revisión, esperando el 3D Secure, sin respuesta), el mismo
+    /// pedido repetido —doble clic, reintento del navegador, otra pestaña
+    /// sobre la misma compra— recibe ese resultado y Payway no se entera: sin
+    /// idempotencia de su lado, cobrar "por las dudas" es cobrar dos veces.
     /// </summary>
-    private async Task<Result<PaywayPaymentAttempt>> OpenAttemptAsync(PaywayChargeRequest request, CancellationToken ct)
+    private async Task<Result<AttemptOpening>> OpenAttemptAsync(PaywayChargeRequest request, CancellationToken ct)
     {
         var previous = await db.PaywayPaymentAttempts
             .Where(a => a.TenantId == request.TenantId.Value && a.OrderId == request.OrderId)
             .OrderByDescending(a => a.AttemptNumber)
             .FirstOrDefaultAsync(ct);
 
-        // Una orden ya cobrada no se vuelve a cobrar, aunque el navegador
-        // reenvíe el formulario.
-        if (previous is { Status: PaywayPaymentStatus.Approved })
-            return Result.Failure<PaywayPaymentAttempt>(Error.Conflict("Payway.AlreadyPaid", "Esta orden ya está pagada."));
+        if (previous is not null && previous.Status != PaywayPaymentStatus.Declined)
+        {
+            // Sin respuesta todavía: el otro pedido está esperando a Payway.
+            if (previous.ProcessedAtUtc is null)
+                return Result.Failure<AttemptOpening>(InProgress());
+            return new AttemptOpening(null, new PaywayChargeResult(
+                previous.Status, previous.ProviderPaymentId, previous.RawStatus ?? string.Empty, previous.AmountMinor,
+                previous.AuthorizationCode, previous.NetworkTransactionId, previous.TicketNumber));
+        }
 
         var brand = request.CardBrand ?? PaywayMaps.BrandFromBin(request.Bin);
         var number = (previous?.AttemptNumber ?? 0) + 1;
@@ -313,12 +332,14 @@ public sealed class PaywayClient(
             // Es exactamente lo que tiene que pasar: sin idempotencia del lado
             // de Payway, la base es la última línea contra el doble cobro.
             db.ChangeTracker.Clear();
-            return Result.Failure<PaywayPaymentAttempt>(Error.Conflict("Payway.InProgress",
-                "Ya hay un pago en curso para esta orden. Esperá unos segundos."));
+            return Result.Failure<AttemptOpening>(InProgress());
         }
 
-        return row;
+        return new AttemptOpening(row, null);
     }
+
+    private static Error InProgress() => Error.Conflict("Payway.InProgress",
+        "Ya hay un pago en curso para esta compra. Esperá unos segundos.");
 
     private async Task SettleAsync(PaywayPaymentAttempt row, PaywayChargeResult result, CancellationToken ct)
     {

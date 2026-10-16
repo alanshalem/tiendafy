@@ -17,7 +17,7 @@ namespace Orders.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -205,6 +205,10 @@ namespace Orders.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_orders");
+
+                    b.HasIndex("CheckoutSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_checkout_session_id");
 
                     b.HasIndex("PaymentId")
                         .HasDatabaseName("ix_orders_payment_id");

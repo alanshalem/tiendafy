@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Orders.Core.Domain;
 using SharedKernel.Common;
 
@@ -135,6 +136,40 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
         }
 
         return query;
+    }
+
+    public Task<Order?> GetByCheckoutSessionAsync(TenantId tenantId, Guid checkoutSessionId, CancellationToken ct = default) =>
+        context.Orders.FirstOrDefaultAsync(o => o.TenantId == tenantId && o.CheckoutSessionId == checkoutSessionId, ct);
+
+    /// <summary>El índice único de <c>orders.checkout_session_id</c> (ver OrdersDbContext).</summary>
+    internal const string CheckoutSessionIndex = "ix_orders_checkout_session_id";
+
+    public async Task<(Order Order, bool IsNew)> AddOncePerCheckoutAsync(Order order, CancellationToken ct = default)
+    {
+        await context.Orders.AddAsync(order, ct);
+        try
+        {
+            await context.SaveChangesAsync(ct);
+            return (order, true);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: CheckoutSessionIndex,
+        })
+        {
+            // Otro pedido sobre la misma sesión llegó primero. Esta se suelta
+            // (con sus ítems) para que un SaveChanges posterior del mismo
+            // request no la vuelva a intentar, y se sigue con la que ganó. El
+            // número de pedido que llegó a reservar queda sin usar: un salto
+            // en la numeración es mejor que una venta duplicada.
+            foreach (var item in order.Items) context.Entry(item).State = EntityState.Detached;
+            context.Entry(order).State = EntityState.Detached;
+            var winner = await GetByCheckoutSessionAsync(order.TenantId, order.CheckoutSessionId, ct)
+                ?? throw new InvalidOperationException(
+                    $"La sesión {order.CheckoutSessionId} ya tiene una venta, pero no aparece en la tienda {order.TenantId.Value}.");
+            return (winner, false);
+        }
     }
 
     public async Task AddAsync(Order order, CancellationToken ct = default) =>

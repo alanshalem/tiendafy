@@ -98,6 +98,17 @@ public interface IOrderRepository
     /// <summary>Pedidos de un comprador (por email) — para "Mis pedidos" del storefront.</summary>
     Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default);
 
+    /// <summary>La venta que nació de esa sesión de checkout, o null (hay como mucho una).</summary>
+    Task<Order?> GetByCheckoutSessionAsync(TenantId tenantId, Guid checkoutSessionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Guarda la orden nueva de un checkout, salvo que otra ya haya nacido de
+    /// la misma sesión (el índice único la frena aunque los dos pedidos lleguen
+    /// en el mismo instante): entonces esta se descarta y se devuelve la que
+    /// ya estaba. <c>IsNew</c> dice cuál de las dos es.
+    /// </summary>
+    Task<(Order Order, bool IsNew)> AddOncePerCheckoutAsync(Order order, CancellationToken ct = default);
+
     Task AddAsync(Order order, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
 }
