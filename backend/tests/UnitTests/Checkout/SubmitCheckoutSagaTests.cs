@@ -111,6 +111,26 @@ public class SubmitCheckoutSagaTests
         Assert.Equal(2, inventory.Released.Count); // ambas reservas devueltas
         Assert.Equal(CheckoutStatus.Open, session.Status);
     }
+
+    /// <summary>
+    /// Una compra vencida dice que venció (y que hay que volver al carrito),
+    /// no "ya no se puede modificar"; y no reserva nada.
+    /// </summary>
+    [Fact]
+    public async Task Submit_Vencida_PideEmpezarDeNuevoSinReservar()
+    {
+        var session = TwoItemSession(out _, out _);
+        session.Expire(session.ExpiresAtUtc);
+        var inventory = new FakeInventory();
+        var repository = new FakeCheckoutRepository(session);
+        var handler = new SubmitCheckoutHandler(repository, new FakeShippingMethods(), inventory);
+
+        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com"));
+
+        Assert.Equal("Checkout.Expired", result.Error.Code);
+        Assert.Empty(inventory.Reserved);
+        Assert.Equal(CheckoutStatus.Expired, session.Status);
+    }
 }
 
 /// <summary>Sin métodos: el submit sin ShippingMethodId no consulta envíos.</summary>

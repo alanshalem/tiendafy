@@ -136,6 +136,8 @@ public static class ServiceRegistration
         // Diseños programados (ej. una portada de Hot Sale que sale a las 00:00).
         if (runPollingWorkers) services.AddHostedService<Api.Workers.ThemeScheduleWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Orders.OfflinePaymentExpiryWorker>();
+        // Checkouts con el plazo cumplido: vencidos (o completados si terminaron en venta).
+        if (runPollingWorkers) services.AddHostedService<Api.Orders.ExpiredCheckoutWorker>();
         services.AddScoped<CampaignAudienceService>();
 
         // Meta Ads: gasto de pauta por campaña para el ROAS real de Rentabilidad.

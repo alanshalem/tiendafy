@@ -46,13 +46,15 @@ public sealed class SubmitCheckoutHandler(
         if (session is null)
             return Result.Failure<CheckoutSession>(Error.NotFound("Checkout", command.SessionId));
 
-        if (session.Status != CheckoutStatus.Open)
-            return Result.Failure<CheckoutSession>(Error.Conflict(
-                "Checkout.NotOpen", "Esta compra ya no se puede modificar."));
-
+        // Vencida primero: a quien vuelve con una compra vencida le sirve saber
+        // que tiene que empezar de nuevo, no que "ya no se puede modificar".
         if (session.IsExpired(DateTime.UtcNow))
             return Result.Failure<CheckoutSession>(Error.Conflict(
                 "Checkout.Expired", "La compra venció: volvé a empezar desde el carrito."));
+
+        if (session.Status != CheckoutStatus.Open)
+            return Result.Failure<CheckoutSession>(Error.Conflict(
+                "Checkout.NotOpen", "Esta compra ya no se puede modificar."));
 
         // Envío cotizado por carrier: el precio sale del quote firmado (capa API).
         if (command.Quote is { } quote)

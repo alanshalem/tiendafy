@@ -34,6 +34,12 @@ public sealed class CheckoutOrderFactory(
     {
         var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
         if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
+        // Vencida (marcada o con el plazo cumplido): sus reservas ya volvieron o
+        // están por volver al stock, así que no se cobra sobre ella. El
+        // comprador arranca otra compra desde el carrito, que sigue intacto.
+        if (session.IsExpired(DateTime.UtcNow))
+            return Result.Failure<Order>(Error.Conflict("Checkout.Expired",
+                "La compra venció: volvé a empezar desde el carrito."));
         if (session.Status != CheckoutStatus.Submitted)
             return Result.Failure<Order>(Error.Conflict("Checkout.NotSubmitted",
                 "El checkout debe estar enviado (con stock reservado) antes de pagar."));

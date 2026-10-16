@@ -7,7 +7,7 @@ public enum CheckoutStatus
 {
     Open = 0,       // carrito armado, esperando datos del comprador
     Submitted = 1,  // stock reservado, esperando pago
-    Completed = 2,  // pago aprobado (llega con módulo Payments)
+    Completed = 2,  // terminó en una venta cobrada (lo marca el barrido de vencidos)
     Expired = 3,    // venció sin pagar; reservas liberadas
 }
 
@@ -87,8 +87,10 @@ public sealed class CheckoutSession : AggregateRoot
     public Money Subtotal =>
         _items.Aggregate(Money.Zero(Currency), (acc, item) => acc + item.LineTotal);
 
+    /// <summary>Ya venció: marcada así, o abierta/enviada con el plazo cumplido.</summary>
     public bool IsExpired(DateTime nowUtc) =>
-        Status is CheckoutStatus.Open or CheckoutStatus.Submitted && nowUtc >= ExpiresAtUtc;
+        Status == CheckoutStatus.Expired
+        || (Status is CheckoutStatus.Open or CheckoutStatus.Submitted && nowUtc >= ExpiresAtUtc);
 
     /// <summary>Submit exitoso: cada item quedó con su reserva de stock.</summary>
     public Result MarkSubmitted(string email, IReadOnlyDictionary<Guid, Guid> reservationByVariant, DateTime nowUtc)
@@ -112,6 +114,10 @@ public sealed class CheckoutSession : AggregateRoot
 
         Email = trimmed;
         Status = CheckoutStatus.Submitted;
+        // Enviada, la sesión vive lo que viven sus reservas (que nacen con el
+        // mismo plazo justo antes): sin esto, una enviada al minuto 29 vencía
+        // al 30 con el stock todavía reservado para pagar.
+        ExpiresAtUtc = nowUtc + Ttl;
         return Result.Success();
     }
 
@@ -155,7 +161,30 @@ public sealed class CheckoutSession : AggregateRoot
         return Result.Success();
     }
 
-    public void Expire() => Status = CheckoutStatus.Expired;
+    /// <summary>
+    /// Vence una sesión abierta o enviada cuyo plazo pasó. Quien la vence se
+    /// asegura antes de que no le quede stock reservado (ver el barrido de
+    /// checkouts vencidos en la Api): "vencida" quiere decir que no se pagó y
+    /// que las reservas ya volvieron al stock.
+    /// </summary>
+    public Result Expire(DateTime nowUtc)
+    {
+        if (Status is not (CheckoutStatus.Open or CheckoutStatus.Submitted))
+            return Result.Failure(Error.Conflict("Checkout.NotPending", "Esta compra ya terminó."));
+        if (nowUtc < ExpiresAtUtc)
+            return Result.Failure(Error.Conflict("Checkout.NotDue", "Esta compra todavía está vigente."));
+        Status = CheckoutStatus.Expired;
+        return Result.Success();
+    }
+
+    /// <summary>La sesión enviada terminó en una venta cobrada.</summary>
+    public Result Complete()
+    {
+        if (Status != CheckoutStatus.Submitted)
+            return Result.Failure(Error.Conflict("Checkout.NotSubmitted", "Esta compra no estaba enviada."));
+        Status = CheckoutStatus.Completed;
+        return Result.Success();
+    }
 
     public void MarkRecoveryEmailed() => RecoveryEmailSentAtUtc = DateTime.UtcNow;
 }
