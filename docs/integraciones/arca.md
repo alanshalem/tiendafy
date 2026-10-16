@@ -200,8 +200,10 @@ se reintenta (`POST /fiscal/jobs/{id}/retry`).
 el CAE (worker o botón "Facturar"), sale la plantilla "factura" con el PDF
 adjunto, una sola vez (`buyer_notified_at_utc`); cada nota de crédito, la
 plantilla "nota-credito" con el suyo. Vienen apagadas: solo las mandan las
-tiendas que las prendieron. No salen a `@sin-email.local` ni en ventas de
-Mercado Libre.
+tiendas que las prendieron. No salen a `@sin-email.local`, ni en ventas de
+Mercado Libre, ni con un comprobante de homologación (es de prueba, sin
+validez fiscal): ese no se marca como enviado, así que si la venta se factura
+después en producción, el de producción sale.
 
 **Nota de crédito.** Acredita la última factura autorizada de la orden **en
 el ambiente actual** y copia de ella el receptor (tipo y número de documento,

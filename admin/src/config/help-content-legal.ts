@@ -134,6 +134,7 @@ export const LEGAL = {
         paragraphs: [
           'Si querés que el comprador reciba la factura por email, prendé la plantilla “Factura” en Configuración → E-mails automáticos (viene apagada). Sale una sola vez por factura, apenas ARCA da el CAE, con el PDF adjunto: el mismo que el comprador puede bajar desde su cuenta.',
           'No se manda en las ventas de Mercado Libre ni en las ventas cargadas a mano sin email del comprador.',
+          'Tampoco se manda mientras facturás en Homologación: esas facturas son de prueba y no tienen validez fiscal. Cuando pases a Producción y factures la venta de verdad, esa factura sí le llega.',
         ],
       },
       {
@@ -184,7 +185,7 @@ export const LEGAL = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Si prendés la plantilla “Nota de crédito” en Configuración → E-mails automáticos, el comprador recibe cada nota de crédito por email con su PDF, igual que la factura.',
+            text: 'Si prendés la plantilla “Nota de crédito” en Configuración → E-mails automáticos, el comprador recibe cada nota de crédito por email con su PDF, igual que la factura. En Homologación no sale: es de prueba.',
           },
         ],
       },

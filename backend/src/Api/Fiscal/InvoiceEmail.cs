@@ -19,7 +19,8 @@ namespace Api.Fiscal;
 /// Sale una sola vez por factura aunque la terminen dos caminos (el worker y
 /// el botón "Facturar", o un job que se da por hecho porque otro ya la
 /// facturó): se reclama con un UPDATE condicional sobre el comprobante. No
-/// sale si la tienda no prendió la plantilla (viene apagada), si la venta no
+/// sale si el comprobante es de homologación (de prueba, sin validez fiscal),
+/// si la tienda no prendió la plantilla (viene apagada), si la venta no
 /// es de la tienda (Mercado Libre) o si el comprador no dejó email (las de
 /// mostrador llevan un <c>@sin-email.local</c> de relleno). Best-effort: un
 /// email caído no puede tirar abajo una factura que ya tiene CAE.
@@ -58,6 +59,10 @@ public sealed class InvoiceEmail(
             .FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Id == documentId, ct);
         if (doc is not { Result: FiscalResult.Authorized, OrderId: { } orderId, BuyerNotifiedAtUtc: null })
             return false;
+        // Un comprobante de homologación es de prueba, sin validez fiscal: no se
+        // le manda al comprador. Tampoco se marca como enviado: si la venta se
+        // factura después en producción, ese comprobante sí sale.
+        if (doc.Environment == FiscalEnvironment.Homologacion) return false;
         var template = OrderComprobantePresenter.IsNc(doc.CbteTipo) ? CreditNoteTemplate : Template;
 
         // Una venta de Mercado Libre no es una orden de la tienda: no está acá.

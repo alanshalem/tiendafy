@@ -17,11 +17,16 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class FiscalWorkerTests(ApiFactory factory)
 {
-    private async Task<Merchant> AutoInvoicingStoreAsync(string tag)
+    /// <param name="production">
+    /// Factura en producción. Los emails con el comprobante solo salen ahí: uno
+    /// de homologación no tiene validez fiscal.
+    /// </param>
+    private async Task<Merchant> AutoInvoicingStoreAsync(string tag, bool production = false)
     {
         var merchant = await Merchant.CreateAsync(factory, tag);
         _ = new FakeArca(factory.ExternalHttp);
         await merchant.ConfigureFiscalAsync();
+        if (production) await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
         var pos = (await merchant.GetAsync("/api/v1/fiscal/points-of-sale")).GetProperty("items")[0].GetProperty("id").GetGuid();
         await merchant.PutAsync("/api/v1/fiscal/config/emission", new
         {
@@ -122,7 +127,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
     [Fact]
     public async Task Con_el_CAE_el_comprador_recibe_su_factura_en_PDF_una_sola_vez()
     {
-        var merchant = await AutoInvoicingStoreAsync("fwe");
+        var merchant = await AutoInvoicingStoreAsync("fwe", production: true);
         await EnableInvoiceEmailAsync(merchant);
         var buyer = $"factura-{Guid.NewGuid():N}@test.local";
         var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
@@ -149,6 +154,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
         var merchant = await Merchant.CreateAsync(factory, "fwm");
         _ = new FakeArca(factory.ExternalHttp);
         await merchant.ConfigureFiscalAsync();
+        await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
         await EnableInvoiceEmailAsync(merchant);
         var buyer = $"manual-{Guid.NewGuid():N}@test.local";
         var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
@@ -160,10 +166,54 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task En_homologacion_no_sale_ni_la_factura_ni_la_nota_de_credito_y_en_produccion_si()
+    {
+        // Un comprobante de homologación es de prueba: no se le manda al
+        // comprador, y no queda marcado como enviado, así el de producción sale.
+        var merchant = await Merchant.CreateAsync(factory, "fwh");
+        _ = new FakeArca(factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        await EnableInvoiceEmailAsync(merchant);
+        await merchant.PutAsync("/api/v1/email-templates/nota-credito", new
+        {
+            enabled = true,
+            subject = "Tu nota de crédito de {{store}}",
+            bodyHtml = "<p>Adjuntamos la nota de crédito de tu compra #{{order_id}}.</p>",
+        });
+        var buyer = $"homo-{Guid.NewGuid():N}@test.local";
+        var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
+        List<JsonElement> EmailsToBuyer() =>
+            [.. factory.ExternalHttp.SentTo(ApiFactory.ResendEmails)
+                .Select(r => JsonDocument.Parse(r.Body!).RootElement)
+                .Where(e => e.GetProperty("to")[0].GetString() == buyer
+                            && e.GetProperty("subject").GetString()!.StartsWith("Tu ", StringComparison.Ordinal))];
+
+        Assert.True((await merchant.PostAsync($"/api/v1/orders/{order}/invoice", new { })).GetProperty("authorized").GetBoolean());
+        var nc = await merchant.PostAsync($"/api/v1/orders/{order}/credit-notes",
+            new { amount = 5_000m, reason = "Ajuste", idempotencyKey = $"homo-{Guid.NewGuid():N}" });
+        Assert.True(nc.GetProperty("authorized").GetBoolean(), nc.ToString());
+        Assert.Empty(EmailsToBuyer());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+            var docs = await db.Documents.AsNoTracking().Where(d => d.OrderId == order).ToListAsync();
+            Assert.Equal(2, docs.Count);
+            Assert.All(docs, d => Assert.Null(d.BuyerNotifiedAtUtc));
+        }
+
+        // En producción la venta se factura de verdad y esa factura sí sale.
+        await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
+        Assert.True((await merchant.PostAsync($"/api/v1/orders/{order}/invoice", new { })).GetProperty("authorized").GetBoolean());
+        var email = Assert.Single(EmailsToBuyer());
+        Assert.StartsWith("Tu factura", email.GetProperty("subject").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Sin_la_plantilla_prendida_o_sin_email_no_sale_nada()
     {
         // La plantilla viene apagada: una tienda que nunca la prendió no manda.
-        var apagada = await AutoInvoicingStoreAsync("fwo");
+        var apagada = await AutoInvoicingStoreAsync("fwo", production: true);
         var buyer = $"apagada-{Guid.NewGuid():N}@test.local";
         var order = await apagada.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
         await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
@@ -171,7 +221,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
         Assert.Empty(InvoiceEmailsTo(buyer));
 
         // Prendida, pero la venta de mostrador no tiene email (relleno).
-        var prendida = await AutoInvoicingStoreAsync("fws");
+        var prendida = await AutoInvoicingStoreAsync("fws", production: true);
         await EnableInvoiceEmailAsync(prendida);
         var placeholder = $"mostrador-{Guid.NewGuid():N}@sin-email.local";
         var counter = await prendida.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: placeholder);

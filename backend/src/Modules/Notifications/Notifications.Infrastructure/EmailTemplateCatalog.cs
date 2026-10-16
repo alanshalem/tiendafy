@@ -138,14 +138,14 @@ public static class EmailTemplateCatalog
                 "<p>Hola {{name}}, te devolvimos {{refund_amount}} de tu pedido #{{order_id}}.</p><p>{{refund_method}}</p><p><a href=\"{{tracking_link}}\">Ver tu pedido</a></p>")),
 
         new("factura", "Ventas", "Factura",
-            "Informa al cliente al facturar una venta.", false,
+            "Le manda al cliente la factura de su compra, con el PDF. En homologación (facturación de prueba) no sale.", false,
             "Tu factura de {{store}}",
             Wrap("Tu factura", "<p>Adjuntamos la factura de tu compra #{{order_id}}.</p>")),
 
         // Una por cada nota de crédito de la venta (un reembolso, un ajuste),
         // con su PDF: el comprobante que anula en todo o en parte la factura.
         new("nota-credito", "Ventas", "Nota de crédito",
-            "Le manda al cliente cada nota de crédito de su compra (por un reembolso o un ajuste), con el PDF.", false,
+            "Le manda al cliente cada nota de crédito de su compra (por un reembolso o un ajuste), con el PDF. En homologación (facturación de prueba) no sale.", false,
             "Tu nota de crédito de {{store}}",
             Wrap("Tu nota de crédito", "<p>Adjuntamos la nota de crédito de tu compra #{{order_id}}: es el comprobante de lo que te devolvimos o ajustamos.</p>")),
     ];
