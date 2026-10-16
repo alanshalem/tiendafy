@@ -35,8 +35,10 @@ Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre
   `domain_discovery`. La publicación nace vinculada a la variante.
 - **Facturación ARCA.** Botón "Facturar" por venta (consumidor final) y
   auto-factura opcional al importar cada venta cobrada; nota de crédito
-  automática si una venta facturada se cancela o reembolsa y alguien factura
-  solo (la auto-factura de ML o la emisión automática de la tienda).
+  automática si una venta facturada se cancela, se reembolsa o tiene una
+  devolución parcial y alguien factura solo (la auto-factura de ML o la
+  emisión automática de la tienda). Si no, el botón "Emitir nota de crédito"
+  de cada venta facturada (por lo devuelto sin acreditar o por un ajuste).
 - **Métricas.** Las ventas ML entran en Estadísticas, Rentabilidad, Reposición
   y en los avisos del Inicio (sin facturar, preguntas sin responder). Ingresos
   y ganancia del canal cuentan lo cobrado (`BillableAmount`: `paid_amount`, o
@@ -61,7 +63,7 @@ orquestación en la Api.
 | `backend/src/Modules/MercadoLibre/MercadoLibre.Infrastructure/MeliOptions.cs` | Config de la app de plataforma (sección `MercadoLibre`). `Configured` = ClientId y ClientSecret cargados. |
 | `.../MercadoLibre.Infrastructure/MeliClient.cs` | Cliente HTTP (timeout 20 s): URL de autorización, intercambio y refresh de tokens, GET/POST/PUT que devuelven `JsonDocument` crudo (sin DTOs espejo). Errores como `MeliException`. |
 | `.../MercadoLibre.Infrastructure/MeliConnection.cs` | Conexión OAuth por tenant: tokens cifrados, switches de stock/precio/auto-factura, buffer, recargo, `IsDemo`. |
-| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `StockDeductionsJson` (qué descontó de verdad), `FiscalDocumentId`, `CreditNoteIssued` (la cancelación facturada ya se resolvió: NC encolada o no correspondía emitirla sola). |
+| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `StockDeductionsJson` (qué descontó de verdad), `FiscalDocumentId`, `CreditNoteIssued` (la cancelación facturada ya se resolvió: NC encolada o no correspondía emitirla sola), `RefundedAmount` (lo devuelto según ML) y `RefundCreditResolvedMinorUnits` (hasta cuánto de lo devuelto ya pasó por la NC). |
 | `.../MercadoLibre.Infrastructure/MeliItemLink.cs` | Publicación (+ variación opcional) ↔ variante local, con `LastPushedQty` y `LastPushedPriceMinor`. |
 | `.../MercadoLibre.Infrastructure/MeliNotification.cs` | Inbox durable de webhooks (hereda `InboxEntry`: reintentos con backoff, estado `dead`). |
 | `.../MercadoLibre.Infrastructure/MeliPricing.cs` | Función pura del precio del canal (redondeo `AwayFromZero`, piso de 1 centavo). |
@@ -102,6 +104,8 @@ Todos bajo `/api/v1`.
 | `GET/POST /admin/meli/packs/{packId}/messages` | `meli.operate` | Mensajería posventa (máx. 350 caracteres; el comprador sale del cache, nunca del request). |
 | `GET /admin/meli/claims` | `meli.operate` | Reclamos paginados. |
 | `POST /admin/meli/orders/{id}/invoice` | `fiscal.emit` | Factura ARCA de una venta cobrada. |
+| `GET /admin/meli/orders/{id}/credit` | `fiscal.emit` | La factura del ambiente actual y la cuenta de sus NC frente a lo devuelto (centavos); 409 sin factura. |
+| `POST /admin/meli/orders/{id}/credit-notes` | `fiscal.emit` | Nota de crédito a mano (`{ amount, reason?, idempotencyKey }`), con el tope de lo que queda de la factura. |
 | `GET /admin/meli/items`, `POST/DELETE /admin/meli/items/{itemId}/link` | `meli.publish` | Publicaciones del vendedor y vínculos con variantes. |
 | `PUT /admin/meli/items/{itemId}/sync` | `meli.publish` | Switches de stock y precio de UNA publicación vinculada (`{ meliVariationId, syncStock?, syncPrice? }`). No escribe en ML: vale también en la cuenta de ejemplo. |
 | `GET /admin/meli/categories/predict`, `POST /admin/meli/products/{id}/publish` | `meli.publish` | Sugerir categoría y publicar. |
@@ -198,7 +202,13 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
    próximo aviso; solo un error al encolar sí. Si está cobrada, sin
    factura del ambiente actual y con auto-factura prendida, emite a
    consumidor final (una factura de homologación no cuenta en producción:
-   ver `MeliInvoices`).
+   ver `MeliInvoices`). Después, si hay una devolución parcial nueva (lo
+   devuelto, `payments[].transaction_amount_refunded`, supera lo ya
+   resuelto) y la venta tiene factura del ambiente actual, encola una NC por
+   ese tramo con la clave `ml-reembolso:{antes}-{después}` y la misma regla
+   que la cancelación (`Force` si la auto-factura de ML está prendida). Nunca
+   por más de lo devuelto que ninguna NC cubre. Encolada o "no corresponde",
+   el tramo queda resuelto; sin factura, espera al próximo aviso.
 
 **Tiendafy → ML.** `MeliStockSyncWorker`, cada 5 min, toma las conexiones con
 stock **o** precio prendidos (nunca las de demo) y, de cada una, los vínculos
@@ -250,6 +260,15 @@ real (ver Pendiente).
   si falla, el panel muestra "sin reclamos" en vez de error.
 - ML no expone el documento del comprador por la vía usada: se factura a
   consumidor final.
+- **Lo devuelto de una venta** está en cada pago de la orden:
+  `payments[].transaction_amount_refunded` (junto a `transaction_amount` y
+  `total_paid_amount`), según el ejemplo de `GET /orders/{id}` de la doc
+  oficial ("Gestión de packs", 16-oct-2026). El estado `partially_refunded`
+  es "la orden tiene devoluciones parciales de los pagos" ("Gestiona
+  ventas"). Lo que la doc no dice es si `paid_amount` baja con una
+  devolución (solo "Amount paid for the order"): la factura se emite por
+  `paid_amount` y cada devolución se acredita con su NC; si con una cuenta
+  real `paid_amount` resultara neto de devoluciones, hay que revisar esto.
 
 ## Cómo probar
 
@@ -257,7 +276,9 @@ real (ver Pendiente).
   OAuth, backfill, venta → descuento, cancelación → devolución, venta con la
   sincronización de stock apagada (no descuenta ni repone), kits, sync de stock y
   precio, preguntas, mensajes, reclamos, publicar, facturar, demo de solo
-  lectura y devolución parcial, contra la API simulada (`FakeHttp`). Unitarios
+  lectura, devolución parcial (cobrada en el panel y con su nota de crédito,
+  sola o a mano) y factura de homologación al pasar a producción, contra la
+  API simulada (`FakeHttp`) y el ARCA simulado (`FakeArca`). Unitarios
   en `backend/tests/UnitTests/Meli/`. Desde `backend/`:
   `dotnet test tests/IntegrationTests --filter "FullyQualifiedName~MercadoLibre"`
   (usa el Postgres de desarrollo, base `tiendafy_itests` o la que diga

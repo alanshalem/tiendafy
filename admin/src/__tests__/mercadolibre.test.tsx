@@ -81,6 +81,48 @@ describe('Mercado Libre: ventas', () => {
     expect(await screen.findByText('Configurá la facturación primero.')).toBeInTheDocument();
   });
 
+  it('una venta facturada con devolución parcial: emite la nota de crédito por lo devuelto', async () => {
+    const refunded = {
+      ...toInvoice,
+      status: 'partially_refunded',
+      fiscalDocumentId: 'doc-1',
+      refundedAmount: 5000,
+    };
+    const { api, user } = await open('ventas', (a) => {
+      a.on('GET', '/api/v1/admin/meli/orders', { items: [refunded], total: 1 });
+      a.on('GET', `/api/v1/admin/meli/orders/${refunded.meliOrderId}/credit`, {
+        environment: 'PRODUCCION',
+        invoice: { id: 'doc-1', cbteTipo: 'FacturaB', ptoVta: 3, number: 42 },
+        credit: {
+          invoiceTotal: 15_000_00,
+          credited: 0,
+          inFlight: 0,
+          remaining: 15_000_00,
+          refunded: 5_000_00,
+          refundedUncredited: 5_000_00,
+        },
+      });
+      a.on('POST', `/api/v1/admin/meli/orders/${refunded.meliOrderId}/credit-notes`, {
+        queued: false,
+        authorized: true,
+        cae: '7999',
+        errors: [],
+      });
+    });
+    expect(screen.getAllByText(/Devuelto/)[0]).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: /Emitir nota de crédito/ })[0]!);
+    const dialog = within(await screen.findByRole('dialog', { name: 'Emitir nota de crédito' }));
+    expect(dialog.getByText(/Factura B 0003-00000042/)).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Continuar' }));
+    await user.click(dialog.getByRole('button', { name: /Sí, emitir la nota de crédito/ }));
+    expect(await screen.findByText(/Nota de crédito autorizada · CAE 7999/)).toBeInTheDocument();
+    expect(posted(api, `/api/v1/admin/meli/orders/${refunded.meliOrderId}/credit-notes`)).toMatchObject({
+      amount: 5000,
+      reason: null,
+      idempotencyKey: expect.any(String),
+    });
+  });
+
   it('el chat del pack: lee los mensajes y responde', async () => {
     const { api, user } = await open('ventas');
     await user.click(screen.getAllByRole('button', { name: /Mensajes/ })[0]!);

@@ -19,8 +19,10 @@ homologación, después de producción) para emitir el primer CAE de verdad.
   suya sola; sin ella, el diálogo de reembolso trae la casilla "Emitir la nota
   de crédito por este monto". Y desde la venta, "Emitir nota de crédito" a
   mano (lo devuelto sin acreditar, o un ajuste). En Mercado Libre, la de la
-  cancelación sale si la auto-factura de ML o la automática de la tienda está
-  prendida; si no sale sola, no se reintenta en cada aviso.
+  cancelación y la de cada devolución parcial salen si la auto-factura de ML o
+  la automática de la tienda está prendida; si no salen solas, no se
+  reintentan en cada aviso y quedan para el botón "Emitir nota de crédito" de
+  la lista de ventas de ML.
 - **Emisión manual** desde Ventas (con documento y condición de IVA que puede
   completar el comercio) y facturas sueltas sin orden.
 - **Ventas de Mercado Libre**: se facturan a consumidor final, con el botón
@@ -223,8 +225,18 @@ Una venta puede tener **varias**: cada pedido lleva una clave
 |---|---|---|
 | Reembolso desde el panel (`POST /orders/{id}/refund`) | `reembolso:{id del registro del reembolso}` | Con emisión automática, siempre; sin ella, si viene `creditNote: true` (la casilla, con permiso de facturar) |
 | Reembolso que avisa Mercado Pago (webhook) | `reembolso-pasarela:{devuelto antes}-{devuelto después}` (centavos) | Con emisión automática |
-| A mano (`POST /orders/{id}/credit-notes`, permiso `FiscalEmit`) | `manual:{clave del panel}` | Siempre; el panel manda una clave por diálogo |
+| A mano (`POST /orders/{id}/credit-notes` o, en una venta de ML, `POST /admin/meli/orders/{id}/credit-notes`; permiso `FiscalEmit`) | `manual:{clave del panel}` | Siempre; el panel manda una clave por diálogo |
 | Cancelación de Mercado Libre | `ml-cancelacion` | Con la auto-factura de ML o la automática de la tienda |
+| Devolución parcial de Mercado Libre (`partially_refunded`) | `ml-reembolso:{devuelto antes}-{devuelto después}` (centavos) | Con la auto-factura de ML o la automática de la tienda |
+
+En Mercado Libre lo devuelto sale de la orden (`GET /orders/{id}`): la suma
+de `payments[].transaction_amount_refunded` (`MeliOrder.RefundedAmount`). Cada
+aviso con más devuelto que lo ya resuelto (`RefundCreditResolvedMinorUnits`)
+es un tramo nuevo con su clave; la NC es por ese tramo, pero nunca por más de
+lo devuelto que ninguna NC cubre (si el comercio ya la hizo a mano, no se
+duplica). Sin factura del ambiente actual queda pendiente hasta que la haya.
+La venta de ML no abre la ficha de la tienda: `GET /admin/meli/orders/{id}/credit`
+da la factura y la cuenta, y el botón vive en la lista de ventas de ML.
 
 El mismo pedido repetido (el webhook otra vez, el doble click) encuentra su
 job y no encola otro; el emisor reconoce por la clave la NC que ya emitió y la
@@ -386,9 +398,5 @@ Documentación: manuales de WSAA y WSFEv1).
   declare), y el padrón se puede consultar desde el panel. Pero la emisión
   automática no consulta el padrón y el checkout no pide la condición: un RI
   persona física recibe B salvo que el comercio facture a mano.
-- **Ventas de Mercado Libre devueltas en parte** (`partially_refunded`): no
-  emiten nota de crédito sola (no está confirmado de dónde sale el monto
-  devuelto en la API de ML) y el panel de Mercado Libre no tiene el botón de
-  NC a mano. La cancelación total sí la emite (ver arriba).
 - **Email "factura" en ventas de Mercado Libre**: no sale (no son órdenes de
   la tienda y ML no da el email del comprador).

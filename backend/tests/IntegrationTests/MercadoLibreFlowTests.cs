@@ -32,22 +32,41 @@ public sealed class MercadoLibreFlowTests
 
     public MercadoLibreFlowTests(ApiFactory factory) => _factory = factory;
 
-    private static object Order(long id, string status, string itemId, int quantity, long buyerId = 777, decimal? paidAmount = null) => new
-    {
-        id,
-        status,
-        date_created = "2026-10-10T12:00:00.000-03:00",
-        total_amount = 15_000m * quantity,
-        paid_amount = paidAmount ?? 15_000m * quantity,
-        currency_id = "ARS",
-        pack_id = id + 1,
-        buyer = new { id = buyerId, nickname = "COMPRADOR_ML" },
-        shipping = new { id = 4_000_000_001L },
-        order_items = new[]
+    /// <param name="refunded">
+    /// Lo devuelto, como lo informa la API de órdenes de ML: en
+    /// <c>payments[].transaction_amount_refunded</c>.
+    /// </param>
+    private static object Order(long id, string status, string itemId, int quantity, long buyerId = 777,
+        decimal? paidAmount = null, decimal refunded = 0m) => new
+        {
+            id,
+            status,
+            date_created = "2026-10-10T12:00:00.000-03:00",
+            total_amount = 15_000m * quantity,
+            paid_amount = paidAmount ?? 15_000m * quantity,
+            currency_id = "ARS",
+            pack_id = id + 1,
+            buyer = new { id = buyerId, nickname = "COMPRADOR_ML" },
+            shipping = new { id = 4_000_000_001L },
+            order_items = new[]
         {
             new { item = new { id = itemId, title = "Remera ML", seller_sku = "REM-1" }, quantity, unit_price = 15_000m, sale_fee = 1_950m },
         },
-    };
+            payments = new[]
+        {
+            new
+            {
+                id = id + 2,
+                order_id = id,
+                status = "approved",
+                status_detail = "accredited",
+                transaction_amount = 15_000m * quantity,
+                transaction_amount_refunded = refunded,
+                total_paid_amount = 15_000m * quantity,
+                currency_id = "ARS",
+            },
+        },
+        };
 
     private void StubTokens(long userId, int expiresIn = 21_600) =>
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/oauth/token", new
@@ -731,6 +750,119 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(
             [global::Fiscal.Core.Domain.FiscalEnvironment.Homologacion, global::Fiscal.Core.Domain.FiscalEnvironment.Produccion],
             environments.Order());
+    }
+
+    [Fact]
+    public async Task Cada_devolucion_parcial_de_una_venta_facturada_emite_su_nota_de_credito_una_vez()
+    {
+        // Con la auto-factura de ML prendida (y la automática de la tienda
+        // apagada), cada devolución parcial es una NC por lo devuelto, con su
+        // clave: el aviso repetido de ML no emite otra.
+        var (merchant, userId) = await ConnectedAsync("mlp");
+        _ = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, autoInvoiceEnabled = true });
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var saleId = userId * 10 + 3;
+        async Task SyncAsync(string status, decimal refunded)
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, status, itemId, 1, refunded: refunded));
+            await NotifyAsync(userId, $"/orders/{saleId}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+
+        await SyncAsync("paid", 0m); // la auto-factura: Factura B por 15.000
+        var orderId = await MeliOrderIdAsync(merchant.TenantId, saleId);
+
+        // ML devuelve 5.000: una NC por 5.000. El mismo aviso otra vez, nada.
+        await SyncAsync("partially_refunded", 5_000m);
+        await SyncAsync("partially_refunded", 5_000m);
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(_factory);
+
+        // Después devuelve 3.000 más (8.000 en total): otra NC, por 3.000.
+        await SyncAsync("partially_refunded", 8_000m);
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(_factory);
+
+        using var scope = _factory.Services.CreateScope();
+        var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+        var jobs = await fiscal.EmissionJobs.AsNoTracking()
+            .Where(j => j.OrderId == orderId && j.Kind == global::Fiscal.Core.Domain.FiscalJobKind.CreditNote)
+            .OrderBy(j => j.GrossMinorUnits).ToListAsync();
+        Assert.Equal(["ml-reembolso:500000-800000", "ml-reembolso:0-500000"], jobs.Select(j => j.IdempotencyKey));
+        Assert.Equal([3_000_00L, 5_000_00L], jobs.Select(j => j.GrossMinorUnits));
+        Assert.All(jobs, j => Assert.Equal(global::Fiscal.Core.Domain.FiscalJobStatus.Done, j.Status));
+        var notes = await fiscal.Documents.AsNoTracking()
+            .Where(d => d.OrderId == orderId && d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB
+                        && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
+            .Select(d => d.ImpTotal).ToListAsync();
+        Assert.Equal([3_000m, 5_000m], notes.Order());
+
+        // El panel: lo devuelto está acreditado entero y queda el resto de la factura.
+        var credit = (await merchant.GetAsync($"/api/v1/admin/meli/orders/{saleId}/credit")).GetProperty("credit");
+        Assert.Equal(8_000_00, credit.GetProperty("credited").GetInt64());
+        Assert.Equal(0, credit.GetProperty("refundedUncredited").GetInt64());
+        Assert.Equal(7_000_00, credit.GetProperty("remaining").GetInt64());
+        var row = Assert.Single((await merchant.GetAsync("/api/v1/admin/meli/orders?limit=25")).GetProperty("items").EnumerateArray());
+        Assert.Equal(8_000m, row.GetProperty("refundedAmount").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Sin_emision_automatica_la_devolucion_parcial_queda_para_el_boton_de_nota_de_credito()
+    {
+        // Nadie emite solo: la NC no sale sola (y no se reintenta en cada
+        // aviso), y desde la lista de ventas de ML se emite a mano.
+        var (merchant, userId) = await ConnectedAsync("mlq");
+        _ = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var saleId = userId * 10 + 6;
+        async Task SyncAsync(string status, decimal refunded)
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, status, itemId, 1, refunded: refunded));
+            await NotifyAsync(userId, $"/orders/{saleId}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+        string CreditPath() => $"/api/v1/admin/meli/orders/{saleId}/credit";
+
+        await SyncAsync("paid", 0m);
+        // Sin factura no hay qué acreditar.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Get, CreditPath())).StatusCode);
+        await merchant.PostAsync($"/api/v1/admin/meli/orders/{saleId}/invoice", new { });
+
+        await SyncAsync("partially_refunded", 5_000m);
+        await SyncAsync("partially_refunded", 5_000m);
+        var orderId = await MeliOrderIdAsync(merchant.TenantId, saleId);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+            Assert.False(await fiscal.EmissionJobs.AsNoTracking().AnyAsync(j => j.OrderId == orderId));
+            var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
+            var cached = await meli.Orders.IgnoreQueryFilters().AsNoTracking().SingleAsync(o => o.Id == orderId);
+            Assert.Equal(5_000_00, cached.RefundCreditResolvedMinorUnits);
+        }
+
+        var credit = (await merchant.GetAsync(CreditPath())).GetProperty("credit");
+        Assert.Equal(5_000_00, credit.GetProperty("refundedUncredited").GetInt64());
+        Assert.Equal(15_000_00, credit.GetProperty("remaining").GetInt64());
+
+        // A mano, desde la lista: por lo devuelto. El doble click no emite dos.
+        var key = $"ml-{Guid.NewGuid():N}";
+        Task<HttpResponseMessage> IssueAsync(decimal amount, string idempotencyKey) => merchant.SendAsync(HttpMethod.Post,
+            $"/api/v1/admin/meli/orders/{saleId}/credit-notes", new { amount, reason = "Devolución parcial", idempotencyKey });
+        var first = await (await IssueAsync(5_000m, key)).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(first.GetProperty("authorized").GetBoolean(), first.ToString());
+        var again = await (await IssueAsync(5_000m, key)).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(first.GetProperty("documentId").GetGuid(), again.GetProperty("documentId").GetGuid());
+
+        credit = (await merchant.GetAsync(CreditPath())).GetProperty("credit");
+        Assert.Equal(5_000_00, credit.GetProperty("credited").GetInt64());
+        Assert.Equal(0, credit.GetProperty("refundedUncredited").GetInt64());
+
+        // Más de lo que queda de la factura: error que lo dice, y nada emitido.
+        Assert.Equal(HttpStatusCode.BadRequest, (await IssueAsync(10_001m, $"ml-{Guid.NewGuid():N}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await IssueAsync(100m, "corta")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/admin/meli/orders/1/credit-notes",
+            new { amount = 100m, idempotencyKey = $"ml-{Guid.NewGuid():N}" })).StatusCode);
     }
 
     private async Task<Guid> MeliOrderIdAsync(Guid tenantId, long meliOrderId)

@@ -289,6 +289,53 @@ public class MeliOrderTests
         order.Apply("cancelled", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
         Assert.False(order.NeedsStockReversal);
     }
+
+    /// <summary>
+    /// Cada devolución parcial es un tramo nuevo (lo devuelto menos lo ya
+    /// resuelto). La cancelación y el reembolso total van por la NC de la
+    /// cancelación, no por acá.
+    /// </summary>
+    [Fact]
+    public void DevolucionParcial_SeResuelvePorTramos()
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 1);
+        order.Apply("paid", DateTime.UtcNow, null, 15_000, 15_000, "ARS", 1, "b", "[]", null, null, null);
+        Assert.False(order.HasUnresolvedPartialRefund);
+
+        order.Apply("partially_refunded", DateTime.UtcNow, null, 15_000, 15_000, "ARS", 1, "b", "[]", null, null, null,
+            refundedAmount: 5_000.005m);
+        Assert.Equal(5_000_01, order.RefundedMinorUnits);
+        Assert.True(order.HasUnresolvedPartialRefund);
+        order.MarkRefundCreditResolved(order.RefundedMinorUnits);
+        Assert.False(order.HasUnresolvedPartialRefund);
+
+        // Lo resuelto no vuelve atrás aunque llegue un aviso viejo.
+        order.MarkRefundCreditResolved(1);
+        Assert.Equal(5_000_01, order.RefundCreditResolvedMinorUnits);
+
+        order.Apply("partially_refunded", DateTime.UtcNow, null, 15_000, 15_000, "ARS", 1, "b", "[]", null, null, null,
+            refundedAmount: 8_000m);
+        Assert.True(order.HasUnresolvedPartialRefund);
+        order.Apply("cancelled", DateTime.UtcNow, null, 15_000, 15_000, "ARS", 1, "b", "[]", null, null, null,
+            refundedAmount: 15_000m);
+        Assert.False(order.HasUnresolvedPartialRefund);
+    }
+
+    [Fact]
+    public void LoDevuelto_SaleDeLosPagosDeLaOrden()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse("""
+            {"id": 1, "payments": [
+              {"id": 10, "transaction_amount": 10000, "transaction_amount_refunded": 2500.5},
+              {"id": 11, "transaction_amount": 5000, "transaction_amount_refunded": 500},
+              {"id": 12, "transaction_amount": 100}
+            ]}
+            """);
+        Assert.Equal(3_000.5m, MeliSyncService.RefundedAmount(doc.RootElement));
+
+        using var none = System.Text.Json.JsonDocument.Parse("""{"id": 1}""");
+        Assert.Equal(0m, MeliSyncService.RefundedAmount(none.RootElement));
+    }
 }
 
 /// <summary>

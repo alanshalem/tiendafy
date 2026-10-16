@@ -273,6 +273,8 @@ public static class MeliEndpoints
                     // La factura del ambiente actual (null si no tiene, o si la
                     // que tiene es de otro ambiente).
                     fiscalDocumentId = notCounting.Contains(o.FiscalDocumentId) ? null : o.FiscalDocumentId,
+                    // Lo que Mercado Libre le devolvió al comprador (una devolución parcial).
+                    o.RefundedAmount,
                 }),
             });
         });
@@ -405,6 +407,69 @@ public static class MeliEndpoints
                 r.Number,
                 r.Cae,
                 caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
+            });
+        });
+
+        // Lo que hace falta para emitir una nota de crédito a mano desde la
+        // lista de ventas de ML (una venta de ML no abre la ficha de una venta
+        // de la tienda): la factura del ambiente actual y lo acreditado frente
+        // a lo que devolvió Mercado Libre, en centavos.
+        fiscal.MapGet("/orders/{meliOrderId:long}/credit", async (
+            long meliOrderId, ITenantContext tenant, MeliDbContext db,
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, CancellationToken ct) =>
+        {
+            var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.MeliOrderId == meliOrderId, ct);
+            if (order is null)
+                return Error.NotFound("Meli.OrderNotFound", "Esa venta no existe.").ToProblem();
+            var tid = tenant.TenantId.Value;
+            var env = await MeliInvoices.EnvironmentAsync(fiscalDb, tid, ct);
+            var balance = env is null ? null
+                : await global::Fiscal.Infrastructure.Emission.CreditNoteLedger.BalanceAsync(fiscalDb, tid, order.Id, env.Value, ct: ct);
+            if (balance is null)
+                return Error.Conflict(global::Fiscal.Core.Domain.CreditNoteErrors.NoInvoice,
+                    "La venta no tiene una factura autorizada para acreditar.").ToProblem();
+
+            var invoice = balance.Invoice;
+            return Results.Ok(new
+            {
+                environment = env!.Value.ToString().ToUpperInvariant(),
+                invoice = new { invoice.Id, cbteTipo = invoice.CbteTipo.ToString(), invoice.PtoVta, invoice.Number },
+                credit = Api.Fiscal.OrderCreditNotes.Summarize(balance, order.RefundedMinorUnits),
+            });
+        });
+
+        // Nota de crédito a mano de una venta de ML: por lo devuelto sin
+        // acreditar o por un ajuste. El mismo camino que la de una venta de la
+        // tienda (clave del panel, tope = lo que queda de la factura).
+        fiscal.MapPost("/orders/{meliOrderId:long}/credit-notes", async (
+            long meliOrderId, ManualCreditNoteRequest req, ITenantContext tenant, MeliDbContext db,
+            Api.Fiscal.CreditNoteIssuer creditNotes, CancellationToken ct) =>
+        {
+            if (!global::Fiscal.Core.Domain.CreditNoteKeys.IsValidClientKey(req.IdempotencyKey))
+                return Error.Validation("CreditNote.BadKey", "Falta la clave del pedido (idempotencyKey).").ToProblem();
+            if (req.Amount is not > 0m)
+                return Error.Validation(global::Fiscal.Core.Domain.CreditNoteErrors.InvalidAmount,
+                    "El monto de la nota de crédito tiene que ser mayor a cero.").ToProblem();
+            var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.MeliOrderId == meliOrderId, ct);
+            if (order is null)
+                return Error.NotFound("Meli.OrderNotFound", "Esa venta no existe.").ToProblem();
+
+            var minor = (long)Math.Round(req.Amount.Value * 100m, MidpointRounding.AwayFromZero);
+            // ML no da el documento del comprador: la NC sale al receptor de la factura.
+            var result = await creditNotes.IssueManualAsync(
+                tenant.TenantId.Value, order.Id, buyerDoc: null, minor, req.IdempotencyKey!, req.Reason, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+            var r = result.Value;
+            return Results.Ok(new
+            {
+                r.Queued,
+                r.Authorized,
+                r.DocumentId,
+                cbteTipo = r.CbteTipo,
+                r.PtoVta,
+                r.Number,
+                r.Cae,
+                errors = r.Errors.Select(e => new { e.Code, e.Message }),
             });
         });
 

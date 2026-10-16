@@ -293,6 +293,14 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("paid_amount");
 
+                    b.Property<long>("RefundCreditResolvedMinorUnits")
+                        .HasColumnType("bigint")
+                        .HasColumnName("refund_credit_resolved_minor_units");
+
+                    b.Property<decimal>("RefundedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("refunded_amount");
+
                     b.Property<long?>("ShipmentId")
                         .HasColumnType("bigint")
                         .HasColumnName("shipment_id");

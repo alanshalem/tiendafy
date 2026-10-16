@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, MessageSquare, Send, X } from 'lucide-react';
+import { FileText, MessageSquare, Send, Undo2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -31,6 +31,8 @@ import { useFiscalReady } from '../lib/useFiscalReady';
 import { useIsMobile } from '../lib/useMediaQuery';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { ListStats } from '../components/stats/ListStats';
+import { CreditNoteDialog, type CreditNoteRequest } from './orders-credit-note-dialog';
+import type { CreditSummary } from './orders-fiscal';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -58,7 +60,16 @@ interface MeliOrder {
   stockDiscounted: boolean;
   /** Se canceló y ese stock ya volvió al disponible. */
   stockReturned: boolean;
+  /** La factura del ambiente en que factura hoy la tienda (una de homologación no cuenta en producción). */
   fiscalDocumentId: string | null;
+  /** Lo que Mercado Libre le devolvió al comprador (devolución parcial), en pesos. */
+  refundedAmount?: number;
+}
+
+/** Lo que hace falta para emitir una nota de crédito a mano (GET .../credit). */
+interface MeliCredit {
+  invoice: { id: string; cbteTipo: string; ptoVta: number; number: number };
+  credit: CreditSummary;
 }
 
 interface MeliStats {
@@ -106,6 +117,10 @@ const isInvoiceable = (o: MeliOrder) =>
   (o.paidAmount > 0 || o.totalAmount > 0);
 
 const amountOf = (o: MeliOrder) => (o.paidAmount > 0 ? o.paidAmount : o.totalAmount);
+
+/** "FacturaB" → "Factura B 0003-00000042". */
+const invoiceLabel = (i: MeliCredit['invoice']) =>
+  `${i.cbteTipo.replace(/^Factura/, 'Factura ')} ${String(i.ptoVta).padStart(4, '0')}-${String(i.number).padStart(8, '0')}`;
 
 /**
  * Qué pasó con el stock de la tienda, sin adornar: una venta cobrada con la
@@ -272,9 +287,72 @@ export function VentasTab() {
     await refresh();
   };
 
+  // Nota de crédito a mano: una venta de ML no abre la ficha de una venta de
+  // la tienda, así que el botón vive acá. Primero se trae cuánto queda por
+  // acreditar y cuánto devolvió Mercado Libre sin nota de crédito.
+  const [crediting, setCrediting] = useState<{ order: MeliOrder; data: MeliCredit } | null>(null);
+  const [loadingCredit, setLoadingCredit] = useState<number | null>(null);
+  const [issuing, setIssuing] = useState(false);
+
+  const openCreditNote = async (o: MeliOrder) => {
+    setLoadingCredit(o.meliOrderId);
+    try {
+      const data = await api.get<MeliCredit>(`/api/v1/admin/meli/orders/${o.meliOrderId}/credit`);
+      if (data.credit.remaining <= 0)
+        toast('La factura ya está acreditada entera: no queda nada por acreditar.', { variant: 'info' });
+      else setCrediting({ order: o, data });
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo preparar la nota de crédito.'), { variant: 'error' });
+    } finally {
+      setLoadingCredit(null);
+    }
+  };
+
+  const issueCreditNote = async (req: CreditNoteRequest) => {
+    if (!crediting) return;
+    setIssuing(true);
+    try {
+      const r = await api.post<{
+        queued: boolean;
+        authorized: boolean;
+        cae: string | null;
+        errors?: { code: string; message: string }[];
+      }>(`/api/v1/admin/meli/orders/${crediting.order.meliOrderId}/credit-notes`, req);
+      setCrediting(null);
+      toast(
+        r.authorized
+          ? `Nota de crédito autorizada · CAE ${r.cae}`
+          : r.queued
+            ? 'ARCA no contestó: la nota de crédito quedó en la cola y sale sola en unos minutos.'
+            : `Rechazada por ARCA: ${r.errors?.map((e) => e.message).join(' · ') || 'sin detalle'}`,
+        { variant: r.authorized ? 'success' : r.queued ? 'info' : 'error' },
+      );
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo emitir la nota de crédito.'), { variant: 'error' });
+    } finally {
+      setIssuing(false);
+    }
+  };
+
   const invoiceAction = (o: MeliOrder, compact = false) => {
     const row = rows[o.meliOrderId];
-    if (o.fiscalDocumentId || row?.state === 'done') return <Badge variant="success">Facturada</Badge>;
+    if (o.fiscalDocumentId || row?.state === 'done')
+      return (
+        <>
+          <Badge variant="success">Facturada</Badge>
+          {o.fiscalDocumentId && canEmit && (
+            <Button
+              variant="secondary"
+              size={compact ? 'sm' : undefined}
+              disabled={loadingCredit === o.meliOrderId}
+              onClick={() => openCreditNote(o)}
+            >
+              {loadingCredit === o.meliOrderId ? <Spinner inline /> : <Undo2 className="h-4 w-4" />} Emitir
+              nota de crédito
+            </Button>
+          )}
+        </>
+      );
     if (!isInvoiceable(o) || !canEmit) return null;
     if (!fiscalReady) return <SetupInvoicingLink compact />;
     return (
@@ -296,6 +374,11 @@ export function VentasTab() {
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge variant={st.variant}>{st.label}</Badge>
         {stockBadge(o)}
+        {(o.refundedAmount ?? 0) > 0 && o.status === 'partially_refunded' && (
+          <span className="text-xs text-fg-muted">
+            Devuelto {moneyMajor(o.refundedAmount!, o.currencyId)}
+          </span>
+        )}
         {row?.state === 'failed' && (
           <span className="text-xs text-danger" title={row.reason}>
             No se facturó: {row.reason}
@@ -529,6 +612,17 @@ export function VentasTab() {
       )}
 
       {chatOrder && <MessagesModal order={chatOrder} onClose={() => setChatOrder(null)} />}
+      {crediting && (
+        <CreditNoteDialog
+          invoiceLabel={invoiceLabel(crediting.data.invoice)}
+          currency={crediting.order.currencyId}
+          remaining={crediting.data.credit.remaining}
+          refundedUncredited={crediting.data.credit.refundedUncredited}
+          busy={issuing}
+          onClose={() => setCrediting(null)}
+          onConfirm={issueCreditNote}
+        />
+      )}
     </div>
   );
 }

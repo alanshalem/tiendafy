@@ -348,7 +348,8 @@
           "shipmentId": 41000000013,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000001,
@@ -374,7 +375,8 @@
           "shipmentId": 41000000001,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000002,
@@ -400,7 +402,8 @@
           "shipmentId": 41000000002,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000033,
@@ -426,7 +429,8 @@
           "shipmentId": 41000000033,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000000,
@@ -452,7 +456,8 @@
           "shipmentId": 41000000000,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000017,
@@ -478,7 +483,8 @@
           "shipmentId": 41000000017,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000032,
@@ -504,7 +510,8 @@
           "shipmentId": 41000000032,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000007,
@@ -530,7 +537,8 @@
           "shipmentId": 41000000007,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000008,
@@ -556,7 +564,8 @@
           "shipmentId": 41000000008,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000003,
@@ -582,7 +591,8 @@
           "shipmentId": 41000000003,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000012,
@@ -608,7 +618,8 @@
           "shipmentId": 41000000012,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000030,
@@ -634,7 +645,8 @@
           "shipmentId": 41000000030,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000034,
@@ -660,7 +672,8 @@
           "shipmentId": 41000000034,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000037,
@@ -686,7 +699,8 @@
           "shipmentId": null,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000010,
@@ -712,7 +726,8 @@
           "shipmentId": 41000000010,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000023,
@@ -738,7 +753,8 @@
           "shipmentId": 41000000023,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000009,
@@ -764,7 +780,8 @@
           "shipmentId": 41000000009,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000014,
@@ -790,7 +807,8 @@
           "shipmentId": 41000000014,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000018,
@@ -816,7 +834,8 @@
           "shipmentId": 41000000018,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000016,
@@ -842,7 +861,8 @@
           "shipmentId": 41000000016,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000021,
@@ -868,7 +888,8 @@
           "shipmentId": 41000000021,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000019,
@@ -894,7 +915,8 @@
           "shipmentId": 41000000019,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000004,
@@ -920,7 +942,8 @@
           "shipmentId": 41000000004,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000025,
@@ -946,7 +969,8 @@
           "shipmentId": 41000000025,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         },
         {
           "meliOrderId": 2000009800000036,
@@ -972,7 +996,8 @@
           "shipmentId": 41000000036,
           "stockDiscounted": false,
           "stockReturned": false,
-          "fiscalDocumentId": null
+          "fiscalDocumentId": null,
+          "refundedAmount": 0
         }
       ]
     },

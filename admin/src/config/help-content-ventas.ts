@@ -695,6 +695,8 @@ export const VENTAS = {
           'Con “Facturar automáticamente las ventas de ML” (necesita la facturación electrónica configurada) cada venta pagada que llega de ML sale con su comprobante de ARCA a consumidor final. Si está apagado, o ARCA rechazó alguna, en la pestaña Ventas del canal tocás “Facturar” en cada una. Las facturadas quedan marcadas “Facturada”.',
           'Para varias a la vez: filtrá “Sin facturar”, tildá las ventas (o todas las de la página) y tocá “Facturar seleccionadas”. Se facturan de a una, ves el avance y al final cuáles salieron y cuáles no (con el motivo); las que fallaron quedan tildadas para reintentar. Una venta ya facturada nunca se factura dos veces.',
           'El buscador de la pestaña encuentra por comprador, número de venta o producto. En Inicio, “Para hacer hoy” te dice cuántas ventas de ML hay sin facturar y te lleva directo a ese filtro.',
+          'Si Mercado Libre le devuelve al comprador una parte de una venta facturada, la venta queda en “Reembolso parcial” con lo devuelto al lado, y sale sola una nota de crédito por ese monto cuando la facturación automática de ML (o la de la tienda) está prendida. Cada devolución nueva tiene la suya, y un aviso repetido de ML no la duplica.',
+          'Si ninguna de las dos está prendida, o querés hacer un ajuste, tocá “Emitir nota de crédito” en la venta facturada: el monto arranca con lo devuelto sin nota de crédito y lo podés cambiar hasta lo que queda de la factura.',
         ],
         blocks: [
           {

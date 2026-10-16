@@ -92,7 +92,8 @@ public sealed class MeliSyncService(
             packId: order.TryGetProperty("pack_id", out var pack) && pack.ValueKind == JsonValueKind.Number ? pack.GetInt64() : null,
             shipmentId: order.TryGetProperty("shipping", out var ship) && ship.ValueKind == JsonValueKind.Object
                 && ship.TryGetProperty("id", out var sid) && sid.ValueKind == JsonValueKind.Number ? sid.GetInt64() : null,
-            shipmentStatus: null);
+            shipmentStatus: null,
+            refundedAmount: RefundedAmount(order));
 
         if (row.IsPaid && !row.StockApplied)
         {
@@ -182,6 +183,54 @@ public sealed class MeliSyncService(
                 logger.LogError(ex, "Auto-factura ML falló (venta {OrderId}).", meliOrderId);
             }
         }
+
+        if (row.HasUnresolvedPartialRefund)
+            await CreditPartialRefundAsync(tenantId, row, meliOrderId, ct);
+    }
+
+    /// <summary>
+    /// Devolución parcial de una venta facturada (<c>partially_refunded</c>):
+    /// una nota de crédito por lo devuelto, con la misma regla que la
+    /// cancelación (sale sola si la auto-factura de ML o la emisión automática
+    /// de la tienda están prendidas; si no, queda para el botón del panel). Lo
+    /// devuelto sale de <c>payments[].transaction_amount_refunded</c> (ver
+    /// <see cref="RefundedAmount"/>) y cada devolución nueva es un tramo con su
+    /// clave (lo devuelto antes y después): el aviso repetido no emite otra.
+    ///
+    /// <para>
+    /// Sin una factura del ambiente actual no hay qué acreditar todavía: queda
+    /// pendiente, y si la venta se factura después, el próximo aviso la
+    /// acredita. Nunca por más de lo devuelto que ninguna NC cubre (una NC a
+    /// mano por esa devolución ya la cubre) ni de lo que queda de la factura.
+    /// </para>
+    /// </summary>
+    private async Task CreditPartialRefundAsync(Guid tenantId, MeliOrder row, long meliOrderId, CancellationToken ct)
+    {
+        if (await MeliInvoices.EnvironmentAsync(fiscal, tenantId, ct) is not { } env) return;
+        var balance = await global::Fiscal.Infrastructure.Emission.CreditNoteLedger.BalanceAsync(fiscal, tenantId, row.Id, env, ct: ct);
+        if (balance is null) return; // sin factura de este ambiente: espera a que la tenga
+
+        var before = row.RefundCreditResolvedMinorUnits;
+        var after = row.RefundedMinorUnits;
+        var uncovered = Api.Fiscal.OrderCreditNotes.Summarize(balance, after).RefundedUncredited;
+        var amount = Math.Min(after - before, uncovered);
+        try
+        {
+            if (amount > 0)
+            {
+                var channelAuto = await AutoInvoiceEnabledAsync(tenantId, ct);
+                var enqueued = await fiscalQueue.EnqueueCreditNoteAsync(new global::Fiscal.Core.Abstractions.CreditNoteRequest(
+                    tenantId, row.Id, amount, global::Fiscal.Core.Domain.CreditNoteKeys.ForMeliRefund(before, after),
+                    Force: channelAuto), ct);
+                if (enqueued.Value.Outcome == global::Fiscal.Core.Abstractions.CreditNoteEnqueueResult.NotApplicable)
+                    logger.LogInformation("La devolución parcial de la venta ML {OrderId} no emite NC sola: queda para emitirla a mano.", meliOrderId);
+            }
+            row.MarkRefundCreditResolved(after);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "No se pudo encolar la NC de la devolución parcial de la venta ML {OrderId}.", meliOrderId);
+        }
     }
 
     /// <summary>La conexión de Mercado Libre factura sola sus ventas.</summary>
@@ -268,6 +317,20 @@ public sealed class MeliSyncService(
         ?? await db.ItemLinks.IgnoreQueryFilters().AsNoTracking()
             .FirstOrDefaultAsync(l => l.TenantId == tenantId && l.MeliItemId == item.ItemId
                 && l.MeliVariationId == null, ct);
+
+    /// <summary>
+    /// Lo devuelto de la venta: la suma de <c>payments[].transaction_amount_refunded</c>
+    /// de la orden (la API de órdenes de ML lo trae por pago). Sin pagos o sin
+    /// el campo, cero.
+    /// </summary>
+    public static decimal RefundedAmount(JsonElement order)
+    {
+        if (!order.TryGetProperty("payments", out var payments) || payments.ValueKind != JsonValueKind.Array)
+            return 0m;
+        return payments.EnumerateArray()
+            .Where(p => p.ValueKind == JsonValueKind.Object)
+            .Sum(p => JsonRead.GetDecimal(p, "transaction_amount_refunded"));
+    }
 
     public static List<MeliOrderItemSnapshot> ParseItems(JsonElement order)
     {

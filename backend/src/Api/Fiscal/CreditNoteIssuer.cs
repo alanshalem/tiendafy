@@ -68,21 +68,30 @@ public sealed class CreditNoteIssuer(
     /// (así tiene reintentos si ARCA no contesta) y se emite en el momento.
     /// </summary>
     /// <param name="clientKey">La clave que manda el panel: el mismo pedido repetido no emite otra.</param>
+    public Task<Result<ManualCreditNoteResult>> IssueManualAsync(
+        Order order, long amountMinor, string clientKey, string? reason, CancellationToken ct = default) =>
+        IssueManualAsync(order.TenantId.Value, order.Id, order.DocNumber, amountMinor, clientKey, reason, ct);
+
+    /// <summary>
+    /// Lo mismo para una venta que no es una orden de la tienda (una venta de
+    /// Mercado Libre, que factura con el id de su copia local como orden).
+    /// </summary>
+    /// <param name="buyerDoc">Solo informativo: la NC sale al receptor de la factura.</param>
     public async Task<Result<ManualCreditNoteResult>> IssueManualAsync(
-        Order order, long amountMinor, string clientKey, string? reason, CancellationToken ct = default)
+        Guid tenantId, Guid orderId, string? buyerDoc, long amountMinor, string clientKey, string? reason,
+        CancellationToken ct = default)
     {
-        var tenantId = order.TenantId.Value;
         var key = CreditNoteKeys.ForManual(clientKey);
         var enqueued = await queue.EnqueueCreditNoteAsync(new CreditNoteRequest(
-            tenantId, order.Id, amountMinor, key, order.DocNumber, Force: true, Strict: true,
+            tenantId, orderId, amountMinor, key, buyerDoc, Force: true, Strict: true,
             Reason: reason, NotBefore: DateTime.UtcNow + ManualGrace), ct);
         if (enqueued.IsFailure) return Result.Failure<ManualCreditNoteResult>(enqueued.Error);
 
         var emitted = await emitter.EmitAsync(new EmitInvoiceCommand(
-            tenantId, order.Id, enqueued.Value.AmountMinorUnits, order.DocNumber,
+            tenantId, orderId, enqueued.Value.AmountMinorUnits, buyerDoc,
             CreditNote: true, IdempotencyKey: key), ct);
 
-        var job = await fiscal.EmissionJobs.FirstOrDefaultAsync(j => j.TenantId == tenantId && j.OrderId == order.Id
+        var job = await fiscal.EmissionJobs.FirstOrDefaultAsync(j => j.TenantId == tenantId && j.OrderId == orderId
             && j.Kind == FiscalJobKind.CreditNote && j.IdempotencyKey == key, ct);
         // Si el worker ya lo tomó, lo termina él (el emisor le va a decir que ya está).
         var mine = job is { Status: FiscalJobStatus.Pending };
@@ -90,7 +99,7 @@ public sealed class CreditNoteIssuer(
         if (emitted.IsFailure && emitted.Error.Code == "Fiscal.AlreadyCredited")
         {
             var doc = await fiscal.Documents.AsNoTracking()
-                .Where(d => d.TenantId == tenantId && d.OrderId == order.Id && d.IdempotencyKey == key
+                .Where(d => d.TenantId == tenantId && d.OrderId == orderId && d.IdempotencyKey == key
                             && d.Result == FiscalResult.Authorized)
                 .OrderByDescending(d => d.CreatedAtUtc).FirstOrDefaultAsync(ct);
             if (doc is not null)
@@ -113,7 +122,7 @@ public sealed class CreditNoteIssuer(
                 return Result.Failure<ManualCreditNoteResult>(emitted.Error);
             }
             logger.LogWarning("NC a mano de la venta {OrderId} quedó en la cola: {Code} {Message}",
-                order.Id, emitted.Error.Code, emitted.Error.Message);
+                orderId, emitted.Error.Code, emitted.Error.Message);
             return new ManualCreditNoteResult(true, false, null, null, null, null, null,
                 [new FiscalMessage(emitted.Error.Code, emitted.Error.Message)]);
         }

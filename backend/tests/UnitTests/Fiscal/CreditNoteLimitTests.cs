@@ -89,9 +89,15 @@ public sealed class CreditNoteLimitTests
         Assert.Equal(CreditNoteKeys.ForGatewayRefund(0, 3_000_00), CreditNoteKeys.ForGatewayRefund(0, 3_000_00));
         Assert.NotEqual(CreditNoteKeys.ForGatewayRefund(0, 3_000_00), CreditNoteKeys.ForGatewayRefund(3_000_00, 6_000_00));
 
+        // El aviso repetido de Mercado Libre, igual.
+        Assert.Equal("ml-reembolso:0-500000", CreditNoteKeys.ForMeliRefund(0, 5_000_00));
+        Assert.NotEqual(CreditNoteKeys.ForMeliRefund(0, 5_000_00), CreditNoteKeys.ForMeliRefund(5_000_00, 8_000_00));
+
         // Las claves de cada origen no se pisan entre sí.
         Assert.NotEqual(CreditNoteKeys.MeliCancellation, CreditNoteKeys.ForManual("abcdef12"));
-        Assert.All([CreditNoteKeys.ForRefund(reembolso), CreditNoteKeys.ForGatewayRefund(0, 1), CreditNoteKeys.ForManual(new string('a', 64))],
+        Assert.NotEqual(CreditNoteKeys.ForGatewayRefund(0, 1), CreditNoteKeys.ForMeliRefund(0, 1));
+        Assert.All([CreditNoteKeys.ForRefund(reembolso), CreditNoteKeys.ForGatewayRefund(0, 1), CreditNoteKeys.ForManual(new string('a', 64)),
+                CreditNoteKeys.ForMeliRefund(long.MaxValue, long.MaxValue)],
             k => Assert.True(k.Length <= 100)); // entra en la columna
     }
 

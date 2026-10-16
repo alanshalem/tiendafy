@@ -73,6 +73,21 @@ public sealed class MeliOrder
     /// </summary>
     public bool CreditNoteIssued { get; private set; }
 
+    /// <summary>
+    /// Lo que Mercado Libre le devolvió al comprador: la suma de
+    /// <c>payments[].transaction_amount_refunded</c> de la orden. Con una
+    /// devolución parcial la venta queda <c>partially_refunded</c> y esto dice
+    /// cuánto se devolvió.
+    /// </summary>
+    public decimal RefundedAmount { get; private set; }
+
+    /// <summary>
+    /// Hasta cuánto de lo devuelto (en centavos) ya se resolvió fiscalmente: la
+    /// nota de crédito quedó encolada o no correspondía emitirla sola. Cada
+    /// devolución nueva es el tramo entre esto y <see cref="RefundedMinorUnits"/>.
+    /// </summary>
+    public long RefundCreditResolvedMinorUnits { get; private set; }
+
     public DateTime FirstSeenAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -91,9 +106,10 @@ public sealed class MeliOrder
         string status, DateTime dateCreatedUtc, DateTime? dateClosedUtc,
         decimal totalAmount, decimal paidAmount, string currencyId,
         long buyerId, string buyerNickname, string itemsJson,
-        long? packId, long? shipmentId, string? shipmentStatus)
+        long? packId, long? shipmentId, string? shipmentStatus, decimal refundedAmount = 0)
     {
         Status = status;
+        RefundedAmount = Math.Max(0, refundedAmount);
         DateCreatedUtc = dateCreatedUtc;
         DateClosedUtc = dateClosedUtc;
         TotalAmount = totalAmount;
@@ -135,6 +151,24 @@ public sealed class MeliOrder
     public void MarkCreditNoteIssued()
     {
         CreditNoteIssued = true;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>Lo devuelto en centavos (mismo redondeo que <see cref="BillableMinorUnits"/>).</summary>
+    public long RefundedMinorUnits => (long)Math.Round(RefundedAmount * 100m, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Hay una devolución parcial que todavía no pasó por la nota de crédito.
+    /// Una cancelación o un reembolso total van por su propio camino (la NC
+    /// por lo que queda de la factura), no por acá.
+    /// </summary>
+    public bool HasUnresolvedPartialRefund =>
+        RefundedMinorUnits > RefundCreditResolvedMinorUnits && Status is not ("cancelled" or "refunded");
+
+    /// <summary>La devolución hasta este monto ya se resolvió (NC encolada o no correspondía).</summary>
+    public void MarkRefundCreditResolved(long upToMinorUnits)
+    {
+        RefundCreditResolvedMinorUnits = Math.Max(RefundCreditResolvedMinorUnits, upToMinorUnits);
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

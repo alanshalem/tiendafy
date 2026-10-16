@@ -27,6 +27,14 @@ public static class CreditNoteKeys
     /// <summary>La cancelación de una venta de Mercado Libre (una sola por venta).</summary>
     public const string MeliCancellation = "ml-cancelacion";
 
+    /// <summary>
+    /// Una devolución parcial de una venta de Mercado Libre: como la de la
+    /// pasarela, la identifica el tramo devuelto (lo devuelto antes y después,
+    /// en centavos). El mismo aviso de ML repetido da la misma clave.
+    /// </summary>
+    public static string ForMeliRefund(long refundedBeforeMinor, long refundedAfterMinor) =>
+        $"ml-reembolso:{refundedBeforeMinor}-{refundedAfterMinor}";
+
     /// <summary>Clave manual aceptable: no vacía, corta y sin espacios raros.</summary>
     public static bool IsValidClientKey(string? key) =>
         !string.IsNullOrWhiteSpace(key) && key.Trim().Length is >= 8 and <= 64
