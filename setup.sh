@@ -36,9 +36,11 @@ DOTNET_VERSION="$(dotnet --version)"
 [[ "$DOTNET_VERSION" == 10.* ]] || fail ".NET 10 requerido, encontrado $DOTNET_VERSION"
 ok ".NET SDK $DOTNET_VERSION"
 
-command -v node >/dev/null 2>&1 || fail "Node.js no encontrado. Instalar Node 22+: https://nodejs.org"
+# La versión la fija .node-version (la misma que usan CI y las imágenes).
+NODE_REQUIRED="$(head -n1 "$ROOT/.node-version" | tr -d '[:space:]v' | cut -d. -f1)"
+command -v node >/dev/null 2>&1 || fail "Node.js no encontrado. Instalar Node $NODE_REQUIRED: https://nodejs.org"
 NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
-[[ "$NODE_MAJOR" -ge 22 ]] || fail "Node 22+ requerido, encontrado $(node --version)"
+[[ "$NODE_MAJOR" -ge "$NODE_REQUIRED" ]] || fail "Node $NODE_REQUIRED requerido (ver .node-version), encontrado $(node --version)"
 ok "Node $(node --version)"
 
 if ! command -v pnpm >/dev/null 2>&1; then

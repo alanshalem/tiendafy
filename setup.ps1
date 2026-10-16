@@ -3,7 +3,7 @@
   Setup completo de Tiendafy para desarrollo local (Windows).
 
 .DESCRIPTION
-  1. Verifica prerequisitos (Docker, .NET 10, Node 22+, pnpm)
+  1. Verifica prerequisitos (Docker, .NET 10, Node de .node-version, pnpm)
   2. Levanta infraestructura con Docker Compose (Postgres, MinIO)
   3. Instala dependencias del workspace pnpm
   4. Compila el backend y corre los tests
@@ -57,12 +57,14 @@ if (-not $dotnetVersion.StartsWith('10.')) {
 }
 Write-Ok ".NET SDK $dotnetVersion"
 
+# La versión la fija .node-version (la misma que usan CI y las imágenes).
+$nodeRequired = [int]((Get-Content (Join-Path $root '.node-version') -TotalCount 1).Trim().TrimStart('v').Split('.')[0])
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Fail "Node.js no encontrado. Instalar Node 22+: https://nodejs.org"
+    Fail "Node.js no encontrado. Instalar Node ${nodeRequired}: https://nodejs.org"
 }
 $nodeMajor = [int]((node --version).TrimStart('v').Split('.')[0])
-if ($nodeMajor -lt 22) {
-    Fail "Node 22+ requerido, encontrado $(node --version)"
+if ($nodeMajor -lt $nodeRequired) {
+    Fail "Node $nodeRequired requerido (ver .node-version), encontrado $(node --version)"
 }
 Write-Ok "Node $(node --version)"
 
