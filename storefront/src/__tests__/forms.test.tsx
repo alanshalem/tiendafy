@@ -139,7 +139,9 @@ describe('cambio de contraseña', () => {
 });
 
 describe('favoritos', () => {
-  const productId = fixture<{ productIds: string[] }>('/api/v1/shop/favorites').productIds[0]!;
+  // Lo que contesta el merge: el set completo de favoritos de la cuenta.
+  const merged = fixture<{ productIds: string[] }>('/api/v1/shop/favorites/merge');
+  const productId = merged.productIds[0]!;
   const product = fixture<{ name: string }>('/api/v1/products/:id');
   const name = product.name;
   // Los favoritos se piden juntos y solo los publicados (como una sección "a mano").
@@ -153,8 +155,7 @@ describe('favoritos', () => {
       JSON.stringify(fixture('/api/v1/shop/auth/me')),
     );
     localStorage.setItem(`tiendafy.favorites.${fixtureTenantId}`, JSON.stringify(['local-1']));
-    // El merge contesta el set completo de la cuenta (lo mismo que GET /shop/favorites).
-    api.on('POST', '/api/v1/shop/favorites/merge', fixture('/api/v1/shop/favorites'));
+    api.on('POST', '/api/v1/shop/favorites/merge', merged);
     await show(<FavoritesList productList={defaultTheme.productList} />);
     await settle(2);
     expect(api.calls.find((c) => c.path === '/api/v1/shop/favorites/merge')?.body).toEqual({

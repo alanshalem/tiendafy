@@ -80,6 +80,12 @@ public sealed partial class ApiFixturesExport
             }
         }
 
+        // Los favoritos de la cuenta no tienen GET: la tienda los lee con el
+        // merge (con la lista del navegador), que es una escritura y el
+        // recorrido de arriba no la ve. Con la lista vacía no agrega nada.
+        routes["/api/v1/shop/favorites/merge"] = JsonNode.Parse((await shopper.ExpectJsonAsync(
+            HttpMethod.Post, "/api/v1/shop/favorites/merge", new { productIds = Array.Empty<string>() })).GetRawText());
+
         var document = new JsonObject
         {
             ["_comment"] = "Generado por ApiFixturesExport (pnpm fixtures:api). No editar a mano.",

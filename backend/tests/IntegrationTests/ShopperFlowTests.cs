@@ -100,8 +100,7 @@ public sealed partial class ShopperFlowTests
         // Favoritos: agregar, el merge desde el navegador (lo que marcó sin cuenta), sacar.
         await shopper.ExpectOkAsync(HttpMethod.Put, $"/api/v1/shop/favorites/{cheaper}");
         await shopper.ExpectOkAsync(HttpMethod.Put, $"/api/v1/shop/favorites/{cheaper}"); // dos veces: uno
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/favorites/merge", new { productIds = new[] { restocked.ToString(), "no-es-un-id" } });
-        var favorites = await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/favorites");
+        var favorites = await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/favorites/merge", new { productIds = new[] { restocked.ToString(), "no-es-un-id" } });
         Assert.Equal(2, favorites.GetProperty("productIds").GetArrayLength());
 
         // Avisos opt-in: la tienda los activa.
@@ -127,7 +126,9 @@ public sealed partial class ShopperFlowTests
         Assert.Equal(2, _factory.ExternalHttp.EmailsTo(email).Count(m => !m.Subject.Contains("Verificá")));
 
         await shopper.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/shop/favorites/{restocked}");
-        Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/favorites")).GetProperty("productIds").EnumerateArray());
+        // El merge con la lista vacía es como la tienda lee los de la cuenta.
+        Assert.Equal(cheaper, Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/favorites/merge",
+            new { productIds = Array.Empty<string>() })).GetProperty("productIds").EnumerateArray()).GetGuid());
 
         // Mis compras: solo las suyas.
         var orderId = await merchant.CreateSaleAsync(buyerEmail: email);
@@ -222,7 +223,8 @@ public sealed partial class ShopperFlowTests
         Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/support/conversations/{missing}/close")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await shopper.SendAsync(HttpMethod.Get, $"/api/v1/shop/support/conversations/{missing}/messages")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await new Shopper(merchant).SendAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await new Shopper(merchant).SendAsync(HttpMethod.Get, "/api/v1/shop/favorites")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await new Shopper(merchant).SendAsync(HttpMethod.Post, "/api/v1/shop/favorites/merge",
+            new { productIds = Array.Empty<string>() })).StatusCode);
     }
 
     [Fact]

@@ -7515,7 +7515,7 @@
       "name": "Comprador Demo",
       "email": "comprador@demo.local"
     },
-    "/api/v1/shop/favorites": {
+    "/api/v1/shop/favorites/merge": {
       "productIds": ["19779c22-1452-479b-bbbc-794db0983f1a"]
     },
     "/api/v1/shop/orders": {

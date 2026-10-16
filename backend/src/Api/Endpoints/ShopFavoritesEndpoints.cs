@@ -9,15 +9,9 @@ public static class ShopFavoritesEndpoints
 {
     public static RouteGroupBuilder MapShopFavoritesEndpoints(this RouteGroupBuilder group)
     {
+        // No hay GET: la tienda lee los favoritos de la cuenta con el merge (con
+        // la lista del navegador, vacía o no), que devuelve el set unificado.
         var fav = group.MapGroup("/shop/favorites");
-
-        fav.MapGet("/", async (HttpContext http, CustomersDbContext db, CancellationToken ct) =>
-        {
-            var customer = await ShopAuth.ResolveAsync(http, db, ct);
-            if (customer is null) return Results.Unauthorized();
-            var ids = await FavoriteIdsAsync(db, customer.Id, ct);
-            return Results.Ok(new { productIds = ids });
-        });
 
         fav.MapPut("/{productId:guid}", async (Guid productId, HttpContext http, CustomersDbContext db, CancellationToken ct) =>
         {
