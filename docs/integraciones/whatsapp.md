@@ -6,7 +6,7 @@ No confundir con el botón flotante y los links `wa.me` de la tienda (`storefron
 
 ## Qué hace en Tiendafy
 
-- Manda mensajes de **plantilla** (las únicas que Meta deja mandar fuera de la ventana de 24 horas) en eventos de la venta: pago acreditado, despacho, listo para retirar, reembolso y carrito abandonado.
+- Manda mensajes de **plantilla** (las únicas que Meta deja mandar fuera de la ventana de 24 horas) en eventos de la venta: pago acreditado (con el texto de "pago" o el de "compra recibida"), despacho, listo para retirar, reembolso total y carrito abandonado.
 - Cada tipo de mensaje arranca **apagado**: no sale nada hasta que el merchant lo prende y carga el nombre de su plantilla aprobada en Meta.
 - Es best-effort: un error de WhatsApp nunca rompe el pago, el despacho ni el email, que sale igual.
 - Cuenta cada envío (`NotificationEvent`) para el panel de costos.
@@ -50,11 +50,11 @@ Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`
 | Tipo | Nombre sugerido en Meta | Variables | Se dispara en |
 |---|---|---|---|
 | `confirmacion-pago` | `confirmacion_pago` | nombre, orden, total | Orden pagada |
+| `confirmacion-compra` | `confirmacion_compra` | nombre, orden, total | Orden pagada, en el mismo momento que `confirmacion-pago` (son dos textos para elegir; con las dos prendidas salen dos mensajes) |
 | `confirmacion-envio` | `pedido_en_camino` | nombre, orden, seguimiento ("a coordinar" si no hay) | Despacho |
 | `lista-para-retirar` | `listo_para_retirar` | nombre, orden | Pedido de retiro listo |
 | `cancelacion-compra` | `pedido_reembolsado` | nombre, orden, total | Reembolso total. No en la cancelación de una venta sin cobrar ni en un reembolso parcial: el texto sugerido dice que se devolvió la plata (esos dos avisan solo por email) |
 | `carritos-abandonados` | `carrito_abandonado` | nombre, tienda | `AbandonedCartWorker`, solo si el checkout llegó a cargar teléfono |
-| `confirmacion-compra` | `confirmacion_compra` | nombre, orden, total | Nunca (ver "Pendiente") |
 
 `WhatsAppNotifier` para cada evento:
 
@@ -76,11 +76,10 @@ Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`)
 
 - Conectá una cuenta de prueba de Meta, cargá tu número como tester y usá "Enviar prueba" en `/configuracion/whatsapp-automatico` (manda `hello_world`).
 - Prendé `confirmacion-pago` con una plantilla aprobada y marcá como pagada una orden con tu teléfono.
-- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos) y `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada).
+- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos) y `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada) y `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago).
 
 ## Pendiente
 
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
-- `confirmacion-compra` está en el catálogo pero nada la dispara (el email equivalente se sacó del catálogo de emails en oct-2026, por lo mismo).
 - La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.

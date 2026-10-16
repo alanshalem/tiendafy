@@ -498,6 +498,59 @@ public sealed class MercadoPagoFlowTests
         Assert.Single(_factory.ExternalHttp.EmailsTo(mpBuyer), m => m.Subject.StartsWith("Parte de tu plata vuelve", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// El WhatsApp "Confirmación de compra" sale cuando la venta queda pagada,
+    /// una sola vez: el aviso de Mercado Pago del mismo pago, que llega después,
+    /// no lo repite. Antes estaba en el catálogo y nada lo mandaba. Una venta
+    /// de mostrador no lo manda (el comprador está ahí), igual que el de pago.
+    /// </summary>
+    [Fact]
+    public async Task La_confirmacion_de_compra_por_WhatsApp_sale_una_vez_al_quedar_pagada()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mwc");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
+        const string graph = global::Api.MetaAds.MetaGraph.ApiBaseUrl;
+        var messages = $"{graph}/{phoneNumberId}/messages";
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-mwc" });
+        await merchant.PutAsync("/api/v1/whatsapp/templates/confirmacion-compra",
+            new { enabled = true, metaTemplateName = "compra_recibida", languageCode = "es_AR" });
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, messages, new { messages = new[] { new { id = "wamid.mwc" } } });
+        var (_, variantId) = await merchant.CreateProductAsync("Mate WA", priceMinor: 9_000_00);
+        var shopper = new Shopper(merchant);
+
+        var (orderId, paymentId, _) = await PaidOnsiteAsync(shopper, variantId);
+        var sent = Assert.Single(_factory.ExternalHttp.SentTo(messages)).Body!;
+        Assert.Contains("compra_recibida", sent, StringComparison.Ordinal);
+        Assert.Contains("5491155556666", sent, StringComparison.Ordinal); // el teléfono del checkout
+        Assert.Contains("Ana", sent, StringComparison.Ordinal);
+        Assert.Contains("ARS 9.000", sent, StringComparison.Ordinal);
+
+        // Llega el aviso del mismo pago: la venta ya estaba pagada, no se repite.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{paymentId}", new
+        {
+            id = paymentId,
+            status = "approved",
+            status_detail = "accredited",
+            external_reference = orderId.ToString(),
+            transaction_amount = 9_000m,
+            transaction_amount_refunded = 0m,
+        });
+        await WebhookAsync(paymentId.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+
+        // Venta de mostrador: tampoco.
+        await merchant.PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId, quantity = 1 } },
+            paymentMethod = "cash",
+            buyerEmail = "mostrador@test.local",
+            buyerPhone = "11 5555-4444",
+        });
+        Assert.Single(_factory.ExternalHttp.SentTo(messages));
+    }
+
     /// <summary>Un comprador propio paga con tarjeta en la tienda; devuelve la orden, el pago y su email.</summary>
     private async Task<(Guid Order, long Payment, string Buyer)> PaidOnsiteAsync(Shopper shopper, Guid variantId)
     {

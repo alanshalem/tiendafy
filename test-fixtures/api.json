@@ -9823,7 +9823,7 @@
           "type": "confirmacion-compra",
           "group": "Ventas",
           "label": "Confirmaci\u00F3n de compra",
-          "description": "Avisa que el pedido se recibi\u00F3 correctamente.",
+          "description": "Avisa que recibiste el pedido, cuando queda pagado. Sale junto con \u00ABConfirmaci\u00F3n de pago\u00BB: prend\u00E9 una de las dos.",
           "enabled": false,
           "metaTemplateName": "confirmacion_compra",
           "languageCode": "es_AR",

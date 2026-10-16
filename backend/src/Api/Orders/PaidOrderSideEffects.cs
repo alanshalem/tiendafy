@@ -45,7 +45,15 @@ public sealed class PaidOrderSideEffects(
             await StepAsync("email de confirmación", order, () => notifier.NotifyAsync(order, "confirmacion-pago", ct));
 
         if (whatsApp)
+        {
+            // "Confirmación de compra" y "Confirmación de pago" salen en el mismo
+            // momento: son dos textos para la tienda que quiera decir "recibimos tu
+            // pedido" en vez de "acreditamos tu pago". Cada una sale si la tienda
+            // la prendió con su plantilla de Meta; el panel sugiere prender una.
+            // Antes "Confirmación de compra" estaba en el catálogo y nada la mandaba.
+            await StepAsync("WhatsApp de confirmación de compra", order, () => whatsapp.NotifyAsync(order, "confirmacion-compra", ct));
             await StepAsync("WhatsApp de confirmación", order, () => whatsapp.NotifyAsync(order, "confirmacion-pago", ct));
+        }
 
         await StepAsync("factura automática", order, () => fiscal.EnqueueInvoiceAsync(
             order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,

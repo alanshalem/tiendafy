@@ -103,8 +103,10 @@ public static class WhatsAppTemplateCatalog
 {
     public static readonly IReadOnlyList<WhatsAppTemplateDef> All =
     [
+        // Sale cuando la venta queda pagada, igual que "Confirmación de pago":
+        // con las dos prendidas, el comprador recibe dos mensajes.
         new("confirmacion-compra", "Ventas", "Confirmación de compra",
-            "Avisa que el pedido se recibió correctamente.",
+            "Avisa que recibiste el pedido, cuando queda pagado. Sale junto con «Confirmación de pago»: prendé una de las dos.",
             DefaultEnabled: false, "confirmacion_compra",
             ["nombre", "orden", "total"],
             "¡Hola {{1}}! Recibimos tu pedido {{2}} por {{3}}. Te avisamos apenas salga. 🙌"),
