@@ -155,6 +155,57 @@ describe('Zipnova', () => {
     await waitFor(() => expect(api.calls.some((c) => c.path === `${base}/zipnova-label`)).toBe(true));
   });
 
+  it('con el envío creado: actualizar estado trae el último de Zipnova; sin movimientos o con error, lo dice', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/zipnova', { configured: true, active: true });
+    api.on('GET', `${base}/zipnova-shipment`, {
+      exists: true,
+      shipmentId: 123456,
+      carrier: 'OCA',
+      carrierTrackingId: 'OCA-99',
+      trackingUrl: null,
+      status: 'documentation_in_process',
+    });
+    api.on('GET', `${base}/zipnova-tracking`, { shipmentId: 123456, events: [] });
+    const user = userEvent.setup();
+    renderWithProviders(<ZipnovaShipmentButton order={order} />);
+
+    const refresh = await screen.findByRole('button', { name: /Actualizar estado/ });
+    await user.click(refresh);
+    expect(
+      await screen.findByText('Zipnova todavía no informó movimientos de este envío.'),
+    ).toBeInTheDocument();
+
+    // Vienen del más nuevo al más viejo: manda el primero.
+    api.on('GET', `${base}/zipnova-tracking`, {
+      shipmentId: 123456,
+      events: [
+        {
+          status: 'in_transit',
+          statusName: 'En camino',
+          createdAt: '2026-10-15 14:00:00',
+          description: null,
+        },
+        {
+          status: 'ready_to_ship',
+          statusName: 'Listo para despachar',
+          createdAt: '2026-10-14 10:00:00',
+          description: null,
+        },
+      ],
+    });
+    await user.click(refresh);
+    expect(await screen.findByText('Zipnova: En camino')).toBeInTheDocument();
+    expect(screen.getByText(/Zipnova #123456 · OCA · OCA-99 · En camino/)).toBeInTheDocument();
+    expect(api.calls.filter((c) => c.path === `${base}/zipnova-tracking`)).toHaveLength(2);
+
+    api.on('GET', `${base}/zipnova-tracking`, { detail: 'Zipnova está limitando el tráfico.' }, 400);
+    await user.click(refresh);
+    expect(await screen.findByText('Zipnova está limitando el tráfico.')).toBeInTheDocument();
+    // El último estado conocido queda a la vista.
+    expect(screen.getByText(/· En camino/)).toBeInTheDocument();
+  });
+
   it('si Zipnova rechaza, avisa y no cierra', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/admin/shipping/zipnova', { configured: true, active: true });

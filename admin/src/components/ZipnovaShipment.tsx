@@ -1,5 +1,5 @@
 import { useEffect, useState, useId } from 'react';
-import { Download, Zap } from 'lucide-react';
+import { Download, RefreshCw, Zap } from 'lucide-react';
 import { Input, Modal, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
@@ -22,14 +22,31 @@ interface ShipmentState {
   carrierTrackingId?: string | null;
   trackingUrl?: string | null;
   status?: string | null;
+  /** El nombre del último estado que informó Zipnova ("En camino"), después de consultar el seguimiento. */
+  statusName?: string | null;
   /** Zipnova pudo haberlo creado sin que quedara guardado: hay que revisarlo antes de crear otro. */
   review?: ShipmentReviewState | null;
+}
+
+/** `GET /admin/orders/{id}/zipnova-tracking`: los eventos, del más nuevo al más viejo. */
+interface ZipnovaTracking {
+  shipmentId: number;
+  events: {
+    status: string | null;
+    statusName: string | null;
+    createdAt: string | null;
+    description: string | null;
+  }[];
 }
 
 /**
  * Envío Zipnova de una venta: creación (una sola vez — el backend garantiza
  * que no se duplica, porque Zipnova no deduplica y cada envío consume saldo
  * real), estado, tracking y descarga de la etiqueta PDF.
+ *
+ * "Actualizar estado" consulta el seguimiento en Zipnova (no hay webhook ni
+ * consulta automática): trae el último estado, lo muestra y lo deja guardado
+ * en la venta —si es "entregado", el comprador lo ve en "Seguí tu pedido"—.
  */
 export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
   const { toast } = useToast();
@@ -37,6 +54,7 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
   const [configured, setConfigured] = useState(false);
   const [open, setOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -69,6 +87,25 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
     }
   };
 
+  const refreshTracking = async () => {
+    setTracking(true);
+    try {
+      const res = await api.get<ZipnovaTracking>(`/api/v1/admin/orders/${order.id}/zipnova-tracking`);
+      const latest = res.events[0];
+      const name = latest?.statusName || latest?.status || null;
+      if (!name) {
+        toast('Zipnova todavía no informó movimientos de este envío.', { variant: 'info' });
+        return;
+      }
+      setState((s) => (s ? { ...s, status: latest?.status ?? s.status, statusName: name } : s));
+      toast(`Zipnova: ${name}`, { variant: 'info' });
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo consultar el estado en Zipnova.'), { variant: 'error' });
+    } finally {
+      setTracking(false);
+    }
+  };
+
   if (state?.exists) {
     return (
       <span className="inline-flex flex-wrap items-center gap-2">
@@ -76,6 +113,7 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
           <Zap className="h-3.5 w-3.5 text-fg-muted" /> Zipnova #{state.shipmentId}
           {state.carrier ? ` · ${state.carrier}` : ''}
           {state.carrierTrackingId ? ` · ${state.carrierTrackingId}` : ''}
+          {state.statusName ? ` · ${state.statusName}` : ''}
         </span>
         <button
           onClick={downloadLabel}
@@ -83,6 +121,13 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
           className={`${shipmentTriggerCls} disabled:opacity-50`}
         >
           {downloading ? <Spinner inline size={14} /> : <Download className="h-3.5 w-3.5" />} Etiqueta PDF
+        </button>
+        <button
+          onClick={refreshTracking}
+          disabled={tracking}
+          className={`${shipmentTriggerCls} disabled:opacity-50`}
+        >
+          {tracking ? <Spinner inline size={14} /> : <RefreshCw className="h-3.5 w-3.5" />} Actualizar estado
         </button>
         {state.trackingUrl && (
           <a

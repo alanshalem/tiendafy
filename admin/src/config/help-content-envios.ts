@@ -266,7 +266,7 @@ export const ENVIOS = {
           'Al confirmar, el envío queda creado y ves el número de Zipnova, el transporte asignado y su código de seguimiento.',
           'Tocá “Etiqueta PDF”: se descarga lista para imprimir y pegar en el paquete (si recién creaste el envío puede tardar unos minutos en estar disponible).',
           'Despachá según la forma de tu cuenta (retiro del transporte o entrega en punto de despacho).',
-          'Cargá el código de seguimiento en la venta con “Marcar enviada” — el cliente lo recibe por email. El link “Seguimiento” te muestra el estado en Zipnova en cualquier momento.',
+          'Cargá el código de seguimiento en la venta con “Marcar enviada” — el cliente lo recibe por email. “Actualizar estado” le pregunta a Zipnova en qué anda el envío y lo muestra al lado del número (cuando dice entregado, el cliente también lo ve en “Seguí tu pedido”). El link “Seguimiento” abre la página del transporte.',
         ],
       },
       {

@@ -123,8 +123,9 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
 - `GET /shipments/{id}/label.pdf?no_status_change=1`. Un **409** quiere decir
   que la etiqueta todavía no está lista: se le pide al operador que pruebe en
   unos minutos.
-- `GET /shipments/{id}/tracking`, a pedido desde el panel (no hay polling ni
-  webhook). La especificación no dice en qué orden vienen los eventos: se
+- `GET /shipments/{id}/tracking`, a pedido desde el panel con "Actualizar
+  estado" en la venta (`admin/src/components/ZipnovaShipment.tsx`; no hay
+  polling ni webhook). La especificación no dice en qué orden vienen los eventos: se
   ordenan por fecha (`TrackingEvents.NewestFirst`), y se guarda el estado del
   más nuevo; si es `delivered`, la vista de seguimiento del comprador marca el
   pedido como entregado.
@@ -172,7 +173,7 @@ De la especificación, y manejado a la defensiva:
 - **Retiro en punto de Zipnova** (`pickup_point`): necesita un selector de
   puntos en el checkout. Hoy esas opciones se descartan.
 - No hay cancelación desde el panel ni seguimiento automático: el estado se
-  actualiza solo cuando alguien abre el seguimiento de la venta.
+  actualiza solo cuando alguien toca "Actualizar estado" en la venta.
 - Confirmar en producción el formato de `created_at` del tracking: se ordena
   por esa fecha; un evento sin fecha legible queda al final.
 - La cotización no atrapa el timeout ni la red caída (ver "Cotización en el
