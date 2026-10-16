@@ -63,8 +63,18 @@ public static class OrderComprobantePresenter
             ImpIVA: doc.ImpIVA,
             ImpTotal: doc.ImpTotal,
             Currency: "PES",
-            Items: items);
+            Items: items,
+            Leyenda: letra == "A" && doc.IssuedReceptor().Condicion == global::Fiscal.Core.Domain.CondicionIvaReceptor.Monotributo
+                ? LeyendaMonotributo : null);
     }
+
+    /// <summary>
+    /// La que exige la RG 5003 en una A a un monotributista: el IVA discriminado
+    /// solo le sirve dentro del régimen de la Ley 27.618.
+    /// </summary>
+    public const string LeyendaMonotributo =
+        "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del " +
+        "Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618";
 
     public static (string Letra, string Label) CbteLabel(global::Fiscal.Core.Domain.CbteTipo t) => t switch
     {

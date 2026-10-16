@@ -32,7 +32,9 @@ public sealed record ComprobantePdfData(
     decimal ImpIVA,
     decimal ImpTotal,
     string Currency,         // "PES"
-    IReadOnlyList<ComprobantePdfItem> Items);
+    IReadOnlyList<ComprobantePdfItem> Items,
+    // Leyenda obligatoria del comprobante, si corresponde (A a un monotributista).
+    string? Leyenda = null);
 
 /// <summary>Renderiza el PDF del comprobante (con el QR de ARCA embebido).</summary>
 public interface IComprobantePdfRenderer

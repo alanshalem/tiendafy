@@ -39,7 +39,7 @@ public enum Concepto
     ProductosYServicios = 3,
 }
 
-/// <summary>Condición del receptor frente al IVA (obligatorio desde 01/06/2026 — H6).</summary>
+/// <summary>Condición del receptor frente al IVA (CondicionIVAReceptorId, RG 5616 — H6).</summary>
 public enum CondicionIvaReceptor
 {
     ResponsableInscripto = 1,

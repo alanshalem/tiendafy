@@ -94,8 +94,10 @@ public static class ComprobanteBuilder
         if (emisor == FiscalCondition.Monotributo)
             return creditNote ? CbteTipo.NotaCreditoC : CbteTipo.FacturaC;
 
-        // RI: Factura A si el receptor es Responsable Inscripto (tiene CUIT), si no B.
-        var isA = receptor.Condicion == CondicionIvaReceptor.ResponsableInscripto;
+        // RI: Factura A al Responsable Inscripto y al monotributista (desde la
+        // RG 5003 el monotributista recibe A, con la leyenda de la Ley 27.618,
+        // y ARCA rechaza una B con condición 6: 10243); B al resto.
+        var isA = receptor.Condicion is CondicionIvaReceptor.ResponsableInscripto or CondicionIvaReceptor.Monotributo;
         return (isA, creditNote) switch
         {
             (true, false) => CbteTipo.FacturaA,

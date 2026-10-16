@@ -126,6 +126,9 @@ public sealed class ComprobantePdfRenderer : IComprobantePdfRenderer
             }
             c.Item().Text($"TOTAL: {Money(d.ImpTotal, d.Currency)}").Bold().FontSize(12);
         });
+
+        if (!string.IsNullOrWhiteSpace(d.Leyenda))
+            col.Item().PaddingTop(6).Text(d.Leyenda).FontSize(8);
     }
 
     private static void Footer(ColumnDescriptor col, ComprobantePdfData d, byte[] qrPng)

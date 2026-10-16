@@ -8,7 +8,8 @@ homologación, después de producción) para emitir el primer CAE de verdad.
 ## Qué hace en Tiendafy
 
 - **Factura A, B o C** según el emisor y el comprador: Responsable Inscripto
-  emite A (a otro RI) o B (al resto); Monotributo emite C.
+  emite A (a otro RI o a un monotributista, este con la leyenda de la Ley
+  27.618 en el PDF) o B (al resto); Monotributo emite C.
 - **Emisión automática** opcional por tienda, al acreditarse el pago o al
   despachar, con una cola durable y reintentos.
 - **Nota de crédito automática** cuando una venta se reembolsa por completo

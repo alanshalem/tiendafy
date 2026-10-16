@@ -44,6 +44,19 @@ public class ComprobanteBuilderTests
     }
 
     [Theory]
+    [InlineData(false, CbteTipo.FacturaA)]
+    [InlineData(true, CbteTipo.NotaCreditoA)]
+    public void ResponsableInscripto_a_un_monotributista_emite_A(bool nc, CbteTipo expected)
+    {
+        // Desde la RG 5003 el monotributista recibe A: una B con condición 6
+        // la rechaza ARCA (10243).
+        var monotributista = new Receptor(DocTipo.Cuit, 20123456786, CondicionIvaReceptor.Monotributo);
+        var d = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto, monotributista, 12100, creditNote: nc).Value;
+        Assert.Equal(expected, d.CbteTipo);
+        Assert.Equal(CondicionIvaReceptor.Monotributo, d.Receptor.Condicion);
+    }
+
+    [Theory]
     [InlineData(FiscalCondition.Monotributo, false, CbteTipo.FacturaC)]
     [InlineData(FiscalCondition.Monotributo, true, CbteTipo.NotaCreditoC)]
     [InlineData(FiscalCondition.ResponsableInscripto, true, CbteTipo.NotaCreditoB)]
