@@ -84,6 +84,17 @@ public sealed class PaymentWebhookWorker(
                 break;
         }
 
+        // La nota de crédito del tramo devuelto (total o parcial), como un
+        // reembolso desde el panel. La clave es el tramo: el mismo aviso
+        // repetido no emite otra.
+        if (result.Value is { Outcome: SettleOutcome.Refunded or SettleOutcome.PartiallyRefunded, RefundedBeforeMinor: { } before })
+        {
+            var after = order.RefundedAmount.AmountInMinorUnits;
+            if (after > before)
+                await sp.GetRequiredService<Api.Fiscal.CreditNoteIssuer>().ForRefundAsync(order, after - before,
+                    global::Fiscal.Core.Domain.CreditNoteKeys.ForGatewayRefund(before, after), requested: false, ct);
+        }
+
         // Un reembolso o un contracargo bajan lo que el cliente gastó: la agenda
         // ordena y filtra por ese número.
         if (result.Value.Outcome is SettleOutcome.Refunded or SettleOutcome.PartiallyRefunded or SettleOutcome.ChargedBack)

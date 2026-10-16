@@ -146,6 +146,22 @@ public sealed class EmitInvoiceHandler(
                 if (orderLockKey is not null && await AlreadyIssuedAsync(cmd, env, ct) is { } issuedMeanwhile)
                     return Result.Failure<EmitInvoiceResult>(issuedMeanwhile);
 
+                // El tope de las notas de crédito, con el lock de la venta tomado:
+                // lo acreditado más lo que espera la respuesta de ARCA más esta
+                // NC nunca supera la factura. La cola ya lo controló al encolar;
+                // este es el corte que vale (dos pedidos a la vez, un reintento).
+                if (cmd.CreditNote && cmd.OrderId is { } creditedOrder)
+                {
+                    var balance = await CreditNoteLedger.BalanceAsync(db, cmd.TenantId, creditedOrder, env,
+                        ownKey: cmd.IdempotencyKey, excludeOwn: true, includeQueued: false, ct);
+                    if (balance is not null)
+                    {
+                        var fits = CreditNoteLimit.Check(balance.InvoiceTotalMinor, balance.CreditedMinor,
+                            balance.InFlightMinor, cmd.GrossMinorUnits);
+                        if (fits.IsFailure) return Result.Failure<EmitInvoiceResult>(fits.Error);
+                    }
+                }
+
                 await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", [lockKey], ct);
                 try
                 {
@@ -196,8 +212,12 @@ public sealed class EmitInvoiceHandler(
             return invoiced ? Error.Conflict("Fiscal.AlreadyInvoiced", "Esta orden ya tiene una factura autorizada.") : null;
         }
 
+        // Una venta puede tener varias NC: lo que no se repite es la de ESTE
+        // pedido (el mismo reembolso, el mismo pedido manual).
+        var key = cmd.IdempotencyKey;
         var credited = await db.Documents.AsNoTracking().AnyAsync(
             d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Environment == env && d.Result == FiscalResult.Authorized
+              && d.IdempotencyKey == key
               && (d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC), ct);
         return credited ? Error.Conflict("Fiscal.AlreadyCredited", "Esta orden ya tiene una nota de crédito autorizada.") : null;
     }
@@ -234,7 +254,7 @@ public sealed class EmitInvoiceHandler(
         var doc = FiscalDocument.Draft(
             cmd.TenantId, cmd.OrderId, env, ptoVta, draft.CbteTipo, number,
             draft.Receptor.DocTipo, draft.Receptor.DocNro, draft.ImpTotal, draft.ImpNeto, draft.ImpIVA,
-            draft.Receptor.Condicion);
+            draft.Receptor.Condicion, cmd.IdempotencyKey);
         doc.MarkAwaitingReconciliation(null, "Pedido de CAE enviado a ARCA; esperando respuesta.");
         db.Documents.Add(doc);
         await db.SaveChangesAsync(ct);
@@ -351,7 +371,9 @@ public sealed class EmitInvoiceHandler(
             logger.LogInformation("Reconciliación: ARCA sí había autorizado el {Cbte} {Pv}-{Nro} (CAE {Cae}).",
                 cbteTipo, ptoVta, doc.Number, arca.Cae);
 
-            if (doc.OrderId == cmd.OrderId)
+            // De ESTE pedido: misma venta y misma clave (una venta puede tener
+            // varias notas de crédito pendientes a la vez).
+            if (doc.OrderId == cmd.OrderId && doc.IdempotencyKey == cmd.IdempotencyKey)
                 adopted = new EmitInvoiceResult(
                     doc.Id, true, ptoVta, cbteTipo.ToString(), doc.Number,
                     arca.Cae, arca.CaeVto, [], []);

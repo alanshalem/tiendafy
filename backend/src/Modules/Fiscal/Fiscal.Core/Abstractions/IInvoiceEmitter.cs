@@ -23,7 +23,11 @@ public sealed record EmitInvoiceCommand(
     bool CreditNote = false,
     // Condición frente al IVA del comprador cuando se la conoce (la eligió el
     // comercio o la devolvió el padrón). Null = se infiere del documento.
-    CondicionIvaReceptor? BuyerIvaCondition = null);
+    CondicionIvaReceptor? BuyerIvaCondition = null,
+    // Qué pedido es dentro de la orden (ver CreditNoteKeys): una venta puede
+    // tener varias notas de crédito, y el reintento de una reconoce la suya
+    // por esta clave. Null = la factura, o una NC vieja (una por venta).
+    string? IdempotencyKey = null);
 
 /// <summary>Códigos de error de la emisión que quien la llama necesita distinguir.</summary>
 public static class EmissionErrors

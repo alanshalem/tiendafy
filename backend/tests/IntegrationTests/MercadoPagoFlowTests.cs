@@ -551,6 +551,71 @@ public sealed class MercadoPagoFlowTests
         Assert.Single(_factory.ExternalHttp.SentTo(messages));
     }
 
+    [Fact]
+    public async Task Un_reembolso_parcial_que_avisa_Mercado_Pago_tiene_su_nota_de_credito_una_sola_vez()
+    {
+        // Con emisión automática, el reembolso hecho en la cuenta de MP (que
+        // llega por webhook) también emite su NC por lo devuelto; el mismo aviso
+        // repetido no emite otra.
+        var merchant = await Merchant.CreateAsync(_factory, "mpn");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        _ = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        var pos = (await merchant.GetAsync("/api/v1/fiscal/points-of-sale")).GetProperty("items")[0].GetProperty("id").GetGuid();
+        await merchant.PutAsync("/api/v1/fiscal/config/emission", new
+        {
+            autoInvoice = true,
+            trigger = "PAYMENT",
+            defaultPointOfSaleId = pos,
+            consumerFinalThresholdMinorUnits = 0L,
+        });
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra facturada", priceMinor: 15_000_00);
+        var (order, payment, _) = await PaidOnsiteAsync(new Shopper(merchant), variantId);
+        await RunFiscalAsync();
+
+        object Payment(string status, decimal refunded) => new
+        {
+            id = payment,
+            status,
+            status_detail = status,
+            external_reference = order.ToString(),
+            transaction_amount = 15_000m,
+            transaction_amount_refunded = refunded,
+        };
+
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{payment}", Payment("approved", 5_000m));
+        await WebhookAsync(payment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        await WebhookAsync(payment.ToString(), mpUserId); // el mismo aviso otra vez
+        await DrainWebhooksAsync();
+        await RunFiscalAsync();
+        Assert.Equal([5_000m], await CreditNotesAsync(order));
+
+        // Después devuelve el resto: la NC por lo que faltaba.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{payment}", Payment("refunded", 15_000m));
+        await WebhookAsync(payment.ToString(), mpUserId);
+        await DrainWebhooksAsync();
+        await RunFiscalAsync();
+        Assert.Equal([5_000m, 10_000m], await CreditNotesAsync(order));
+    }
+
+    private async Task RunFiscalAsync()
+    {
+        for (var pass = 0; pass < 3; pass++)
+            await Workers.RunOnceAsync<Api.Fiscal.FiscalEmissionWorker>(_factory);
+    }
+
+    private async Task<List<decimal>> CreditNotesAsync(Guid orderId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+        return await db.Documents.AsNoTracking()
+            .Where(d => d.OrderId == orderId && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized
+                        && d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB)
+            .OrderBy(d => d.ImpTotal).Select(d => d.ImpTotal).ToListAsync();
+    }
+
     /// <summary>Un comprador propio paga con tarjeta en la tienda; devuelve la orden, el pago y su email.</summary>
     private async Task<(Guid Order, long Payment, string Buyer)> PaidOnsiteAsync(Shopper shopper, Guid variantId)
     {

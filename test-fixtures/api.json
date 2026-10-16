@@ -2290,6 +2290,16 @@
           "alwaysOn": false,
           "subject": "Tu factura de {{store}}",
           "bodyHtml": "\u003Ch2 style=\u0022margin:0 0 12px;font-size:20px\u0022\u003ETu factura\u003C/h2\u003E\n\u003Cp\u003EAdjuntamos la factura de tu compra #{{order_id}}.\u003C/p\u003E"
+        },
+        {
+          "type": "nota-credito",
+          "group": "Ventas",
+          "label": "Nota de cr\u00E9dito",
+          "description": "Le manda al cliente cada nota de cr\u00E9dito de su compra (por un reembolso o un ajuste), con el PDF.",
+          "enabled": false,
+          "alwaysOn": false,
+          "subject": "Tu nota de cr\u00E9dito de {{store}}",
+          "bodyHtml": "\u003Ch2 style=\u0022margin:0 0 12px;font-size:20px\u0022\u003ETu nota de cr\u00E9dito\u003C/h2\u003E\n\u003Cp\u003EAdjuntamos la nota de cr\u00E9dito de tu compra #{{order_id}}: es el comprobante de lo que te devolvimos o ajustamos.\u003C/p\u003E"
         }
       ]
     },
@@ -5897,8 +5907,10 @@
     },
     "/api/v1/orders/:id/fiscal": {
       "environment": null,
+      "autoInvoice": false,
       "documents": [],
-      "jobs": []
+      "jobs": [],
+      "credit": null
     },
     "/api/v1/orders/:id/refunds": {
       "items": []

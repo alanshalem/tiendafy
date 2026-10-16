@@ -60,7 +60,8 @@ public sealed class FiscalEmissionWorker(
             {
                 var cmd = new EmitInvoiceCommand(
                     job.TenantId, job.OrderId, job.GrossMinorUnits, job.BuyerDoc,
-                    PtoVta: null, CreditNote: job.Kind == FiscalJobKind.CreditNote);
+                    PtoVta: null, CreditNote: job.Kind == FiscalJobKind.CreditNote,
+                    IdempotencyKey: job.RequestKey);
 
                 var result = await emitter.EmitAsync(cmd, ct);
 
@@ -72,12 +73,15 @@ public sealed class FiscalEmissionWorker(
                     // terminaba marcando como fallida una venta bien facturada.
                     // El del ambiente actual, que es el que el emisor miró: uno de
                     // homologación no da por hecha una venta en producción.
+                    // Una NC es la de ESTE pedido (la venta puede tener varias).
                     var isCredit = job.Kind == FiscalJobKind.CreditNote;
+                    var key = job.RequestKey;
                     var env = await db.Configs.AsNoTracking().Where(c => c.TenantId == job.TenantId)
                         .Select(c => c.Environment).FirstOrDefaultAsync(ct);
                     var existing = await db.Documents.AsNoTracking()
                         .Where(d => d.TenantId == job.TenantId && d.OrderId == job.OrderId
                                     && d.Environment == env && d.Result == FiscalResult.Authorized
+                                    && (!isCredit || d.IdempotencyKey == key)
                                     && (isCredit
                                         ? d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC
                                         : d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC))
@@ -86,6 +90,13 @@ public sealed class FiscalEmissionWorker(
                         .FirstOrDefaultAsync(ct);
                     if (existing != Guid.Empty) job.MarkDone(existing);
                     else RescheduleOrFail(job, $"{result.Error.Code}: {result.Error.Message}");
+                }
+                else if (result.IsFailure && result.Error.Code is CreditNoteErrors.ExceedsInvoice
+                             or CreditNoteErrors.InvalidAmount or CreditNoteErrors.NoInvoice)
+                {
+                    // La nota de crédito no entra en lo que queda de la factura (o
+                    // no hay factura): reintentar no cambia la cuenta.
+                    job.MarkFailed(result.Error.Message);
                 }
                 else if (result.IsFailure && result.Error.Code == EmissionErrors.BuyerIdRequired)
                 {
@@ -125,10 +136,10 @@ public sealed class FiscalEmissionWorker(
 
             await db.SaveChangesAsync(ct);
 
-            // Con la factura ya registrada, el email al comprador (si la tienda
-            // prendió la plantilla). También cuando la había terminado otro
-            // camino: sale una sola vez por factura.
-            if (job is { Status: FiscalJobStatus.Done, Kind: FiscalJobKind.Invoice, FiscalDocumentId: { } documentId })
+            // Con el comprobante ya registrado, el email al comprador (si la
+            // tienda prendió la plantilla: "factura" o "nota-credito"). También
+            // cuando lo había terminado otro camino: sale una sola vez por comprobante.
+            if (job is { Status: FiscalJobStatus.Done, FiscalDocumentId: { } documentId })
                 await invoiceEmail.SendAsync(job.TenantId, documentId, ct);
         }
     }

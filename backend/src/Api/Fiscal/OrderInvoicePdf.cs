@@ -20,7 +20,7 @@ public static class OrderInvoicePdf
     /// </summary>
     public static async Task<IResult> DownloadAsync(
         FiscalDbContext fiscalDb, IComprobantePdfRenderer pdf,
-        Guid tenantId, Guid orderId, Order? order, bool creditNote, CancellationToken ct)
+        Guid tenantId, Guid orderId, Order? order, bool creditNote, CancellationToken ct, Guid? documentId = null)
     {
         var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
         if (cfg is null) return Results.NotFound();
@@ -29,7 +29,10 @@ public static class OrderInvoicePdf
             .Where(d => d.TenantId == tenantId && d.OrderId == orderId && d.Environment == cfg.Environment
                         && d.Result == FiscalResult.Authorized)
             .OrderByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
-        var doc = docs.FirstOrDefault(d => OrderComprobantePresenter.IsNc(d.CbteTipo) == creditNote);
+        // Un comprobante puntual (una de las NC de la venta), o el último del tipo.
+        var doc = documentId is { } wanted
+            ? docs.FirstOrDefault(d => d.Id == wanted)
+            : docs.FirstOrDefault(d => OrderComprobantePresenter.IsNc(d.CbteTipo) == creditNote);
         if (doc is null) return Results.NotFound();
 
         var (bytes, fileName) = Render(pdf, doc, order, cfg);

@@ -70,6 +70,14 @@ public sealed class FiscalDocument
     /// </summary>
     public DateTime? BuyerNotifiedAtUtc { get; private set; }
 
+    /// <summary>
+    /// El pedido que lo originó dentro de la orden (la clave del job: un
+    /// reembolso, un pedido manual). Null en las facturas y en las notas de
+    /// crédito de antes de que hubiera varias por venta. Es lo que deja
+    /// reconocer, al reintentar, cuál de las NC de una venta ya salió.
+    /// </summary>
+    public string? IdempotencyKey { get; private set; }
+
     private FiscalDocument() { } // EF Core
 
     /// <summary>
@@ -95,7 +103,7 @@ public sealed class FiscalDocument
         Guid tenantId, Guid? orderId, FiscalEnvironment environment,
         int ptoVta, CbteTipo cbteTipo, long number,
         DocTipo docTipo, long docNro, decimal impTotal, decimal impNeto, decimal impIva,
-        CondicionIvaReceptor? receptorCondicion = null)
+        CondicionIvaReceptor? receptorCondicion = null, string? idempotencyKey = null)
     {
         var now = DateTime.UtcNow;
         return new FiscalDocument
@@ -110,6 +118,7 @@ public sealed class FiscalDocument
             DocTipo = docTipo,
             DocNro = docNro,
             ReceptorCondicion = receptorCondicion,
+            IdempotencyKey = idempotencyKey,
             ImpTotal = impTotal,
             ImpNeto = impNeto,
             ImpIVA = impIva,

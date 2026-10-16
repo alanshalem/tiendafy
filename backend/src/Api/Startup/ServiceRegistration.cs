@@ -119,6 +119,7 @@ public static class ServiceRegistration
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
+        services.AddScoped<Api.Fiscal.CreditNoteIssuer>();
         services.AddScoped<StoreLinks>();
         services.AddScoped<BrandedEmailSender>();
         services.AddScoped<OrderItemImages>();

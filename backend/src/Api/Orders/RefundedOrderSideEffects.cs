@@ -1,6 +1,5 @@
 using System.Net;
 using Api.Notifications;
-using Fiscal.Core.Abstractions;
 using Orders.Core.Domain;
 using SharedKernel.Common;
 
@@ -9,8 +8,9 @@ namespace Api.Orders;
 /// <summary>
 /// Lo que pasa cuando una venta queda reembolsada entera: el aviso al
 /// comprador por email y WhatsApp con la plantilla "cancelacion-compra" de la
-/// tienda, y la nota de crédito si estaba facturada. Y el aviso de un
-/// reembolso parcial (<see cref="NotifyPartialAsync"/>).
+/// tienda, y el aviso de un reembolso parcial (<see cref="NotifyPartialAsync"/>).
+/// La nota de crédito ya no va acá: sale por cada reembolso, total o parcial
+/// (<see cref="Api.Fiscal.CreditNoteIssuer"/>).
 ///
 /// Dos caminos llegan acá —el reembolso desde el panel y el que el comercio
 /// hace en su cuenta de Mercado Pago, que llega por webhook— y cada uno tenía
@@ -18,13 +18,12 @@ namespace Api.Orders;
 /// podía editar ni apagar, en vez de su plantilla.
 ///
 /// Best-effort paso por paso, como <see cref="PaidOrderSideEffects"/>: la plata
-/// ya se devolvió; un email caído no puede tapar la nota de crédito.
+/// ya se devolvió; un email caído no puede tapar el WhatsApp.
 /// </summary>
 public sealed class RefundedOrderSideEffects(
     OrderNotifier notifier,
     BrandedEmailSender email,
     WhatsAppNotifier whatsapp,
-    IFiscalEmissionQueue fiscal,
     ILogger<RefundedOrderSideEffects> logger)
 {
     public const string Template = "cancelacion-compra";
@@ -42,9 +41,6 @@ public sealed class RefundedOrderSideEffects(
             await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
         });
         await StepAsync("WhatsApp de reembolso", order, () => whatsapp.NotifyAsync(order, Template, ct));
-        // Nota de crédito automática si la orden estaba facturada.
-        await StepAsync("nota de crédito", order, () => fiscal.EnqueueCreditNoteAsync(
-            order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct: ct));
     }
 
     /// <summary>

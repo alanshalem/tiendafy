@@ -21,7 +21,10 @@ public enum FiscalJobStatus
 /// Outbox de emisión: desacopla la venta (rápida) de la facturación en ARCA
 /// (lenta y falible). Un trigger (pago acreditado / despacho) encola un job; el
 /// FiscalEmissionWorker lo procesa con reintentos y backoff. Idempotente por
-/// (tenant, orden, tipo): un mismo evento no factura dos veces la misma orden.
+/// (tenant, orden, tipo, clave): un mismo evento no factura dos veces la misma
+/// orden. La factura es una sola por orden (clave vacía); las notas de crédito
+/// pueden ser varias, una por reembolso o ajuste, cada una con su clave
+/// (<see cref="CreditNoteKeys"/>).
 /// </summary>
 public sealed class FiscalEmissionJob
 {
@@ -32,6 +35,17 @@ public sealed class FiscalEmissionJob
 
     public long GrossMinorUnits { get; private set; }
     public string? BuyerDoc { get; private set; }
+
+    /// <summary>
+    /// Qué pedido es este dentro de la orden: vacío para la factura (una sola)
+    /// y para las notas de crédito de antes de que hubiera varias; para una NC,
+    /// el reembolso o el pedido manual que la originó. Viaja al comprobante,
+    /// así un reintento reconoce lo que ya emitió.
+    /// </summary>
+    public string IdempotencyKey { get; private set; } = string.Empty;
+
+    /// <summary>Motivo que escribió el comercio (nota de crédito a mano), si escribió uno.</summary>
+    public string? Reason { get; private set; }
 
     public FiscalJobStatus Status { get; private set; }
     public int Attempts { get; private set; }
@@ -46,8 +60,14 @@ public sealed class FiscalEmissionJob
 
     private FiscalEmissionJob() { } // EF Core
 
+    /// <param name="notBefore">
+    /// Desde cuándo lo puede tomar el worker. La NC a mano se emite en el
+    /// momento desde el panel: el worker espera un rato y la toma solo si el
+    /// intento del panel no la terminó.
+    /// </param>
     public static FiscalEmissionJob Create(
-        Guid tenantId, Guid orderId, FiscalJobKind kind, long grossMinorUnits, string? buyerDoc)
+        Guid tenantId, Guid orderId, FiscalJobKind kind, long grossMinorUnits, string? buyerDoc,
+        string idempotencyKey = "", string? reason = null, DateTime? notBefore = null)
     {
         var now = DateTime.UtcNow;
         return new FiscalEmissionJob
@@ -58,13 +78,18 @@ public sealed class FiscalEmissionJob
             Kind = kind,
             GrossMinorUnits = grossMinorUnits,
             BuyerDoc = buyerDoc,
+            IdempotencyKey = idempotencyKey,
+            Reason = string.IsNullOrWhiteSpace(reason) ? null : Text.Cap(reason.Trim(), 300),
             Status = FiscalJobStatus.Pending,
             Attempts = 0,
-            NextAttemptUtc = now,
+            NextAttemptUtc = notBefore ?? now,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
     }
+
+    /// <summary>La clave tal como viaja al emisor (null = la de siempre: factura o NC vieja).</summary>
+    public string? RequestKey => IdempotencyKey.Length == 0 ? null : IdempotencyKey;
 
     public void MarkProcessing()
     {

@@ -90,6 +90,7 @@ public sealed class FiscalDbContext : DbContext
         doc.Property(x => x.Errors).HasColumnType("text");
         doc.Property(x => x.RequestPayload).HasColumnType("text");
         doc.Property(x => x.ResponsePayload).HasColumnType("text");
+        doc.Property(x => x.IdempotencyKey).HasMaxLength(100);
         doc.HasIndex(x => new { x.TenantId, x.OrderId });
         // Único sólo para comprobantes autorizados: un rechazo no consume número,
         // así que puede reintentarse con el mismo (ARCA tampoco lo consumió).
@@ -106,8 +107,12 @@ public sealed class FiscalDbContext : DbContext
         job.Property(x => x.Status).HasConversion<string>().HasMaxLength(15);
         job.Property(x => x.BuyerDoc).HasMaxLength(20);
         job.Property(x => x.LastError).HasColumnType("text");
-        // Un job por (tenant, orden, tipo): el trigger no duplica facturación.
-        job.HasIndex(x => new { x.TenantId, x.OrderId, x.Kind }).IsUnique();
+        job.Property(x => x.IdempotencyKey).HasMaxLength(100).HasDefaultValue(string.Empty);
+        job.Property(x => x.Reason).HasMaxLength(300);
+        // Un job por (tenant, orden, tipo, clave): el trigger no duplica la
+        // factura (clave vacía) y un reembolso o un pedido manual repetido no
+        // duplica su nota de crédito.
+        job.HasIndex(x => new { x.TenantId, x.OrderId, x.Kind, x.IdempotencyKey }).IsUnique();
         // El worker barre pendientes listos para reintentar.
         job.HasIndex(x => new { x.Status, x.NextAttemptUtc });
         job.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);

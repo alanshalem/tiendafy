@@ -12,7 +12,13 @@ public enum SettleOutcome { NoChange, JustPaid, Failed, Refunded, ChargedBack, P
 /// Lo que se devolvió en ESTE aviso, cuando sincronizó un reembolso parcial
 /// hecho en Mercado Pago (el aviso al comprador dice cuánto).
 /// </param>
-public sealed record SettleResult(SettleOutcome Outcome, Order? Order, Money? RefundedNow = null);
+/// <param name="RefundedBeforeMinor">
+/// En un reembolso: cuánto estaba devuelto antes de este aviso (en centavos).
+/// Con lo devuelto ahora (<c>Order.RefundedAmount</c>) dice qué tramo se
+/// devolvió, y eso identifica la nota de crédito que le corresponde.
+/// </param>
+public sealed record SettleResult(
+    SettleOutcome Outcome, Order? Order, Money? RefundedNow = null, long? RefundedBeforeMinor = null);
 
 /// <summary>
 /// Aplica el resultado de un pago a la orden. Idempotente: si la orden ya está
@@ -53,6 +59,7 @@ public sealed class SettlePaymentHandler(
                     var target = Money.FromDecimal(amountRefunded.Value, order.Currency);
                     if (target > order.RefundedAmount)
                     {
+                        var before = order.RefundedAmount.AmountInMinorUnits;
                         var delta = target - order.RefundedAmount;
                         var applied = order.ApplyRefund(delta);
                         if (applied.IsSuccess)
@@ -61,7 +68,7 @@ public sealed class SettlePaymentHandler(
                             logger.LogInformation("Order {OrderId}: refund parcial sincronizado desde MP ({Delta}).", orderId, delta);
                             return new SettleResult(
                                 order.Status == OrderStatus.Refunded ? SettleOutcome.Refunded : SettleOutcome.PartiallyRefunded,
-                                order, delta);
+                                order, delta, before);
                         }
                     }
                 }
@@ -109,11 +116,12 @@ public sealed class SettlePaymentHandler(
 
         if (status == "refunded")
         {
+            var before = order.RefundedAmount.AmountInMinorUnits;
             if (order.MarkRefunded())
             {
                 await repository.SaveChangesAsync(ct);
                 logger.LogInformation("Order {OrderId} REEMBOLSADA.", orderId);
-                return new SettleResult(SettleOutcome.Refunded, order);
+                return new SettleResult(SettleOutcome.Refunded, order, RefundedBeforeMinor: before);
             }
             return new SettleResult(SettleOutcome.NoChange, order);
         }

@@ -4,6 +4,7 @@ using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Core.Features;
+using Orders.Infrastructure.Persistence;
 using Payments.Contracts;
 using Payments.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
@@ -217,13 +218,15 @@ public static class OrderEndpoints
         // recorre las ventas pendientes de despacho.
         group.MapGet("/orders", async (
             ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit,
-            int? offset, [AsParameters] OrderListQuery query, CancellationToken ct) =>
+            int? offset, [AsParameters] OrderListQuery query,
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, OrdersDbContext ordersDb, CancellationToken ct) =>
         {
             var take = Math.Clamp(limit ?? 20, 1, 100);
             if (after is null)
             {
+                var filter = await query.ToFilterAsync(tenant.TenantId.Value, fiscalDb, ordersDb, ct);
                 var (page, total) = await orders.ListPageAsync(
-                    tenant.TenantId, take, Math.Max(0, offset ?? 0), query.ToFilter(), ct);
+                    tenant.TenantId, take, Math.Max(0, offset ?? 0), filter, ct);
                 return Results.Ok(new { items = page.Select(ToDto), total });
             }
 
@@ -235,14 +238,17 @@ public static class OrderEndpoints
         // pantalla) como planilla. Se escribe a medida que sale de la base: no
         // tiene el tope de 100 del listado ni junta miles de ventas en memoria.
         // Con ids= baja solo esas (las elegidas en la tabla).
-        group.MapGet("/orders/export", (
-            ITenantContext tenant, IOrderRepository orders, [AsParameters] OrderListQuery query, CancellationToken ct) =>
-            Api.Fiscal.VatBookCsv.Download(
+        group.MapGet("/orders/export", async (
+            ITenantContext tenant, IOrderRepository orders, [AsParameters] OrderListQuery query,
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, OrdersDbContext ordersDb, CancellationToken ct) =>
+        {
+            var filter = await query.ToFilterAsync(tenant.TenantId.Value, fiscalDb, ordersDb, ct);
+            return Api.Fiscal.VatBookCsv.Download(
                 $"ventas-{ArgentinaTime.Today:yyyy-MM-dd}.csv",
                 Api.Orders.OrderCsv.Header,
-                orders.StreamAsync(tenant.TenantId, query.ToFilter()).Select(Api.Orders.OrderCsv.Row),
-                ct))
-            .RequirePermission(Permission.OrdersRead);
+                orders.StreamAsync(tenant.TenantId, filter).Select(Api.Orders.OrderCsv.Row),
+                ct);
+        }).RequirePermission(Permission.OrdersRead);
 
         // Cancelar una venta que nunca se cobró: el link de pago que no se
         // pagó, el pedido que el cliente ya no quiere. Anula el link (para que
@@ -300,6 +306,9 @@ public static class OrderEndpoints
             Guid id, RefundRequest req, HttpContext http, ITenantContext tenant,
             Api.Orders.OrderRefundService refunds, CancellationToken ct) =>
         {
+            // La NC a pedido es facturar: sin ese permiso, la casilla no cuenta.
+            if (req.CreditNote == true && (await http.GetAccessAsync())?.Can(Permission.FiscalEmit) != true)
+                req = req with { CreditNote = false };
             var result = await refunds.RefundAsync(tenant.TenantId, id, req, ActorOf(http), ct);
             if (result.IsFailure)
                 return result.Error.Type == ErrorType.NotFound ? Results.NotFound() : result.Error.ToProblem();
@@ -345,22 +354,26 @@ public static class OrderEndpoints
         // Estado fiscal de una orden: comprobantes emitidos + estado de los jobs de
         // emisión (para la pantalla de Ventas). Sin secretos.
         group.MapGet("/orders/{id:guid}/fiscal", async (
-            Guid id, ITenantContext tenant, global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, CancellationToken ct) =>
+            Guid id, ITenantContext tenant, IOrderRepository orders,
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, CancellationToken ct) =>
         {
             var tid = tenant.TenantId.Value;
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tid, ct);
+            var credit = order is null ? null : await Api.Fiscal.OrderCreditNotes.ForOrderAsync(fiscalDb, order, ct);
             var docs = await fiscalDb.Documents.AsNoTracking()
                 .Where(d => d.TenantId == tid && d.OrderId == id)
                 .OrderBy(d => d.CreatedAtUtc).ToListAsync(ct);
             var jobs = await fiscalDb.EmissionJobs.AsNoTracking()
                 .Where(j => j.TenantId == tid && j.OrderId == id)
                 .ToListAsync(ct);
-            var env = await fiscalDb.Configs.AsNoTracking().Where(c => c.TenantId == tid)
-                .Select(c => (global::Fiscal.Core.Domain.FiscalEnvironment?)c.Environment).FirstOrDefaultAsync(ct);
             return Results.Ok(new
             {
                 // El ambiente en que factura hoy la tienda (null sin configurar):
                 // una factura de homologación no cuenta en producción.
-                environment = env?.ToString().ToUpperInvariant(),
+                environment = cfg?.Environment.ToString().ToUpperInvariant(),
+                // La tienda emite sola (la NC de un reembolso sale sin pedirla).
+                autoInvoice = cfg is { Enabled: true, AutoInvoiceEnabled: true },
                 documents = docs.Select(OrderComprobantePresenter.FiscalDocDto),
                 jobs = jobs.Select(j => new
                 {
@@ -370,7 +383,12 @@ public static class OrderEndpoints
                     j.Attempts,
                     j.LastError,
                     j.NextAttemptUtc,
+                    amount = j.GrossMinorUnits,
+                    j.Reason,
                 }),
+                // Lo acreditado de la factura frente a lo devuelto (centavos), o
+                // null si la venta no tiene factura en el ambiente actual.
+                credit,
             });
         }).RequirePermission(Permission.OrdersRead);
 
@@ -475,15 +493,49 @@ public static class OrderEndpoints
             });
         }).RequirePermission(Permission.OrdersCreate);
 
+        // Con document= baja ese comprobante (una venta puede tener varias NC).
         group.MapGet("/orders/{id:guid}/invoice.pdf", async (
-            Guid id, string? type, ITenantContext tenant, IOrderRepository orders,
+            Guid id, string? type, Guid? document, ITenantContext tenant, IOrderRepository orders,
             global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
             global::Fiscal.Core.Abstractions.IComprobantePdfRenderer pdf, CancellationToken ct) =>
         {
             var wantNc = string.Equals(type, "creditnote", StringComparison.OrdinalIgnoreCase);
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            return await OrderInvoicePdf.DownloadAsync(fiscalDb, pdf, tenant.TenantId.Value, id, order, wantNc, ct);
+            return await OrderInvoicePdf.DownloadAsync(fiscalDb, pdf, tenant.TenantId.Value, id, order, wantNc, ct, document);
         }).RequirePermission(Permission.OrdersRead);
+
+        // Nota de crédito a mano: por lo devuelto sin acreditar o por un ajuste
+        // (un precio corregido, un descuento posterior). Con el permiso de
+        // facturar. La clave de idempotencia la manda el panel (una por
+        // diálogo): el doble click o el reintento no emiten dos.
+        group.MapPost("/orders/{id:guid}/credit-notes", async (
+            Guid id, ManualCreditNoteRequest req, ITenantContext tenant, IOrderRepository orders,
+            Api.Fiscal.CreditNoteIssuer creditNotes, CancellationToken ct) =>
+        {
+            if (!global::Fiscal.Core.Domain.CreditNoteKeys.IsValidClientKey(req.IdempotencyKey))
+                return Error.Validation("CreditNote.BadKey", "Falta la clave del pedido (idempotencyKey).").ToProblem();
+            if (req.Amount is not > 0m)
+                return Error.Validation(global::Fiscal.Core.Domain.CreditNoteErrors.InvalidAmount,
+                    "El monto de la nota de crédito tiene que ser mayor a cero.").ToProblem();
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+
+            var minor = (long)Math.Round(req.Amount.Value * 100m, MidpointRounding.AwayFromZero);
+            var result = await creditNotes.IssueManualAsync(order, minor, req.IdempotencyKey!, req.Reason, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+            var r = result.Value;
+            return Results.Ok(new
+            {
+                r.Queued,
+                r.Authorized,
+                r.DocumentId,
+                cbteTipo = r.CbteTipo,
+                r.PtoVta,
+                r.Number,
+                r.Cae,
+                errors = r.Errors.Select(e => new { e.Code, e.Message }),
+            });
+        }).RequirePermission(Permission.FiscalEmit);
 
         return group;
     }
@@ -550,6 +602,9 @@ public sealed record FulfillRequest(string? Tracking);
 
 public sealed record CancelOrderRequest(string? Reason);
 
+/// <summary>Una nota de crédito a mano: monto en pesos, motivo opcional y la clave del pedido.</summary>
+public sealed record ManualCreditNoteRequest(decimal? Amount, string? Reason, string? IdempotencyKey);
+
 /// <summary>
 /// Los filtros del listado de Ventas tal como viajan en la URL del panel. Las
 /// fechas son días de Argentina: "hasta el 14" incluye todo el 14 hasta la
@@ -563,8 +618,28 @@ public sealed record OrderListQuery(
     string? Channel,
     string? Shipping,
     string? Payment,
-    string? Ids)
+    string? Ids,
+    string? Fiscal = null)
 {
+    /// <summary>
+    /// Los filtros, más el fiscal (<c>fiscal=devueltas-sin-nc</c>: facturadas con
+    /// plata devuelta sin nota de crédito), que se resuelve contra el módulo
+    /// fiscal y viaja como lista de ventas.
+    /// </summary>
+    public async Task<OrderListFilter> ToFilterAsync(
+        Guid tenantId, global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, OrdersDbContext ordersDb,
+        CancellationToken ct)
+    {
+        var filter = ToFilter();
+        if (!string.Equals(Fiscal, Api.Fiscal.OrderCreditNotes.RefundedUncreditedFilter, StringComparison.OrdinalIgnoreCase))
+            return filter;
+
+        var ids = await Api.Fiscal.OrderCreditNotes.RefundedUncreditedIdsAsync(fiscalDb, ordersDb, tenantId, ct);
+        if (filter.Ids is { } chosen) ids = ids.Intersect(chosen).ToList();
+        // Ninguna: no tiene que traer todas las ventas.
+        return filter with { Ids = ids.Count > 0 ? ids : [Guid.Empty] };
+    }
+
     public OrderListFilter ToFilter() => new(
         Q,
         Status,
@@ -592,7 +667,12 @@ public sealed record OrderListQuery(
 
 public sealed record BulkFulfillRequest(IReadOnlyList<Guid>? Ids);
 
-public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false);
+/// <param name="CreditNote">
+/// Emitir la nota de crédito por este monto aunque la tienda no emita
+/// automáticamente (la casilla del diálogo). Con emisión automática sale sola
+/// igual. Hace falta además el permiso de facturar.
+/// </param>
+public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false, bool? CreditNote = null);
 
 public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode, string? UtmSource = null);
 

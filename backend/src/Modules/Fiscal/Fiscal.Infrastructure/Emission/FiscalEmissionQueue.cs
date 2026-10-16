@@ -3,6 +3,7 @@ using Fiscal.Core.Domain;
 using Fiscal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SharedKernel.Common;
 
 namespace Fiscal.Infrastructure.Emission;
 
@@ -48,42 +49,78 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
         }
     }
 
-    public async Task<CreditNoteEnqueueResult> EnqueueCreditNoteAsync(
-        Guid tenantId, Guid orderId, long grossMinorUnits, string? buyerDoc,
-        bool channelAutoInvoice = false, CancellationToken ct = default)
+    public async Task<Result<CreditNoteEnqueued>> EnqueueCreditNoteAsync(CreditNoteRequest request, CancellationToken ct = default)
     {
-        var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
-        if (cfg is null || !cfg.Enabled) return CreditNoteEnqueueResult.NotApplicable;
-        if (!cfg.AutoInvoiceEnabled && !channelAutoInvoice) return CreditNoteEnqueueResult.NotApplicable;
+        static Result<CreditNoteEnqueued> NotApplicable() => new CreditNoteEnqueued(CreditNoteEnqueueResult.NotApplicable, null, 0);
 
-        // Sólo tiene sentido acreditar si hay una factura autorizada de la orden,
+        var (tenantId, orderId) = (request.TenantId, request.OrderId);
+        var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
+        if (cfg is null || !cfg.Enabled)
+            return request.Strict
+                ? Result.Failure<CreditNoteEnqueued>(Error.Conflict("Fiscal.NotConfigured", "La facturación con ARCA no está configurada."))
+                : NotApplicable();
+        // Sola, solo si alguien emite solo (la tienda o el canal); a pedido, siempre.
+        if (!cfg.AutoInvoiceEnabled && !request.Force) return NotApplicable();
+
+        // El mismo pedido otra vez (el mismo reembolso, el mismo aviso, el doble
+        // click): ya está, no se encola otra. Salvo que haya terminado en otro
+        // ambiente: lo de homologación no existe para ARCA de producción.
+        var existing = await db.EmissionJobs.FirstOrDefaultAsync(
+            j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.CreditNote
+                 && j.IdempotencyKey == request.IdempotencyKey, ct);
+        if (existing is not null
+            && !await RestartIfFromOtherEnvironmentAsync(existing, cfg.Environment, existing.GrossMinorUnits, existing.BuyerDoc, ct))
+            return new CreditNoteEnqueued(CreditNoteEnqueueResult.AlreadyQueued, existing.Id, existing.GrossMinorUnits);
+
+        // Solo tiene sentido acreditar si hay una factura autorizada de la orden,
         // y del ambiente en que se va a emitir la NC (una de homologación no
         // existe para ARCA de producción). El receptor y la clase de la NC salen
         // de esa factura al emitir; el buyerDoc solo queda en el job.
-        var hasInvoice = await db.Documents.AsNoTracking().AnyAsync(
-            d => d.TenantId == tenantId && d.OrderId == orderId && d.Environment == cfg.Environment
-              && (d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC)
-              && d.Result == FiscalResult.Authorized, ct);
-        if (!hasInvoice) return CreditNoteEnqueueResult.NotApplicable;
-
-        var existing = await db.EmissionJobs.FirstOrDefaultAsync(
-            j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.CreditNote, ct);
+        var balance = await CreditNoteLedger.BalanceAsync(db, tenantId, orderId, cfg.Environment,
+            ownKey: request.IdempotencyKey, excludeOwn: true, ct: ct);
+        if (balance is null)
+            return request.Strict
+                ? Result.Failure<CreditNoteEnqueued>(Error.Conflict(CreditNoteErrors.NoInvoice,
+                    "La venta no tiene una factura autorizada para acreditar."))
+                : NotApplicable();
         if (existing is not null)
-            return await RestartIfFromOtherEnvironmentAsync(existing, cfg.Environment, grossMinorUnits, buyerDoc, ct)
-                ? CreditNoteEnqueueResult.Queued
-                : CreditNoteEnqueueResult.AlreadyQueued;
+            return new CreditNoteEnqueued(CreditNoteEnqueueResult.Queued, existing.Id, existing.GrossMinorUnits);
 
-        db.EmissionJobs.Add(FiscalEmissionJob.Create(tenantId, orderId, FiscalJobKind.CreditNote, grossMinorUnits, buyerDoc));
+        // El tope: lo acreditado, lo que está en curso y esto nunca superan la
+        // factura. Un pedido a mano que no entra es un error; un reembolso se
+        // acredita hasta lo que queda (un reembolso no puede superar lo cobrado,
+        // pero la factura pudo ser por menos).
+        long amount;
+        if (request.Strict)
+        {
+            var fits = CreditNoteLimit.Check(balance.InvoiceTotalMinor, balance.CreditedMinor, balance.InFlightMinor, request.GrossMinorUnits);
+            if (fits.IsFailure) return Result.Failure<CreditNoteEnqueued>(fits.Error);
+            amount = fits.Value;
+        }
+        else
+        {
+            amount = CreditNoteLimit.Clamp(balance.InvoiceTotalMinor, balance.CreditedMinor, balance.InFlightMinor, request.GrossMinorUnits);
+            if (amount <= 0) return NotApplicable();
+        }
+
+        var job = FiscalEmissionJob.Create(tenantId, orderId, FiscalJobKind.CreditNote, amount, request.BuyerDoc,
+            request.IdempotencyKey, request.Reason, request.NotBefore);
+        db.EmissionJobs.Add(job);
         try
         {
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Nota de crédito encolada (tenant {Tenant}, orden {Order}).", tenantId, orderId);
-            return CreditNoteEnqueueResult.Queued;
+            logger.LogInformation("Nota de crédito encolada (tenant {Tenant}, orden {Order}, clave {Key}, {Amount} centavos).",
+                tenantId, orderId, request.IdempotencyKey, amount);
+            return new CreditNoteEnqueued(CreditNoteEnqueueResult.Queued, job.Id, amount);
         }
         catch (DbUpdateException)
         {
-            // Carrera con otro enqueue: el índice único (tenant,orden,tipo) lo atajó.
-            return CreditNoteEnqueueResult.AlreadyQueued;
+            // Carrera con otro pedido igual: el índice único (tenant, orden, tipo, clave) lo atajó.
+            db.Entry(job).State = EntityState.Detached;
+            var winner = await db.EmissionJobs.AsNoTracking().FirstOrDefaultAsync(
+                j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.CreditNote
+                     && j.IdempotencyKey == request.IdempotencyKey, ct);
+            return new CreditNoteEnqueued(CreditNoteEnqueueResult.AlreadyQueued, winner?.Id, winner?.GrossMinorUnits ?? amount);
         }
     }
 

@@ -33,6 +33,7 @@ public sealed class OrderRefundService(
     CustomerDirectory customers,
     RefundedOrderSideEffects refundedEffects,
     OrderNotifier notifier,
+    Api.Fiscal.CreditNoteIssuer creditNotes,
     OrderRefundLocks locks,
     ILogger<OrderRefundService> logger)
 {
@@ -141,6 +142,13 @@ public sealed class OrderRefundService(
                 tenantId.Value, order.Id, audit.Id,
                 $"Reembolso venta {order.Label}",
                 amount.AmountInMinorUnits, order.Currency, DateTime.UtcNow, req.Reason, ct);
+
+        // La nota de crédito de ESTE reembolso, total o parcial, por lo
+        // devuelto: sola si la tienda emite automáticamente, o si el comercio
+        // la pidió al reembolsar. La clave es el registro del reembolso: un
+        // reintento no emite otra.
+        await creditNotes.ForRefundAsync(order, amount.AmountInMinorUnits,
+            global::Fiscal.Core.Domain.CreditNoteKeys.ForRefund(audit.Id), req.CreditNote == true, ct);
 
         if (order.Status == OrderStatus.Refunded)
         {

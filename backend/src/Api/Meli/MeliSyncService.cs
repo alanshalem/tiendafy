@@ -143,10 +143,13 @@ public sealed class MeliSyncService(
         {
             try
             {
+                // Por lo que queda de la factura (si se acreditó algo antes, no
+                // se duplica), con su clave: una sola NC por cancelación.
                 var channelAuto = await AutoInvoiceEnabledAsync(tenantId, ct);
-                var outcome = await fiscalQueue.EnqueueCreditNoteAsync(
-                    tenantId, row.Id, minor, null, channelAutoInvoice: channelAuto, ct);
-                if (outcome == global::Fiscal.Core.Abstractions.CreditNoteEnqueueResult.NotApplicable)
+                var enqueued = await fiscalQueue.EnqueueCreditNoteAsync(new global::Fiscal.Core.Abstractions.CreditNoteRequest(
+                    tenantId, row.Id, minor, global::Fiscal.Core.Domain.CreditNoteKeys.MeliCancellation,
+                    Force: channelAuto), ct);
+                if (enqueued.Value.Outcome == global::Fiscal.Core.Abstractions.CreditNoteEnqueueResult.NotApplicable)
                     logger.LogInformation("La venta ML {OrderId} se canceló facturada y la NC no sale sola: queda para emitirla a mano.", meliOrderId);
                 row.MarkCreditNoteIssued();
             }

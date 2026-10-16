@@ -11,7 +11,8 @@ namespace Api.Fiscal;
 
 /// <summary>
 /// El email "factura" de la tienda, con el PDF adjunto, cuando una venta
-/// obtiene su CAE. La plantilla existía en el catálogo y nadie la mandaba.
+/// obtiene su CAE; y el "nota-credito", con el suyo, por cada nota de crédito
+/// de la venta. La plantilla existía en el catálogo y nadie la mandaba.
 ///
 /// <para>
 /// Es orquestación (Fiscal + Orders + Notifications) y por eso vive en Api.
@@ -34,6 +35,9 @@ public sealed class InvoiceEmail(
 {
     public const string Template = "factura";
 
+    /// <summary>La plantilla de la nota de crédito, con su PDF, igual que la factura.</summary>
+    public const string CreditNoteTemplate = "nota-credito";
+
     /// <returns>Si salió el email.</returns>
     public async Task<bool> SendAsync(Guid tenantId, Guid documentId, CancellationToken ct = default)
     {
@@ -52,9 +56,9 @@ public sealed class InvoiceEmail(
     {
         var doc = await fiscal.Documents.AsNoTracking()
             .FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Id == documentId, ct);
-        if (doc is not { Result: FiscalResult.Authorized, OrderId: { } orderId, BuyerNotifiedAtUtc: null }
-            || OrderComprobantePresenter.IsNc(doc.CbteTipo))
+        if (doc is not { Result: FiscalResult.Authorized, OrderId: { } orderId, BuyerNotifiedAtUtc: null })
             return false;
+        var template = OrderComprobantePresenter.IsNc(doc.CbteTipo) ? CreditNoteTemplate : Template;
 
         // Una venta de Mercado Libre no es una orden de la tienda: no está acá.
         var order = await orders.GetByIdAsync(TenantId.From(tenantId), orderId, ct);
@@ -64,7 +68,7 @@ public sealed class InvoiceEmail(
             return false;
 
         // Apagada (lo normal: viene así de fábrica): ni se reclama ni se arma el PDF.
-        var enabled = await templates.RenderAsync(tenantId, Template, new Dictionary<string, string>(), ct);
+        var enabled = await templates.RenderAsync(tenantId, template, new Dictionary<string, string>(), ct);
         if (enabled is not { Enabled: true }) return false;
 
         var cfg = await fiscal.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
@@ -76,6 +80,6 @@ public sealed class InvoiceEmail(
         if (claimed == 0) return false; // otro camino ya lo mandó
 
         var (bytes, fileName) = OrderInvoicePdf.Render(pdf, doc, order, cfg);
-        return await notifier.NotifyAsync(order, Template, extraVars: null, ct, [new EmailAttachment(fileName, bytes)]);
+        return await notifier.NotifyAsync(order, template, extraVars: null, ct, [new EmailAttachment(fileName, bytes)]);
     }
 }

@@ -12,13 +12,15 @@ homologación, después de producción) para emitir el primer CAE de verdad.
   27.618 en el PDF) o B (al resto); Monotributo emite C.
 - **Emisión automática** opcional por tienda, al acreditarse el pago o al
   despachar, con una cola durable y reintentos.
-- **Nota de crédito automática** cuando una venta se reembolsa por completo
-  (y cuando Mercado Libre informa una venta facturada como cancelada o
-  devuelta), al mismo receptor y con la misma clase que la factura, que va
-  referenciada. Solo en las tiendas con la emisión automática prendida: con
-  la facturación a mano no se encola ninguna (ver Pendiente). En Mercado
-  Libre sale también si la auto-factura de ML está prendida (aunque la
-  automática de la tienda no); si no sale sola, no se reintenta en cada aviso.
+- **Notas de crédito**, varias por venta (una por cada reembolso o ajuste),
+  al mismo receptor y con la misma clase que la factura, que va referenciada;
+  entre todas nunca superan la factura. Con emisión automática, cada
+  reembolso (total o parcial, del panel o avisado por Mercado Pago) emite la
+  suya sola; sin ella, el diálogo de reembolso trae la casilla "Emitir la nota
+  de crédito por este monto". Y desde la venta, "Emitir nota de crédito" a
+  mano (lo devuelto sin acreditar, o un ajuste). En Mercado Libre, la de la
+  cancelación sale si la auto-factura de ML o la automática de la tienda está
+  prendida; si no sale sola, no se reintenta en cada aviso.
 - **Emisión manual** desde Ventas (con documento y condición de IVA que puede
   completar el comercio) y facturas sueltas sin orden.
 - **Ventas de Mercado Libre**: se facturan a consumidor final, con el botón
@@ -181,7 +183,7 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    el próximo intento. Solo un SOAP Fault es rechazo.
 
 **Automática.** Los disparadores encolan un job único por (tienda, orden,
-tipo) si la facturación está habilitada (se habilita sola al activar un
+tipo, clave) —la factura con clave vacía, cada NC con la suya— si la facturación está habilitada (se habilita sola al activar un
 certificado del mismo ambiente que el emisor) y automática; la factura,
 además, solo si el disparador coincide. Si el job de esa orden ya terminó con
 un comprobante de otro ambiente (homologación), vuelve a empezar en el
@@ -196,8 +198,9 @@ se reintenta (`POST /fiscal/jobs/{id}/retry`).
 
 **Email al comprador.** Cuando una factura de una orden de la tienda obtiene
 el CAE (worker o botón "Facturar"), sale la plantilla "factura" con el PDF
-adjunto, una sola vez (`buyer_notified_at_utc`). Viene apagada: solo la mandan
-las tiendas que la prendieron. No sale a `@sin-email.local` ni en ventas de
+adjunto, una sola vez (`buyer_notified_at_utc`); cada nota de crédito, la
+plantilla "nota-credito" con el suyo. Vienen apagadas: solo las mandan las
+tiendas que las prendieron. No salen a `@sin-email.local` ni en ventas de
 Mercado Libre.
 
 **Nota de crédito.** Acredita la última factura autorizada de la orden **en
@@ -205,10 +208,38 @@ el ambiente actual** y copia de ella el receptor (tipo y número de documento,
 condición frente al IVA, guardada en `receptor_condicion`) y la clase: A → NC
 A, B → NC B, C → NC C, con la factura en `CbtesAsoc`. El documento con que se
 encola (el de la venta, o ninguno en Mercado Libre) no se usa: ARCA rechaza
-una NC de otra clase o a otro receptor (10123). Por el monto reembolsado, una
-sola por orden. No hay nota de crédito suelta: `POST /fiscal/emit` con
-`creditNote` responde `Fiscal.NcNeedsOrder`, porque la NC necesita la factura
-de la orden que acredita.
+una NC de otra clase o a otro receptor (10123). No hay nota de crédito suelta:
+`POST /fiscal/emit` con `creditNote` responde `Fiscal.NcNeedsOrder`, porque la
+NC necesita la factura de la orden que acredita.
+
+Una venta puede tener **varias**: cada pedido lleva una clave
+(`CreditNoteKeys`) que viaja al job (`fiscal_emission_jobs.idempotency_key`,
+único con tienda, orden y tipo) y al comprobante
+(`fiscal_documents.idempotency_key`):
+
+| Origen | Clave | Cuándo sale |
+|---|---|---|
+| Reembolso desde el panel (`POST /orders/{id}/refund`) | `reembolso:{id del registro del reembolso}` | Con emisión automática, siempre; sin ella, si viene `creditNote: true` (la casilla, con permiso de facturar) |
+| Reembolso que avisa Mercado Pago (webhook) | `reembolso-pasarela:{devuelto antes}-{devuelto después}` (centavos) | Con emisión automática |
+| A mano (`POST /orders/{id}/credit-notes`, permiso `FiscalEmit`) | `manual:{clave del panel}` | Siempre; el panel manda una clave por diálogo |
+| Cancelación de Mercado Libre | `ml-cancelacion` | Con la auto-factura de ML o la automática de la tienda |
+
+El mismo pedido repetido (el webhook otra vez, el doble click) encuentra su
+job y no encola otro; el emisor reconoce por la clave la NC que ya emitió y la
+reconciliación solo adopta el pendiente de la misma clave. **Tope**: lo
+acreditado más lo que está en curso (comprobantes `Pending` y jobs sin
+comprobante) más la NC nueva nunca supera el total de la factura
+(`CreditNoteLimit`, `CreditNoteLedger`). La cola lo controla al encolar (un
+reembolso se recorta a lo que queda; un pedido a mano que no entra es un
+error 400 que dice cuánto queda) y el emisor lo repite con el lock de la venta
+tomado. La NC a mano se encola y se emite en el momento; si ARCA no contesta,
+el worker la termina (espera 2 minutos para no pisarse con el panel).
+
+`GET /orders/{id}/fiscal` suma `autoInvoice` y `credit` (en centavos: total
+de la factura, acreditado, en curso, lo que queda, lo devuelto y lo devuelto
+sin nota de crédito). `GET /orders?fiscal=devueltas-sin-nc` (y el export)
+filtran las facturadas con plata devuelta sin NC. `invoice.pdf?document={id}`
+baja una NC puntual.
 
 **Libro IVA.** `GET /fiscal/documents/export?year&month`: comprobantes
 autorizados del ambiente en que factura la tienda (columna "Ambiente";
@@ -350,11 +381,9 @@ Documentación: manuales de WSAA y WSFEv1).
   declare), y el padrón se puede consultar desde el panel. Pero la emisión
   automática no consulta el padrón y el checkout no pide la condición: un RI
   persona física recibe B salvo que el comercio facture a mano.
-- **Reembolsos parciales**: no generan nota de crédito (una por orden).
-- **Nota de crédito con la facturación a mano**: si la tienda no tiene la
-  emisión automática prendida, un reembolso total no encola la NC y desde el
-  panel no hay cómo emitirla: la factura de una venta devuelta queda viva. Lo
-  mismo con las ventas de Mercado Libre facturadas por la auto-factura de la
-  conexión si la tienda no tiene la automática.
+- **Ventas de Mercado Libre devueltas en parte** (`partially_refunded`): no
+  emiten nota de crédito sola (no está confirmado de dónde sale el monto
+  devuelto en la API de ML) y el panel de Mercado Libre no tiene el botón de
+  NC a mano. La cancelación total sí la emite (ver arriba).
 - **Email "factura" en ventas de Mercado Libre**: no sale (no son órdenes de
   la tienda y ML no da el email del comprador).
