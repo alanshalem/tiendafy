@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { buildCsp } from './lib/csp';
+import { buildCsp, isCardChallengePage } from './lib/csp';
 import { serverRuntimeConfig } from './lib/runtime';
 
 /**
@@ -21,7 +21,12 @@ export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.set('x-pathname', request.nextUrl.pathname);
   const response = NextResponse.next({ request: { headers } });
-  response.headers.set('Content-Security-Policy', buildCsp(serverRuntimeConfig().apiUrl));
+  response.headers.set(
+    'Content-Security-Policy',
+    buildCsp(serverRuntimeConfig().apiUrl, {
+      cardChallenge: isCardChallengePage(request.nextUrl.pathname),
+    }),
+  );
   return response;
 }
 

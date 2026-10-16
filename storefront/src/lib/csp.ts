@@ -66,6 +66,31 @@ const PAYWAY_CONNECT = [
   'https://ventasonline.payway.com.ar',
 ].join(' ');
 
+/**
+ * De dónde bajan los Bricks de Mercado Pago su código y sus textos. El SDK
+ * (`sdk.mercadopago.com/js/v2`) es solo el cargador: cada Brick (`payment.js`,
+ * `statusScreen.js` y sus partes) se agrega como `<script>` desde
+ * `http2.mlstatic.com/frontend-assets/op-cho-bricks/build/<versión>/components/`,
+ * y los textos y la configuración se piden con fetch al mismo host. Mercado
+ * Pago no publica esta lista: sale de leer el SDK (v3.19.0, oct-2026). Sin
+ * esto el Brick no aparece.
+ */
+const MP_BRICKS_ASSETS = 'https://http2.mlstatic.com';
+
+/**
+ * La página de pago, la única que muestra el desafío 3DS del banco ("confirmá
+ * que sos vos"). El Status Screen Brick lo arma en ESTA página: un `<iframe>` y
+ * un `<form method="post" target=…>` hacia `three_ds_info.external_resource_url`,
+ * que es el servidor de autenticación (ACS) del banco que emitió la tarjeta
+ * (en la doc oficial, `acs-public.tp.mastercard.com`). Cada banco tiene el suyo
+ * y la lista no se puede saber de antemano, así que solo en esta ruta
+ * `frame-src` y `form-action` aceptan cualquier origen https. El resto de la
+ * tienda sigue sin iframes ni formularios hacia afuera de la lista.
+ */
+export function isCardChallengePage(pathname: string): boolean {
+  return pathname === '/checkout' || pathname === '/checkout/';
+}
+
 /** El origen (esquema + host + puerto) de la URL de la API; null si no es una URL. */
 export function apiOrigin(apiUrl: string): string | null {
   try {
@@ -76,12 +101,17 @@ export function apiOrigin(apiUrl: string): string | null {
   }
 }
 
-export function buildCsp(apiUrl: string): string {
+export function buildCsp(
+  apiUrl: string,
+  { cardChallenge = false }: { cardChallenge?: boolean } = {},
+): string {
   const api = apiOrigin(apiUrl);
+  // Ver isCardChallengePage: el desafío 3DS del banco, solo en la página de pago.
+  const challenge = cardChallenge ? ' https:' : '';
   return [
     "default-src 'self'",
     // 'unsafe-inline'/'unsafe-eval' los necesita Next (bootstrap inline + webpack).
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com https://challenges.cloudflare.com ${PAYWAY_SDK_URL} ${TRACKING_SCRIPT}`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com ${MP_BRICKS_ASSETS} https://challenges.cloudflare.com ${PAYWAY_SDK_URL} ${TRACKING_SCRIPT}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: http:",
     // Videos de hero (webm/mp4): vienen del bucket de media (MinIO http en dev,
@@ -93,16 +123,18 @@ export function buildCsp(apiUrl: string): string {
       'connect-src',
       "'self'",
       api,
-      'https://*.mercadopago.com https://api.mercadopago.com https://challenges.cloudflare.com',
+      'https://*.mercadopago.com https://api.mercadopago.com',
+      MP_BRICKS_ASSETS,
+      'https://challenges.cloudflare.com',
       PAYWAY_CONNECT,
       TRACKING_CONNECT,
     ]
       .filter(Boolean)
       .join(' '),
     // Embeds de la sección Instagram/Video: iframes de YouTube, Vimeo e Instagram.
-    'frame-src https://*.mercadopago.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.instagram.com',
+    `frame-src https://*.mercadopago.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.instagram.com${challenge}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self' https://*.mercadopago.com",
+    `form-action 'self' https://*.mercadopago.com${challenge}`,
   ].join('; ');
 }

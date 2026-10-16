@@ -11,7 +11,7 @@
 import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import nextConfig from '../../next.config';
-import { apiOrigin, buildCsp, PAYWAY_SDK_URL } from '../lib/csp';
+import { apiOrigin, buildCsp, isCardChallengePage, PAYWAY_SDK_URL } from '../lib/csp';
 import { proxy } from '../proxy';
 
 const directive = (csp: string, name: string) =>
@@ -72,6 +72,41 @@ describe('CSP de la tienda', () => {
     // Sin comodines ni la huella de Cybersource (antifraude no implementado).
     expect(connect.filter((s) => /decidir|payway/.test(s) && s.includes('*'))).toEqual([]);
     expect(csp).not.toContain('online-metrix');
+  });
+
+  it('deja cargar los Bricks de Mercado Pago: su código y sus textos vienen de http2.mlstatic.com', () => {
+    const csp = buildCsp('https://api.x.com');
+    expect(directive(csp, 'script-src').split(' ')).toContain('https://http2.mlstatic.com');
+    expect(directive(csp, 'connect-src').split(' ')).toContain('https://http2.mlstatic.com');
+  });
+
+  it('el desafío del banco (3DS) se puede mostrar en la página de pago, y solo ahí', () => {
+    // El Status Screen Brick arma un iframe y le postea un formulario al
+    // servidor del banco de la tarjeta, que no se conoce de antemano.
+    const pay = buildCsp('https://api.x.com', { cardChallenge: true });
+    expect(directive(pay, 'frame-src').split(' ')).toContain('https:');
+    expect(directive(pay, 'form-action').split(' ')).toContain('https:');
+    // Nada de http: ni de comodines fuera de eso.
+    expect(directive(pay, 'frame-src').split(' ')).not.toContain('http:');
+    expect(directive(pay, 'frame-src')).not.toMatch(/ \*( |$)/);
+
+    const other = buildCsp('https://api.x.com');
+    expect(directive(other, 'frame-src').split(' ')).not.toContain('https:');
+    expect(directive(other, 'form-action').split(' ')).not.toContain('https:');
+
+    expect(isCardChallengePage('/checkout')).toBe(true);
+    expect(isCardChallengePage('/checkout/success')).toBe(false);
+    expect(isCardChallengePage('/productos')).toBe(false);
+  });
+
+  it('el proxy abre el desafío del banco solo en /checkout', () => {
+    vi.stubEnv('PUBLIC_API_URL', 'https://api.tienda-de-prueba.com');
+    const csp = (path: string) =>
+      proxy(new NextRequest(`https://tienda-de-prueba.com${path}`)).headers.get('Content-Security-Policy') ??
+      '';
+    expect(directive(csp('/checkout'), 'form-action').split(' ')).toContain('https:');
+    expect(directive(csp('/checkout/pending'), 'form-action').split(' ')).not.toContain('https:');
+    expect(directive(csp('/'), 'frame-src').split(' ')).not.toContain('https:');
   });
 
   it('deja lo que usa la sección Video: el reproductor sin cookies de YouTube, Vimeo, sus miniaturas y los MP4', () => {

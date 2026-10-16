@@ -9,7 +9,7 @@
  * tokenizan la tarjeta contra sus servidores) se reemplazan por un botón que
  * entrega lo mismo que ellos: acá se prueba qué hace el checkout con el token.
  */
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
 
-const sdk = vi.hoisted(() => ({ initMercadoPago: vi.fn() }));
+const sdk = vi.hoisted(() => ({ initMercadoPago: vi.fn(), statusScreen: vi.fn() }));
 const browser = vi.hoisted(() => ({ goTo: vi.fn() }));
 
 // jsdom no navega: se registra adónde quiso ir el checkout.
@@ -50,6 +50,12 @@ vi.mock('@mercadopago/sdk-react', () => ({
       ),
       createElement('button', { onClick: onError }, 'Romper el Brick'),
     ),
+  // El Status Screen Brick arma el iframe del banco con lo que recibe: acá se
+  // anota con qué se lo montó.
+  StatusScreen: (props: { initialization: unknown }) => {
+    sdk.statusScreen(props.initialization);
+    return createElement('div', null, 'Verificación del banco');
+  },
 }));
 
 vi.mock('../components/store/PaywayCardForm', () => ({
@@ -496,7 +502,12 @@ describe('checkout: pago', () => {
       coupon: { code: 'HOLA', discount: 0, freeShipping: false },
     });
     api.on('POST', '/api/v1/coupons/validate', { valid: true, code: 'HOLA', discountAmount: 0 });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'approved' });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, {
+      orderId: ORDER,
+      status: 'approved',
+      challenge: null,
+    });
+    sdk.statusScreen.mockClear();
     const user = await open();
     expect(sdk.initMercadoPago).toHaveBeenCalledWith('APP_USR-pub', { locale: 'es-AR' });
     await deliverAndContinue(user);
@@ -513,6 +524,8 @@ describe('checkout: pago', () => {
       payerDocNumber: '30123456',
     });
     expect(browser.goTo).toHaveBeenCalledWith(`/checkout/success?order=${ORDER}`);
+    // Sin desafío del banco no hay verificación que mostrar.
+    expect(sdk.statusScreen).not.toHaveBeenCalled();
     expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).toBeNull();
     expect(localStorage.getItem(couponStorageKey(fixtureTenantId))).toBeNull();
     expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toMatchObject({ orderId: ORDER });
@@ -531,6 +544,46 @@ describe('checkout: pago', () => {
     if (goes) expect(browser.goTo).toHaveBeenCalledWith(goes);
     else expect(screen.getAllByText(/rechaz|no se pudo|fall/i).length).toBeGreaterThan(0);
     expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
+  });
+
+  it('el Brick con desafío del banco (3DS): lo muestra ahí mismo y, al terminar, va a la pantalla de resultado', async () => {
+    store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, {
+      orderId: ORDER,
+      status: 'pending',
+      statusDetail: 'pending_challenge',
+      challenge: {
+        paymentId: '52044997115',
+        externalResourceUrl: 'https://acs-public.tp.mastercard.com/api/v1/browser_Challenges',
+        creq: 'eyJjcmVxIjoxfQ',
+      },
+    });
+    sdk.statusScreen.mockClear();
+    const user = await open();
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
+    await settle(3);
+
+    // Sin jerga: el comprador ve qué le pide su banco, no "3DS" ni "challenge".
+    expect(screen.getByRole('heading', { name: 'Confirmá el pago con tu banco' })).toBeInTheDocument();
+    expect(screen.queryByText(/3DS|challenge/i)).not.toBeInTheDocument();
+    expect(sdk.statusScreen).toHaveBeenLastCalledWith({
+      paymentId: '52044997115',
+      additionalInfo: {
+        externalResourceURL: 'https://acs-public.tp.mastercard.com/api/v1/browser_Challenges',
+        creq: 'eyJjcmVxIjoxfQ',
+      },
+    });
+    // Todavía no se cobró: ni pantalla de resultado ni carrito vacío.
+    expect(browser.goTo).not.toHaveBeenCalled();
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toMatchObject({ orderId: ORDER });
+
+    // El iframe del banco avisa que terminó (el evento que documenta Mercado Pago).
+    await act(async () => {
+      window.dispatchEvent(new MessageEvent('message', { data: { status: 'COMPLETE' } }));
+    });
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/pending?order=${ORDER}`);
   });
 
   it('el Brick: un rechazo del backend y un error del formulario se muestran', async () => {

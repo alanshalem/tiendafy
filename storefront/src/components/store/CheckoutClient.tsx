@@ -16,6 +16,7 @@ import {
 import { formatMoney } from '@tiendafy/types';
 import { PaywayCardForm, type PaywayCardToken, type PaywayPublicConfig } from './PaywayCardForm';
 import { CheckoutResult } from './CheckoutResult';
+import { CardChallenge, type CardChallengeData } from './CardChallenge';
 import {
   CARRIER_KEYS,
   CARRIERS,
@@ -222,6 +223,8 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<'failure' | null>(null);
+  // El pago con tarjeta quedó esperando que el comprador confirme con su banco (3DS).
+  const [challenge, setChallenge] = useState<CardChallengeData | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
@@ -606,7 +609,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
    * carrito se vacía en un solo lugar y la venta se mide (la página de pago no
    * carga medición, a propósito). Carga completa: "listo" arranca de cero.
    */
-  const finish = (orderId: string, kind: 'success' | 'pending') => {
+  const finish = (orderId: string, kind: 'success' | 'pending' | 'failure') => {
     // Mientras carga "listo": sin esto, el carrito recién vaciado mostraba un
     // instante "Tu carrito está vacío" justo después de pagar.
     setLeaving(true);
@@ -689,7 +692,11 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
     const buyerEmail = payer.email || email;
     try {
       const id = await reserve(buyerEmail);
-      const data = await postPayment<{ status?: string; orderId?: string }>(
+      const data = await postPayment<{
+        status?: string;
+        orderId?: string;
+        challenge?: Omit<CardChallengeData, 'orderId'> | null;
+      }>(
         id,
         'pay-onsite',
         {
@@ -705,6 +712,9 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
       const orderId = data.orderId ?? id;
       if (data.status === 'rejected') return setResult('failure');
       stashPurchase(orderId);
+      // El banco pide confirmar el pago (3DS): se muestra el desafío acá
+      // mismo, ya, porque tiene que arrancar en menos de 30 segundos.
+      if (data.challenge) return setChallenge({ orderId, ...data.challenge });
       finish(orderId, data.status === 'approved' ? 'success' : 'pending');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
@@ -782,6 +792,15 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   };
 
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
+
+  if (challenge)
+    return (
+      <CardChallenge
+        tenantId={tenantId}
+        challenge={challenge}
+        onDone={(outcome) => finish(challenge.orderId, outcome)}
+      />
+    );
 
   if (loadError && !leaving)
     return (
