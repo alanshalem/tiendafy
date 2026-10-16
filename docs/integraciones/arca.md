@@ -16,7 +16,9 @@ homologación, después de producción) para emitir el primer CAE de verdad.
   (y cuando Mercado Libre informa una venta facturada como cancelada o
   devuelta), al mismo receptor y con la misma clase que la factura, que va
   referenciada. Solo en las tiendas con la emisión automática prendida: con
-  la facturación a mano no se encola ninguna (ver Pendiente).
+  la facturación a mano no se encola ninguna (ver Pendiente). En Mercado
+  Libre sale también si la auto-factura de ML está prendida (aunque la
+  automática de la tienda no); si no sale sola, no se reintenta en cada aviso.
 - **Emisión manual** desde Ventas (con documento y condición de IVA que puede
   completar el comercio) y facturas sueltas sin orden.
 - **Ventas de Mercado Libre**: se facturan a consumidor final, con el botón

@@ -35,7 +35,8 @@ Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre
   `domain_discovery`. La publicación nace vinculada a la variante.
 - **Facturación ARCA.** Botón "Facturar" por venta (consumidor final) y
   auto-factura opcional al importar cada venta cobrada; nota de crédito
-  automática si una venta facturada se cancela o reembolsa.
+  automática si una venta facturada se cancela o reembolsa y alguien factura
+  solo (la auto-factura de ML o la emisión automática de la tienda).
 - **Métricas.** Las ventas ML entran en Estadísticas, Rentabilidad, Reposición
   y en los avisos del Inicio (sin facturar, preguntas sin responder). Ingresos
   y ganancia del canal cuentan lo cobrado (`BillableAmount`: `paid_amount`, o
@@ -60,7 +61,7 @@ orquestación en la Api.
 | `backend/src/Modules/MercadoLibre/MercadoLibre.Infrastructure/MeliOptions.cs` | Config de la app de plataforma (sección `MercadoLibre`). `Configured` = ClientId y ClientSecret cargados. |
 | `.../MercadoLibre.Infrastructure/MeliClient.cs` | Cliente HTTP (timeout 20 s): URL de autorización, intercambio y refresh de tokens, GET/POST/PUT que devuelven `JsonDocument` crudo (sin DTOs espejo). Errores como `MeliException`. |
 | `.../MercadoLibre.Infrastructure/MeliConnection.cs` | Conexión OAuth por tenant: tokens cifrados, switches de stock/precio/auto-factura, buffer, recargo, `IsDemo`. |
-| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `StockDeductionsJson` (qué descontó de verdad), `FiscalDocumentId`, `CreditNoteIssued`. |
+| `.../MercadoLibre.Infrastructure/MeliOrder.cs` | Cache de una venta: `EarningStatuses`, `StockApplied` / `StockReverted` (idempotencia), `StockDeductionsJson` (qué descontó de verdad), `FiscalDocumentId`, `CreditNoteIssued` (la cancelación facturada ya se resolvió: NC encolada o no correspondía emitirla sola). |
 | `.../MercadoLibre.Infrastructure/MeliItemLink.cs` | Publicación (+ variación opcional) ↔ variante local, con `LastPushedQty` y `LastPushedPriceMinor`. |
 | `.../MercadoLibre.Infrastructure/MeliNotification.cs` | Inbox durable de webhooks (hereda `InboxEntry`: reintentos con backoff, estado `dead`). |
 | `.../MercadoLibre.Infrastructure/MeliPricing.cs` | Función pura del precio del canal (redondeo `AwayFromZero`, piso de 1 centavo). |
@@ -187,9 +188,14 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
    procesadas antes de oct-2026 no tienen el detalle (`null`): se reconstruye
    con la regla de entonces (vínculo con el switch de la publicación).
 4. Fiscal (best-effort, ARCA caído no frena la importación): si estaba
-   facturada y quedó `cancelled` o `refunded`, encola la nota de crédito; si
-   está cobrada, sin comprobante y con auto-factura prendida, emite a
-   consumidor final.
+   facturada y quedó `cancelled` o `refunded`, encola la nota de crédito si
+   alguien emite solo: con la auto-factura de ML prendida sale por la cola de
+   emisión aunque la automática de la tienda esté apagada (el mismo camino que
+   su factura); si no, decide la automática de la tienda. Se resuelve una vez
+   (`CreditNoteIssued`): encolada, ya encolada o "no corresponde" (nadie emite
+   solo, o la factura es de otro ambiente) no se vuelven a intentar en el
+   próximo aviso; solo un error al encolar sí. Si está cobrada, sin
+   comprobante y con auto-factura prendida, emite a consumidor final.
 
 **Tiendafy → ML.** `MeliStockSyncWorker`, cada 5 min, toma las conexiones con
 stock **o** precio prendidos (nunca las de demo) y, de cada una, los vínculos

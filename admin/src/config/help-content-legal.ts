@@ -131,7 +131,7 @@ export const LEGAL = {
         heading: 'Ventas de Mercado Libre',
         paragraphs: [
           'Las ventas que llegan de Mercado Libre también se facturan desde acá. En Configuración → Mercado Libre, “Facturar automáticamente las ventas de ML” emite el comprobante de cada venta pagada, a consumidor final. Si está apagado, o ARCA rechazó alguna, en Canales de venta → Mercado Libre → Ventas tenés el botón “Facturar” en cada una (o tildás varias y usás “Facturar seleccionadas”), y las ya facturadas se marcan “Facturada”.',
-          'Si una venta de Mercado Libre ya facturada se cancela o se reembolsa, la nota de crédito sale sola.',
+          'Si una venta de Mercado Libre ya facturada se cancela o se reembolsa, la nota de crédito sale sola cuando “Facturar automáticamente las ventas de ML” está prendido (aunque la facturación automática de la tienda esté apagada), o cuando lo está la de la tienda. Si las dos están apagadas, la nota de crédito no sale sola.',
         ],
       },
       {

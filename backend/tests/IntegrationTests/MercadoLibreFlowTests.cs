@@ -1,10 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using System.Web;
+using Api.Fiscal;
 using Api.Meli;
 using Catalog.Infrastructure;
 using Catalog.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
@@ -607,6 +609,82 @@ public sealed class MercadoLibreFlowTests
         Assert.Empty(await ListAsync("estado=sin-facturar"));
         Assert.Equal([paid], await ListAsync("estado=facturadas"));
         Assert.Equal(0, (await merchant.GetAsync("/api/v1/home/todo")).GetProperty("mercadoLibre").GetProperty("unbilled").GetInt32());
+    }
+
+    [Fact]
+    public async Task La_venta_que_ML_factura_sola_recibe_su_nota_de_credito_una_vez()
+    {
+        // La auto-factura de ML prendida y la emisión automática de la tienda
+        // apagada: antes la NC de la cancelación se descartaba (la cola exigía
+        // la automática de la tienda) y se volvía a intentar en cada aviso.
+        var (merchant, userId) = await ConnectedAsync("mln");
+        var arca = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, autoInvoiceEnabled = true });
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var saleId = userId * 10 + 8;
+        async Task SyncAsync(string status)
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, status, itemId, 1));
+            await NotifyAsync(userId, $"/orders/{saleId}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+
+        await SyncAsync("paid");
+        Assert.Equal([saleId], (await merchant.GetAsync("/api/v1/admin/meli/orders?limit=25&estado=facturadas"))
+            .GetProperty("items").EnumerateArray().Select(o => o.GetProperty("meliOrderId").GetInt64()));
+
+        await SyncAsync("cancelled");
+        await SyncAsync("cancelled"); // el aviso repetido no encola otra
+        var orderId = await MeliOrderIdAsync(merchant.TenantId, saleId);
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(_factory);
+
+        using var scope = _factory.Services.CreateScope();
+        var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+        var job = Assert.Single(await fiscal.EmissionJobs.AsNoTracking().Where(j => j.OrderId == orderId).ToListAsync());
+        Assert.Equal(global::Fiscal.Core.Domain.FiscalJobKind.CreditNote, job.Kind);
+        Assert.Equal(global::Fiscal.Core.Domain.FiscalJobStatus.Done, job.Status);
+        var docs = await fiscal.Documents.AsNoTracking().Where(d => d.OrderId == orderId).ToListAsync();
+        Assert.Equal(2, docs.Count); // la factura y su NC
+        Assert.Contains(docs, d => d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB);
+    }
+
+    [Fact]
+    public async Task Sin_emision_automatica_la_cancelacion_no_se_reintenta_en_cada_aviso()
+    {
+        // Facturada a mano y nadie emite solo: la NC no sale sola (queda para
+        // hacerla a mano), y la venta queda resuelta en vez de volver a
+        // intentarlo en cada sincronización.
+        var (merchant, userId) = await ConnectedAsync("mlm");
+        _ = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var saleId = userId * 10 + 9;
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "paid", itemId, 1));
+        await NotifyAsync(userId, $"/orders/{saleId}");
+        await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        await merchant.PostAsync($"/api/v1/admin/meli/orders/{saleId}/invoice", new { });
+
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{saleId}", Order(saleId, "cancelled", itemId, 1));
+        await NotifyAsync(userId, $"/orders/{saleId}");
+        await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+
+        using var scope = _factory.Services.CreateScope();
+        var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
+        var row = await meli.Orders.IgnoreQueryFilters().AsNoTracking()
+            .SingleAsync(o => o.TenantId == merchant.TenantId && o.MeliOrderId == saleId);
+        Assert.True(row.CreditNoteIssued);
+        var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
+        Assert.False(await fiscal.EmissionJobs.AsNoTracking().AnyAsync(j => j.OrderId == row.Id));
+    }
+
+    private async Task<Guid> MeliOrderIdAsync(Guid tenantId, long meliOrderId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
+        return await meli.Orders.IgnoreQueryFilters().AsNoTracking()
+            .Where(o => o.TenantId == tenantId && o.MeliOrderId == meliOrderId)
+            .Select(o => o.Id).SingleAsync();
     }
 
     [Fact]

@@ -44,7 +44,7 @@ public sealed class RefundedOrderSideEffects(
         await StepAsync("WhatsApp de reembolso", order, () => whatsapp.NotifyAsync(order, Template, ct));
         // Nota de crédito automática si la orden estaba facturada.
         await StepAsync("nota de crédito", order, () => fiscal.EnqueueCreditNoteAsync(
-            order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct));
+            order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct: ct));
     }
 
     /// <summary>

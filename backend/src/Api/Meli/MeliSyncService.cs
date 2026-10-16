@@ -124,14 +124,31 @@ public sealed class MeliSyncService(
 
         // Venta facturada que se cancela/reembolsa: nota de crédito, igual que
         // en la tienda propia (sin esto quedaba una factura viva de una venta
-        // anulada). Solo se marca si REALMENTE se encoló: si no, se reintenta.
+        // anulada).
+        //
+        // La regla: la NC sale sola si alguien emite solo. Si la conexión de ML
+        // tiene la auto-factura prendida, la NC sigue el mismo camino que su
+        // factura aunque la emisión automática de la tienda esté apagada (antes
+        // la cola la descartaba y la venta quedaba facturada para siempre). Si
+        // no, decide la emisión automática de la tienda, como en una venta
+        // propia. Va por la cola de emisión y no directo a ARCA como la factura:
+        // así tiene reintentos y, si falla, queda a la vista en el panel.
+        //
+        // Se resuelve UNA vez: encolada, ya encolada o "no corresponde" (nadie
+        // emite solo, o la factura es de otro ambiente) marcan la venta, y la
+        // próxima sincronización no lo vuelve a intentar. Solo un error al
+        // encolar (la base, por ejemplo) deja que se reintente.
         if (row.FiscalDocumentId is not null && !row.CreditNoteIssued
             && row.Status is "cancelled" or "refunded")
         {
             try
             {
-                if (await fiscalQueue.EnqueueCreditNoteAsync(tenantId, row.Id, minor, null, ct))
-                    row.MarkCreditNoteIssued();
+                var channelAuto = await AutoInvoiceEnabledAsync(tenantId, ct);
+                var outcome = await fiscalQueue.EnqueueCreditNoteAsync(
+                    tenantId, row.Id, minor, null, channelAutoInvoice: channelAuto, ct);
+                if (outcome == global::Fiscal.Core.Abstractions.CreditNoteEnqueueResult.NotApplicable)
+                    logger.LogInformation("La venta ML {OrderId} se canceló facturada y la NC no sale sola: queda para emitirla a mano.", meliOrderId);
+                row.MarkCreditNoteIssued();
             }
             catch (Exception ex)
             {
@@ -144,9 +161,7 @@ public sealed class MeliSyncService(
         // rechaza, queda el botón manual "Facturar" en el panel.
         if (row.IsPaid && row.FiscalDocumentId is null)
         {
-            var conn = await db.Connections.IgnoreQueryFilters().AsNoTracking()
-                .FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
-            if (conn?.AutoInvoiceEnabled != true) return;
+            if (!await AutoInvoiceEnabledAsync(tenantId, ct)) return;
             try
             {
                 var emitted = await emitter.EmitAsync(
@@ -162,6 +177,13 @@ public sealed class MeliSyncService(
             }
         }
     }
+
+    /// <summary>La conexión de Mercado Libre factura sola sus ventas.</summary>
+    private async Task<bool> AutoInvoiceEnabledAsync(Guid tenantId, CancellationToken ct) =>
+        await db.Connections.IgnoreQueryFilters().AsNoTracking()
+            .Where(c => c.TenantId == tenantId)
+            .Select(c => (bool?)c.AutoInvoiceEnabled)
+            .FirstOrDefaultAsync(ct) == true;
 
     /// <summary>
     /// Descuenta el stock local de lo vendido, solo en las publicaciones cuyo

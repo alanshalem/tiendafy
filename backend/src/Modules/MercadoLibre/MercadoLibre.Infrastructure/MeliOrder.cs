@@ -65,7 +65,12 @@ public sealed class MeliOrder
     /// <summary>Comprobante ARCA emitido para esta venta ML (null = sin facturar).</summary>
     public Guid? FiscalDocumentId { get; private set; }
 
-    /// <summary>Nota de crédito ya encolada (la venta se canceló estando facturada).</summary>
+    /// <summary>
+    /// La venta se canceló estando facturada y eso ya se resolvió: la nota de
+    /// crédito quedó encolada, o no correspondía emitirla sola (nadie factura
+    /// automáticamente, o la factura es de otro ambiente). Sirve para no
+    /// volver a intentarlo en cada sincronización.
+    /// </summary>
     public bool CreditNoteIssued { get; private set; }
 
     public DateTime FirstSeenAtUtc { get; private set; }
