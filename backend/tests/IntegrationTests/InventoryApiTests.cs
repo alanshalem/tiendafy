@@ -1,16 +1,26 @@
 using System.Net;
 using System.Text.Json;
+using Inventory.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
 /// <summary>
 /// La API de inventario de punta a punta: ubicación en el depósito, ajuste
 /// manual (nunca negativo), reservas —tomar, confirmar, liberar, y no más de
-/// lo que hay— y el libro de movimientos que lo explica todo.
+/// lo que hay, por la misma puerta que usa el checkout— y el libro de
+/// movimientos que lo explica todo.
 /// </summary>
 [Collection("api")]
 public sealed class InventoryApiTests(ApiFactory factory)
 {
+    /// <summary>Las reservas las toma el checkout por el contrato del módulo, no por HTTP.</summary>
+    private async Task<T> WithInventoryAsync<T>(Func<IInventoryService, Task<T>> action)
+    {
+        using var scope = factory.Services.CreateScope();
+        return await action(scope.ServiceProvider.GetRequiredService<IInventoryService>());
+    }
+
     [Fact]
     public async Task Ubicacion_ajuste_reservas_y_libro_de_movimientos()
     {
@@ -29,20 +39,19 @@ public sealed class InventoryApiTests(ApiFactory factory)
         Assert.Equal(6, set.GetProperty("available").GetInt32());
 
         // Reservar, confirmar, liberar.
-        var reservation = await merchant.PostAsync("/api/v1/inventory/reservations", new { variantId = variant, quantity = 2 });
-        Assert.Equal("ACTIVE", reservation.GetProperty("status").GetString());
+        var reservation = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 2));
+        Assert.Equal("ACTIVE", reservation.Value.Status);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
-        await merchant.ExpectOkAsync(HttpMethod.Post, $"/api/v1/inventory/reservations/{reservation.GetProperty("id").GetGuid()}/confirm");
+        Assert.True((await WithInventoryAsync(i => i.ConfirmReservationAsync(merchant.TenantId, reservation.Value.Id))).IsSuccess);
 
-        var released = await merchant.PostAsync("/api/v1/inventory/reservations", new { variantId = variant, quantity = 1 });
-        await merchant.ExpectOkAsync(HttpMethod.Post, $"/api/v1/inventory/reservations/{released.GetProperty("id").GetGuid()}/release");
+        var released = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 1));
+        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, released.Value.Id))).IsSuccess);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
 
         // No se reserva más de lo que hay, ni se confirma/libera lo que no existe.
-        Assert.False((await merchant.SendAsync(HttpMethod.Post, "/api/v1/inventory/reservations",
-            new { variantId = variant, quantity = 50 })).IsSuccessStatusCode);
-        Assert.False((await merchant.SendAsync(HttpMethod.Post, $"/api/v1/inventory/reservations/{Guid.NewGuid()}/confirm")).IsSuccessStatusCode);
-        Assert.False((await merchant.SendAsync(HttpMethod.Post, $"/api/v1/inventory/reservations/{Guid.NewGuid()}/release")).IsSuccessStatusCode);
+        Assert.True((await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 50))).IsFailure);
+        Assert.True((await WithInventoryAsync(i => i.ConfirmReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
+        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
 
         // El libro cuenta la historia: carga inicial, conteo, reservas.
         var ledger = (await merchant.GetAsync($"/api/v1/inventory/{variant}/ledger")).GetProperty("items");
@@ -56,7 +65,7 @@ public sealed class InventoryApiTests(ApiFactory factory)
         var (_, variant) = await merchant.CreateProductAsync("Barra olímpica", stock: 5);
 
         // La pantalla cargó 5; mientras se editaba, el checkout reservó 2.
-        await merchant.PostAsync("/api/v1/inventory/reservations", new { variantId = variant, quantity = 2 });
+        Assert.True((await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 2))).IsSuccess);
 
         // Guardar con lo que se vio (5) no pisa la venta: 409 con el stock real.
         var stale = await merchant.SendAsync(HttpMethod.Put, $"/api/v1/inventory/{variant}",

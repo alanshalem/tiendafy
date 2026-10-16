@@ -136,40 +136,6 @@ public static class InventoryEndpoints
             return Results.Ok(new { item.VariantId, item.Available, item.Reserved });
         });
 
-        // Reserva (la usará Checkout; expuesta para pruebas y POS futuro).
-        inventory.MapPost("/reservations", async (
-            ReserveRequest request,
-            ITenantContext tenant,
-            IStockRepository repository,
-            CancellationToken ct) =>
-        {
-            var result = await repository.TryReserveAsync(tenant.TenantId, request.VariantId, request.Quantity, ct);
-            return result.IsSuccess
-                ? Results.Created($"/api/v1/inventory/reservations/{result.Value.Id}", new
-                {
-                    result.Value.Id,
-                    result.Value.VariantId,
-                    result.Value.Quantity,
-                    status = result.Value.Status.ToString().ToUpperInvariant(),
-                    result.Value.ExpiresAtUtc,
-                })
-                : result.Error.ToProblem();
-        });
-
-        inventory.MapPost("/reservations/{id:guid}/confirm", async (
-            Guid id, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
-        {
-            var result = await repository.ConfirmReservationAsync(tenant.TenantId, id, ct);
-            return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
-        });
-
-        inventory.MapPost("/reservations/{id:guid}/release", async (
-            Guid id, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
-        {
-            var result = await repository.ReleaseReservationAsync(tenant.TenantId, id, ct);
-            return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
-        });
-
         // Ledger de movimientos por variante (auditoría del merchant).
         inventory.MapGet("/{variantId:guid}/ledger", async (
             Guid variantId, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
@@ -194,5 +160,3 @@ public static class InventoryEndpoints
 public sealed record SetStockRequest(int Available, string? Reason, int? ExpectedAvailable = null);
 
 public sealed record SetLocationRequest(string? Location);
-
-public sealed record ReserveRequest(Guid VariantId, int Quantity);
