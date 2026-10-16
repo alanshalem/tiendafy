@@ -127,11 +127,4 @@ public sealed class SpecDefinition
         SortOrder = sortOrder;
         return Result.Success();
     }
-
-    /// <summary>
-    /// ¿Este campo aplica a un producto de estas categorías? Sin categorías
-    /// declaradas aplica a todo — que es lo razonable para algo como "Material".
-    /// </summary>
-    public bool AppliesTo(IReadOnlyList<Guid> productCategoryIds) =>
-        _categoryIds.Count == 0 || productCategoryIds.Any(_categoryIds.Contains);
 }

@@ -22,24 +22,6 @@ public static class AuthExtensions
     }
 
     /// <summary>
-    /// Exige usuario autenticado Y que sea miembro de la tienda del header
-    /// X-Tenant-Id. Para endpoints de administración (escritura y datos privados).
-    /// </summary>
-    public static RouteHandlerBuilder RequireTenantMembership(this RouteHandlerBuilder builder) =>
-        builder.RequireAuthorization().AddEndpointFilter(MembershipFilter);
-
-    /// <summary>
-    /// Igual que el anterior pero a nivel grupo: protege TODOS los endpoints del
-    /// grupo (lecturas incluidas) cuando el grupo entero es de administración
-    /// (customers, stats, inventory, email-templates).
-    /// </summary>
-    public static RouteGroupBuilder RequireTenantMembership(this RouteGroupBuilder builder)
-    {
-        builder.RequireAuthorization().AddEndpointFilter(MembershipFilter);
-        return builder;
-    }
-
-    /// <summary>
     /// RBAC: exige auth + membresía + que la persona tenga el permiso en esta
     /// tienda (su rol, lo que la tienda le cambió a ese rol y sus excepciones).
     /// Deny by default. Loguea denegaciones (detección de intentos de escalación).
@@ -188,19 +170,6 @@ public static class AuthExtensions
         var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
         if (!tenant.HasTenant)
             return MissingTenant();
-        return await next(ctx);
-    }
-
-    private static async ValueTask<object?> MembershipFilter(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
-    {
-        var http = ctx.HttpContext;
-        var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
-        if (!tenant.HasTenant)
-            return MissingTenant();
-
-        if (http.User.GetUserId() is null) return Results.Unauthorized();
-        if (await http.GetAccessAsync() is null) return NotAMember();
-
         return await next(ctx);
     }
 }

@@ -36,8 +36,6 @@ public class SettlePaymentHandlerTests
         public readonly List<Guid> Confirmed = [];
         public readonly List<Guid> Released = [];
         public Task<Result<ReservationDto>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<StockDto>> GetStockAsync(Guid tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<StockDto>>([]);
         public Task<Result> ConfirmReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default)
         { Confirmed.Add(reservationId); return Task.FromResult(Result.Success()); }
         public Task<Result> ReleaseReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default)

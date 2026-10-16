@@ -28,11 +28,3 @@ public enum CertificateStatus
     Active = 1,     // cert válido cargado
     Expired = 2,    // venció
 }
-
-/// <summary>Clase del comprobante (armado distinto por clase — H15).</summary>
-public enum ComprobanteClase
-{
-    A = 0,
-    B = 1,
-    C = 2,
-}

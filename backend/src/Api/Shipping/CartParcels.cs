@@ -15,7 +15,6 @@ public sealed record CartLineInput(Guid VariantId, int Quantity);
 public sealed record CartParcels(IReadOnlyList<ParcelUnit> Units, string? CartKey)
 {
     public int Count => Units.Count;
-    public int TotalWeightGrams => Units.Sum(u => u.WeightGrams);
 }
 
 public static class CartParcelsBuilder

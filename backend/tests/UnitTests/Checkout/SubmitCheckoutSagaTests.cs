@@ -25,9 +25,6 @@ public class SubmitCheckoutSagaTests
         public List<Guid> Reserved { get; } = [];
         public List<Guid> Released { get; } = [];
 
-        public Task<IReadOnlyList<StockDto>> GetStockAsync(Guid t, IReadOnlyCollection<Guid> v, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<StockDto>>([]);
-
         public Task<Result<ReservationDto>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default)
         {
             if (OutOfStock.Contains(variantId))

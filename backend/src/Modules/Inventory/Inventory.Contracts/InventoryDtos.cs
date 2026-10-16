@@ -2,8 +2,6 @@ using SharedKernel.Common;
 
 namespace Inventory.Contracts;
 
-public sealed record StockDto(Guid VariantId, int Available, int Reserved);
-
 public sealed record ReservationDto(
     Guid Id,
     Guid VariantId,
@@ -17,8 +15,6 @@ public sealed record ReservationDto(
 /// </summary>
 public interface IInventoryService
 {
-    Task<IReadOnlyList<StockDto>> GetStockAsync(Guid tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default);
-
     Task<Result<ReservationDto>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default);
     Task<Result> ConfirmReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default);
     Task<Result> ReleaseReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default);

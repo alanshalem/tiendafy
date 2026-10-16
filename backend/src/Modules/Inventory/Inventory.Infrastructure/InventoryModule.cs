@@ -26,13 +26,6 @@ public static class InventoryModule
 
 public sealed class InventoryService(IStockRepository repository) : IInventoryService
 {
-    public async Task<IReadOnlyList<StockDto>> GetStockAsync(
-        Guid tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default)
-    {
-        var items = await repository.GetByVariantsAsync(TenantId.From(tenantId), variantIds, ct);
-        return items.Select(i => new StockDto(i.VariantId, i.Available, i.Reserved)).ToList();
-    }
-
     public async Task<Result<ReservationDto>> ReserveAsync(
         Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default)
     {

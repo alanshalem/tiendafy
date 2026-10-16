@@ -16,8 +16,6 @@ public enum MembershipChange
 /// <summary>Consulta y gestión de membresías usuario ↔ tienda.</summary>
 public interface IMembershipService
 {
-    Task<bool> IsOwnerAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
-    Task<string?> RoleAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
     Task<IReadOnlyList<Guid>> TenantIdsForUserAsync(Guid userId, CancellationToken ct = default);
     /// <summary>Las tiendas donde la persona es dueña.</summary>
     Task<IReadOnlyList<Guid>> OwnedTenantIdsAsync(Guid userId, CancellationToken ct = default);
@@ -32,12 +30,6 @@ public interface IMembershipService
 
 public sealed class MembershipService(AppIdentityDbContext db) : IMembershipService
 {
-    public Task<bool> IsOwnerAsync(Guid userId, Guid tenantId, CancellationToken ct = default) =>
-        db.TenantMemberships.AsNoTracking().AnyAsync(m => m.UserId == userId && m.TenantId == tenantId && m.Role == Roles.Owner, ct);
-
-    public async Task<string?> RoleAsync(Guid userId, Guid tenantId, CancellationToken ct = default) =>
-        await db.TenantMemberships.AsNoTracking().Where(m => m.UserId == userId && m.TenantId == tenantId).Select(m => m.Role).FirstOrDefaultAsync(ct);
-
     public async Task<IReadOnlyList<Guid>> TenantIdsForUserAsync(Guid userId, CancellationToken ct = default) =>
         await db.TenantMemberships.AsNoTracking().Where(m => m.UserId == userId).Select(m => m.TenantId).ToListAsync(ct);
 
