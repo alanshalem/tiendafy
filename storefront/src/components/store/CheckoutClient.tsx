@@ -62,6 +62,8 @@ interface CheckoutSettings {
   customerNoteLabel: string;
   orderMessageEnabled: boolean;
   orderMessageText: string;
+  /** Si la tienda manda por WhatsApp el recordatorio de carrito abandonado: solo así se ofrece el aviso. */
+  whatsAppReminders: boolean;
 }
 
 const DEFAULT_SETTINGS: CheckoutSettings = {
@@ -72,6 +74,7 @@ const DEFAULT_SETTINGS: CheckoutSettings = {
   customerNoteLabel: 'Aclaraciones sobre tu pedido',
   orderMessageEnabled: false,
   orderMessageText: '',
+  whatsAppReminders: false,
 };
 
 type Mode = 'PRO' | 'API';
@@ -123,6 +126,11 @@ const EMPTY_BUYER: Buyer = {
   zip: '',
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Los campos que, al dejarlos, se guardan como datos de contacto (ver rememberContact). */
+const CONTACT_FIELDS: ReadonlySet<string> = new Set<BuyerField>(['email', 'name', 'lastName', 'phone']);
+
 /** El orden de la pantalla: el foco va al primero que esté mal. */
 const FIELD_ORDER: BuyerField[] = [
   'email',
@@ -147,7 +155,16 @@ async function getJson<T>(path: string, tenantId: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function CheckoutClient({ tenantId, contact }: { tenantId: string; contact?: CheckoutContact }) {
+export function CheckoutClient({
+  tenantId,
+  storeName,
+  contact,
+}: {
+  tenantId: string;
+  /** El nombre de la tienda: el aviso por WhatsApp dice quién va a escribir. */
+  storeName?: string;
+  contact?: CheckoutContact;
+}) {
   // El carrito es el de la tienda (el mismo del ícono): así lo que se reprecia
   // o se quita acá se ve en todos lados.
   const { lines, hydrated, refreshPrices, priceChanges, issues, blocked, remove, setOpen } = useCart();
@@ -211,9 +228,10 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   // Fallo al cargar lo que el checkout necesita (no "no está configurado").
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  // "Quiero recibir novedades": sin tildar de entrada. Es el consentimiento que
-  // piden los recordatorios de carrito abandonado (email y WhatsApp).
-  const [acceptsMarketing, setAcceptsMarketing] = useState(false);
+  // El aviso por WhatsApp junto al teléfono: sin tildar de entrada. Meta exige
+  // que la persona lo acepte; el email de recordatorio no lo necesita (lo
+  // explica la línea debajo del email y trae el link para darse de baja).
+  const [acceptsWhatsApp, setAcceptsWhatsApp] = useState(false);
 
   // Paso Pago
   const [notes, setNotes] = useState('');
@@ -515,7 +533,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   /** Lo que falta o está mal en cada campo (vacío = todo bien). */
   const validateFields = (): Partial<Record<BuyerField, string>> => {
     const errors: Partial<Record<BuyerField, string>> = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Ingresá un email válido.';
+    if (!EMAIL_RE.test(email.trim())) errors.email = 'Ingresá un email válido.';
     if (!name.trim()) errors.name = 'Completá tu nombre.';
     if (!lastName.trim()) errors.lastName = 'Completá tu apellido.';
     if (settings.requirePhone && !phone.trim()) errors.phone = 'Completá tu teléfono.';
@@ -555,21 +573,76 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
       return;
     }
     setFormError(null);
+    rememberContact();
     setStep('pago');
     window.scrollTo({ top: 0 });
   };
 
-  // start + submit → reserva stock con todos los datos; devuelve sessionId.
+  // La compra abierta de este checkout: la arma el primer guardado de los
+  // datos de contacto y el pago sale de esa misma. Los guardados van en fila:
+  // dos al mismo tiempo armarían dos compras.
+  const contactSession = useRef<string | null>(null);
+  const contactQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const lastContact = useRef<string | null>(null);
+
+  /**
+   * Guarda en la tienda los datos de contacto que el comprador va dejando: el
+   * email apenas lo escribe, y después nombre, teléfono y el aviso por
+   * WhatsApp. Si se va antes de pagar (por ejemplo, al ver el envío), igual le
+   * llega el recordatorio de carrito abandonado. Devuelve la compra.
+   */
+  const saveContact = (buyerEmail: string, whatsApp: boolean) => {
+    const run = contactQueue.current
+      .catch(() => undefined)
+      .then(async () => {
+        const b = buyerRef.current;
+        const res = await fetch(`${apiUrl()}/api/v1/checkout/contact`, {
+          method: 'POST',
+          headers: tenantHeaders(tenantId, true),
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          body: JSON.stringify({
+            checkoutId: contactSession.current,
+            lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
+            email: buyerEmail,
+            name: b.name.trim() || null,
+            lastName: b.lastName.trim() || null,
+            phone: b.phone.trim() || null,
+            acceptsWhatsApp: whatsApp,
+          }),
+        });
+        if (!res.ok) throw new Error('No se pudo iniciar el checkout.');
+        const session = (await res.json()) as { id: string };
+        contactSession.current = session.id;
+        return session.id;
+      });
+    contactQueue.current = run;
+    return run;
+  };
+
+  /** Lo mismo, de fondo y sin repetir lo ya guardado: si falla, el comprador no se entera. */
+  const rememberContact = (whatsApp = acceptsWhatsApp) => {
+    const b = buyerRef.current;
+    if (!EMAIL_RE.test(b.email.trim()) || lines.length === 0) return;
+    const key = JSON.stringify([
+      b.email.trim(),
+      b.name.trim(),
+      b.lastName.trim(),
+      b.phone.trim(),
+      whatsApp,
+      lines.map((l) => `${l.variantId}:${l.quantity}`),
+    ]);
+    if (key === lastContact.current) return;
+    lastContact.current = key;
+    saveContact(b.email.trim(), whatsApp).catch(() => {
+      lastContact.current = null;
+    });
+  };
+
+  // Datos de contacto + submit → reserva stock con todos los datos; devuelve sessionId.
   const reserve = async (buyerEmail: string) => {
     const headers = tenantHeaders(tenantId, true);
-    const startRes = await fetch(`${apiUrl()}/api/v1/checkout/`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) }),
-    });
-    if (!startRes.ok) throw new Error('No se pudo iniciar el checkout.');
-    const session = await startRes.json();
-    const submitRes = await fetch(`${apiUrl()}/api/v1/checkout/${session.id}/submit`, {
+    const id = await saveContact(buyerEmail, acceptsWhatsApp);
+    const submitRes = await fetch(`${apiUrl()}/api/v1/checkout/${id}/submit`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -583,14 +656,17 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
         address: formattedAddress(),
         shippingQuoteToken: selectedQuote?.token ?? null,
         correoAgency: selectedQuote?.needsAgency ? agencyCode : null,
-        acceptsMarketing,
+        acceptsWhatsApp,
       }),
     });
     if (!submitRes.ok) {
       const p = await submitRes.json().catch(() => null);
       throw new Error(p?.detail ?? 'No hay stock suficiente para algún producto.');
     }
-    return session.id as string;
+    // Enviada, esa compra ya no se toca: un segundo intento arma otra.
+    contactSession.current = null;
+    lastContact.current = null;
+    return id;
   };
 
   // El monto queda anotado en esta pestaña para que la pantalla de "listo"
@@ -926,33 +1002,31 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                 e.preventDefault();
                 continueToPago();
               }}
+              // El blur burbujea: al dejar el email (o nombre, apellido o
+              // teléfono) se guarda lo que haya, sin esperar al botón.
+              onBlur={(e) => {
+                if (e.target instanceof HTMLInputElement && CONTACT_FIELDS.has(e.target.name))
+                  rememberContact();
+              }}
               className="space-y-7"
             >
               <section>
                 <h2 className="mb-3 text-lg font-bold">Datos de contacto</h2>
-                {textField('email', 'E-mail', {
-                  type: 'email',
-                  autoComplete: 'email',
-                  inputMode: 'email',
-                  autoCapitalize: 'none',
-                  spellCheck: false,
-                })}
-                <label className="mt-3 flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="acceptsMarketing"
-                    checked={acceptsMarketing}
-                    onChange={(e) => setAcceptsMarketing(e.target.checked)}
-                    aria-describedby={`${formId}-marketing-hint`}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    Quiero recibir novedades y ofertas por email y WhatsApp
-                    <span id={`${formId}-marketing-hint`} className="block text-xs text-fg-muted">
-                      Si dejás la compra sin terminar, te mandamos un recordatorio.
-                    </span>
-                  </span>
-                </label>
+                {/* El email se guarda apenas lo escribe (ver rememberContact):
+                    la línea de abajo le dice para qué. */}
+                {textField(
+                  'email',
+                  'E-mail',
+                  {
+                    type: 'email',
+                    autoComplete: 'email',
+                    inputMode: 'email',
+                    autoCapitalize: 'none',
+                    spellCheck: false,
+                  },
+                  '',
+                  'Te escribimos sobre tu compra y, si la dejás sin terminar, te mandamos un recordatorio. Podés darte de baja cuando quieras.',
+                )}
               </section>
 
               {/* El foco viene acá si falta elegir el envío. */}
@@ -1016,6 +1090,27 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
                     { inputMode: 'numeric', autoComplete: 'off' },
                   )}
                 </div>
+                {/* Solo si la tienda manda el recordatorio por WhatsApp: no se
+                    pide permiso para algo que nunca va a llegar. Sin tildar de
+                    entrada, y diciendo quién escribe, como pide Meta. */}
+                {settings.whatsAppReminders && (
+                  <label className="mt-3 flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="acceptsWhatsApp"
+                      checked={acceptsWhatsApp}
+                      onChange={(e) => {
+                        setAcceptsWhatsApp(e.target.checked);
+                        rememberContact(e.target.checked);
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Quiero que {storeName || 'la tienda'} me avise por WhatsApp si dejo la compra sin
+                      terminar
+                    </span>
+                  </label>
+                )}
                 {needsAddress && (
                   <div className="mt-3 grid gap-3">
                     <div className="grid gap-3 sm:grid-cols-[1fr_140px]">

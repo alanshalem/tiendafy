@@ -76,19 +76,19 @@ public class SubmitCheckoutSagaTests
         Assert.Equal(2, inventory.Reserved.Count);
         Assert.Empty(inventory.Released);
         Assert.Equal(1, repository.Saves);
-        Assert.False(session.AcceptsMarketing); // sin tildar "Quiero recibir novedades", no hay consentimiento
+        Assert.False(session.AcceptsWhatsApp); // sin tildar el aviso por WhatsApp, no hay permiso
     }
 
     [Fact]
-    public async Task Submit_guarda_si_el_comprador_acepto_recibir_novedades()
+    public async Task Submit_guarda_si_el_comprador_acepto_el_aviso_por_WhatsApp()
     {
         var session = TwoItemSession(out _, out _);
         var handler = new SubmitCheckoutHandler(new FakeCheckoutRepository(session), new FakeShippingMethods(), new FakeInventory());
 
-        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com", AcceptsMarketing: true));
+        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com", AcceptsWhatsApp: true));
 
         Assert.True(result.IsSuccess);
-        Assert.True(session.AcceptsMarketing);
+        Assert.True(session.AcceptsWhatsApp);
     }
 
     [Fact]

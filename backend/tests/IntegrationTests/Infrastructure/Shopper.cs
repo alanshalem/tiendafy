@@ -49,7 +49,7 @@ public sealed class Shopper(Merchant store)
     /// </summary>
     public async Task<Guid> CheckoutAsync(Guid variantId, int quantity = 1, Guid? shippingMethodId = null,
         string? quoteToken = null, string? address = null, string email = "comprador@test.local",
-        bool acceptsMarketing = false)
+        bool acceptsWhatsApp = false)
     {
         var session = await ExpectJsonAsync(HttpMethod.Post, "/api/v1/checkout",
             new { lines = new[] { new { variantId, quantity } } });
@@ -65,8 +65,27 @@ public sealed class Shopper(Merchant store)
             shippingMethodId,
             address,
             shippingQuoteToken = quoteToken,
-            acceptsMarketing,
+            acceptsWhatsApp,
         });
         return id;
+    }
+
+    /// <summary>
+    /// Lo que manda el checkout apenas el comprador escribe su email (y después,
+    /// al completar el resto), antes de tocar "Pagar". Devuelve la compra.
+    /// </summary>
+    public async Task<Guid> SaveContactAsync(Guid variantId, string email, Guid? checkoutId = null,
+        int quantity = 1, string? phone = null, bool acceptsWhatsApp = false)
+    {
+        var session = await ExpectJsonAsync(HttpMethod.Post, "/api/v1/checkout/contact", new
+        {
+            checkoutId,
+            lines = new[] { new { variantId, quantity } },
+            email,
+            name = "Ana",
+            phone,
+            acceptsWhatsApp,
+        });
+        return session.GetProperty("id").GetGuid();
     }
 }

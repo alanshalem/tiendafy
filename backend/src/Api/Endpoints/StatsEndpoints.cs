@@ -1,6 +1,7 @@
 using System.Globalization;
 using Analytics.Infrastructure;
 using Api.Auth;
+using Api.Notifications;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Core.Domain;
@@ -551,7 +552,9 @@ public static class StatsEndpoints
             });
         });
 
-        // Carritos abandonados: checkouts no completados ni pagados.
+        // Carritos abandonados: checkouts no completados que no terminaron en
+        // una compra, uno por comprador (el mismo criterio que el recordatorio,
+        // ver AbandonedCarts).
         carts.MapGet("/abandoned-carts", async (
             ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb,
             int? days, int? limit, int? offset, CancellationToken ct) =>
@@ -563,16 +566,9 @@ public static class StatsEndpoints
                 .Where(s => s.TenantId == tid && s.CreatedAtUtc >= since && s.Status != CheckoutStatus.Completed)
                 .ToListAsync(ct);
 
-            // Solo las ventas del MISMO período: las sesiones son de ahí, así
-            // que las órdenes viejas no pueden descartar ninguna. Antes se
-            // traían los ids de todas las ventas de la historia en cada
-            // request — con años de operación, eso es un balde de guids.
-            var paidSessionIds = (await ordersDb.Orders
-                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since)
-                .Select(o => o.CheckoutSessionId).ToListAsync(ct)).ToHashSet();
-
+            var outcomes = await AbandonedCarts.ClassifyAsync(sessions, checkoutDb, ordersDb, ct);
             var pending = sessions
-                .Where(s => !paidSessionIds.Contains(s.Id))
+                .Where(s => outcomes[s.Id] == AbandonedCarts.Outcome.Abandoned)
                 .OrderByDescending(s => s.CreatedAtUtc)
                 .ToList();
 

@@ -459,6 +459,7 @@ public sealed class DemoDataSeeder(
 
             var when = now.AddDays(-_rng.Next(0, 25)).AddHours(-_rng.Next(0, 23));
             Backdate(checkout, session, when);
+            Touch(session, nameof(CheckoutSession.LastActivityAtUtc), when);
             Touch(session, nameof(CheckoutSession.ExpiresAtUtc), when.AddMinutes(30));
 
             checkout.Sessions.Add(session);

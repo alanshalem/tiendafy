@@ -16,6 +16,7 @@ export default function CheckoutPage({
       {({ data, theme }) => (
         <CheckoutClient
           tenantId={data.tenant.id}
+          storeName={data.tenant.name}
           contact={{
             whatsapp: theme.whatsappButton.phone || theme.contact.whatsapp || null,
             email: theme.contact.email || null,

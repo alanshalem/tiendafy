@@ -1,6 +1,8 @@
 using Api.Auth;
+using Api.Notifications;
 using Api.Shipping;
 using Checkout.Core.Domain;
+using Checkout.Core.Features.SaveContact;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
 using Checkout.Infrastructure.Carriers;
@@ -33,6 +35,24 @@ public static class CheckoutEndpoints
             return result.IsSuccess
                 ? Results.Created($"/api/v1/checkout/{result.Value.Id}", ToDto(result.Value))
                 : result.Error.ToProblem();
+        });
+
+        // Los datos de contacto que el comprador va dejando antes de pagar (el
+        // email apenas lo escribe). Sigue con la compra abierta que el checkout
+        // ya tenía si es la misma; si no, arma una con el carrito de ahora.
+        // Con eso, quien se va antes de tocar "Pagar" recibe el recordatorio de
+        // carrito abandonado; el pago sale después de esta misma compra.
+        checkout.MapPost("/contact", async (
+            SaveCheckoutContactRequest request,
+            ITenantContext tenant,
+            SaveCheckoutContactHandler handler,
+            CancellationToken ct) =>
+        {
+            var result = await handler.HandleAsync(new SaveCheckoutContactCommand(
+                tenant.TenantId, request.CheckoutId,
+                request.Lines?.Select(l => new StartCheckoutLine(l.VariantId, l.Quantity)).ToList() ?? [],
+                request.Email, request.Name, request.LastName, request.Phone, request.AcceptsWhatsApp), ct);
+            return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         });
 
         checkout.MapGet("/{id:guid}", async (
@@ -112,7 +132,7 @@ public static class CheckoutEndpoints
             var result = await handler.HandleAsync(new SubmitCheckoutCommand(
                 tenant.TenantId, id, request.Email ?? string.Empty,
                 request.Name, request.LastName, request.Phone, request.DocNumber, request.Notes,
-                request.ShippingMethodId, request.Address, quote, request.AcceptsMarketing), ct);
+                request.ShippingMethodId, request.Address, quote, request.AcceptsWhatsApp), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         });
 
@@ -225,24 +245,24 @@ public static class CheckoutEndpoints
     private static void MapSettings(RouteGroupBuilder group)
     {
         group.MapGet("/checkout-settings", async (
-            ITenantContext tenant, CheckoutDbContext db, CancellationToken ct) =>
+            ITenantContext tenant, CheckoutDbContext db, WhatsAppNotifier whatsApp, CancellationToken ct) =>
         {
             var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(ct);
-            return Results.Ok(SettingsDto(s, tenant.TenantId));
+            return Results.Ok(await SettingsDtoAsync(s, tenant.TenantId, whatsApp, ct));
         }).RequireTenant();
 
         var admin = group.MapGroup("/admin/checkout").RequirePermission(Permission.StoreConfig);
 
         admin.MapGet("/settings", async (
-            ITenantContext tenant, CheckoutDbContext db, CancellationToken ct) =>
+            ITenantContext tenant, CheckoutDbContext db, WhatsAppNotifier whatsApp, CancellationToken ct) =>
         {
             var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(ct);
-            return Results.Ok(SettingsDto(s, tenant.TenantId));
+            return Results.Ok(await SettingsDtoAsync(s, tenant.TenantId, whatsApp, ct));
         });
 
         admin.MapPut("/settings", async (
             CheckoutSettingsRequest request, ITenantContext tenant, CheckoutDbContext db,
-            CancellationToken ct) =>
+            WhatsAppNotifier whatsApp, CancellationToken ct) =>
         {
             var s = await db.Settings.FirstOrDefaultAsync(ct);
             if (s is null)
@@ -257,7 +277,7 @@ public static class CheckoutEndpoints
                 request.OrderMessageEnabled, request.OrderMessageText);
 
             await db.SaveChangesAsync(ct);
-            return Results.Ok(SettingsDto(s, tenant.TenantId));
+            return Results.Ok(await SettingsDtoAsync(s, tenant.TenantId, whatsApp, ct));
         });
     }
 
@@ -265,10 +285,19 @@ public static class CheckoutEndpoints
     /// Una tienda que nunca tocó la pantalla no tiene fila: se responden los
     /// valores por defecto en vez de un 404, así el storefront no necesita
     /// saber que la fila puede faltar.
+    ///
+    /// <para>
+    /// <c>whatsAppReminders</c>: si la tienda manda por WhatsApp el recordatorio
+    /// de carrito abandonado (conectada y con esa plantilla prendida). Sin eso
+    /// el checkout no ofrece el aviso por WhatsApp: no se pide permiso para
+    /// algo que nunca va a llegar.
+    /// </para>
     /// </summary>
-    private static object SettingsDto(CheckoutSettings? s, TenantId tenantId)
+    private static async Task<object> SettingsDtoAsync(
+        CheckoutSettings? s, TenantId tenantId, WhatsAppNotifier whatsApp, CancellationToken ct)
     {
         s ??= CheckoutSettings.CreateDefault(tenantId);
+        var whatsAppReminders = await whatsApp.IsEnabledAsync(tenantId.Value, WhatsAppNotifier.AbandonedCartType, ct);
         return new
         {
             singleColumn = s.SingleColumn,
@@ -278,6 +307,7 @@ public static class CheckoutEndpoints
             customerNoteLabel = s.CustomerNoteLabel,
             orderMessageEnabled = s.OrderMessageEnabled,
             orderMessageText = s.OrderMessageText,
+            whatsAppReminders,
         };
     }
 
@@ -286,6 +316,17 @@ public static class CheckoutEndpoints
 public sealed record StartCheckoutRequest(List<CheckoutLineInput>? Lines);
 
 public sealed record CheckoutLineInput(Guid VariantId, int Quantity);
+
+/// <param name="CheckoutId">La compra que el checkout ya tenía abierta (la que devolvió la vez anterior).</param>
+public sealed record SaveCheckoutContactRequest(
+    Guid? CheckoutId,
+    List<CheckoutLineInput>? Lines,
+    string? Email,
+    string? Name = null,
+    string? LastName = null,
+    string? Phone = null,
+    // El aviso por WhatsApp junto al teléfono: sin tildar (o sin mandar) es que no.
+    bool AcceptsWhatsApp = false);
 
 public sealed record SubmitCheckoutRequest(
     string? Email,
@@ -298,8 +339,8 @@ public sealed record SubmitCheckoutRequest(
     string? Address = null,
     string? ShippingQuoteToken = null,
     string? CorreoAgency = null,
-    // "Quiero recibir novedades": sin tildar (o sin mandar) es que no.
-    bool AcceptsMarketing = false);
+    // El aviso por WhatsApp junto al teléfono: sin tildar (o sin mandar) es que no.
+    bool AcceptsWhatsApp = false);
 
 public sealed record CheckoutSettingsRequest(
     bool SingleColumn,

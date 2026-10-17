@@ -3,9 +3,9 @@ using System.Text;
 using Api.Workers;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
-using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
 using Tenancy.Infrastructure.Persistence;
 
@@ -13,23 +13,35 @@ namespace Api.Notifications;
 
 /// <summary>
 /// Recuperación de carritos abandonados: cada cierto tiempo busca checkouts con
-/// email, no pagados, abandonados hace un rato, y manda UN email con link a la
-/// tienda. Marca el envío para no repetir.
+/// email que el comprador dejó hace un rato sin comprar, y le manda UN
+/// recordatorio con link a la tienda. Marca la sesión para no repetir.
 ///
 /// <para>
-/// El email sale con la plantilla "carritos-abandonados" de la tienda (asunto,
-/// texto y si está prendida) y nunca a una dirección de la lista de supresión:
-/// es marketing, y quien se dio de baja, rebotó o marcó spam no lo recibe.
-/// Antes salía con un texto fijo, para todas las tiendas y sin mirar la lista.
+/// El email lo recibe todo el que dejó su email en el checkout (lo deja apenas
+/// lo escribe, ver <c>POST /checkout/contact</c>): el checkout le avisa ahí
+/// mismo que, si deja la compra sin terminar, le mandamos un recordatorio, y
+/// el email trae el link para darse de baja. Sale con la plantilla
+/// "carritos-abandonados" de la tienda (asunto, texto y si está prendida) y
+/// nunca a una dirección de la lista de supresión: quien se dio de baja, rebotó
+/// o marcó spam no lo recibe.
+/// </para>
+/// <para>
+/// El WhatsApp, en cambio, solo a quien tildó el aviso por WhatsApp junto al
+/// teléfono: Meta lo cuenta como marketing y exige ese permiso.
+/// </para>
+/// <para>
+/// Uno por comprador y por intento: si compró después (con esta compra o con
+/// otra), o hay una compra suya más nueva en la tienda, esta no se recuerda
+/// (ver <see cref="AbandonedCarts"/>).
 /// </para>
 /// </summary>
 public sealed class AbandonedCartWorker(
     IServiceScopeFactory scopeFactory,
     ILogger<AbandonedCartWorker> logger) : PollingWorker(TimeSpan.FromMinutes(15))
 {
-    public const string Template = "carritos-abandonados";
+    public const string Template = WhatsAppNotifier.AbandonedCartType;
 
-    private static readonly TimeSpan MinAge = TimeSpan.FromHours(1);  // esperar 1h tras abandono
+    private static readonly TimeSpan MinAge = TimeSpan.FromHours(1);  // 1 h sin que el comprador toque nada
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);   // no perseguir carritos viejos
 
     protected override void LogPollFailure(Exception ex) =>
@@ -49,22 +61,21 @@ public sealed class AbandonedCartWorker(
         var oldest = now - MaxAge;
         var newest = now - MinAge;
 
+        // La espera se cuenta desde lo último que hizo el comprador, no desde
+        // que armó la compra: el email llega apenas lo escribe, y alguien que
+        // sigue completando el checkout no abandonó nada.
         var candidates = await checkoutDb.Sessions
             .Where(s => s.Email != null
                 && s.RecoveryEmailSentAtUtc == null
                 && s.Status != CheckoutStatus.Completed
-                && s.CreatedAtUtc >= oldest && s.CreatedAtUtc <= newest)
+                && s.CreatedAtUtc >= oldest && s.LastActivityAtUtc <= newest)
             .OrderBy(s => s.CreatedAtUtc)
             .Take(50)
             .ToListAsync(ct);
         if (candidates.Count == 0) return;
 
-        // Sacar las que terminaron en una orden pagada.
-        var ids = candidates.Select(s => s.Id).ToList();
-        var paid = (await ordersDb.Orders
-            .Where(o => OrderStatuses.Earning.Contains(o.Status) && ids.Contains(o.CheckoutSessionId))
-            .Select(o => o.CheckoutSessionId)
-            .ToListAsync(ct)).ToHashSet();
+        var outcomes = await AbandonedCarts.ClassifyAsync(candidates, checkoutDb, ordersDb, ct);
+        var dp = sp.GetRequiredService<IDataProtectionProvider>();
 
         // Datos de tienda (nombre + URL pública) para los tenants involucrados.
         var tenantGuids = candidates.Select(s => s.TenantId.Value).Distinct().ToList();
@@ -91,7 +102,8 @@ public sealed class AbandonedCartWorker(
         var sent = 0;
         foreach (var s in candidates)
         {
-            if (paid.Contains(s.Id)) { s.MarkRecoveryEmailed(); continue; } // ya compró: no perseguir
+            // Compró, o el recordatorio es de una compra suya más nueva.
+            if (outcomes[s.Id] != AbandonedCarts.Outcome.Abandoned) { s.MarkRecoveryEmailed(); continue; }
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
 
             var to = s.Email!.Trim();
@@ -108,17 +120,17 @@ public sealed class AbandonedCartWorker(
                 }, ct);
                 // Apagada por la tienda: no sale el email (WhatsApp va por su lado).
                 if (rendered is { Enabled: true }
-                    && await email.SendAsync(s.TenantId.Value, to, rendered.Subject, rendered.Html, ct, Template))
+                    && await email.SendAsync(s.TenantId.Value, to, rendered.Subject,
+                        rendered.Html + UnsubscribeToken.Footer(dp, links.ApiBase, s.TenantId.Value, to), ct, Template))
                     sent++;
             }
-            // WhatsApp solo si la sesión llegó a cargar teléfono (paso Entrega),
-            // la tienda tiene la plantilla de carrito abandonado activada y el
-            // comprador dio su consentimiento: tildó "Quiero recibir novedades"
-            // en el checkout y no se dio de baja de las novedades de la tienda
-            // (la misma lista de supresión que el email). Meta lo cuenta como
-            // marketing y exige que la persona haya aceptado; antes salía a
-            // cualquiera que hubiera dejado su teléfono para el envío.
-            if (s.AcceptsMarketing && !unsubscribed)
+            // WhatsApp solo si la sesión llegó a cargar teléfono, la tienda tiene
+            // la plantilla de carrito abandonado activada y el comprador tildó el
+            // aviso por WhatsApp junto al teléfono, sin darse de baja de las
+            // novedades de la tienda después (la misma lista de supresión que el
+            // email). Meta lo cuenta como marketing y exige que la persona haya
+            // aceptado.
+            if (s.AcceptsWhatsApp && !unsubscribed)
                 await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
                     s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
             s.MarkRecoveryEmailed();

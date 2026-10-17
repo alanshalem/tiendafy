@@ -258,13 +258,15 @@ public sealed partial class ShopperFlowTests
         var email = $"indeciso-{merchant.Subdomain}@mail.com";
         var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
 
-        // Completó el checkout (tildando "Quiero recibir novedades") pero no pagó, hace dos horas.
-        var checkoutId = await shopper.CheckoutAsync(variantId, email: email, acceptsMarketing: true);
+        // Completó el checkout (tildando el aviso por WhatsApp) pero no pagó, hace dos horas.
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: email, acceptsWhatsApp: true);
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
             await db.Sessions.IgnoreQueryFilters().Where(s => s.Id == checkoutId)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedAtUtc, DateTime.UtcNow.AddHours(-2)));
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.CreatedAtUtc, DateTime.UtcNow.AddHours(-2))
+                    .SetProperty(x => x.LastActivityAtUtc, DateTime.UtcNow.AddHours(-2)));
         }
 
         // Con WhatsApp conectado y la plantilla activa, también le llega por ahí

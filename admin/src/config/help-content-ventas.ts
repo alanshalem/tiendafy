@@ -441,9 +441,9 @@ export const VENTAS = {
       {
         heading: 'Carritos abandonados',
         paragraphs: [
-          'En Ventas → Carritos abandonados ves los checkouts de los últimos 30 días que no terminaron en compra, y el “Valor recuperable”: lo que suman los que dejaron su email.',
-          'A esos les mandamos solos un recordatorio, una sola vez por carrito, más o menos una hora después de que lo dejaron, con la plantilla “Carritos abandonados” de E-mails automáticos (viene prendida; ahí la editás o la apagás). No le llega a quien se dio de baja de tus emails.',
-          'Si además tenés WhatsApp automático con la plantilla de carritos abandonados, el recordatorio también sale por WhatsApp, pero solo a quien tildó “Quiero recibir novedades” en el checkout y no se dio de baja de tus novedades.',
+          'En Ventas → Carritos abandonados ves los checkouts de los últimos 30 días que no terminaron en compra, uno por cliente, y el “Valor recuperable”: lo que suman los que dejaron su email. El email queda guardado apenas el cliente lo escribe en el checkout, aunque se vaya antes de pagar (por ejemplo, al ver el costo del envío).',
+          'A esos les mandamos solos un recordatorio, una sola vez, más o menos una hora después de que dejaron de tocar el checkout, con la plantilla “Carritos abandonados” de E-mails automáticos (viene prendida; ahí la editás o la apagás). El checkout les avisa debajo del email que les vamos a mandar ese recordatorio, y el email trae el link para darse de baja. No le llega a quien se dio de baja de tus emails ni a quien terminó comprando, aunque haya sido en otro intento o por transferencia.',
+          'Si además tenés WhatsApp automático con la plantilla de carritos abandonados, el checkout muestra junto al teléfono la casilla “Quiero que [tu tienda] me avise por WhatsApp si dejo la compra sin terminar”, y el recordatorio sale también por WhatsApp solo a quien la tildó. Viene sin tildar: Meta exige que la persona lo acepte.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'E-mails automáticos'] }],
       },
@@ -458,7 +458,7 @@ export const VENTAS = {
       {
         heading: 'Cómo es el flujo',
         steps: [
-          'Entrega: el cliente deja su email, elige el medio de envío (a domicilio, retiro o la cotización de un carrier), completa sus datos (nombre, apellido, teléfono y DNI o CUIT) y, si va a domicilio, la dirección. Si tiene cuenta y una dirección guardada, el formulario se completa solo. Debajo del email puede tildar “Quiero recibir novedades y ofertas por email y WhatsApp” (viene sin tildar): es el permiso para mandarle el recordatorio por WhatsApp si deja la compra sin terminar.',
+          'Entrega: el cliente deja su email, elige el medio de envío (a domicilio, retiro o la cotización de un carrier), completa sus datos (nombre, apellido, teléfono y DNI o CUIT) y, si va a domicilio, la dirección. Si tiene cuenta y una dirección guardada, el formulario se completa solo. Debajo del email le avisamos que, si deja la compra sin terminar, le mandamos un recordatorio (el email queda guardado apenas lo escribe). Si tenés el recordatorio por WhatsApp prendido, junto al teléfono puede tildar que le avises también por WhatsApp (viene sin tildar).',
           'Pago: ve el resumen de todo lo elegido (con links “Cambiar”), puede agregar la nota del pedido y elige cómo pagar entre lo que tengas activo: Mercado Pago (redirigido o con el formulario de tarjeta en tu tienda, según el modo), tarjeta con Payway, transferencia o efectivo al retirar.',
           'El costo de envío se suma al total automáticamente y siempre se calcula en el servidor: el cliente no puede manipularlo. Si el medio de envío tiene “gratis desde” un monto y la compra lo alcanza, el resumen lo muestra gratis.',
         ],

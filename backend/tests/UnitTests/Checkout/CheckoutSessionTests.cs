@@ -182,4 +182,94 @@ public class CheckoutSessionTests
         Assert.True(result.IsFailure);
         Assert.Equal(CheckoutStatus.Expired, session.Status);
     }
+
+    // ------------------------------------------- Contacto antes de pagar
+
+    [Fact]
+    public void SetContact_guarda_el_email_y_estira_el_plazo()
+    {
+        var session = CreateSession();
+        Assert.Equal(session.CreatedAtUtc, session.LastActivityAtUtc);
+        var later = session.CreatedAtUtc.AddMinutes(20);
+
+        var result = session.SetContact("  Ana@Mail.com ", "Ana", null, null, acceptsWhatsApp: false, later);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Ana@Mail.com", session.Email);
+        Assert.Equal("Ana", session.BuyerName);
+        Assert.Equal(later, session.LastActivityAtUtc);
+        // Abierta no reserva nada: mientras el comprador sigue ahí, sigue viva.
+        Assert.Equal(later + CheckoutSession.Ttl, session.ExpiresAtUtc);
+        Assert.Equal(CheckoutStatus.Open, session.Status);
+    }
+
+    [Fact]
+    public void SetContact_lo_que_no_vino_no_borra_lo_que_estaba()
+    {
+        var session = CreateSession();
+        var now = session.CreatedAtUtc.AddMinutes(1);
+        session.SetContact("ana@mail.com", "Ana", "García", "1155554444", acceptsWhatsApp: true, now);
+
+        // El email cambia y el aviso por WhatsApp se destilda: eso sí se pisa.
+        session.SetContact("ana.garcia@mail.com", null, " ", null, acceptsWhatsApp: false, now.AddMinutes(1));
+
+        Assert.Equal("ana.garcia@mail.com", session.Email);
+        Assert.Equal("Ana", session.BuyerName);
+        Assert.Equal("García", session.BuyerLastName);
+        Assert.Equal("1155554444", session.Phone);
+        Assert.False(session.AcceptsWhatsApp);
+    }
+
+    [Fact]
+    public void SetContact_un_email_que_no_sirve_no_se_guarda()
+    {
+        var session = CreateSession();
+
+        var result = session.SetContact("ana", null, null, null, acceptsWhatsApp: false, session.CreatedAtUtc);
+
+        Assert.Equal("Checkout.InvalidEmail", result.Error.Code);
+        Assert.Null(session.Email);
+    }
+
+    [Fact]
+    public void SetContact_solo_en_una_compra_abierta_y_vigente()
+    {
+        var expired = CreateSession();
+        Assert.Equal("Checkout.NotOpen",
+            expired.SetContact("ana@mail.com", null, null, null, false, expired.ExpiresAtUtc).Error.Code);
+
+        var submitted = CreateSession();
+        submitted.MarkSubmitted("ana@mail.com",
+            submitted.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid()), submitted.CreatedAtUtc);
+        Assert.Equal("Checkout.NotOpen",
+            submitted.SetContact("otra@mail.com", null, null, null, false, submitted.CreatedAtUtc).Error.Code);
+        Assert.Equal("ana@mail.com", submitted.Email);
+    }
+
+    [Fact]
+    public void MarkSubmitted_cuenta_como_actividad()
+    {
+        var session = CreateSession();
+        var now = session.CreatedAtUtc.AddMinutes(5);
+
+        session.MarkSubmitted("ana@mail.com", session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid()), now);
+
+        Assert.Equal(now, session.LastActivityAtUtc);
+    }
+
+    [Fact]
+    public void HasLines_compara_productos_y_cantidades_sin_importar_el_orden()
+    {
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+        var session = CheckoutSession.Create(Tenant,
+        [
+            (a, "Bowl", "Chico", "BOWL-CH", Ars(100_000), 2),
+            (b, "Taza", "Única", "TAZA-01", Ars(50_000), 1),
+        ]).Value;
+
+        Assert.True(session.HasLines([(b, 1), (a, 2)]));
+        Assert.False(session.HasLines([(a, 2)]));
+        Assert.False(session.HasLines([(a, 1), (b, 1)]));
+    }
 }

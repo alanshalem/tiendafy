@@ -15,6 +15,12 @@ public sealed class WhatsAppNotifier(
     WhatsAppTokenProtector protector,
     ILogger<WhatsAppNotifier> logger)
 {
+    /// <summary>El recordatorio de carrito abandonado (tipo y plantilla de email se llaman igual).</summary>
+    public const string AbandonedCartType = "carritos-abandonados";
+
+    /// <summary>¿La tienda manda este tipo de mensaje? Conectada y con su plantilla prendida.</summary>
+    public async Task<bool> IsEnabledAsync(Guid tenantId, string type, CancellationToken ct = default) =>
+        await ResolveAsync(tenantId, type, ct) is not null;
 
     public async Task NotifyAsync(Order order, string type, CancellationToken ct = default)
     {
@@ -60,14 +66,14 @@ public sealed class WhatsAppNotifier(
             var to = WhatsAppSender.NormalizeArPhone(phone);
             if (to is null) return;
 
-            var setup = await ResolveAsync(tenantId, "carritos-abandonados", ct);
+            var setup = await ResolveAsync(tenantId, AbandonedCartType, ct);
             if (setup is null) return;
             var (conn, tpl) = setup.Value;
 
             await sender.SendTemplateAsync(
                 conn.PhoneNumberId, protector.Unprotect(conn.AccessTokenEncrypted),
                 to, tpl.MetaTemplateName, tpl.LanguageCode, [customerName, storeName], ct);
-            await CountAsync(tenantId, "carritos-abandonados", ct);
+            await CountAsync(tenantId, AbandonedCartType, ct);
         }
         catch (Exception ex)
         {

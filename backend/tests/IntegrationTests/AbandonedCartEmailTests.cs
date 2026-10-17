@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using Api.Notifications;
 using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +14,12 @@ namespace IntegrationTests;
 /// texto fijo, a todas las tiendas y sin mirar la lista de supresión: editar
 /// o apagar la plantilla en el panel no cambiaba nada, y quien se había dado
 /// de baja (o cuyo email rebotó) lo recibía igual.
+///
+/// <para>
+/// Le llega a todo el que dejó su email en el checkout, aunque se haya ido
+/// antes de tocar "Pagar", con el link para darse de baja; uno por comprador y
+/// nunca a quien terminó comprando.
+/// </para>
 /// </summary>
 [Collection("api")]
 public sealed class AbandonedCartEmailTests(ApiFactory factory)
@@ -62,6 +70,155 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Trae_el_link_para_darse_de_baja_y_la_baja_vale_para_el_proximo()
+    {
+        var (merchant, email, checkoutId) = await AbandonedCartAsync("acu");
+        await RunUntilProcessedAsync(checkoutId);
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email));
+        var token = WebUtility.HtmlDecode(
+            Regex.Match(mail.Html, "/api/v1/marketing/unsubscribe\\?token=([^'\"]+)").Groups[1].Value);
+        Assert.NotEmpty(token);
+        var shopper = new Shopper(merchant);
+        await shopper.ExpectOkAsync(HttpMethod.Post, $"/api/v1/marketing/unsubscribe?token={token}");
+
+        // Otra compra a medias del mismo comprador: dado de baja, ya no le llega.
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra", priceMinor: 9_000_00);
+        var next = await shopper.SaveContactAsync(variantId, email);
+        await BackdateAsync(next, hours: 2);
+        await RunUntilProcessedAsync(next);
+        Assert.Single(factory.ExternalHttp.EmailsTo(email));
+    }
+
+    /// <summary>
+    /// El checkout guarda el email apenas el comprador lo escribe: quien se va
+    /// antes de tocar "Pagar" (por ejemplo, al ver el envío) también recibe el
+    /// recordatorio. Antes la compra recién llegaba al servidor al pagar.
+    /// </summary>
+    [Fact]
+    public async Task Quien_se_va_antes_de_pagar_lo_recibe()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "acc");
+        var email = $"mirando-{merchant.Subdomain}@mail.com";
+        var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
+        var checkoutId = await new Shopper(merchant).SaveContactAsync(variantId, email);
+        await BackdateAsync(checkoutId, hours: 2);
+
+        await RunUntilProcessedAsync(checkoutId);
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email));
+        Assert.Contains("Mochila", mail.Html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Mientras_sigue_completando_el_checkout_no_sale()
+    {
+        // Dejó el email hace dos horas, pero hace un rato volvió a tocar algo:
+        // la hora se cuenta desde ahí.
+        var merchant = await Merchant.CreateAsync(factory, "acv");
+        var email = $"vuelve-{merchant.Subdomain}@mail.com";
+        var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
+        var shopper = new Shopper(merchant);
+        var checkoutId = await shopper.SaveContactAsync(variantId, email);
+        await BackdateAsync(checkoutId, hours: 2);
+        Assert.Equal(checkoutId, await shopper.SaveContactAsync(variantId, email, checkoutId, phone: "1155556666"));
+
+        for (var pass = 0; pass < 20; pass++) await Workers.RunOnceAsync<AbandonedCartWorker>(factory);
+
+        Assert.Empty(factory.ExternalHttp.EmailsTo(email));
+        using var scope = factory.Services.CreateScope();
+        var session = await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Sessions
+            .IgnoreQueryFilters().SingleAsync(s => s.Id == checkoutId);
+        Assert.Null(session.RecoveryEmailSentAtUtc);
+        Assert.Equal("1155556666", session.Phone);
+    }
+
+    /// <summary>
+    /// Dejó el email, después pagó (acá, una venta registrada con su email; con
+    /// transferencia o tarjeta es lo mismo): no se le recuerda nada. Antes cada
+    /// compra a medias contaba sola, y a quien reintentaba y pagaba le llegaba
+    /// igual "¿Te quedó algo en el carrito?".
+    /// </summary>
+    [Fact]
+    public async Task Si_compro_despues_no_lo_recibe_ni_aparece_en_el_panel()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "acb");
+        var email = $"compro-{merchant.Subdomain}@mail.com";
+        var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
+        var checkoutId = await new Shopper(merchant).SaveContactAsync(variantId, email);
+        await BackdateAsync(checkoutId, hours: 2);
+        await merchant.CreateSaleAsync(buyerEmail: email.ToUpperInvariant());
+
+        await RunUntilProcessedAsync(checkoutId);
+
+        Assert.DoesNotContain(factory.ExternalHttp.EmailsTo(email), m => m.Subject.Contains("carrito", StringComparison.Ordinal));
+        var carts = await merchant.GetAsync("/api/v1/stats/abandoned-carts?days=30");
+        Assert.Equal(0, carts.GetProperty("count").GetInt32());
+    }
+
+    /// <summary>
+    /// Pagar por transferencia deja un pedido esperando el pago, con sus propios
+    /// avisos (los datos para pagar, el vencimiento). Antes, a la hora le
+    /// llegaba además "¿Te quedó algo en el carrito?".
+    /// </summary>
+    [Fact]
+    public async Task Un_pedido_por_transferencia_no_es_un_carrito_abandonado()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "act");
+        await merchant.PutAsync("/api/v1/admin/payments/options", new
+        {
+            transferEnabled = true,
+            discountPercent = 0,
+            bankName = "Banco Nación",
+            accountHolder = "Tienda de Test SRL",
+            holderTaxId = "30-71234567-8",
+            cbu = "0110599520000012345678",
+            alias = "TIENDA.TEST.PAGOS",
+            instructions = "Mandanos el comprobante por WhatsApp.",
+            holdHours = 48,
+            cashOnPickupEnabled = false,
+            installmentsMax = 6,
+            installmentsNote = "Con tarjetas de crédito bancarias.",
+        });
+        var email = $"transfiere-{merchant.Subdomain}@mail.com";
+        var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
+        var shopper = new Shopper(merchant);
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: email);
+        await shopper.ExpectOkAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-offline", new { method = "transfer" });
+        await BackdateAsync(checkoutId, hours: 2);
+
+        await RunUntilProcessedAsync(checkoutId);
+
+        Assert.DoesNotContain(factory.ExternalHttp.EmailsTo(email), m => m.Subject.Contains("carrito", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Varias_compras_a_medias_del_mismo_comprador_un_solo_recordatorio()
+    {
+        // Armó una compra, cambió el carrito (otra compra) y se fue: un solo
+        // recordatorio, con lo último que dejó.
+        var merchant = await Merchant.CreateAsync(factory, "ac2");
+        var email = $"duda-{merchant.Subdomain}@mail.com";
+        var (_, mochila) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
+        var (_, gorra) = await merchant.CreateProductAsync("Gorra", priceMinor: 9_000_00);
+        var shopper = new Shopper(merchant);
+        var first = await shopper.SaveContactAsync(mochila, email);
+        var second = await shopper.SaveContactAsync(gorra, email, checkoutId: first);
+        Assert.NotEqual(first, second); // otro carrito: otra compra
+        await BackdateAsync(first, hours: 3);
+        await BackdateAsync(second, hours: 2);
+
+        await RunUntilProcessedAsync(first);
+        await RunUntilProcessedAsync(second);
+
+        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email));
+        Assert.Contains("Gorra", mail.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Mochila", mail.Html, StringComparison.Ordinal);
+        var carts = await merchant.GetAsync("/api/v1/stats/abandoned-carts?days=30");
+        Assert.Equal(1, carts.GetProperty("count").GetInt32());
+    }
+
+    [Fact]
     public async Task Una_direccion_suprimida_no_lo_recibe()
     {
         // Se dio de baja de una campaña (o rebotó): la supresión se guarda en
@@ -85,18 +242,19 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
 
     /// <summary>
     /// El WhatsApp de carrito abandonado es marketing para Meta: sale solo a
-    /// quien tildó "Quiero recibir novedades" en el checkout y no se dio de baja
+    /// quien tildó el aviso por WhatsApp junto al teléfono y no se dio de baja
     /// de las novedades de la tienda. Antes salía a cualquiera que hubiera
-    /// dejado su teléfono para el envío.
+    /// dejado su teléfono para el envío. El email no depende de eso.
     /// </summary>
     [Fact]
     public async Task El_WhatsApp_sale_solo_con_consentimiento()
     {
-        // Sin tildar: no sale.
-        var (silent, _, silentCheckout) = await AbandonedCartAsync("acw1", acceptsMarketing: false);
+        // Sin tildar: el WhatsApp no sale; el email, sí.
+        var (silent, silentEmail, silentCheckout) = await AbandonedCartAsync("acw1", acceptsWhatsApp: false);
         var silentMessages = await ConnectWhatsAppAsync(silent);
         await RunUntilProcessedAsync(silentCheckout);
         Assert.Empty(factory.ExternalHttp.SentTo(silentMessages));
+        Assert.Single(factory.ExternalHttp.EmailsTo(silentEmail));
 
         // Tildó, pero después se dio de baja de las novedades: tampoco.
         var (unsubscribed, unsubscribedEmail, unsubscribedCheckout) = await AbandonedCartAsync("acw2");
@@ -134,21 +292,29 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
     }
 
     /// <summary>Una tienda con un checkout completo y sin pagar de hace dos horas.</summary>
-    /// <param name="acceptsMarketing">Si el comprador tildó "Quiero recibir novedades".</param>
+    /// <param name="acceptsWhatsApp">Si el comprador tildó el aviso por WhatsApp.</param>
     private async Task<(Merchant Merchant, string Email, Guid CheckoutId)> AbandonedCartAsync(
-        string tag, bool upperCase = false, string? address = null, bool acceptsMarketing = true)
+        string tag, bool upperCase = false, string? address = null, bool acceptsWhatsApp = true)
     {
         var merchant = await Merchant.CreateAsync(factory, tag);
         var email = address ?? $"indeciso-{merchant.Subdomain}@mail.com";
         var (_, variantId) = await merchant.CreateProductAsync("Mochila", priceMinor: 40_000_00);
         var checkoutId = await new Shopper(merchant).CheckoutAsync(variantId,
-            email: upperCase ? email.ToUpperInvariant() : email, acceptsMarketing: acceptsMarketing);
+            email: upperCase ? email.ToUpperInvariant() : email, acceptsWhatsApp: acceptsWhatsApp);
+        await BackdateAsync(checkoutId, hours: 2);
+        return (merchant, email, checkoutId);
+    }
 
+    /// <summary>La compra se armó y se tocó por última vez hace tantas horas.</summary>
+    private async Task BackdateAsync(Guid checkoutId, int hours)
+    {
+        var at = DateTime.UtcNow.AddHours(-hours);
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
         await db.Sessions.IgnoreQueryFilters().Where(s => s.Id == checkoutId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedAtUtc, DateTime.UtcNow.AddHours(-2)));
-        return (merchant, email, checkoutId);
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.CreatedAtUtc, at)
+                .SetProperty(x => x.LastActivityAtUtc, at));
     }
 
     /// <summary>

@@ -134,7 +134,8 @@ function store(opts: Store = {}) {
   if (opts.payway) api.on('GET', '/api/v1/payments/payway/public-config', opts.payway);
   if (opts.methods) api.on('GET', '/api/v1/shipping/methods', opts.methods);
   if (opts.settings) api.on('GET', '/api/v1/checkout-settings', { ...settings, ...opts.settings });
-  api.on('POST', '/api/v1/checkout', { id: SESSION });
+  // La compra la arma el primer guardado de los datos de contacto.
+  api.on('POST', '/api/v1/checkout/contact', { id: SESSION });
   // Lo del carrito sigue a la venta al mismo precio: las variantes de LINE no
   // son las de la tienda exportada, y sin esto el repreciado las daría por
   // dadas de baja. Los tests de precios y stock lo pisan después.
@@ -433,7 +434,17 @@ describe('checkout: pago', () => {
     await user.click(screen.getByRole('button', { name: 'Pagar con Mercado Pago' }));
     await settle(3);
 
-    expect(posted('/api/v1/checkout/')).toEqual([{ lines: [{ variantId: LINE.variantId, quantity: 2 }] }]);
+    // Antes de cobrar, los datos de contacto con el carrito (sobre la compra
+    // que ya se había armado al escribir el email).
+    expect(posted('/api/v1/checkout/contact').at(-1)).toEqual({
+      checkoutId: SESSION,
+      lines: [{ variantId: LINE.variantId, quantity: 2 }],
+      email: 'ana@example.com',
+      name: 'Ana',
+      lastName: 'García',
+      phone: '1155554444',
+      acceptsWhatsApp: false,
+    });
     expect(posted('/submit')[0]).toMatchObject({
       email: 'ana@example.com',
       name: 'Ana',
@@ -444,8 +455,8 @@ describe('checkout: pago', () => {
       shippingMethodId: pickup.id,
       address: null,
       shippingQuoteToken: null,
-      // Sin tildar "Quiero recibir novedades": sin consentimiento.
-      acceptsMarketing: false,
+      // Sin tildar el aviso por WhatsApp: sin permiso.
+      acceptsWhatsApp: false,
     });
     expect(posted('/pay')[0]).toMatchObject({ couponCode: null, utmSource: 'instagram' });
     // La venta queda anotada con el id de la ORDEN: es el que vuelve en ?order=.
@@ -459,20 +470,70 @@ describe('checkout: pago', () => {
     expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 
-  it('"Quiero recibir novedades" arranca sin tildar y, tildado, viaja con la compra', async () => {
+  it('el email se guarda apenas lo escribe, una vez, aunque no llegue a pagar', async () => {
     store();
+    const user = await open();
+    // Debajo del email, para qué se usa.
+    expect(
+      screen.getByText(/si la dejás sin terminar, te mandamos un recordatorio\. Podés darte de baja/),
+    ).toBeInTheDocument();
+
+    await user.type(field('E-mail'), 'ana@example');
+    await user.tab();
+    expect(posted('/api/v1/checkout/contact')).toEqual([]); // todavía no es un email
+
+    await user.type(field('E-mail'), '.com');
+    await user.tab();
+    await settle(1);
+    expect(posted('/api/v1/checkout/contact')).toEqual([
+      {
+        checkoutId: null,
+        lines: [{ variantId: LINE.variantId, quantity: 2 }],
+        email: 'ana@example.com',
+        name: null,
+        lastName: null,
+        phone: null,
+        acceptsWhatsApp: false,
+      },
+    ]);
+
+    // Volver a pasar por el campo sin cambiar nada no lo manda de nuevo; el
+    // teléfono sí, sobre la misma compra.
+    await user.click(field('E-mail'));
+    await user.tab();
+    await user.type(field(/^Teléfono/), '1155554444');
+    await user.tab();
+    await settle(1);
+    const saved = posted('/api/v1/checkout/contact');
+    expect(saved).toHaveLength(2);
+    expect(saved[1]).toMatchObject({ checkoutId: SESSION, phone: '1155554444' });
+  });
+
+  it('sin el recordatorio por WhatsApp prendido en la tienda, no se ofrece el aviso', async () => {
+    store();
+    await open();
+    expect(screen.queryByRole('checkbox', { name: /por WhatsApp/ })).not.toBeInTheDocument();
+  });
+
+  it('el aviso por WhatsApp dice quién escribe, arranca sin tildar y, tildado, viaja con la compra', async () => {
+    store({ settings: { whatsAppReminders: true } });
     api.on('POST', `/api/v1/checkout/${SESSION}/pay`, {
       orderId: ORDER,
       initPoint: 'https://mp.example.com/pay/1',
     });
-    const user = await open();
-    const consent = screen.getByRole('checkbox', { name: /Quiero recibir novedades/ });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderInStore(<CheckoutClient tenantId={fixtureTenantId} storeName="Ferretería Ana" />);
+    await settle(4);
+    const consent = screen.getByRole('checkbox', {
+      name: 'Quiero que Ferretería Ana me avise por WhatsApp si dejo la compra sin terminar',
+    });
     expect(consent).not.toBeChecked();
     await user.click(consent);
     await deliverAndContinue(user);
+    expect(posted('/api/v1/checkout/contact').at(-1)).toMatchObject({ acceptsWhatsApp: true });
     await user.click(screen.getByRole('button', { name: 'Pagar con Mercado Pago' }));
     await settle(3);
-    expect(posted('/submit')[0]).toMatchObject({ acceptsMarketing: true });
+    expect(posted('/submit')[0]).toMatchObject({ acceptsWhatsApp: true });
   });
 
   it('si no hay stock, lo dice y deja reintentar', async () => {
@@ -487,7 +548,7 @@ describe('checkout: pago', () => {
   });
 
   it.each([
-    ['no se pudo iniciar', 'POST', '/api/v1/checkout', {}, 500, 'No se pudo iniciar el checkout.'],
+    ['no se pudo iniciar', 'POST', '/api/v1/checkout/contact', {}, 500, 'No se pudo iniciar el checkout.'],
     [
       'Mercado Pago no da link',
       'POST',

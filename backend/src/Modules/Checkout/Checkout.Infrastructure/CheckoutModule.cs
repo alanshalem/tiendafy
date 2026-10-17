@@ -1,4 +1,5 @@
 using Checkout.Core.Domain;
+using Checkout.Core.Features.SaveContact;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
 using Checkout.Infrastructure.Carriers;
@@ -23,6 +24,7 @@ public static class CheckoutModule
         services.AddScoped<IShipmentClaimRepository, ShipmentClaimRepository>();
         services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<SubmitCheckoutHandler>();
+        services.AddScoped<SaveCheckoutContactHandler>();
 
         AddCarriers(services);
 

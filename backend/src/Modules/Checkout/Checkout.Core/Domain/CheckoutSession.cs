@@ -25,7 +25,19 @@ public sealed class CheckoutSession : AggregateRoot
     public string Currency { get; private set; } = null!;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
-    /// <summary>Cuándo se mandó el email de recuperación (null = todavía no). Evita reenviar.</summary>
+
+    /// <summary>
+    /// Lo último que hizo el comprador en esta compra: armarla, dejar sus datos
+    /// (ver <see cref="SetContact"/>) o tocar "Pagar". El recordatorio de
+    /// carrito abandonado se cuenta desde acá y no desde que se armó: alguien
+    /// que dejó su email y sigue completando el checkout no abandonó nada.
+    /// </summary>
+    public DateTime LastActivityAtUtc { get; private set; }
+    /// <summary>
+    /// Cuándo se resolvió el recordatorio de carrito abandonado (null = todavía
+    /// no): se mandó, o se decidió no mandarlo (compró, se dio de baja, hay una
+    /// compra suya más nueva). Evita volver a mirarla.
+    /// </summary>
     public DateTime? RecoveryEmailSentAtUtc { get; private set; }
 
     // Datos del destinatario / facturación (checkout en pasos).
@@ -36,12 +48,13 @@ public sealed class CheckoutSession : AggregateRoot
     public string? Notes { get; private set; }
 
     /// <summary>
-    /// Si el comprador tildó "Quiero recibir novedades" en el checkout. Es el
-    /// consentimiento que piden los recordatorios de carrito abandonado (email
-    /// y WhatsApp): sin él, no se le escribe. Arranca en false: nadie lo da por
-    /// no tocar nada.
+    /// Si el comprador tildó, junto al teléfono, que la tienda le avise por
+    /// WhatsApp si deja la compra sin terminar. Meta cuenta ese mensaje como
+    /// marketing y exige que la persona lo haya aceptado: sin esto no sale.
+    /// Arranca en false: nadie lo acepta por no tocar nada. El email no depende
+    /// de esto (ver AbandonedCartWorker).
     /// </summary>
-    public bool AcceptsMarketing { get; private set; }
+    public bool AcceptsWhatsApp { get; private set; }
 
     // Envío elegido: snapshot de método y costo al momento del submit.
     public Guid? ShippingMethodId { get; private set; }
@@ -62,6 +75,7 @@ public sealed class CheckoutSession : AggregateRoot
         Currency = currency;
         ShippingCost = Money.Zero(currency);
         CreatedAtUtc = DateTime.UtcNow;
+        LastActivityAtUtc = CreatedAtUtc;
         ExpiresAtUtc = CreatedAtUtc + Ttl;
     }
 
@@ -108,9 +122,8 @@ public sealed class CheckoutSession : AggregateRoot
         if (nowUtc >= ExpiresAtUtc)
             return Result.Failure(Error.Conflict("Checkout.Expired", "La compra venció: volvé a empezar desde el carrito."));
 
-        var trimmed = email.Trim();
-        if (trimmed.Length < 5 || !trimmed.Contains('@'))
-            return Result.Failure(Error.Validation("Checkout.InvalidEmail", "Ingresá un email válido."));
+        var trimmed = NormalizeEmail(email);
+        if (trimmed.IsFailure) return trimmed;
 
         foreach (var item in _items)
         {
@@ -120,8 +133,9 @@ public sealed class CheckoutSession : AggregateRoot
             item.AttachReservation(reservationId);
         }
 
-        Email = trimmed;
+        Email = trimmed.Value;
         Status = CheckoutStatus.Submitted;
+        LastActivityAtUtc = nowUtc;
         // Enviada, la sesión vive lo que viven sus reservas (que nacen con el
         // mismo plazo justo antes): sin esto, una enviada al minuto 29 vencía
         // al 30 con el stock todavía reservado para pagar.
@@ -140,8 +154,52 @@ public sealed class CheckoutSession : AggregateRoot
         Notes = Text.Clip(notes, 500);
     }
 
-    /// <summary>Lo que respondió el comprador a "Quiero recibir novedades" (paso Entrega).</summary>
-    public void SetMarketingConsent(bool accepts) => AcceptsMarketing = accepts;
+    /// <summary>Lo que respondió el comprador al aviso por WhatsApp (paso Entrega).</summary>
+    public void SetWhatsAppConsent(bool accepts) => AcceptsWhatsApp = accepts;
+
+    /// <summary>
+    /// Los datos de contacto que el comprador va dejando antes de pagar: el
+    /// email apenas lo escribe; nombre, teléfono y el aviso por WhatsApp cuando
+    /// los completa. Antes solo llegaban al tocar "Pagar", y a quien se iba
+    /// antes (por ejemplo, al ver el costo del envío) no había a quién
+    /// recordarle la compra.
+    ///
+    /// <para>
+    /// Solo en una compra abierta: todavía no reservó nada, así que cada dato
+    /// nuevo le estira el plazo (sigue viva mientras el comprador sigue ahí).
+    /// </para>
+    /// </summary>
+    public Result SetContact(string? email, string? name, string? lastName, string? phone, bool acceptsWhatsApp, DateTime nowUtc)
+    {
+        if (Status != CheckoutStatus.Open || nowUtc >= ExpiresAtUtc)
+            return Result.Failure(Error.Conflict("Checkout.NotOpen", "Esta compra ya no se puede modificar."));
+
+        var trimmed = NormalizeEmail(email);
+        if (trimmed.IsFailure) return trimmed;
+
+        Email = trimmed.Value;
+        // Lo que no vino todavía no borra lo que ya estaba.
+        if (!string.IsNullOrWhiteSpace(name)) BuyerName = Text.Clip(name, 80);
+        if (!string.IsNullOrWhiteSpace(lastName)) BuyerLastName = Text.Clip(lastName, 80);
+        if (!string.IsNullOrWhiteSpace(phone)) Phone = Text.Clip(phone, 40);
+        AcceptsWhatsApp = acceptsWhatsApp;
+        LastActivityAtUtc = nowUtc;
+        ExpiresAtUtc = nowUtc + Ttl;
+        return Result.Success();
+    }
+
+    /// <summary>¿Esta compra tiene exactamente estos productos y cantidades?</summary>
+    public bool HasLines(IEnumerable<(Guid VariantId, int Quantity)> lines) =>
+        CartKey.Of(_items.Select(i => (i.VariantId, i.Quantity))) == CartKey.Of(lines);
+
+    /// <summary>El email sin espacios alrededor, o el error si no parece un email.</summary>
+    public static Result<string> NormalizeEmail(string? email)
+    {
+        var trimmed = (email ?? string.Empty).Trim();
+        return trimmed.Length < 5 || !trimmed.Contains('@')
+            ? Result.Failure<string>(Error.Validation("Checkout.InvalidEmail", "Ingresá un email válido."))
+            : trimmed;
+    }
 
     /// <summary>Snapshot del envío elegido: el costo queda congelado en la sesión.</summary>
     public Result SetShipping(Guid methodId, string methodName, Money cost, string? address)

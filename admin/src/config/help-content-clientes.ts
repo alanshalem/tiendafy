@@ -391,7 +391,7 @@ export const CLIENTES = {
         paragraphs: [
           'Los que salen hoy: Confirmación de compra, Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso (cuando reembolsás una venta entera) y Carritos abandonados.',
           'Confirmación de compra y Confirmación de pago salen en el mismo momento, cuando la venta queda pagada: son dos textos para elegir («recibimos tu pedido» o «acreditamos tu pago»). Prendé una sola; con las dos, al comprador le llegan dos mensajes. Las ventas de mostrador no mandan ninguna.',
-          'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta, y Meta exige que la persona haya aceptado recibirlo: por eso sale solo a quien tildó “Quiero recibir novedades” al comprar y no se dio de baja de tus novedades. Usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
+          'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta, y Meta exige que la persona haya aceptado recibirlo: por eso sale solo a quien tildó, junto al teléfono en el checkout, que le avises por WhatsApp si deja la compra sin terminar (la casilla aparece cuando prendés esta plantilla), y nunca a quien se dio de baja de tus novedades. Usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
         ],
       },
       {

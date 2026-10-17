@@ -162,7 +162,8 @@
       "customerNoteEnabled": true,
       "customerNoteLabel": "Aclaraciones sobre tu pedido",
       "orderMessageEnabled": false,
-      "orderMessageText": ""
+      "orderMessageText": "",
+      "whatsAppReminders": false
     },
     "/api/v1/admin/meli/claims": {
       "claims": [
@@ -1316,7 +1317,8 @@
       "customerNoteEnabled": true,
       "customerNoteLabel": "Aclaraciones sobre tu pedido",
       "orderMessageEnabled": false,
-      "orderMessageText": ""
+      "orderMessageText": "",
+      "whatsAppReminders": false
     },
     "/api/v1/contact/messages": {
       "items": [

@@ -268,10 +268,13 @@ que se envía (lo mismo que dura la reserva). `Open` → `Submitted` al reservar
 después `ExpiredCheckoutWorker` la cierra: `Completed` si terminó en una venta
 cobrada, `Expired` si venció sin reservas activas (una transferencia pendiente
 estira la reserva y la sesión espera). Una sesión vencida no se envía ni se
-paga ("La compra venció: volvé a empezar desde el carrito"); la tienda arma
-una sesión nueva en cada intento de pago, así que el comprador nunca queda
-trabado. Carritos abandonados cuenta todo lo que no es `Completed` y no tiene
-venta cobrada: las vencidas son carritos abandonados.
+paga ("La compra venció: volvé a empezar desde el carrito"); la tienda paga
+desde la sesión abierta mientras siga vigente y con el mismo carrito (cada
+dato de contacto le estira el plazo) y arma una nueva si no, o después de un
+intento enviado, así que el comprador nunca queda trabado. Carritos abandonados cuenta lo que no es `Completed` y no terminó en una
+compra, uno por comprador (`AbandonedCarts`): las vencidas son carritos
+abandonados. Una sesión nace cuando el comprador escribe su email
+(`POST /checkout/contact`), no recién al pagar.
 
 ## 5. Multi-tenancy
 

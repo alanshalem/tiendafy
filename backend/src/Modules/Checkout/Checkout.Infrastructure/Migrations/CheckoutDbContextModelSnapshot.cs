@@ -236,9 +236,9 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<bool>("AcceptsMarketing")
+                    b.Property<bool>("AcceptsWhatsApp")
                         .HasColumnType("boolean")
-                        .HasColumnName("accepts_marketing");
+                        .HasColumnName("accepts_whats_app");
 
                     b.Property<string>("BuyerLastName")
                         .HasMaxLength(80)
@@ -273,6 +273,10 @@ namespace Checkout.Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at_utc");
+
+                    b.Property<DateTime>("LastActivityAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_activity_at_utc");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
