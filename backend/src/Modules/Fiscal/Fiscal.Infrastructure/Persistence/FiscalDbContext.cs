@@ -67,7 +67,8 @@ public sealed class FiscalDbContext : DbContext
         ta.HasKey(x => x.Id);
         ta.Property(x => x.Id).ValueGeneratedNever();
         ta.Property(x => x.Cuit).HasMaxLength(11).IsRequired();
-        ta.Property(x => x.Service).HasMaxLength(20).IsRequired();
+        // "ws_sr_constancia_inscripcion" tiene 28 caracteres: con 20 no entraba.
+        ta.Property(x => x.Service).HasMaxLength(64).IsRequired();
         ta.Property(x => x.Environment).HasConversion<string>().HasMaxLength(15);
         ta.Property(x => x.TokenEncrypted).HasColumnType("text").IsRequired();
         ta.Property(x => x.SignEncrypted).HasColumnType("text").IsRequired();
