@@ -162,8 +162,10 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             // (con sus ítems) para que un SaveChanges posterior del mismo
             // request no la vuelva a intentar, y se sigue con la que ganó. El
             // número de pedido que llegó a reservar queda sin usar: un salto
-            // en la numeración es mejor que una venta duplicada.
-            foreach (var item in order.Items) context.Entry(item).State = EntityState.Detached;
+            // en la numeración es mejor que una venta duplicada. Los ítems se
+            // copian antes: soltar uno lo saca de order.Items (EF arregla la
+            // navegación) y recorrer la colección original tiraba.
+            foreach (var item in order.Items.ToList()) context.Entry(item).State = EntityState.Detached;
             context.Entry(order).State = EntityState.Detached;
             var winner = await GetByCheckoutSessionAsync(order.TenantId, order.CheckoutSessionId, ct)
                 ?? throw new InvalidOperationException(
