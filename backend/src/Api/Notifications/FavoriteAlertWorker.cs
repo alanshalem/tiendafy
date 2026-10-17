@@ -2,6 +2,7 @@ using Api.Workers;
 using Catalog.Infrastructure.Persistence;
 using Customers.Infrastructure;
 using Inventory.Core.Domain;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using SharedKernel.Common;
@@ -15,7 +16,8 @@ namespace Api.Notifications;
 /// El favorito es la señal de intención de compra más fuerte que tiene una
 /// tienda, y durante mucho tiempo no hizo nada: el corazón quedaba guardado en
 /// la base y nadie se enteraba. Los dos avisos son opt-in por tienda (como
-/// todos los emails automáticos) y respetan la lista de bajas.
+/// todos los emails automáticos), respetan la lista de bajas y llevan el link
+/// para darse de baja.
 ///
 /// Cada favorito recuerda lo último que vio (precio y si estaba agotado): la
 /// primera pasada solo mira y anota, sin escribirle a nadie.
@@ -79,6 +81,8 @@ public sealed class FavoriteAlertWorker(
 
         var templates = sp.GetRequiredService<IEmailTemplates>();
         var sender = sp.GetRequiredService<BrandedEmailSender>();
+        var dp = sp.GetRequiredService<IDataProtectionProvider>();
+        var apiBase = sp.GetRequiredService<StoreLinks>().ApiBase;
         var now = DateTime.UtcNow;
         var sent = 0;
 
@@ -106,7 +110,8 @@ public sealed class FavoriteAlertWorker(
                 var rendered = await templates.RenderAsync(tenantId, alert, vars, ct);
                 if (rendered is { Enabled: true })
                 {
-                    await sender.SendAsync(tenantId, person.Email, rendered.Subject, rendered.Html, ct);
+                    await sender.SendAsync(tenantId, person.Email, rendered.Subject,
+                        rendered.Html + UnsubscribeToken.Footer(dp, apiBase, tenantId, person.Email), ct, alert);
                     favorite.MarkAlerted(now);
                     sent++;
                 }

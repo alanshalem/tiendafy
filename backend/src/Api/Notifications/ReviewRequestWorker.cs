@@ -134,7 +134,6 @@ public sealed class ReviewRequestWorker(
             else
             {
                 var token = ReviewInviteToken.Protect(dp, tenantId, order.Id);
-                var unsubscribe = UnsubscribeToken.Protect(dp, tenantId, order.BuyerEmail);
                 var vars = new Dictionary<string, string>
                 {
                     ["store"] = Enc(store.Name),
@@ -152,7 +151,7 @@ public sealed class ReviewRequestWorker(
                     continue;
                 }
 
-                var html = rendered.Html + UnsubscribeFooter($"{apiBase}/api/v1/marketing/unsubscribe?token={Uri.EscapeDataString(unsubscribe)}");
+                var html = rendered.Html + UnsubscribeToken.Footer(dp, apiBase, tenantId, order.BuyerEmail);
                 await sender.SendAsync(tenantId, order.BuyerEmail, rendered.Subject, html, ct, ReviewEndpoints.ReviewRequestTemplate);
                 outcome = "sent";
                 sent++;
@@ -186,7 +185,4 @@ public sealed class ReviewRequestWorker(
         }
         return sb.Append("</table>").ToString();
     }
-
-    private static string UnsubscribeFooter(string url) =>
-        $"<p style='color:#a1a1aa;font-size:12px;margin-top:24px'>¿No querés recibir estos emails? <a href='{Enc(url)}' style='color:#a1a1aa'>Darme de baja</a>.</p>";
 }
