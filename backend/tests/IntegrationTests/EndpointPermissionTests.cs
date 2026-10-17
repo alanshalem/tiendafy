@@ -49,6 +49,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
         [
             "GET /api/v1/checkout/{id:guid}",
             "POST /api/v1/checkout/",
+            "POST /api/v1/checkout/contact",
             "POST /api/v1/checkout/{id:guid}/pay",
             "POST /api/v1/checkout/{id:guid}/pay-onsite",
             "POST /api/v1/checkout/{id:guid}/pay-payway",
