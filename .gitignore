@@ -41,12 +41,6 @@ out/
 !.env.example
 !.env.*.example
 
-# Terraform
-terraform.tfstate*
-.terraform/
-.terraform.lock.hcl
-crash.log
-
 # Docker
 docker-compose.override.yml
 
@@ -75,14 +69,6 @@ Thumbs.db
 *.sql.gz
 *.dump
 infra/docker/backups/
-
-# Local uploads
-uploads/
-tmp/
-
-# Redis persistence
-dump.rdb
-appendonly.aof
 
 # SSL certs (local dev)
 *.pem
