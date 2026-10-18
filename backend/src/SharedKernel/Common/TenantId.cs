@@ -13,7 +13,5 @@ public readonly record struct TenantId(Guid Value)
             ? throw new ArgumentException("TenantId cannot be empty.", nameof(value))
             : new TenantId(value);
 
-    public static TenantId Parse(string value) => From(Guid.Parse(value));
-
     public override string ToString() => Value.ToString();
 }
