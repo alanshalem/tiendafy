@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using System.Text.Json;
 using Api.Fiscal;
 using Fiscal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

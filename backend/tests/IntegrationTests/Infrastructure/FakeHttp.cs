@@ -32,8 +32,6 @@ public sealed class FakeHttp
     /// <summary>Un pedido que salió hacia afuera, con su cuerpo ya leído.</summary>
     public sealed record Recorded(HttpMethod Method, Uri Uri, string? Body, IReadOnlyDictionary<string, string> Headers);
 
-    public IReadOnlyCollection<Recorded> Requests => _requests;
-
     /// <summary>Responde a <paramref name="method"/> sobre cualquier URL que empiece con <paramref name="urlPrefix"/>.</summary>
     public void On(HttpMethod method, string urlPrefix, Func<HttpRequestMessage, string?, HttpResponseMessage> respond) =>
         _routes[$"{method} {urlPrefix}"] = respond;
