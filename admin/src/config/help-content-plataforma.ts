@@ -83,12 +83,12 @@ export const PLATAFORMA = {
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Staging y producción corren exactamente las mismas imágenes, y tu máquina el mismo código. Lo único que cambia es el archivo de configuración: qué base de datos usan, a qué bucket de imágenes escriben y si las credenciales de cobro son reales o de prueba.',
+            text: 'Staging y producción corren exactamente las mismas imágenes, y tu máquina el mismo código. Lo único que cambia es el archivo de configuración: qué base de datos usan, a qué bucket de imágenes escriben y si las credenciales de cobro son reales o de prueba. Esa configuración entra al arrancar, nunca al compilar: la tienda la lee de sus variables PUBLIC_* y el panel reescribe su config.js cada vez que arranca su contenedor.',
           },
           {
             type: 'callout',
             tone: 'info',
-            text: 'Hoy el servidor corre solo producción: staging quedó pospuesto para no quedarse sin memoria. Todo está preparado para prenderlo cuando haga falta: completar su archivo de variables y sumar su sitio en el borde.',
+            text: 'Producción está abierta al público desde el 13 de octubre de 2026, con el borde (Caddy) delante. Hoy el servidor corre solo producción: staging quedó pospuesto para no quedarse sin memoria. Todo está preparado para prenderlo cuando haga falta: completar su archivo de variables y sumar su sitio en el borde.',
           },
         ],
       },
@@ -172,10 +172,7 @@ export const PLATAFORMA = {
           {
             type: 'checklist',
             items: [
-              'Un medio de cobro conectado y probado con una compra real de monto chico',
-              'Al menos un medio de envío configurado, con un envío de prueba generado',
-              'Facturación con el certificado de producción, no el de pruebas',
-              'Emails llegando de verdad: dominio del remitente verificado',
+              'Cobros, envíos, facturación, imágenes y emails verificados con el artículo «Checklist antes de cobrar y despachar de verdad»',
               'La tienda abre en su dirección definitiva, con el candado de seguridad',
               'Un segundo dueño cargado en Configuración → Usuarios',
               'Razón social, CUIT y domicilio cargados en Configuración → Datos legales',
@@ -216,21 +213,26 @@ export const PLATAFORMA = {
               ['SDK de .NET 10', 'Compila y corre la API', 'dotnet --version'],
               [
                 'Node 26',
-                'Corre el panel y las tiendas. pnpm, el instalador de paquetes, lo instala el setup si falta',
+                'Corre el panel y las tiendas. pnpm 12, el instalador de paquetes, lo instala el setup si falta (la versión exacta la fija package.json)',
                 'node --version',
               ],
             ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El paso a paso completo, con las opciones de cada script y los problemas comunes, está en la guía docs/primeros-pasos.md del repositorio. Acá va lo indispensable.',
           },
         ],
       },
       {
         heading: 'La primera vez',
         paragraphs: [
-          'Un solo comando deja todo listo: verifica que estén las herramientas, levanta la infraestructura, instala las dependencias, compila y corre los tests. Si algo falta, avisa cuál.',
+          'Un solo comando deja todo listo: verifica que estén las herramientas, levanta la infraestructura (Postgres 18, MinIO y pgAdmin), instala las dependencias, compila la API y corre sus tests. Si algo falta, avisa cuál.',
         ],
         steps: [
           'Clonar el repositorio y entrar a la carpeta.',
-          'Correr setup.ps1 en Windows, o setup.sh en Linux y Mac.',
+          'Correr setup.ps1 en Windows, o setup.sh en Linux y Mac (con -SkipTests, o --skip-tests, saltea los tests).',
           'Esperar. La primera vez baja bastante: contenedores, paquetes de .NET y de Node.',
         ],
         blocks: [
