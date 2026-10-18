@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using Api.Notifications;
 using Checkout.Infrastructure.Persistence;
@@ -275,6 +276,23 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
         var body = Assert.Single(factory.ExternalHttp.SentTo(agreedMessages)).Body!;
         Assert.Contains("carrito_olvidado", body, StringComparison.Ordinal);
         Assert.Contains("5491155556666", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Guardar_el_email_tiene_cupo_por_IP()
+    {
+        // Cada guardado puede terminar en un recordatorio a ese email: sin cupo,
+        // alguien podría cargar emails ajenos en masa. Con un cupo de 2, el
+        // tercero de la misma IP se frena (los rechazados también cuentan).
+        await using var app = factory.WithWebHostBuilder(b =>
+            b.UseSetting("RateLimiting:CheckoutContactPermitLimit", "2"));
+        var client = app.CreateClient();
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 3; i++)
+            statuses.Add((await client.PostAsJsonAsync("/api/v1/checkout/contact", new { email = "no-es-un-email" })).StatusCode);
+
+        Assert.DoesNotContain(HttpStatusCode.TooManyRequests, statuses.Take(2));
+        Assert.Equal(HttpStatusCode.TooManyRequests, statuses[2]);
     }
 
     // ---------------------------------------------------------------- helpers

@@ -238,6 +238,7 @@ public static class ServiceRegistration
         // 127.0.0.1). Los defaults son los valores de prod.
         var auth = configuration?.GetValue("RateLimiting:AuthPermitLimit", 10) ?? 10;
         var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
+        var checkoutContact = configuration?.GetValue("RateLimiting:CheckoutContactPermitLimit", 30) ?? 30;
         var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
 
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
@@ -282,6 +283,13 @@ public static class ServiceRegistration
             // Pagos: frena card-testing (probar tarjetas robadas contra pay-onsite) sin
             // molestar a un comprador real. Por IP+ruta, más laxo que "auth".
             options.AddPolicy("payments", ctx => PerIpPerPath(ctx, payments));
+
+            // Datos de contacto del checkout: guarda un email y le manda el
+            // recordatorio de carrito abandonado, así que sin cupo alguien
+            // podría cargar emails ajenos en masa. Más laxo que "payments": un
+            // comprador real lo llama varias veces (email, nombre, teléfono, el
+            // aviso por WhatsApp y al pagar), y si se agota no puede pagar.
+            options.AddPolicy("checkout-contact", ctx => PerIpPerPath(ctx, checkoutContact));
         });
         return services;
     }

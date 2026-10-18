@@ -53,7 +53,7 @@ public static class CheckoutEndpoints
                 request.Lines?.Select(l => new StartCheckoutLine(l.VariantId, l.Quantity)).ToList() ?? [],
                 request.Email, request.Name, request.LastName, request.Phone, request.AcceptsWhatsApp), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
-        });
+        }).RequireRateLimiting("checkout-contact");
 
         checkout.MapGet("/{id:guid}", async (
             Guid id,

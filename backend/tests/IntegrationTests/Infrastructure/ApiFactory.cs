@@ -69,6 +69,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // (10 cada 5 min) la suite empieza a fallar con 429 al crecer, por algo
         // que en producción es justamente lo que se quiere.
         builder.UseSetting("RateLimiting:AuthPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:CheckoutContactPermitLimit", "10000");
         builder.UseSetting("RateLimiting:GlobalPermitLimit", "100000");
         // Mercado Pago "configurado" con credenciales de mentira: las llamadas
         // van al fake, y el secreto permite firmar webhooks como lo hace MP.
