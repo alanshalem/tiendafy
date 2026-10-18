@@ -20,6 +20,8 @@ describe('cn', () => {
     expect(cn('text-fg-muted', 'text-fg')).toBe('text-fg');
     expect(cn('shadow-card', 'shadow-overlay')).toBe('shadow-overlay');
     expect(cn('h-header', 'h-10')).toBe('h-10');
+    expect(cn('text-fg', 'text-primary-ink')).toBe('text-primary-ink');
+    expect(cn('text-fg-muted', 'text-status-fg')).toBe('text-status-fg');
   });
 
   // El caso que rompió los <select>: la posición del fondo se llevaba puesto al
