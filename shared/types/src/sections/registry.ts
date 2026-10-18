@@ -485,9 +485,6 @@ export type PromoBannersData = DataOf<typeof promoBannersFields>;
 export type PromoBannerItem = PromoBannersData['banners'][number];
 export type CategoryBannersData = DataOf<typeof categoryBannersFields>;
 export type CategoryBannerItem = CategoryBannersData['banners'][number];
-/** Nombres de antes (cuando las dos grillas compartían forma). */
-export type BannersData = PromoBannersData;
-export type BannerItem = PromoBannerItem;
 export type InstitutionalData = DataOf<typeof institutionalFields>;
 export type ImageTextData = DataOf<typeof imageTextFields>;
 export type InfoBarData = DataOf<typeof infoBarFields>;
