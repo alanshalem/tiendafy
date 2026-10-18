@@ -233,7 +233,7 @@ export const VENTAS = {
           'Elegí “Cuánto te guardamos el stock” esperando el pago (de 12 horas a una semana).',
           'En el checkout el comprador elige Transferencia, ve el total con descuento y toca “Confirmar pedido”. Le mostramos los datos de tu cuenta en la pantalla final y se los mandamos por email (plantilla “Instrucciones de pago”). Los datos de la cuenta no se publican en la tienda.',
           'El pedido queda en Ventas como Pendiente, con el aviso “falta registrar el pago” y hasta cuándo. Cuando ves la plata en tu cuenta, abrí la venta y tocá “Registrar pago”: pasa a Pagada, descuenta el stock, le avisa al comprador y, si facturás al cobrar, se factura.',
-          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta (al comprador siempre le avisamos por email que se canceló porque venció el plazo: con tu texto si prendiste la plantilla “Cancelación de compra”; si no, con uno estándar que le dice qué hacer si ya había pagado). También podés cancelarla vos con “Cancelar venta”.',
+          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta (al comprador siempre le avisamos por email que se canceló porque venció el plazo y qué hacer si ya había pagado; lo cuenta el artículo «E-mails automáticos»). También podés cancelarla vos con “Cancelar venta”.',
         ],
         blocks: [
           {
@@ -392,8 +392,7 @@ export const VENTAS = {
         paragraphs: [
           'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional), y la orden pasa a “Reembolsada” o “Reembolso parcial”. Qué pasa con la plata depende de cómo se cobró: si se pagó online, vuelve por el mismo medio (Mercado Pago o Payway) a la tarjeta o cuenta del comprador; si fue en efectivo o por transferencia, la devolvés vos; si fue en cuenta corriente, se le baja la deuda al cliente.',
           'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo.',
-          'Cuando la venta queda reembolsada del todo, le avisamos al comprador por email (con tu plantilla “Cancelación de compra” si la tenés prendida; si no, con un aviso estándar de reembolso). Las ventas de mostrador sin email no reciben aviso.',
-          'Si devolvés una parte, al comprador le llega un email con cuánto le devolviste y por dónde vuelve la plata (Mercado Pago, la tarjeta, efectivo, transferencia o su cuenta corriente). Uno por cada reembolso, también si lo hiciste directo en Mercado Pago. El motivo que escribís no se le muestra. Sale siempre: con tu texto si prendiste la plantilla “Reembolso parcial” en Configuración → E-mails automáticos; si no, con uno estándar.',
+          'Al comprador siempre le llega un email: cuando la reembolsás entera y por cada devolución parcial, con cuánto le devolviste y por dónde vuelve la plata. El motivo que escribís no se le muestra, y las ventas de mostrador sin email no reciben nada. Qué dice cada aviso y cómo poner tu propio texto lo explica el artículo «E-mails automáticos».',
           'Si la venta estaba facturada, cada reembolso (total o parcial) tiene su nota de crédito por el monto devuelto: sale sola si la tienda factura automáticamente; si no, el diálogo trae tildada “Emitir la nota de crédito por este monto” (la ve quien puede facturar). Lo que quede devuelto sin nota de crédito se avisa en la venta (“Hay $… devueltos sin nota de crédito”) y aparece en el filtro “Devueltas sin nota de crédito” de Ventas. Desde la venta, “Emitir nota de crédito” la emite por lo devuelto, o por otro monto si es un ajuste (un precio corregido), hasta lo que queda de la factura.',
         ],
         blocks: [
@@ -428,7 +427,7 @@ export const VENTAS = {
         heading: 'Cancelar una venta que no se cobró',
         paragraphs: [
           'Una venta pendiente de pago (por ejemplo, un link de Mercado Pago que el cliente nunca pagó, o una transferencia que no llegó) se cancela desde su detalle con “Cancelar venta”. Podés dejar un motivo. Lo puede hacer quien tiene el permiso de registrar ventas a mano o el de devolver plata.',
-          'Al cancelarla se anula el link de pago (deja de aceptar pagos), se libera el stock que tenía reservado y queda escrito quién la canceló, cuándo y por qué. Al comprador le llega un email avisándole que la venta se canceló (el motivo que escribiste no se le muestra): con tu texto si prendiste la plantilla “Cancelación de compra”; si no, con uno estándar. Una venta ya cobrada no se cancela: se reembolsa.',
+          'Al cancelarla se anula el link de pago (deja de aceptar pagos), se libera el stock que tenía reservado y queda escrito quién la canceló, cuándo y por qué. Al comprador le llega un email avisándole que la venta se canceló (el motivo que escribiste no se le muestra; el texto se edita en la plantilla “Cancelación de compra” de E-mails automáticos). Una venta ya cobrada no se cancela: se reembolsa.',
         ],
         blocks: [
           {
