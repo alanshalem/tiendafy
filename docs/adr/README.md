@@ -10,7 +10,7 @@ se marca como reemplazada y se escribe un ADR nuevo.
 
 ## Lista
 
-| # | Título | Estado al 16-oct-2026 |
+| # | Título | Estado al 18-oct-2026 |
 | --- | --- | --- |
 | [0001](./0001-monolito-modular-en-dotnet.md) | Monolito modular en .NET | Vigente. 21 módulos; el host Worker con broker lo reemplazó 0005; fronteras verificadas por tests |
 | [0002](./0002-next-y-vite.md) | Storefront en Next.js + panel en Vite | Vigente. Next 16 con App Router y Data Cache, no SSG/ISR por build ni CDN |

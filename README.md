@@ -2,7 +2,7 @@
 
 Plataforma de e-commerce de una importadora argentina para operar varias
 tiendas propias (una por rubro) desde un solo panel: tienda online por
-subdominio o dominio propio, checkout con Mercado Pago, Payway y transferencia,
+subdominio o dominio propio, checkout con Mercado Pago, Payway, transferencia o efectivo,
 envíos (Correo Argentino, Andreani, Zipnova), facturación electrónica ARCA,
 Mercado Libre, compras, tesorería y marketing. En producción desde
 octubre de 2026.
@@ -56,3 +56,4 @@ pnpm test:smoke                      # solo los e2e @smoke
 - [docs/README.md](./docs/README.md) — índice de toda la documentación.
 - [docs/configuracion.md](./docs/configuracion.md) — variables de entorno y credenciales.
 - [docs/tests.md](./docs/tests.md) — tests y CI.
+- [AGENTS.md](./AGENTS.md) — lo que un agente de código (o una persona) tiene que saber antes de tocar el repo.
