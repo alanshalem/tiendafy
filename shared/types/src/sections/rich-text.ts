@@ -41,20 +41,6 @@ export interface RichDoc {
   content: RichBlock[];
 }
 
-/** Los nombres de nodos y marcas que se aceptan (los mismos que valida el backend). */
-export const RICH_NODES = [
-  'doc',
-  'paragraph',
-  'heading',
-  'bulletList',
-  'orderedList',
-  'listItem',
-  'blockquote',
-  'text',
-  'hardBreak',
-] as const;
-export const RICH_MARKS = ['bold', 'italic', 'link'] as const;
-
 export const emptyRichDoc = (): RichDoc => ({ type: 'doc', content: [] });
 
 const isObj = (v: unknown): v is Record<string, unknown> =>

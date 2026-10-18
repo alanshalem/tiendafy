@@ -100,7 +100,3 @@ export async function resolvePageTheme(
   if (draft) return { theme: draft, preview: true };
   return { theme: await fetchPublishedTheme(tenantId), preview: false };
 }
-
-// Lo que se usa también en el navegador (colores, columnas, variables CSS)
-// vive en theme-style: re-exportado para quien lo importaba de acá.
-export { buttonVars, colClass, mutedText, primaryInk, productGridClass, themeToStyle } from './theme-style';

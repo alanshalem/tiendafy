@@ -35,8 +35,6 @@ export type {
   CarouselData,
   CarouselSlide,
   ProductsData,
-  BannersData,
-  BannerItem,
   PromoBannersData,
   PromoBannerItem,
   CategoryBannersData,
@@ -86,15 +84,7 @@ export type { ThemeMigration, RawTheme } from './migrations';
 export { HOME_TEMPLATES, templateSections } from './templates';
 export type { HomeTemplate } from './templates';
 export { buildThemeContract, defaultThemeConfig } from './contract';
-export {
-  RICH_MAX_DEPTH,
-  RICH_NODES,
-  RICH_MARKS,
-  emptyRichDoc,
-  normalizeRichDoc,
-  richDocText,
-  richDocFromText,
-} from './rich-text';
+export { RICH_MAX_DEPTH, emptyRichDoc, normalizeRichDoc, richDocText, richDocFromText } from './rich-text';
 export type { RichDoc, RichBlock, RichInline, RichListItem, RichMark, RichHeadingLevel } from './rich-text';
 export {
   isoToArgentinaLocal,

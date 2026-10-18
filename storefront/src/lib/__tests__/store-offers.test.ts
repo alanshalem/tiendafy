@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '@tiendafy/types';
 import { applyStoreOffers, offersOf, offlineDiscountLabel, type StoreOffers } from '../store-offers';
-import { defaultTheme, themeToStyle } from '../theme';
+import { defaultTheme } from '../theme';
+import { themeToStyle } from '../theme-style';
 
 const theme = {
   ...defaultTheme,

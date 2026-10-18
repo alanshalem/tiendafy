@@ -7,7 +7,7 @@ import type { SectionType, ThemeSection } from '@tiendafy/types';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HomeSections } from '../components/store/sections';
+import { HomeSections } from '../components/store/HomeSections';
 import { defaultTheme } from '../lib/theme';
 import { mockApi } from '../test/api';
 import { watchCrashes } from '../test/explore';

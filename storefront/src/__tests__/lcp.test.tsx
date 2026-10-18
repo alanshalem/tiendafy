@@ -5,7 +5,7 @@
  */
 import type { SectionType, ThemeSection } from '@tiendafy/types';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { HomeSections } from '../components/store/sections';
+import { HomeSections } from '../components/store/HomeSections';
 import { Footer } from '../components/store/StoreFooter';
 import { defaultTheme } from '../lib/theme';
 import { mockApi } from '../test/api';

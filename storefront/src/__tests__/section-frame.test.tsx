@@ -7,7 +7,7 @@
 import type { ThemeSection } from '@tiendafy/types';
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HomeSections } from '../components/store/sections';
+import { HomeSections } from '../components/store/HomeSections';
 import { PreviewContext } from '../components/store/preview';
 import { defaultTheme, mergeTheme } from '../lib/theme';
 import { mockApi } from '../test/api';

@@ -17,7 +17,7 @@ export interface CardChallengeData {
   creq: string;
 }
 
-export type ChallengeOutcome = 'success' | 'pending' | 'failure';
+type ChallengeOutcome = 'success' | 'pending' | 'failure';
 
 /**
  * El desafío 3DS del banco ("confirmá que sos vos"), dentro de la tienda.

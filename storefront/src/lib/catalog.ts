@@ -56,17 +56,6 @@ interface CursorPage {
   hasMore: boolean;
 }
 
-/**
- * Los slugs de TODOS los productos activos, recorriendo el cursor de a cien
- * (el tope por página del backend). Lo usa el sitemap: antes pedía una sola
- * página, y una tienda con miles de productos le mostraba a Google los
- * primeros cien. Si una página falla a mitad de camino, devuelve lo que juntó:
- * un sitemap incompleto es mejor que uno vacío.
- */
-export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_URLS): Promise<string[]> {
-  return (await fetchAllActiveEntries(tenantId, max)).map((e) => e.slug);
-}
-
 /** Un producto en el sitemap: su slug y cuándo cambió por última vez (si la API lo dice). */
 interface SitemapEntry {
   slug: string;
@@ -75,9 +64,15 @@ interface SitemapEntry {
 }
 
 /**
- * Lo mismo que fetchAllActiveSlugs, con la fecha del último cambio de cada
- * producto: el lastmod del sitemap, para que Google vuelva primero a lo que
- * cambió (un precio, una foto) en vez de recorrer todo igual.
+ * TODOS los productos activos, recorriendo el cursor de a cien (el tope por
+ * página del backend). Lo usa el sitemap: antes pedía una sola página, y una
+ * tienda con miles de productos le mostraba a Google los primeros cien. Si una
+ * página falla a mitad de camino, devuelve lo que juntó: un sitemap incompleto
+ * es mejor que uno vacío.
+ *
+ * Con la fecha del último cambio de cada producto: el lastmod del sitemap,
+ * para que Google vuelva primero a lo que cambió (un precio, una foto) en vez
+ * de recorrer todo igual.
  */
 export async function fetchAllActiveEntries(
   tenantId: string,

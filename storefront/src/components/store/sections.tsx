@@ -8,7 +8,6 @@ import { PreviewContext } from './preview';
 import { DarkPageContext, LeadSectionContext } from './section-context';
 import { SectionBody } from './section-body';
 export type { StoreProduct } from './ProductCard';
-export { HomeSections } from './HomeSections';
 
 /*
  * Cada tipo de sección tiene su renderer en ./sections/<tipo>.tsx y su
