@@ -9,7 +9,7 @@ export const CLIENTES = {
       {
         heading: 'Cuentas de cliente',
         paragraphs: [
-          'Tus compradores pueden crear una cuenta en tu tienda (email y contraseña, con verificación por email, o con su cuenta de Google si la plataforma lo tiene activado). Con cuenta ven sus pedidos, guardan favoritos y sus direcciones (el checkout se las completa solo) y acceden al chat posventa.',
+          'Tus compradores pueden crear una cuenta en tu tienda (email y contraseña, con verificación por email, o con su cuenta de Google si la plataforma lo tiene activado). Con cuenta ven sus pedidos, guardan favoritos y sus direcciones (el checkout se las completa solo) y te escriben por el chat posventa, que les queda a mano en “Mis conversaciones”.',
           'Sin cuenta también pueden seguir su compra: el link “Seguí tu pedido” de los emails abre el estado del pedido sin pedir datos.',
         ],
       },
@@ -19,7 +19,7 @@ export const CLIENTES = {
           'En Clientes ves y buscás tu agenda por nombre, email o teléfono. Cada venta pagada crea o actualiza sola la ficha del comprador, así la agenda se arma vendiendo.',
           'Al lado de cada cliente están sus compras, el total que gastó (descontando reembolsos) y la fecha de su última compra. Tocá el encabezado de esas columnas para ordenar: por ejemplo, los que más gastaron primero.',
           'El selector de segmento filtra lo que más se pregunta: los que compraron hace más de 90 o 180 días (a quién volver a escribirle), los que compraron 2 o 3 veces o más (tus fieles) y los que todavía no compraron. Si usás etiquetas, también podés filtrar por etiqueta. “Exportar” baja exactamente lo filtrado.',
-          'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo).',
+          'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo). El menú ⋮ de cada cliente tiene “Ver ficha”, “Editar” y “Eliminar”.',
         ],
         blocks: [
           { type: 'path', segments: ['Clientes'] },
@@ -50,13 +50,13 @@ export const CLIENTES = {
       {
         heading: 'Lista de precios del cliente',
         paragraphs: [
-          'Si a un cliente le asignás una lista de precios (por ejemplo “Mayorista”) —en “Editar cliente”, campo “Lista de precios”—, las ventas manuales y los presupuestos que le hagas usan esos precios solos. La tienda online sigue mostrando el precio de lista. Más en el artículo “Listas de precios”.',
+          'Si a un cliente le asignás una lista de precios (por ejemplo “Mayorista”) —con “Editar datos” en su ficha, campo “Lista de precios”—, las ventas manuales y los presupuestos que le hagas usan esos precios solos. La tienda online sigue mostrando el precio de lista. Más en el artículo “Listas de precios”.',
         ],
       },
       {
         heading: 'Exportar',
         paragraphs: [
-          '“Exportar” baja la agenda en un CSV que se abre directo en Excel. Lo que te debe cada cliente no está acá: está en Tesorería → Cuentas corrientes.',
+          '“Exportar” baja la agenda en un CSV que se abre directo en Excel, con la búsqueda, el segmento y la etiqueta que tengas puestos. Lo que te debe cada cliente no está acá: está en Tesorería → Cuentas corrientes.',
         ],
       },
     ],
