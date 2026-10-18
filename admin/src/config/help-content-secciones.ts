@@ -331,7 +331,7 @@ export const SECCIONES = {
       {
         heading: 'Pop-up promocional',
         paragraphs: [
-          'Una ventana que aparece encima de la página con una imagen, un título, un texto y un botón. Puede mostrar un cupón con un botón “Copiar” (el cupón lo creás antes en Cupones) y pedir el email para el newsletter.',
+          'Una ventana que aparece encima de la página con una imagen, un título, un texto y un botón. Puede mostrar un cupón con un botón “Copiar” y pedir el email para el newsletter. El cupón lo creás antes en Gestión → Cupones: escribir el código acá no lo crea, y si no existe no descuenta nada.',
           '“Cuándo aparece”: a los pocos segundos de entrar (elegís cuántos), cuando el mouse se va de la página (solo en computadora) o lo que pase primero. “Cada cuánto se muestra a la misma persona”: cada tantos días, una vez por visita o una sola vez.',
           'En la vista previa del editor el pop-up no aparece solo: se abre con “Ver el pop-up” o al abrir su panel, y el aviso en su lugar resume cuándo y cada cuánto va a aparecer en la tienda.',
         ],
@@ -346,9 +346,9 @@ export const SECCIONES = {
       {
         heading: 'Envíos y pagos, testimonios, marcas e íconos con texto',
         paragraphs: [
-          '“Información de envíos, pagos y compra” muestra hasta 4 ítems con un ícono (envíos, tarjetas, seguridad, regalo, promo, atención, cambios, o uno propio), un título, una descripción y un link opcional. En el celular van uno abajo del otro, de a dos o deslizables.',
+          '“Información de envíos, pagos y compra” muestra hasta 4 ítems con un ícono (envíos, tarjetas, seguridad, regalo o promo, atención, cambios, o uno propio), un título, una descripción y un link opcional. En el celular van uno abajo del otro, de a dos o deslizables.',
           'Los testimonios llevan la opinión, de 1 a 5 estrellas (o sin estrellas), el nombre, un detalle (“Compró en marzo”) y una foto opcional; sin foto se muestra la inicial. Se ven en grilla o en carrusel.',
-          'Las marcas son logos con su nombre y un link opcional. Con “Subir varios logos de una vez” cargás todos juntos. Se pueden mostrar fijos o deslizándose (con velocidad lenta, normal o rápida, y botón de pausa), y en gris hasta que pasás el mouse.',
+          'Las marcas son logos con su nombre y un link opcional. Con “Subir varios logos de una vez” cargás todos juntos. Se pueden mostrar fijos, siempre deslizándose (con velocidad lenta, normal o rápida, y botón de pausa) o en Automático, que los desliza cuando son 5 o más; y en gris hasta que pasás el mouse.',
           'Íconos con texto son columnas con un ícono (o una imagen tuya), un título, un texto y un link: beneficios, pasos de compra, garantías. Elegís de 2 a 6 columnas en computadora y cómo se acomodan en el celular.',
         ],
         blocks: [
