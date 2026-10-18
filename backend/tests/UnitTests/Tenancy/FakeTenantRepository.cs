@@ -33,14 +33,6 @@ public sealed class FakeTenantRepository : ITenantRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<Tenant>> ListAsync(int limit, Guid? afterId, CancellationToken ct = default)
-    {
-        var ordered = _tenants.OrderBy(t => t.Id).AsEnumerable();
-        if (afterId.HasValue)
-            ordered = ordered.SkipWhile(t => t.Id != afterId.Value).Skip(1);
-        return Task.FromResult<IReadOnlyList<Tenant>>(ordered.Take(limit).ToList());
-    }
-
     public Task<(IReadOnlyList<Tenant> Items, int Total)> PageByIdsAsync(
         IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default)
     {

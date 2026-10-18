@@ -107,8 +107,6 @@ public sealed class Reservation : Entity
         ExpiresAtUtc = CreatedAtUtc + (ttl ?? DefaultTtl);
     }
 
-    public bool IsExpired(DateTime nowUtc) => Status == ReservationStatus.Active && nowUtc >= ExpiresAtUtc;
-
     public Result Confirm(DateTime nowUtc)
     {
         if (Status != ReservationStatus.Active)

@@ -70,16 +70,4 @@ public class ReservationTests
 
         Assert.Equal("Reservation.NotActive", result.Error.Code);
     }
-
-    [Fact]
-    public void IsExpired_RespectsStatusAndClock()
-    {
-        var reservation = Create(TimeSpan.FromMinutes(1));
-
-        Assert.False(reservation.IsExpired(DateTime.UtcNow));
-        Assert.True(reservation.IsExpired(DateTime.UtcNow.AddMinutes(2)));
-
-        reservation.Release();
-        Assert.False(reservation.IsExpired(DateTime.UtcNow.AddMinutes(2))); // liberada ya no expira
-    }
 }

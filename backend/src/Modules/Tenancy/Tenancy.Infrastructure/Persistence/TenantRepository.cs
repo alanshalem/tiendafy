@@ -56,19 +56,6 @@ public sealed class TenantRepository(TenancyDbContext context) : ITenantReposito
     public async Task AddAsync(Tenant tenant, CancellationToken ct = default) =>
         await context.Tenants.AddAsync(tenant, ct);
 
-    public async Task<IReadOnlyList<Tenant>> ListAsync(int limit, Guid? afterId, CancellationToken ct = default)
-    {
-        // Las canceladas (borradas) no se listan.
-        var query = context.Tenants.AsNoTracking()
-            .Where(t => t.Status != TenantStatus.Canceled)
-            .OrderBy(t => t.Id)
-            .AsQueryable();
-        if (afterId.HasValue)
-            query = query.Where(t => t.Id.CompareTo(afterId.Value) > 0);
-
-        return await query.Take(limit).ToListAsync(ct);
-    }
-
     public async Task<(IReadOnlyList<Tenant> Items, int Total)> PageByIdsAsync(
         IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default)
     {
