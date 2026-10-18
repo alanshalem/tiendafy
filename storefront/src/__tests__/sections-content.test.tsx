@@ -8,7 +8,7 @@
 import type { SectionStyle, SectionType, ThemeSection } from '@tiendafy/types';
 import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HomeSections } from '../components/store/sections';
+import { HomeSections } from '../components/store/HomeSections';
 import { PreviewContext } from '../components/store/preview';
 import { SectionProductsContext } from '../components/store/SectionProductsContext';
 import type { StoreProduct } from '../components/store/ProductCard';

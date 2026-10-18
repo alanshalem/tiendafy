@@ -17,14 +17,19 @@ const pagina = (desde: number, n: number, hayMas: boolean) => ({
 
 beforeEach(() => apiGetTenant.mockReset());
 
-describe('fetchAllActiveSlugs', () => {
+/** Los slugs que junta el sitemap (el lastmod acá no importa). */
+async function fetchAllActiveSlugs(tenantId: string, max?: number): Promise<string[]> {
+  const { fetchAllActiveEntries } = await import('../catalog');
+  return (await fetchAllActiveEntries(tenantId, max)).map((e) => e.slug);
+}
+
+describe('fetchAllActiveEntries', () => {
   it('recorre el cursor hasta el final, no solo la primera página', async () => {
     apiGetTenant
       .mockResolvedValueOnce(pagina(0, 100, true))
       .mockResolvedValueOnce(pagina(100, 100, true))
       .mockResolvedValueOnce(pagina(200, 37, false));
 
-    const { fetchAllActiveSlugs } = await import('../catalog');
     const slugs = await fetchAllActiveSlugs('t1');
 
     expect(slugs).toHaveLength(237);
@@ -38,7 +43,6 @@ describe('fetchAllActiveSlugs', () => {
 
   it('cada página queda en la Data Cache una hora (no se recorre todo en cada pedido)', async () => {
     apiGetTenant.mockResolvedValueOnce(pagina(0, 3, false));
-    const { fetchAllActiveSlugs } = await import('../catalog');
     await fetchAllActiveSlugs('t1');
     // Con la etiqueta del catálogo: un cambio de productos la vence antes.
     expect(apiGetTenant.mock.calls[0]![2]).toEqual({ next: { revalidate: 3600, tags: ['catalog:t1'] } });
@@ -46,13 +50,11 @@ describe('fetchAllActiveSlugs', () => {
 
   it('no repite un producto que aparece en dos páginas', async () => {
     apiGetTenant.mockResolvedValueOnce(pagina(0, 3, true)).mockResolvedValueOnce(pagina(2, 3, false));
-    const { fetchAllActiveSlugs } = await import('../catalog');
     expect(await fetchAllActiveSlugs('t1')).toEqual(['p-0', 'p-1', 'p-2', 'p-3', 'p-4']);
   });
 
   it('un cursor que se repite no lo deja dando vueltas', async () => {
     apiGetTenant.mockResolvedValue(pagina(0, 3, true));
-    const { fetchAllActiveSlugs } = await import('../catalog');
     expect(await fetchAllActiveSlugs('t1')).toHaveLength(3);
     expect(apiGetTenant).toHaveBeenCalledTimes(2);
   });
@@ -64,7 +66,6 @@ describe('fetchAllActiveSlugs', () => {
       desde += 100;
       return p;
     });
-    const { fetchAllActiveSlugs } = await import('../catalog');
     const slugs = await fetchAllActiveSlugs('t1', 250);
     expect(slugs).toHaveLength(250);
     expect(apiGetTenant).toHaveBeenCalledTimes(3);
@@ -72,13 +73,11 @@ describe('fetchAllActiveSlugs', () => {
 
   it('si una página falla, devuelve lo que juntó', async () => {
     apiGetTenant.mockResolvedValueOnce(pagina(0, 100, true)).mockRejectedValueOnce(new Error('503'));
-    const { fetchAllActiveSlugs } = await import('../catalog');
     expect(await fetchAllActiveSlugs('t1')).toHaveLength(100);
   });
 
   it('una tienda sin productos da un sitemap sin productos', async () => {
     apiGetTenant.mockResolvedValueOnce(pagina(0, 0, false));
-    const { fetchAllActiveSlugs } = await import('../catalog');
     expect(await fetchAllActiveSlugs('t1')).toEqual([]);
   });
 });

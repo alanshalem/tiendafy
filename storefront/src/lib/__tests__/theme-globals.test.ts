@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { baseTheme, normalizeTheme } from '@tiendafy/types';
-import { buttonVars, mergeTheme, productGridClass, themeToStyle } from '../theme';
+import { mergeTheme } from '../theme';
+import { buttonVars, productGridClass, themeToStyle } from '../theme-style';
 
 describe('estilo de botones', () => {
   it('lo de siempre no define ninguna variable (cada botón queda como estaba)', () => {

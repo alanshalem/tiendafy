@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SECTIONS, contrastRatio, mixRgb, readableOn } from '@tiendafy/types';
-import { defaultTheme, mergeTheme, themeToStyle, colClass, mutedText, primaryInk } from '../theme';
+import { defaultTheme, mergeTheme } from '../theme';
+import { themeToStyle, colClass, mutedText, primaryInk } from '../theme-style';
 import { defaultPrivacy, defaultTerms } from '../legal';
 
 describe('mergeTheme (storefront)', () => {

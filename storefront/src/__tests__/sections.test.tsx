@@ -11,7 +11,7 @@ import type { SectionType, ThemeSection } from '@tiendafy/types';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HomeSections } from '../components/store/sections';
+import { HomeSections } from '../components/store/HomeSections';
 import { PreviewContext } from '../components/store/preview';
 import { defaultTheme } from '../lib/theme';
 import { toStoreProducts, type ProductDto } from '../lib/catalog';
