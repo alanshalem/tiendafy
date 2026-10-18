@@ -68,7 +68,10 @@ public sealed class Merchant
     public Task<Merchant> OpenAnotherStoreAsync(string tag = "m2") =>
         OpenStoreAsync(Factory, Client, Unique(tag), Email);
 
-    private static string Unique(string tag) => $"{tag}{Guid.NewGuid():N}"[..12].ToLowerInvariant();
+    // El tag se recorta a 6: si ocupara los 12 caracteres, el subdominio no
+    // tendría nada al azar y la segunda corrida sobre la misma base chocaba
+    // ("inv-ledger-otra" daba siempre "inv-ledger-o").
+    private static string Unique(string tag) => $"{tag[..Math.Min(tag.Length, 6)]}{Guid.NewGuid():N}"[..12].ToLowerInvariant();
 
     /// <summary>
     /// Alguien más del equipo de esta tienda, con su propia sesión: la cuenta
