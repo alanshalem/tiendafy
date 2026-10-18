@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      # Reglas de estilo C# que aplica `dotnet format --verify-no-changes`.
+      - '.editorconfig'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     paths:
       - 'backend/**'
+      # Reglas de estilo C# que aplica `dotnet format --verify-no-changes`.
+      - '.editorconfig'
       - '.github/workflows/backend-ci.yml'
 
   # A mano desde Actions, para re-verificar main sin tener que tocar código.

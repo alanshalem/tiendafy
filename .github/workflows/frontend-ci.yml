@@ -13,6 +13,8 @@ on:
       - 'package.json'
       - '.prettierrc'
       - '.prettierignore'
+      # Prettier toma de acá la indentación (el .prettierrc no la fija).
+      - '.editorconfig'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
@@ -27,6 +29,8 @@ on:
       - 'package.json'
       - '.prettierrc'
       - '.prettierignore'
+      # Prettier toma de acá la indentación (el .prettierrc no la fija).
+      - '.editorconfig'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
