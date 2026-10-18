@@ -1,7 +1,10 @@
 # Despliegue y operación
 
-Guía de variables de entorno e infraestructura. **En dev no necesitás nada de
-esto** — todo cae a `localhost` por defecto.
+Cómo se despliega, se vuelve atrás, se respalda y se restaura Tiendafy, y qué
+seguridad pone la app y qué el servidor. **En dev no necesitás nada de
+esto**: todo cae a `localhost` por defecto. Qué es cada variable:
+[configuracion.md](./configuracion.md); el dibujo del servidor:
+[arquitectura.md](./arquitectura.md#1-el-servidor-de-producción).
 
 ## Dos ambientes en el servidor
 
@@ -97,19 +100,6 @@ Los comandos de `docker compose` del stack se corren desde
 Si el último deploy lo hizo GitHub Actions, el repo queda en el commit exacto
 que desplegó, sin rama: antes de un `git pull` a mano, `git checkout main`.
 
-## Arquitectura
-
-3 apps + infra:
-
-- **backend** (`backend/src/Api`, .NET 10) → API HTTP. Detrás de un reverse
-  proxy/ingress que termina TLS (el compose de prod la corre en `:5080`; `:8080` es el default del Dockerfile).
-- **storefront** (Next.js) → las tiendas. Resuelve cuál por host
-  (`<subdominio>.tudominio.com` o un dominio propio); el dominio pelado atiende
-  la tienda de `PRIMARY_STORE_SUBDOMAIN` (sin ella, "tienda no encontrada").
-- **admin** (Vite SPA estática) → panel del merchant.
-- **infra**: PostgreSQL (+ backup diario) por ambiente y un Caddy compartido;
-  imágenes en Cloudflare R2 (o cualquier S3-compatible).
-
 ## Variables de entorno
 
 En el servidor todo sale de **`infra/docker/.env.prod`** (o `.env.staging`):
@@ -184,36 +174,19 @@ panel y quedan cifradas en la base.
 
 ### Lo que arma el compose solo
 
-- **API** (`ASPNETCORE_ENVIRONMENT=Production` también en staging, escuchando
-  en `:5080`): `ConnectionStrings__Default` (con `POSTGRES_PASSWORD` y
-  `DB_MIN_POOL_SIZE`), `DataProtection__KeyPath=/keys` (volumen `dpkeys`; sin
-  esa ruta la API no arranca), `Database__MigrateOnStartup=false` (las
-  migraciones las corre `deploy.sh`), `Tenancy__PlatformBaseDomain`,
-  `PublicApiBaseUrl` y `MercadoPago__PublicApiBaseUrl` (`https://api.<dominio>`),
-  `Admin__BaseUrl` (`https://admin.<dominio>`, link del aviso de stock bajo),
-  los `RedirectUri` / `AdminReturnUrl` de Mercado Pago, Mercado Libre, Meta
-  Ads y redes sociales, `Storefront__RevalidateUrl`
-  (`http://storefront:3000/internal/revalidate`, por la red interna) y
-  `Sentry__Environment` (= `APP_ENV`).
-- **Tienda** (todo en runtime): `API_URL=http://api:5080` (la API por la red
-  interna), `PLATFORM_BASE_DOMAIN`, `PRIMARY_STORE_SUBDOMAIN`, `APP_ENV`,
-  `REVALIDATE_SECRET` y las que viajan al navegador: `PUBLIC_API_URL`,
-  `PUBLIC_ADMIN_ORIGIN` (link al panel y origen que acepta la vista previa del
-  editor) y `PUBLIC_SENTRY_DSN`. Las `NEXT_PUBLIC_*` de
-  `storefront/.env.example` quedan para desarrollo: Next las hornea al
-  compilar, así que en el servidor no se leen.
-- **Panel**: `APP_ENV`, `VITE_API_URL`, `VITE_STOREFRONT_ORIGIN`
-  (`https://{sub}.<dominio>`), `VITE_PRIMARY_STORE_SUBDOMAIN`,
-  `VITE_SENTRY_DSN` y `VITE_BRAND_NAME`, leídas **al arrancar el contenedor**
-  (`admin/docker-config.sh` escribe `config.js`), no horneadas. En desarrollo
-  salen de `admin/.env.local`.
+Lo demás no se completa: `docker-compose.stack.yml` lo deriva de
+`STACK_DOMAIN` (direcciones públicas, callbacks de OAuth, `API_URL` y
+`Storefront__RevalidateUrl` por la red interna) o lo fija
+(`ASPNETCORE_ENVIRONMENT=Production` también en staging,
+`DataProtection__KeyPath=/keys`, `Database__MigrateOnStartup=false`). Qué
+clave sale de dónde está en la columna "En `.env.prod`" de
+[configuracion.md](./configuracion.md).
 
-La API tiene además claves que el compose no pasa y que en producción
-quedan en su default: `Cors__AllowedOrigins` (orígenes extra; hace falta
-recién con el primer dominio propio de una tienda, ver Seguridad), los cupos
-de `RateLimiting__*`, `Email__MaxRetries` y las tarifas de referencia
-`Notifications__*`. Se suman como variable en el compose si alguna vez hace
-falta cambiarlas.
+Las claves que el compose no pasa quedan en su default en producción:
+`Cors__AllowedOrigins` (hace falta recién con el primer dominio propio de una
+tienda, ver Seguridad), los cupos de `RateLimiting__*`, `Email__MaxRetries` y
+las tarifas de `Notifications__*`. Se suman como variable en el compose si
+alguna vez hay que cambiarlas.
 
 ### Imágenes de las tiendas (storage)
 
@@ -244,9 +217,9 @@ o reescribirlas.
 
 ## Reverse proxy / TLS
 
-La API confía en `X-Forwarded-Proto`/`X-Forwarded-For` en prod (ForwardedHeaders)
-y manda HSTS. El proxy (nginx / Caddy / ingress) termina TLS y redirige HTTP→HTTPS.
-No hay redirect en la app (evita loops).
+La API confía en `X-Forwarded-Proto`/`X-Forwarded-For` de las redes de
+`TRUSTED_PROXY_CIDR_*` y manda HSTS. Caddy termina TLS y redirige
+HTTP→HTTPS; la app no redirige (evita loops).
 
 **Wildcard DNS + TLS**: `*.tudominio.com` y `*.stg.tudominio.com` apuntan al
 servidor. Los certificados comodín salen por **DNS-01 con el plugin de
@@ -515,8 +488,9 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   reusa el bearer cambiando `X-Tenant-Id`).
 - **Rate limiting** (`AddRateLimiter`): global 300/min por IP (sin techo para el
   storefront que pide desde la red interna) + estricto 10/5min por IP y endpoint
-  en login/registro (admin y shop), contacto y validación de cupón, y 15/5min en
-  los endpoints de pago (contra el card-testing).
+  en los formularios públicos (login y registro del panel y de la tienda,
+  contacto, cupón, reseñas, "avisame cuando ingrese", "Seguí tu pedido"), y
+  15/5min en los endpoints de pago (contra el card-testing).
   ⚠️ El límite es **por instancia**. Con varias réplicas, poné el throttling también
   en el proxy (nginx `limit_req` / Cloudflare) o un store distribuido.
 - **SSRF**: la importación de imágenes por URL solo busca hosts públicos (bloquea
