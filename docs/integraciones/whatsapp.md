@@ -9,6 +9,7 @@ No confundir con el botón flotante y los links `wa.me` de la tienda (`storefron
 - Manda mensajes de **plantilla** (las únicas que Meta deja mandar fuera de la ventana de 24 horas) en eventos de la venta: pago acreditado (con el texto de "pago" o el de "compra recibida"), despacho, listo para retirar, reembolso total y carrito abandonado.
 - Cada tipo de mensaje arranca **apagado**: no sale nada hasta que el merchant lo prende y carga el nombre de su plantilla aprobada en Meta.
 - Es best-effort: un error de WhatsApp nunca rompe el pago, el despacho ni el email, que sale igual.
+- Las ventas manuales (mostrador) no mandan WhatsApp al quedar pagadas: el comprador está enfrente (`PaidOrderSideEffects.RunAsync(whatsApp: false)`).
 - Cuenta cada envío (`NotificationEvent`) para el panel de costos.
 
 ## Cómo está implementado
@@ -45,11 +46,11 @@ Lo que carga cada tienda (ver [configuracion.md](../configuracion.md)):
 
 ## Flujos
 
-Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`, ... de la plantilla en Meta.
+Catálogo (`WhatsAppTemplateCatalog`): variables en orden, como `{{1}}`, `{{2}}`, ... de la plantilla en Meta. "nombre" es el primer nombre del comprador (sin nombre, lo que va antes de la `@` de su email) y "orden" es el número de pedido de la tienda (`Order.Label`).
 
 | Tipo | Nombre sugerido en Meta | Variables | Se dispara en |
 |---|---|---|---|
-| `confirmacion-pago` | `confirmacion_pago` | nombre, orden, total | Orden pagada |
+| `confirmacion-pago` | `confirmacion_pago` | nombre, orden, total | Orden pagada (`PaidOrderSideEffects`, una vez por venta: solo el settle que la deja pagada corre los efectos) |
 | `confirmacion-compra` | `confirmacion_compra` | nombre, orden, total | Orden pagada, en el mismo momento que `confirmacion-pago` (son dos textos para elegir; con las dos prendidas salen dos mensajes) |
 | `confirmacion-envio` | `pedido_en_camino` | nombre, orden, seguimiento ("a coordinar" si no hay) | Despacho |
 | `lista-para-retirar` | `listo_para_retirar` | nombre, orden | Pedido de retiro listo |
@@ -67,7 +68,9 @@ Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`)
 
 ## Lo que aprendimos de la API real
 
-- **Fuera de la ventana de 24 horas solo se pueden mandar plantillas aprobadas**. Por eso el contenido vive en Meta y Tiendafy solo guarda el nombre. Ver [Templates](https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates).
+Revisado contra la documentación de Meta el 18-oct-2026: el envío (`POST /{phone-number-id}/messages` con `messaging_product: whatsapp`, `type: template`, `template.name`, `template.language.code` y un componente `body` con parámetros `type: text` en el orden de la plantilla) coincide con `WhatsAppSender`.
+
+- **Fuera de la ventana de atención al cliente (24 horas) solo se pueden mandar plantillas aprobadas**. Por eso el contenido vive en Meta y Tiendafy solo guarda el nombre. Ver [Templates](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview) (la página vieja de `business-management-api/message-templates` ahora solo dice que se mudó).
 - **En modo de prueba** la app solo entrega a números registrados como testers: el `POST /test` lo avisa en el mensaje de error.
 - **Carrito abandonado es marketing para Meta**: tiene otra tarifa y Meta exige que la persona haya aceptado recibir mensajes del negocio ([política de WhatsApp Business](https://whatsappbusiness.com/policy/)). Sale solo con consentimiento: el comprador tildó, junto al teléfono, "Quiero que {tienda} me avise por WhatsApp si dejo la compra sin terminar" (`CheckoutSession.AcceptsWhatsApp`, viene sin tildar) y su email no está en la lista de supresión de la tienda (`email_suppressions`: se dio de baja, rebotó o marcó spam). La casilla aparece solo si la tienda tiene esta plantilla prendida (`whatsAppReminders` en `GET /checkout-settings`): no se pide permiso para algo que nunca va a llegar. Meta pide que el texto diga quién escribe y por qué canal. Antes salía a cualquiera que hubiera dejado teléfono para el envío. Si algún día hay campañas por WhatsApp, ese permiso no alcanza: hace falta uno propio, guardado por cliente con fecha y texto aceptado, y una forma de darse de baja por WhatsApp.
 - **Los celulares argentinos llevan `549`** en la Cloud API; con `54` solo, el mensaje no llega a celulares.
@@ -76,10 +79,12 @@ Los logs enmascaran el teléfono del comprador (`LogValue.MaskPhone`: `***6789`)
 
 - Conectá una cuenta de prueba de Meta, cargá tu número como tester y usá "Enviar prueba" en `/configuracion/whatsapp-automatico` (manda `hello_world`).
 - Prendé `confirmacion-pago` con una plantilla aprobada y marcá como pagada una orden con tu teléfono.
-- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos), `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada) y `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago).
+- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos), `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada), `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago) y `AbandonedCartEmailTests.cs` (el de carrito abandonado sale solo con la casilla tildada).
 
 ## Pendiente
 
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
-- La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog).
+- La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos; al 18-oct-2026 v26.0 no tiene fecha de baja). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog/versions).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.
+- El contador del panel de costos suma también los envíos que Meta rechazó: `WhatsAppNotifier` no mira lo que devuelve `SendTemplateAsync` antes de contar.
+- La descripción de "Carritos abandonados" en el panel (`WhatsAppTemplateCatalog`) todavía dice "solo con clientes que aceptaron recibir novedades": la casilla que vale hoy es la del aviso por WhatsApp junto al teléfono.
