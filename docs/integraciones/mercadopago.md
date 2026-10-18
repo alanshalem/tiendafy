@@ -16,8 +16,9 @@ botón de conectar no lleva a ningún lado y no entran webhooks).
     tarjeta se tokeniza en el navegador y el backend cobra con el token.
 - **Webhooks** con firma HMAC, guardados en un inbox durable y procesados por
   un worker con reintentos.
-- **Reembolsos** totales y parciales desde Ventas, con auditoría, y sincronización
-  de los que se hacen desde el panel de Mercado Pago.
+- **Reembolsos** totales y parciales desde Ventas, con auditoría, aviso al
+  comprador y nota de crédito por cada uno, y sincronización de los que se
+  hacen desde la cuenta de Mercado Pago.
 - **Link de pago** para ventas manuales (`POST /orders/manual` con método
   `link`) y **vencimiento del link** al cancelar una venta pendiente.
 - **Comisión real** de Mercado Pago por venta (para Rentabilidad), cuando el
@@ -39,7 +40,9 @@ botón de conectar no lleva a ningún lado y no entran webhooks).
 | Worker del inbox | `backend/src/Api/Payments/PaymentWebhookWorker.cs` + `SharedKernel/Common/InboxEntry.cs` |
 | Pagar (`/pay`, `/pay-onsite`) | `backend/src/Api/Endpoints/OrderEndpoints.cs` |
 | Aplicar el resultado a la orden | `backend/src/Modules/Orders/Orders.Core/Features/SettlePaymentHandler.cs` |
+| Una orden por sesión de checkout | `backend/src/Api/Orders/CheckoutOrderFactory.cs` |
 | Reembolsar y cancelar | `backend/src/Api/Orders/OrderRefundService.cs` (auditoría en `payment_refunds`) |
+| Avisos de reembolso (total y parcial) | `backend/src/Api/Orders/RefundedOrderSideEffects.cs` |
 | Panel | `admin/src/pages/Settings/MercadoPagoConnect.tsx` |
 | Tienda | `storefront/src/components/store/CheckoutClient.tsx` (`@mercadopago/sdk-react`), desafío 3DS en `CardChallenge.tsx`, CSP en `storefront/src/lib/csp.ts` |
 
@@ -60,7 +63,7 @@ producción las setea `infra/docker/docker-compose.stack.yml`:
 | `MercadoPago:AdminReturnUrl` | `https://admin.${STACK_DOMAIN}/configuracion/medios-de-pago` | A dónde vuelve el navegador tras el OAuth (`?mp=connected` o `?mp=error`) |
 | `MercadoPago:AuthBaseUrl` / `ApiBaseUrl` | defaults del código | `auth.mercadopago.com.ar` y `api.mercadopago.com` |
 | `DataProtection:KeyPath` | `/keys` (volumen `dpkeys`) | Obligatoria fuera de Development; sin ella la API no arranca |
-| `RateLimiting:PaymentsPermitLimit` | default 15 | Cupo por IP y ruta cada 5 min en `/pay`, `/pay-onsite`, `/pay-payway` |
+| `RateLimiting:PaymentsPermitLimit` | default 15 | Cupo por IP y ruta cada 5 min en `/pay`, `/pay-onsite`, `/pay-payway` y `/pay-offline` |
 
 En local, los secretos van como variables de entorno en la consola antes de
 `.\dev-up.ps1` (la API hereda el entorno): `$env:MercadoPago__ClientId`,
@@ -94,13 +97,22 @@ se valida contra dominios propios (`SafeRedirect`).
 **Una compra, una orden.** Una sesión de checkout produce como mucho una orden
 (índice único en `orders.checkout_session_id`, ver `CheckoutOrderFactory`): un
 doble clic, un reintento del navegador o dos pestañas sobre la misma compra
-reusan la orden pendiente, también si llegan en el mismo instante. Con la
-orden reusada, la preference y el cobro salen con la misma
-`X-Idempotency-Key` (el id de la orden), así que Mercado Pago devuelve el pago
-o la preference que ya había en vez de crear otro. Si la orden ya está pagada,
-cancelada o rechazada, el segundo pedido recibe un 409 que lo dice
-(`Checkout.AlreadyPaid`, `Checkout.OrderCancelled`, `Checkout.PaymentFailed`);
-si la compra ya se está pagando por transferencia, `Checkout.OtherMethod`.
+reusan la orden pendiente, también si llegan en el mismo instante (hasta el
+17-oct-2026 ese empate respondía 500). Con la orden reusada, el cobro del
+Brick sale con la misma `X-Idempotency-Key` (el id de la orden) y Mercado Pago
+devuelve el pago que ya había en vez de cobrar otro. La preference también
+manda esa clave, pero la doc oficial solo documenta la idempotencia en
+`/v1/payments`: si Mercado Pago la ignora, el segundo pedido abre otro link de
+la misma orden, y la orden se queda con la primera preference (la que se vence
+al cancelar). Si la orden ya está pagada, cancelada o rechazada, el segundo
+pedido recibe un 409 que lo dice (`Checkout.AlreadyPaid`,
+`Checkout.OrderCancelled`, `Checkout.PaymentFailed`); si la compra ya se está
+pagando por transferencia o en efectivo, `Checkout.OtherMethod`.
+
+Esto cubre el mismo pedido repetido. Cada vez que el comprador aprieta pagar,
+la tienda envía la compra de nuevo (`reserve` en `CheckoutClient.tsx`) y eso
+arma otra sesión: una tarjeta rechazada deja la orden `Failed` y el reintento
+con otra tarjeta es otra orden.
 
 **Checkout integrado.** El Brick tokeniza con la `publicKey` del vendedor
 (`GET /payments/mercadopago/public-config`), y `POST /checkout/{id}/pay-onsite`
@@ -154,9 +166,9 @@ el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 
 | `status` de MP | Qué pasa |
 |---|---|
-| `approved` | Orden pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
+| `approved` | Orden pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció (un parcial hecho en la cuenta de Mercado Pago), aplica la diferencia como reembolso, avisa al comprador y emite la nota de crédito de ese tramo |
 | `rejected`, `cancelled` | Orden pendiente → `Failed`, libera reservas |
-| `refunded` | → `Refunded` |
+| `refunded` | → `Refunded`, con el aviso de reembolso y la nota de crédito del tramo que faltaba |
 | `charged_back`, `in_mediation` | → `ChargedBack` |
 | `pending`, `in_process` | Nada; espera el próximo aviso |
 
@@ -167,8 +179,8 @@ Reintentos: backoff de 30 s, 2, 10 y 45 min, 3, 6 y 12 h (8 intentos en casi
 tienda.
 
 **Reembolso.** `POST /api/v1/orders/{id}/refund` con
-`{ "amount": 1500.50, "reason": "...", "restock": false }`; `amount` nulo o 0 =
-todo lo que queda. Lock por orden, validación contra `RemainingRefundable`,
+`{ "amount": 1500.50, "reason": "...", "restock": false, "creditNote": true }`;
+`amount` nulo o 0 = todo lo que queda. Lock por orden, validación contra `RemainingRefundable`,
 Mercado Pago primero y estado local después (con `xmin` como token de
 concurrencia: si otra instancia ya aplicó, 409). La clave de idempotencia es
 **determinística**:
@@ -184,12 +196,26 @@ con parciales previos siempre va con monto explícito. Si el `PaymentId` empieza
 con `manual-` (efectivo, transferencia, cuenta corriente) no se llama a Mercado
 Pago: solo se registra. Si la venta se cobró con Payway (hay un intento de
 Payway de esa orden con ese id de pago), la devolución va a Payway (ver
-[payway.md](payway.md)). Al completar el total corren los avisos y la nota de
-crédito automática (ver [arca.md](arca.md)); el reingreso de stock es opcional.
+[payway.md](payway.md)); el panel muestra por dónde vuelve la plata con el
+`gateway` de `GET /orders/{id}/refunds`.
+
+Después de la plata, por cada reembolso (total o parcial):
+
+- **Nota de crédito** por lo devuelto, sola si la tienda emite automáticamente
+  o si el comercio tildó la casilla del diálogo (`creditNote`, que además pide
+  el permiso de facturar). La clave es el registro del reembolso: un reintento
+  no emite otra (ver [arca.md](arca.md)).
+- **Aviso al comprador.** El total, con la plantilla "Cancelación de compra"
+  (email y WhatsApp; si la tienda no la prendió, un email genérico). El
+  parcial, con la plantilla "Reembolso parcial" (solo email: cuánto volvió y
+  por dónde).
+- **Stock:** reingresarlo es opcional y solo con el reembolso total (un
+  parcial no dice qué volvió).
 
 **Cancelar una venta pendiente.** Primero se vence la preference
-(`PUT /checkout/preferences/{id}` con vencimiento en el pasado) para que el link
-no acepte pagos, después se cancela la orden y se liberan las reservas.
+(`PUT /checkout/preferences/{id}` con `expires: true` y `expiration_date_to`
+en el pasado) para que el link no acepte pagos, después se cancela la orden,
+se liberan las reservas y se le avisa al comprador con "Cancelación de compra".
 
 ## Lo que aprendimos de la API real
 
@@ -224,7 +250,9 @@ no acepte pagos, después se cancela la orden y se liberan las reservas.
 ## Cómo probar
 
 Automático: `backend/tests/IntegrationTests/MercadoPagoFlowTests.cs` (con API
-falsa, incluido el pago con desafío del banco), `UnitTests/Orders/SettlePaymentHandlerTests.cs`,
+falsa, incluido el pago con desafío del banco y los avisos repetidos del
+mismo pago), `IntegrationTests/CheckoutDoublePayTests.cs` (dos pedidos de
+pago sobre la misma compra, también a la vez), `UnitTests/Orders/SettlePaymentHandlerTests.cs`,
 `UnitTests/Payments/OAuthCallbackHandlerTests.cs`,
 `UnitTests/Payments/MercadoPagoCardPaymentTests.cs` (body con 3DS y lectura de
 `three_ds_info`), `UnitTests/Api/OrderRefundLocksTests.cs`; en la tienda,
@@ -278,7 +306,8 @@ A mano, con cuentas de prueba de Mercado Pago:
   incluida), que el aprobado termine en "¡Pago aprobado!" y el no autorizado
   en "No se pudo completar el pago". Está probado solo contra la API falsa.
 
-Docs oficiales: [Checkout Pro](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing),
+Docs oficiales (rutas, 3DS y tarjetas de prueba revisadas el 18-oct-2026):
+[Checkout Pro](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing),
 [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing),
 3DS con [Checkout Bricks](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/how-tos/integrate-3ds)
 y con [Checkout API](https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/how-tos/integrate-3ds),

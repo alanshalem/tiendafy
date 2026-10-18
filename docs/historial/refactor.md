@@ -1,6 +1,6 @@
 # Refactor integral — DRY / KISS / YAGNI / Clean Code / Clean Architecture
 
-> **Estado al 15-oct-2026.** Registro histórico: describe cada pasada como era
+> **Estado al 18-oct-2026.** Registro histórico: describe cada pasada como era
 > al cerrarla (las cifras de módulos, tests y archivos son de ese momento; hoy
 > el backend tiene 21 módulos). Lo que sigue vigente como regla:
 >
@@ -15,7 +15,13 @@
 > - La "Decisión pendiente" de `PublicApiBaseUrl` está cerrada: el compose de
 >   producción declara la clave raíz y `StoreLinks.ApiBase` es el único que la lee.
 >
-> Las pasadas 1 a 9 son de agosto de 2026 (15 al 19); la 10 y la 11, de octubre.
+> Las pasadas 1 a 9 son de agosto de 2026 (15 al 19); de la 10 a la 12, de
+> octubre. Cosas que una pasada vieja nombra y hoy ya no existen o cambiaron:
+> `StatCard` de `@tiendafy/ui` (pasada 3) y los endpoints de reservas de
+> Inventory (pasada 9) se borraron en la 12; `infra/nginx/edge.conf` (pasada 6)
+> también, lo reemplazó `infra/edge` con Caddy; y el panel volvió al puerto
+> 5173, así que los `AdminReturnUrl` apuntan ahí (la pasada 7 los había movido
+> a 3001).
 
 Pasadas sobre todo el monorepo con una regla fija: **cero cambios
 de comportamiento** (salvo fixes autorizados o bugs reales encontrados por la revisión).
@@ -433,6 +439,33 @@ Commits `0ffa12e3..f1326481`. Revisión por áreas después de salir a producci�
   el último dump en una base aparte; `deploy.sh` copia la base antes de migrar,
   exige tag en producción e imprime cómo volver atrás; `pg-upgrade.sh` y
   `deploy.sh` andan como usuario `deploy`.
+
+## Pasada 12 — lo que nadie usaba (16-oct)
+
+Commits `1eb590ff..2f3dea28`, más `b72d3b20` y `0cfe3ad1`. Cada borrado se
+verificó buscando referencias en todo el repo (también por reflexión y DI);
+lo que solo usaba un test se reescribió para ir por la puerta que usa el
+sistema.
+
+- **Endpoints sin consumidor**: `POST /inventory/reservations` (y confirmar y
+  liberar: el checkout, la venta manual y la transferencia reservan por
+  `IInventoryService`, dentro del proceso), `GET /newsletter/count`,
+  `GET /shop/favorites` (la tienda lee con `POST /shop/favorites/merge`) y
+  `POST /fiscal/health` (lo cubre el diagnóstico, `POST /fiscal/test-connection`).
+- **Backend**: las excepciones de SharedKernel que nadie tiraba,
+  `RequireTenantMembership` (todo pasó a `RequirePermission`), métodos de
+  `IMembershipService` e `IInventoryService` sin llamadas, usings marcados por
+  IDE0005 y la dependencia de logging de `Fiscal.Core`.
+- **Front**: `StatCard` de `@tiendafy/ui` (el panel usa `KpiCard`), lo que
+  `@tiendafy/types` exportaba sin importador, re-exports "para quien los
+  importaba de acá", nombres duplicados (`useIsNarrow` = `useIsMobile`), el
+  `_headers` de Netlify que el nginx del panel no lee, y scripts y
+  dependencias que no corría nadie.
+- **Infra**: `infra/nginx/edge.conf`, el ejemplo de proxy de borde que ningún
+  compose montaba.
+- **Criterio que quedó**: un `export` significa "esto lo usa otro archivo". Los
+  tipos del esquema del tema y `RICH_NODES`/`RICH_MARKS` siguen exportados sin
+  importador porque son la API del paquete.
 
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 

@@ -37,6 +37,8 @@ Dos bloques rectos: SMART en blanco sobre verde bosque y FOX en blanco sobre neg
 
 ### Versiones
 
+Cada versión está en vector en `svg/` y exportada en `png/`.
+
 | Archivo | Uso |
 |---|---|
 | `smartfox-logo` | Principal. Sobre blanco, negro (el bloque FOX se funde, está permitido) o fotos. |

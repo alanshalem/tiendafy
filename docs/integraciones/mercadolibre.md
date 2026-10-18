@@ -5,11 +5,16 @@ OAuth y desde el panel atiende ventas, preguntas, mensajes y reclamos, mantiene
 stock y precio sincronizados con sus publicaciones y publica productos del
 catálogo.
 
-Estado: completo en código y cubierto por tests contra una API simulada.
-Falta crear la app real en Mercado Libre y probar con una cuenta de verdad.
+Estado al 18-oct-2026: completo en código y cubierto por tests contra una API
+simulada y con una cuenta de demo. No está en uso en producción: falta crear
+la app real en Mercado Libre, cargar `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET`
+y probar con una cuenta de verdad.
 
 Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar/es_ar/api-docs-es)
 (autenticación, notificaciones, órdenes, preguntas, mensajería, reclamos, ítems).
+El sitio contesta 403 a las lecturas automáticas: las rutas de este documento
+se revisaron el 18-oct-2026 contra lo que la doc publica (por búsqueda), no
+leyendo la página entera.
 
 ## Qué hace en Tiendafy
 
@@ -33,16 +38,21 @@ Docs oficiales: [developers.mercadolibre.com.ar](https://developers.mercadolibre
   unificada del panel, con cache de 45 s por tienda.
 - **Publicar.** Desde el catálogo, con categoría sugerida por
   `domain_discovery`. La publicación nace vinculada a la variante.
-- **Facturación ARCA.** Botón "Facturar" por venta (consumidor final) y
-  auto-factura opcional al importar cada venta cobrada; nota de crédito
+- **Facturación ARCA.** Botón "Facturar" por venta o por varias elegidas
+  (de a una y en orden; la que ya tenía factura se saltea), siempre a
+  consumidor final, y auto-factura opcional al importar cada venta cobrada.
+  "Facturada" quiere decir con factura del ambiente actual: una de
+  homologación no cuenta en producción (`MeliInvoices`). Nota de crédito
   automática si una venta facturada se cancela, se reembolsa o tiene una
   devolución parcial y alguien factura solo (la auto-factura de ML o la
   emisión automática de la tienda). Si no, el botón "Emitir nota de crédito"
   de cada venta facturada (por lo devuelto sin acreditar o por un ajuste).
+  Cómo se emiten y se encolan las NC: [arca.md](./arca.md).
 - **Métricas.** Las ventas ML entran en Estadísticas, Rentabilidad, Reposición
   y en los avisos del Inicio (sin facturar, preguntas sin responder). Ingresos
   y ganancia del canal cuentan lo cobrado (`BillableAmount`: `paid_amount`, o
-  el total si no viene), no el total de la venta.
+  el total si no viene), no el total de la venta (ver la duda sobre
+  `paid_amount` en "Lo que aprendimos").
 
 ### "Venta cobrada"
 
@@ -201,8 +211,9 @@ la trae "Actualizar"). `MeliNotificationWorker` resuelve el tenant por
    solo, o la factura es de otro ambiente) no se vuelven a intentar en el
    próximo aviso; solo un error al encolar sí. Si está cobrada, sin
    factura del ambiente actual y con auto-factura prendida, emite a
-   consumidor final (una factura de homologación no cuenta en producción:
-   ver `MeliInvoices`). Después, si hay una devolución parcial nueva (lo
+   consumidor final con el mismo emisor que el botón, no por la cola: si
+   ARCA rechaza, la venta queda sin facturar con el botón "Facturar" (una factura
+   de homologación no cuenta en producción: ver `MeliInvoices`). Después, si hay una devolución parcial nueva (lo
    devuelto, `payments[].transaction_amount_refunded`, supera lo ya
    resuelto) y la venta tiene factura del ambiente actual, encola una NC por
    ese tramo con la clave `ml-reembolso:{antes}-{después}` y la misma regla
@@ -245,17 +256,21 @@ real (ver Pendiente).
 - **Los webhooks no traen datos ni vienen firmados**: siempre se re-consulta el
   resource con el token del vendedor. ML pide contestar 200 enseguida (la doc
   vigente da 20 s de plazo; versiones anteriores hablaban de 500 ms) y, si no,
-  reintenta durante una hora y después descarta el aviso: por eso el endpoint
-  solo guarda en el inbox. Llegan repetidos: el descuento de stock es
-  idempotente por orden.
+  reintenta durante una hora y después descarta el aviso (revisado el
+  18-oct-2026): por eso el endpoint solo guarda en el inbox. Llegan repetidos:
+  el descuento de stock es idempotente por orden.
 - Rate limit de ~1500 req/min por vendedor; un 429 se traduce a un mensaje
   amable.
 - Multiget `/items?ids=` de a 20; las búsquedas devuelven hasta 50 por página
   y el total en `paging.total`.
-- Las miniaturas vienen por `http://`; se reescriben a `https://` en la ficha
-  de publicación que acompaña a cada pregunta (`MeliItemSummary`). El listado
-  de la pestaña Publicaciones todavía las pasa tal cual vienen.
-- Mensajes posventa limitados a 350 caracteres.
+- Las miniaturas vienen por `http://` y el panel corre en https (el navegador
+  las bloquea por contenido mixto): `MeliItemSummary.SecureThumbnail` las
+  pasa a `https://` en las preguntas, la bandeja y la pestaña Publicaciones.
+- Mensajes posventa limitados a 350 caracteres. Leer un pack
+  (`GET /messages/packs/{pack}/sellers/{seller}?tag=post_sale`) lo marca como
+  leído en ML (la doc ofrece `mark_as_read=false`, que no usamos): abrir el
+  chat en el panel es leerlo. Los sin leer salen de
+  `/messages/unread?role=seller&tag=post_sale`.
 - El recurso de reclamos (`/post-purchase/v1/claims/search`) varía por cuenta:
   si falla, el panel muestra "sin reclamos" en vez de error.
 - ML no expone el documento del comprador por la vía usada: se factura a
@@ -266,9 +281,15 @@ real (ver Pendiente).
   oficial ("Gestión de packs", 16-oct-2026). El estado `partially_refunded`
   es "la orden tiene devoluciones parciales de los pagos" ("Gestiona
   ventas"). Lo que la doc no dice es si `paid_amount` baja con una
-  devolución (solo "Amount paid for the order"): la factura se emite por
-  `paid_amount` y cada devolución se acredita con su NC; si con una cuenta
-  real `paid_amount` resultara neto de devoluciones, hay que revisar esto.
+  devolución (solo "Amount paid for the order"), y el código hoy supone las
+  dos cosas: la factura se emite por `paid_amount` y cada devolución se
+  acredita con su NC (supone que **no** baja), mientras que Estadísticas y
+  Rentabilidad cuentan `paid_amount` como "lo que quedó" de una venta con
+  devolución parcial (supone que **sí** baja). Con la primera venta
+  `partially_refunded` de una cuenta real hay que mirar el JSON y corregir
+  el lado que esté mal: si baja, una venta importada ya devuelta se factura
+  neta y además recibe la NC por lo devuelto; si no baja, los ingresos del
+  canal cuentan la venta entera.
 
 ## Cómo probar
 
@@ -298,7 +319,15 @@ real (ver Pendiente).
 
 ## Pendiente
 
-- Crear la app de plataforma en developers.mercadolibre.com.ar y probar OAuth,
+- Crear la app de plataforma en developers.mercadolibre.com.ar, cargar
+  `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` en `.env.prod` y probar OAuth,
   webhooks y sync con una cuenta real.
+- Con esa cuenta, resolver la duda de `paid_amount` (arriba) y mirar si sus
+  publicaciones están migradas a "User Products" o usan stock distribuido: la
+  doc de ML recomienda actualizar ese stock por
+  `PUT /user-products/{id}/stock/type/selling_address` y no por el
+  `available_quantity` del ítem, que es lo que manda `MeliStockSyncWorker`.
+  Si el `PUT /items/{id}` se rechaza en esas publicaciones, el worker lo
+  reintenta cada 5 min para siempre (solo queda en el log).
 - Backlog: publicar con variaciones de ML, responder reclamos, mensajes con
   adjuntos y `missed_feeds` como respaldo de los webhooks.

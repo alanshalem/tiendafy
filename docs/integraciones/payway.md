@@ -123,7 +123,8 @@ la tokenización no depende de él.
    preguntar y loguea un warning para mirarlo en el portal. Lo que Payway
    resolvió se aplica como el cobro en el momento: `approved` →
    `SettlePaymentHandler` + `PaidOrderSideEffects` (avisos, factura, cupón);
-   `rejected` → orden `Failed` y stock liberado; anulado → orden cancelada. Un
+   `rejected` → orden `Failed` y stock liberado; anulado (no quedó plata
+   cobrada) → lo mismo que un rechazo. Un
    aprobado sobre una orden que ya no estaba pendiente se loguea como error
    (hay plata que devolver a mano).
 
@@ -140,7 +141,10 @@ es la del panel: lock por orden, recálculo de lo que queda adentro del lock y
 dice ("No la repitas"). Un timeout de la devolución no se reintenta: se
 responde que no sabemos si se hizo y que hay que mirarlo en el portal. El id
 de la devolución se guarda en `payment_refunds.mercado_pago_refund_id` (el
-nombre quedó de cuando solo había Mercado Pago).
+nombre quedó de cuando solo había Mercado Pago). Lo que pasa después —nota de
+crédito, aviso al comprador (en el parcial, que vuelve a la tarjeta), stock— es lo
+mismo que con Mercado Pago: ver [mercadopago.md](mercadopago.md#flujos),
+Reembolso.
 
 ## Lo que aprendimos de la API real
 
@@ -198,6 +202,8 @@ Automático: `backend/tests/IntegrationTests/PaywayFlowTests.cs` (configurar,
 cobrar, rechazos, timeout con recuperación por `siteOperationId`, orden ya
 cobrada, cuotas fuera de lo configurado, devolución por Payway y no por
 Mercado Pago, reconsulta del worker) contra una API simulada,
+`backend/tests/IntegrationTests/CheckoutDoublePayTests.cs` (el mismo pago
+pedido dos veces, en secuencia y a la vez, cobra una sola),
 `backend/tests/UnitTests/Payments/PaywayTests.cs` (mapeos y calendario de la
 reconsulta), `storefront/src/__tests__/payway-card-form.test.tsx` y
 `storefront/src/__tests__/csp.test.ts` (los hosts de Payway en el CSP).
@@ -237,12 +243,20 @@ por id, consulta por `siteOperationId` y timeout con recuperación.
   interés, pagos offline (Rapipago, Pago Fácil), pre-autorización, pago
   distribuido y modelo agregador.
 
-No es un bug (decidido así): el número de intento casi siempre es 1, porque
-cada envío del checkout crea una orden nueva y la protección por orden no
-cruza envíos. Contra el doble cobro cuentan el token de un solo uso (reusarlo
-da `409 Payway.TokenAlreadyUsed`) y el botón que se deshabilita mientras paga.
+No es un bug (decidido así): el número de intento casi siempre es 1. La
+orden es una por sesión de checkout, pero la tienda arma otra sesión cada vez
+que el comprador aprieta pagar (`reserve` en `CheckoutClient.tsx`), así que
+probar otra tarjeta después de un rechazo es otra orden. La protección por
+orden frena el mismo pedido repetido (reintento del navegador, dos pedidos a
+la vez); entre envíos distintos cuentan el token de un solo uso (reusarlo da
+`409 Payway.TokenAlreadyUsed`) y el botón que se deshabilita mientras paga.
+Ojo: la orden del intento rechazado no pasa a fallida (a diferencia de un
+rechazo de Mercado Pago): queda pendiente en Ventas, sus reservas vuelven al
+stock cuando vencen y nadie la cierra sola; se cancela a mano.
 
 Docs oficiales: el portal de developers de Payway es una SPA que no siempre
-carga; la referencia más confiable es el código de los SDK oficiales en
+carga (el 18-oct-2026 se revisó de nuevo el README del SDK .NET: confirma el
+filtro `siteOperationId`, las devoluciones total y parcial con `amount` y lo de
+Visa Débito, pero no publica las URLs de la API); la referencia más confiable es el código de los SDK oficiales en
 [github.com/payway-ar](https://github.com/payway-ar). Soporte de alta y
 credenciales: soporte@payway.com.ar.

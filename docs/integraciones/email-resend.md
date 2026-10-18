@@ -1,6 +1,6 @@
 # Email (Resend)
 
-Todos los emails de Tiendafy salen por [Resend](https://resend.com/docs) con su API HTTP: los transaccionales de cada tienda (pagos, envíos, reembolsos, factura con el PDF, cuenta), los avisos automáticos (stock, favoritos, reseñas, carritos, stock bajo al equipo) y las campañas de email marketing. Los de la plataforma (verificación y reset del admin, invitaciones al panel) usan el mismo transporte sin el layout de la tienda.
+Todos los emails de Tiendafy salen por [Resend](https://resend.com/docs) con su API HTTP: los transaccionales de cada tienda (pagos, envíos, cancelaciones y reembolsos, factura y notas de crédito con el PDF, cuenta, respuesta a una consulta, acuse de arrepentimiento), los avisos automáticos (stock, favoritos, reseñas, carritos, stock bajo al equipo) y las campañas de email marketing. Los de la plataforma (verificación y reset del admin, invitaciones al panel) usan el mismo transporte sin el layout de la tienda.
 
 WhatsApp tiene su propia integración (Cloud API de Meta, credenciales por tienda): ver [whatsapp.md](whatsapp.md).
 
@@ -8,7 +8,7 @@ WhatsApp tiene su propia integración (Cloud API de Meta, credenciales por tiend
 
 - **Envío**: una sola cuenta de Resend para toda la plataforma. El remitente visible es el nombre de la tienda ("Mi Tienda" <no-responder@dominio>) y la dirección es la de `Email:From`, que tiene que ser de un dominio verificado en Resend.
 - **Layout brandeado**: todo email de una tienda va envuelto en un layout de 600 px con el logo y el color primario del tema publicado, y un footer con el nombre de la tienda.
-- **Plantillas editables**: 13 plantillas con asunto y cuerpo editables por tienda (Configuración > Emails automáticos). Cada una se prende o se apaga, salvo las dos de seguridad de la cuenta (activación y cambio de contraseña), que salen siempre: de esas la tienda solo cambia el texto.
+- **Plantillas editables**: 15 plantillas con asunto y cuerpo editables por tienda (Configuración > Emails automáticos). Cada una se prende o se apaga, salvo las dos de seguridad de la cuenta (activación y cambio de contraseña), que salen siempre: de esas la tienda solo cambia el texto.
 - **Supresión**: bajas voluntarias, rebotes y quejas van a una lista por tienda (`email_suppressions`) que excluye esas direcciones de campañas y avisos de marketing (stock, favoritos, reseñas, carritos abandonados).
 - **Campañas**: audiencias segmentadas, envío inmediato o programado, cards de productos, cupón con atribución de ventas y ganancia, tracking de aperturas y clicks, link de baja obligatorio.
 - **Costos**: cada envío de una tienda suma un `NotificationEvent`; el panel muestra uso del mes y costo estimado.
@@ -24,7 +24,7 @@ WhatsApp tiene su propia integración (Cloud API de Meta, credenciales por tiend
 | Emails de pedido | `backend/src/Api/Notifications/OrderNotifier.cs`, `OrderEmail.cs` |
 | Emails de la cuenta del comprador (verificar, cambiar contraseña) | `backend/src/Api/Notifications/ShopperAccountEmails.cs`, llamado desde `Api/Endpoints/ShopAuthEndpoints.cs` |
 | Carritos abandonados | `backend/src/Api/Notifications/AbandonedCartWorker.cs` |
-| Factura con el PDF adjunto | `backend/src/Api/Fiscal/InvoiceEmail.cs` |
+| Factura y notas de crédito con el PDF adjunto | `backend/src/Api/Fiscal/InvoiceEmail.cs` |
 | Webhook de Resend (firma svix, tag del tenant) | `backend/src/Api/Notifications/ResendWebhook.cs` |
 | Endpoints de campañas, baja, tracking y webhook | `backend/src/Api/Endpoints/CampaignEndpoints.cs` |
 | Endpoints de plantillas y uso | `backend/src/Api/Endpoints/EmailTemplateEndpoints.cs` |
@@ -43,15 +43,15 @@ Reglas del código:
 - `EmailSender` **no tira excepciones** ante errores de Resend: un 4xx definitivo o los reintentos agotados se loguean y el método devuelve `false` (`true` si Resend lo aceptó o, en modo dev, si quedó en el log). `BrandedEmailSender` devuelve lo mismo. Los transaccionales ignoran el resultado: un email nunca rompe el flujo que lo dispara. Las campañas lo usan para contar fallidos.
 - Las direcciones de relleno de las ventas sin email (`...@sin-email.local`) nunca reciben nada: `BrandedEmailSender` las descarta (devuelve `false`).
 - El destinatario en los logs va siempre enmascarado (`LogValue.MaskEmail`).
-- Los purposes de los tokens firmados (`Tiendafy.Marketing.Unsubscribe.v1`, `Tiendafy.Marketing.Track.v1`) no se tocan nunca: cambiarlos invalida todos los links de baja y de tracking que ya están en bandejas de entrada. El de baja no vence a propósito.
+- Los purposes de los tokens firmados (`Tiendafy.Marketing.Unsubscribe.v1`, `Tiendafy.Marketing.Track.v1` y el de la baja de "Avisame cuando ingrese", `Tiendafy.StockAlerts.Unsubscribe.v1`) no se tocan nunca: cambiarlos invalida todos los links de baja y de tracking que ya están en bandejas de entrada. El de baja no vence a propósito.
 
 ## Configuración
 
 | Clave (.NET) | Variable del stack (`infra/docker/docker-compose.stack.yml`) | Para qué | Si falta |
 |---|---|---|---|
 | `Email:ResendApiKey` | `RESEND_API_KEY` | API key de Resend | Modo dev: el email se escribe en el log (`[email:dev]`) y no sale |
-| `Email:From` | `EMAIL_FROM` | Dirección remitente, de un dominio verificado en Resend | Default `Tiendafy <onboarding@resend.dev>` (solo sirve para probar) |
-| `Email:MaxRetries` | (no está en el compose) | Reintentos ante 429/5xx/red, backoff 1 s, 3 s, 8 s | Default 2 |
+| `Email:From` | `EMAIL_FROM` | Dirección remitente, de un dominio verificado en Resend | Fuera del stack, default `Tiendafy <onboarding@resend.dev>` (solo sirve para probar). En el stack el compose la pasa vacía (`${EMAIL_FROM:-}`), que pisa ese default: el remitente sale sin dirección y Resend rechaza cada email. Con `RESEND_API_KEY` cargada, es obligatoria |
+| `Email:MaxRetries` | (no está en el compose) | Reintentos ante 429/5xx/red: esperas de 1 s, 3 s y 8 s (como mucho 3 reintentos) | Default 2 (1 s y 3 s) |
 | `Email:WebhookSecret` | `EMAIL_WEBHOOK_SECRET` | Signing secret (`whsec_...`) del webhook de Resend | `POST /api/v1/webhooks/resend` devuelve 404 |
 | `PublicApiBaseUrl` | la arma el compose: `https://api.${STACK_DOMAIN}` | Base de los links de baja, pixel y clicks de campañas | `http://localhost:5080`: los links salen rotos en prod |
 | `Notifications:EmailCostUsdPer1000` | (no está en el compose) | Tarifa para el costo estimado del panel | Default 0.40 |
@@ -86,12 +86,15 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `cancelacion-compra` | apagada | `RefundedOrderSideEffects` (reembolso total), `OrderRefundService.CancelAsync` (cancelación a mano) y `OfflinePayments` (venció el plazo de una transferencia o efectivo). Apagada, el reembolso total avisa igual con un texto genérico (`OrderEmail.Refund`), la cancelación a mano con el texto de fábrica de la plantilla y la que vence sola con un texto propio de ese caso (`OfflinePaymentEmail.Expired`: venció el plazo, y qué hacer si ya pagó) |
 | `reembolso-parcial` | apagada | `RefundedOrderSideEffects.NotifyPartialAsync`, desde `OrderRefundService` (panel) y `PaymentWebhookWorker` (parcial hecho en Mercado Pago). Apagada, sale igual con el texto de fábrica. Uno por reembolso: el webhook solo avisa cuando creció lo devuelto |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
-| `carritos-abandonados` | prendida | `AbandonedCartWorker` (1 h después de lo último que el comprador tocó en un checkout con email que no terminó en compra; uno por comprador, ver abajo) |
+| `carritos-abandonados` | prendida | `AbandonedCartWorker` (pasa cada 15 min: 1 h después de lo último que el comprador tocó en un checkout con email que no terminó en compra, hasta 7 días de armado; uno por comprador, ver abajo) |
 | `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` |
 | `cambio-contrasena` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/forgot` |
-| `factura` | apagada | `Api/Fiscal/InvoiceEmail.cs`, cuando la venta obtiene el CAE (desde `FiscalEmissionWorker` o el botón "Facturar"), con el PDF adjunto. Sale una sola vez por comprobante (se reclama con `BuyerNotifiedAtUtc`), nunca para notas de crédito, ventas de Mercado Libre ni ventas sin email |
+| `factura` | apagada | `Api/Fiscal/InvoiceEmail.cs`, cuando la venta obtiene el CAE (desde `FiscalEmissionWorker` o el botón "Facturar"), con el PDF adjunto. Sale una sola vez por comprobante (se reclama con `BuyerNotifiedAtUtc`), nunca para ventas de Mercado Libre ni ventas sin email |
+| `nota-credito` | apagada | El mismo `InvoiceEmail`, por cada nota de crédito autorizada de la venta (un reembolso total o parcial, una pedida a mano o un ajuste), con su PDF. Mismas reglas que `factura` |
 
-El aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertService.cs`) también pasa por `BrandedEmailSender` (tag de uso `stock-bajo`), pero no es una plantilla editable: no figura en el catálogo.
+Ni `factura` ni `nota-credito` salen si el comprobante es de **homologación** (de prueba, sin validez fiscal): tampoco se marca como avisado, así que si la venta se factura después en producción, ese comprobante sí sale.
+
+Pasan por `BrandedEmailSender` pero no son plantillas editables (no figuran en el catálogo): el aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertService.cs`, tag de uso `stock-bajo`), la **respuesta a una consulta** desde la Bandeja (`ContactEndpoints`, tag `respuesta-contacto`, con reply-to a quien respondió), el **acuse de un pedido de arrepentimiento** (`ContactEndpoints`) y la prueba de una campaña (`campaign-test`).
 
 Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión y llevan el link para darse de baja (`UnsubscribeToken.Footer`; el de stock tiene su propia baja, por producto). Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña) salen siempre.
 
@@ -116,7 +119,7 @@ Se sacaron del catálogo (oct-2026) `confirmacion-compra` y `bienvenida`: no ten
 ### Campañas
 
 1. El merchant arma la campaña en `/marketing`: asunto, cuerpo, productos (cards), cupón opcional y audiencia.
-2. Audiencias (`AudienceSpec`): `buyers` (compradores, default), `customers` (compradores + contactos + suscriptores del newsletter), `subscribers` (newsletter) y `custom` (lista a mano). Filtros: gasto mínimo, cantidad de compras, compró en los últimos N días, inactivo hace N días, compró ciertos productos, tiene ciertos productos en favoritos. Siempre se excluyen las direcciones suprimidas.
+2. Audiencias (`AudienceSpec`): `buyers` (compradores, default), `customers` (compradores + contactos + suscriptores del newsletter), `subscribers` (newsletter) y `custom` (lista a mano). Filtros (no aplican a `custom`, donde manda la lista): gasto mínimo, cantidad de compras, compró en los últimos N días, inactivo hace N días, compró ciertos productos, tiene ciertos productos en favoritos. Siempre se excluyen las direcciones suprimidas, también en `custom`.
 3. `POST /api/v1/admin/campaigns/{id}/send` sin fecha snapshotea la audiencia en `campaign_recipients` y pasa a `sending`. Con `scheduleAtUtc` queda `scheduled` y el worker resuelve la audiencia recién al momento de enviar.
 4. `CampaignWorker` (polling cada 20 s, solo con `Workers:Enabled`) manda lotes de 25 con 600 ms entre emails, por el rate limit de Resend. Es resumible: el estado vive en cada fila de `campaign_recipients`. Si Resend rechaza un email (o se agotan los reintentos), el destinatario queda `failed` y suma a `FailedCount`; el detalle de la campaña muestra hasta 20 direcciones fallidas.
 5. Cada email lleva: los `href` http(s) reescritos a `/api/v1/marketing/c?t=...&u=...`, un pixel `/api/v1/marketing/o.gif?t=...` y un footer con `/api/v1/marketing/unsubscribe?token=...`. Las cards de productos apuntan a la tienda en https (`StoreLinks.CampaignStoreBaseAsync`); solo en desarrollo, con la plataforma en `localhost` o `*.localhost`, van en http.
@@ -128,7 +131,11 @@ Estados de la campaña: `draft`, `scheduled`, `sending`, `sent`, `cancelled`.
 
 ## Lo que aprendimos de la API real
 
-- **Idempotency-Key**: se genera una por envío y se repite en todos los reintentos. Si el primer intento llegó y se perdió la respuesta, Resend no duplica el email. Ver [Send Email](https://resend.com/docs/api-reference/emails/send-email).
+Rutas y campos revisados contra la documentación de Resend el 18-oct-2026: `POST https://api.resend.com/emails` con `from`, `to`, `subject`, `html`, `reply_to`, `tags` y `attachments`, y los eventos `email.bounced` y `email.complained` del webhook coinciden con lo que usa el código.
+
+- **Idempotency-Key**: se genera una por envío y se repite en todos los reintentos. Si el primer intento llegó y se perdió la respuesta, Resend no duplica el email (guarda la clave 24 horas). Ver [Send Email](https://resend.com/docs/api-reference/emails/send-email).
+- **Tags**: nombre y valor solo con letras ASCII, números, `_` y `-` (hasta 256 caracteres). El id de la tienda (un GUID con guiones) entra tal cual.
+- **Adjuntos**: `content` en base64; el tope es 40 MB por email, contado después de pasar a base64.
 - **Solo se reintenta 429 y 5xx** (y errores de red). Un 4xx (from sin verificar, dominio inválido) es definitivo.
 - **El display name no puede tener comillas dobles**: rompen el header From (RFC 5322). `BuildFrom` las saca.
 - **Los tags vuelven en el webhook**, a veces como objeto y a veces como array según la versión del payload. `ExtractTenantTag` acepta las dos formas.
@@ -141,9 +148,10 @@ Estados de la campaña: `draft`, `scheduled`, `sending`, `sent`, `cancelled`.
 - **Preview**: en `/configuracion/emails-automaticos` el editor muestra la plantilla con el layout real (`POST /api/v1/email-templates/preview`). En `/marketing`, la campaña tiene preview y "Enviar prueba".
 - **Envío real**: cargá una API key de prueba y `Email:From` de un dominio verificado, y mandá una campaña de prueba a tu casilla.
 - **Webhook**: desde el panel de Resend podés reenviar un evento a tu endpoint (sale con un timestamp nuevo, así que pasa la ventana de 5 minutos). Sin `Email:WebhookSecret` el endpoint da 404 (es lo esperado).
-- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada y supresión), `EmailTemplateTests.cs`, `FiscalWorkerTests.cs` (el email `factura` con el PDF, una sola vez) y los avisos de cancelación y reembolso en `ManualOrderTests.cs` y `MercadoPagoFlowTests.cs`. En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
+- **Tests**: `backend/tests/UnitTests/Notifications/EmailSenderTests.cs` (reintentos, idempotencia, from, resultado del envío), `CampaignV2Tests.cs` (firma svix y ventana del timestamp, audiencias), `StoreLinksTests.cs` (https salvo localhost), `EmailCampaignTests.cs`, y en integración: `CampaignFlowTests.cs` (armar, enviar, abrir, clickear, darse de baja, rebotar, replay del webhook y un rechazo de Resend que cuenta como fallido), `ShopAuthEmailTemplateTests.cs` (plantillas de la cuenta), `AbandonedCartEmailTests.cs` (plantilla, apagada, supresión, link de baja y uno por comprador), `EmailTemplateTests.cs`, `FiscalWorkerTests.cs` (el email `factura` con el PDF, una sola vez, y que ni la factura ni la nota de crédito salen en homologación) y los avisos de cancelación y reembolso en `ManualOrderTests.cs` y `MercadoPagoFlowTests.cs`. En integración Resend está simulado (`ApiFactory.AcceptAllEmails`; un test que quiera un rechazo pisa la ruta con `ExternalHttp.On` y la restaura).
 
 ## Pendiente
 
 - Confirmar en el panel de Resend de producción que el webhook esté creado y que `EMAIL_WEBHOOK_SECRET` esté cargado en el `.env` del stack: sin eso, los rebotes no se suprimen.
 - No hay alta manual de supresiones desde el panel (el motivo `manual` existe en la entidad pero nada lo usa).
+- Resend también tiene su propia lista de supresión por cuenta (evento `email.suppressed`). El webhook no lo escucha: un email que Resend descarta por esa lista (la cuenta es una para toda la plataforma) no deja rastro en `email_suppressions` de la tienda.

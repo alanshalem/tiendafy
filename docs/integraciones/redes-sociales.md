@@ -194,16 +194,21 @@ antes de mandar nada (`SentryScrubber`, ver [despliegue.md](../despliegue.md)).
 ## Lo que aprendimos de la API real
 
 Todavía no se publicó con apps reales de Meta ni de X: lo que sigue sale de la
-documentación oficial y quedó codificado así.
+documentación oficial y quedó codificado así. Versiones de la Graph API,
+publicación en Instagram (rutas, permisos y tope) y precios de X revisados
+otra vez el 18-oct-2026.
 
 - **Meta canjea por GET**, con `client_secret` en query, no por POST form como
   Mercado Pago o Mercado Libre.
 - **Versión de la Graph API**: una sola, `MetaGraph.Version` (hoy `v26.0`,
-  salida el 29-jul-2026; es la última y al 16-oct-2026 Meta todavía no le puso
-  fecha de baja). Meta apaga cada versión a los ~2 años (v20.0 murió
-  el 24-sep-2026, v21.0 muere el 21-ene-2027). Los changelogs de v22 a v26 no
-  tocan los endpoints que usamos; v26 deja de aceptar `date_format`,
-  `pretty`/`debug`, ETag y `GET /?ids=`, que no usamos. Al subirla, revisá el
+  salida el 29-jul-2026; es la última y, según la
+  [tabla de versiones](https://developers.facebook.com/docs/graph-api/changelog/versions)
+  revisada el 18-oct-2026, todavía no tiene fecha de baja). Meta apaga cada
+  versión a los ~2 años (v20.0 murió el 24-sep-2026, v21.0 muere el
+  21-ene-2027). Los changelogs de v22 a v26 no tocan los endpoints que usamos;
+  v26 deja de aceptar `date_format`, `pretty`/`debug`, ETag y `GET /?ids=`, y
+  bloquea la Commerce Order Management API, nada de lo cual usamos (esos
+  cambios llegan a todas las versiones el 27-oct-2026). Al subirla, revisá el
   [changelog](https://developers.facebook.com/docs/graph-api/changelog).
 - Los **page tokens** obtenidos con un token largo de usuario no vencen en la
   práctica: no hay refresh. Ante el error `190` se marca la cuenta y se
@@ -215,7 +220,7 @@ documentación oficial y quedó codificado así.
   uso** (como el de Mercado Libre). Las apps confidenciales exigen Basic auth
   en `/oauth2/token` además del `client_id` en el form. Subir media va por otro
   flujo y no está hecho: X publica solo texto (más el link que pongas).
-- **La API de X es paga**: pago por uso, sin plan gratis (16-oct-2026, según
+- **La API de X es paga**: pago por uso, sin plan gratis (18-oct-2026, según
   [Pricing](https://docs.x.com/x-api/getting-started/pricing)). Crear un post
   cuesta USD 0,015 y **USD 0,20 si lleva una URL**, que es el caso típico de un
   post con el link al producto.

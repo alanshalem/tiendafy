@@ -21,8 +21,10 @@
 >   D2 lotes como entidad (la orden de compra hace de lote) y D3 portal B2B (las
 >   listas de precios mayoristas existen, pero solo para la venta asistida
 >   desde el panel; la tienda muestra el precio del producto).
-> - **Pendiente**: Meta Ads necesita la app real en Meta (`MetaAds:AppId` y
->   `MetaAds:AppSecret`) para leer el gasto en producción.
+> - **Pendiente** (sigue igual al 18-oct): Meta Ads necesita la app real en
+>   Meta (`MetaAds:AppId` y `MetaAds:AppSecret`, que en producción llegan de
+>   `META_APP_ID` y `META_APP_SECRET`) para leer el gasto. Ver
+>   [integraciones/redes-sociales.md](../integraciones/redes-sociales.md).
 
 ---
 
