@@ -38,18 +38,25 @@ Después del reembolso, el pago queda `approved` con
 - Lock por orden y validación contra `RemainingRefundable`; Mercado Pago
   primero, estado local después (con `xmin`: si otra instancia ya aplicó, 409).
 - Solo pagos `approved` (o parcialmente devueltos). Plazo: hasta 180 días desde
-  el pago.
+  la aprobación. La cuenta de la tienda tiene que tener **saldo disponible**
+  por el monto; si no, el reembolso no se hace. Un pago `pending` o
+  `in_process` no se devuelve: se cancela.
 - `PaymentId` que empieza con `manual-` (efectivo, transferencia, cuenta
   corriente): no se llama a Mercado Pago, solo se registra. Si el pago fue de
   Payway, va a Payway.
-- Al completar el total corren los avisos y la nota de crédito automática
-  (ARCA); el reingreso de stock es opcional.
+- Cada reembolso, total o parcial, puede llevar su nota de crédito (ARCA):
+  con emisión automática sale sola (clave `reembolso:{id del registro}`); sin
+  ella, si el pedido trae `creditNote: true`. Entre todas las NC nunca superan
+  la factura. Detalle en `docs/integraciones/arca.md`. Al completar el total
+  corren además los avisos; el reingreso de stock es opcional.
 - Reembolsos hechos desde el panel de Mercado Pago: `SettlePaymentHandler` los
   aplica si consulta el pago y ve `transaction_amount_refunded` mayor al
-  registrado. El aviso que los dispara es un `payment.updated` del mismo pago:
-  el inbox vuelve a poner en cola esa fila (ver `mercadopago-webhooks`).
-- En marketplace, Mercado Pago devuelve también la parte proporcional de la
-  comisión de la plataforma (`marketplace_fee`/`application_fee`).
+  registrado (NC con clave `reembolso-pasarela:{antes}-{después}`). El aviso
+  que los dispara es un `payment.updated` del mismo pago: el inbox vuelve a
+  poner en cola esa fila (ver `mercadopago-webhooks`).
+- Con comisión de marketplace, lo devuelto se descuenta de la tienda y de la
+  plataforma en proporción a lo que recibió cada una (lo documenta la guía de
+  Split 1:1; para preference y `/v1/payments` no hay una regla aparte).
 
 ## Contracargos
 
@@ -68,6 +75,9 @@ Mercado Pago antes del plazo.
 | Error de monto | Supera lo que queda por devolver | Validar contra `transaction_amount_refunded` |
 | Error de estado | El pago no está `approved` | No hay nada que devolver: cancelar |
 | `in_process` | Medio lento | Esperar; se refleja en el pago |
+| Falla aunque el pago está aprobado | La tienda no tiene saldo disponible | Que cargue saldo en Mercado Pago |
 
-Docs: <https://www.mercadopago.com.ar/developers/es/reference> (Reembolsos,
+Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-api-payments/payment-management/cancellations-and-refunds>,
+marketplace: <https://www.mercadopago.com.ar/developers/es/docs/split-payments/split-1-1/integration-configuration/integrate-marketplace>,
+referencia: <https://www.mercadopago.com.ar/developers/es/reference> (Reembolsos,
 Contracargos).

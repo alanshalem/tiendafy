@@ -40,15 +40,17 @@ initMercadoPago(publicKey, { locale: 'es-AR' });   // una vez, en el cliente
 - Solo en el cliente (`'use client'`): el SDK toca `window`. Un `initMercadoPago`
   por página; si cambia la `public_key` (otra tienda), recargar.
 - Desmontar al salir (el componente de React lo hace al desmontarse; con el
-  SDK JS puro, `brick.unmount()`). Montarlo dos veces duplica los iframes.
+  SDK JS puro, `window.paymentBrickController.unmount()`). Montarlo dos veces
+  duplica los iframes.
 - Los ad-blockers que bloquean `sdk.mercadopago.com` o
   `secure-fields.mercadopago.com` hacen fallar la inicialización
   (`FIELDS_SETUP_FAILED` o el Brick no aparece): mostrar un aviso, no un error
   genérico.
 - Débito no ofrece cuotas: es lo esperado.
 - Medios que no son tarjeta (`ticket`, `mercadoPago`) necesitan que el backend
-  sepa cobrarlos; hoy Tiendafy cobra tarjeta. Para "dinero en cuenta" el Brick
-  necesita además un `preferenceId` (Checkout Pro).
+  sepa cobrarlos; hoy Tiendafy cobra tarjeta. Para "Cuenta de Mercado Pago"
+  (`mercadoPago`) el Brick necesita además un `preferenceId` creado en el
+  backend, y ese medio no usa `amount`: el monto sale de la preference.
 - La CSP de la tienda (`storefront/src/lib/csp.ts`) tiene que permitir el SDK
   y lo que él carga: `sdk.mercadopago.com` es solo el cargador; cada Brick
   (`payment.js`, `statusScreen.js` y sus partes) es un `<script>` de
@@ -90,8 +92,9 @@ import { StatusScreen } from '@mercadopago/sdk-react';
   a la ventana; el Brick consulta el pago y muestra el resultado. Tiendafy
   escucha ese mensaje para ir a su pantalla de resultado (que consulta la
   orden) y además consulta la orden cada 4 s por si el aviso no llega.
-- El iframe del Brick trae `min-width: 600px`: en celular, envolverlo en un
-  contenedor con scroll horizontal.
+- El iframe del desafío trae un ancho mínimo propio (unos 600 px al leer el
+  SDK; la doc no lo dice): en celular, envolverlo en un contenedor con scroll
+  horizontal.
 
 ## Problemas típicos
 
@@ -106,5 +109,9 @@ import { StatusScreen } from '@mercadopago/sdk-react';
 | El desafío del banco queda en blanco | `frame-src`/`form-action` sin el ACS del banco (página que no es `/checkout`) | Mostrarlo solo en `/checkout` |
 | El desafío se rechaza solo | Empezó más de 30 s después de crear el pago | Montar el Status Screen apenas vuelve el cobro |
 
+Para probar: según la guía de cuentas de prueba, "las integraciones con
+Checkout Bricks no soportan cuentas de prueba"; ver `mercadopago-testing-sandbox`.
+
 Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/landing>,
+Payment Brick: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/payment-brick/default-rendering>,
 3DS con Bricks: <https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/how-tos/integrate-3ds>

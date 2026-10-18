@@ -32,8 +32,9 @@ Campos que lee Tiendafy: `status`, `status_detail`, `external_reference`,
 
 `action`: `order.processed`, `order.action_required`, `order.failed`,
 `order.canceled`, `order.refunded`, `order.charged_back`… Consulta:
-`GET /v1/orders/{data.id}`. El id es alfanumérico (`ORD…`): para la firma va en
-minúsculas.
+`GET /v1/orders/{data.id}`. El id es alfanumérico (`ORD…`): para la firma va
+tal como llega en la query (las SDK oficiales dejaron de pasarlo a minúsculas
+en jun-2026).
 
 ## `topic_merchant_order_wh`
 
@@ -61,3 +62,8 @@ desconectada sin esperar a que falle un cobro.
 
 `subscription_preapproval`, `subscription_authorized_payment`,
 `subscription_preapproval_plan`. Tiendafy no vende suscripciones.
+
+## Otros de la lista de "Tus integraciones"
+
+`stop_delivery_op_wh` (alertas de fraude), `topic_card_id_wh` (Card Updater),
+`wallet_connect`, `point_integration_wh` (Point). Tiendafy no los usa.

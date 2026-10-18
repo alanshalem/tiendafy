@@ -43,7 +43,7 @@ resume la API y apunta a las de detalle.
 | Contracargo | `GET /v1/chargebacks/{id}` |
 | Medios de pago | `GET /v1/payment_methods` |
 | OAuth: canje y refresh | `POST /oauth/token` |
-| OAuth: autorización (navegador) | `https://auth.mercadopago.com.ar/authorization` |
+| OAuth: autorización (navegador) | `https://auth.mercadopago.com/authorization` en la doc actual; Tiendafy usa `auth.mercadopago.com.ar`, que también lleva al login |
 
 No inventes rutas por analogía (agregar `/v1` a todo): confirmá en la
 referencia oficial. Una preference creada en `/v1/checkout/preferences` falla.
@@ -63,6 +63,11 @@ preferences.
 - Nunca confiar en el redirect ni en el body del webhook: el estado sale de
   `GET /v1/payments/{id}` con el token de la tienda.
 - `X-Idempotency-Key` en todo POST que cobra o devuelve.
+- **Una sesión de checkout, una orden** (índice único en
+  `orders.checkout_session_id`): un doble clic o una segunda pestaña reusan la
+  orden pendiente y su clave de idempotencia (el id de la orden). Pagada,
+  cancelada o rechazada, el reintento recibe un 409 y el comprador vuelve a
+  empezar desde el carrito (orden nueva, clave nueva).
 - `external_reference` = id de la orden (reconciliación).
 - Tokens de las tiendas cifrados (purposes `Tiendafy.Payments.MercadoPagoTokens.v1`
   y `Tiendafy.Payments.MercadoPagoOAuthState.v1`: **no cambiarlos nunca**).

@@ -49,11 +49,18 @@ usa: con usuarios de prueba también va `init_point`.
 - **No hay descuento a nivel orden** en la preference: con cupón, Tiendafy
   colapsa los ítems en uno solo por el neto.
 - `external_reference` = id de la orden; `X-Idempotency-Key` = id de la orden.
+  La referencia de preferences no documenta ese header: que una orden reusada
+  no cree otra preference no está garantizado (no es grave: el pago se concilia
+  por `external_reference`).
 - `notification_url` solo si hay `PublicApiBaseUrl`; vacía = no hay webhooks y
   la orden queda pendiente aunque se pague.
 - `marketplace_fee` (monto, no porcentaje) es la comisión de la plataforma
   **en la preference**; en `/v1/payments` el campo se llama `application_fee`.
-- `statement_descriptor`: hasta 22 caracteres (Tiendafy lo corta).
+  No puede superar el total (400 "marketplace_fee must not be greater than
+  total amount").
+- `statement_descriptor`: la guía oficial dice **hasta 13 caracteres**.
+  Tiendafy hoy acepta y corta a 22 (`MercadoPagoConnection.SetStatementDescriptor`
+  y el panel): pendiente de corregir.
 - `auto_return` necesita `back_urls` en HTTPS: por http (desarrollo) el regreso
   automático falla en silencio y la orden se concilia igual por webhook.
 - El `returnUrl` que manda el cliente se valida contra dominios propios
@@ -89,5 +96,8 @@ Tiendafy con cada uno: `mercadopago-webhooks`.
 | `MercadoPago.NotConnected` | La tienda no completó el OAuth | Conectar en Configuración → Medios de pago |
 | La comisión no aparece | `marketplace_fee` en 0 o mandada como `application_fee` | Campo correcto según la API |
 
-Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing>
-y la referencia de preferences en <https://www.mercadopago.com.ar/developers/es/reference>.
+Docs: <https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/landing>,
+referencia de preferences:
+<https://www.mercadopago.com.ar/developers/en/reference/online-payments/checkout-pro/preferences/create-preference/post>,
+descripción en el resumen de la tarjeta:
+<https://www.mercadopago.com.ar/developers/es/docs/checkout-pro-preferences/additional-settings/invoice-description>.

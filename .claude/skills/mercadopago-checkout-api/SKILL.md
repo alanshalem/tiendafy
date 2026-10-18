@@ -52,7 +52,14 @@ no viene en la respuesta del cobro).
 - El token de tarjeta es de **un solo uso** y vence rápido: ante un error, el
   Brick tiene que generar otro.
 - `X-Idempotency-Key`: el mismo valor en un reintento no cobra dos veces.
-  Tiendafy usa el id de la orden.
+  Tiendafy usa el id de la orden, y la orden es una por sesión de checkout
+  (ver `mercadopago-overview`): un doble clic devuelve el pago que ya había. Un
+  rechazo deja la orden `Failed` y el reintento es un 409
+  (`Checkout.PaymentFailed`): se vuelve a empezar con orden y clave nuevas.
+  Ojo con el caso intermedio: si Mercado Pago contesta un error HTTP (el pago
+  no se creó), la orden sigue pendiente y el próximo intento sale con la misma
+  clave y otro token. Qué hace Payments API con una clave repetida y otro body
+  no está documentado (Orders API devuelve 409 `idempotency_key_already_used`).
 - `binary_mode: false` deja el pago en `pending`/`in_process` cuando hace
   falta (revisión, 3DS). Con `true` solo hay `approved` o `rejected`.
 
@@ -78,7 +85,8 @@ p. ej. `https://acs-public.tp.mastercard.com/api/v1/browser_Challenges`).
   pendiente. La tienda lo muestra con el Status Screen Brick
   (`mercadopago-bricks`).
 - El desafío tiene que **empezar dentro de los 30 s** de creado el pago (si no,
-  se rechaza); empezado, el comprador tiene unos 5 minutos.
+  se rechaza; lo dice la guía de 3DS con Bricks); empezado, el comprador tiene
+  unos 5 minutos (guía de Checkout API).
 - Al terminar, el iframe hace `postMessage({ status: 'COMPLETE' })`: solo dice
   que terminó, no cómo salió. El estado final se sabe por webhook o
   consultando el pago, y la actualización no es instantánea.
@@ -105,16 +113,17 @@ cambia si algún día se migra:
 
 - `transactions.payments[]` con `amount` como **string**; `total_amount` =
   suma.
-- `notification_url` sale del body: los avisos se configuran en "Tus
-  integraciones", topic `orders` (correr `orders` y `payment` en paralelo
-  durante la migración).
-- 3DS: `config.online.transaction_security.validation` (`on_fraud_risk`,
-  `always`, `never`).
+- `notification_url` sale del body: los avisos se configuran solo en "Tus
+  integraciones", topic `orders`; no hay IPN.
+- 3DS: `config.online.transaction_security.validation` (`on_fraud_risk`
+  recomendado, `always`, `never` por defecto) con `liability_shift: "required"`
+  si no es `never`.
 - Estados: `processed`, `processing`, `action_required`, `failed`,
   `canceled` (**una L**; Payments dice `cancelled`), `refunded`,
   `charged_back`.
-- Idempotencia obligatoria en todos los POST; la misma clave con otro body da
-  409 `idempotency_key_already_used`.
+- `X-Idempotency-Key` obligatoria en crear, capturar, procesar, cancelar y
+  reembolsar; la misma clave con otro body da 409
+  `idempotency_key_already_used`.
 - Reembolso: `POST /v1/orders/{id}/refund`.
 - **Bloqueante para Tiendafy**: no hay equivalente documentado de
   `application_fee` (marketplace).
