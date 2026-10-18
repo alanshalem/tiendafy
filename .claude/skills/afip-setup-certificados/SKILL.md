@@ -26,13 +26,16 @@ irrecuperable: hay que generar y activar un certificado nuevo.
 
 ## En ARCA, homologación
 
-1. Con clave fiscal, adherí el servicio **WSASS – Autogestión de Certificados
-   Homologación** (Administrador de Relaciones).
-2. En WSASS (`https://wsass-homo.afip.gov.ar/wsass/portal/main.aspx`): "Nuevo
-   certificado" → alias + CSR → descargá el certificado (PEM).
+1. Con la clave fiscal **de persona física** (WSASS no es delegable ni se usa
+   con la de una empresa), adherí el servicio **WSASS – Autogestión de
+   Certificados Homologación** y entrá desde el portal de ARCA. (La URL
+   directa vieja `wsass-homo.afip.gov.ar/wsass/portal/main.aspx` daba 404 el
+   18-oct-2026.)
+2. En WSASS: "Nuevo certificado" → alias + CSR → descargá el certificado
+   (PEM).
 3. En WSASS, "Crear autorización a servicio": el certificado (alias) →
-   servicio `wsfe` y, si se va a consultar el padrón, el servicio de padrón
-   (ver `afip-padrones-validaciones`).
+   servicio `wsfe` y, si se va a consultar el padrón,
+   `ws_sr_constancia_inscripcion` (ver `afip-padrones-validaciones`).
 4. Punto de venta: en homologación se acepta cualquier número
    (`FEParamGetPtosVenta` devuelve 602, sin datos).
 
@@ -43,7 +46,8 @@ irrecuperable: hay que generar y activar un certificado nuevo.
 2. **Administrador de Relaciones de Clave Fiscal** → Nueva relación → ARCA →
    Web Services → **Facturación Electrónica** (`wsfe`); como representante, el
    certificado (computador fiscal) creado en el paso 1. Repetir para el padrón
-   si se usa.
+   si se usa (`ws_sr_constancia_inscripcion`; el viejo `ws_sr_padron_a5` está
+   deprecado).
 3. Si el certificado es de otra CUIT (un proveedor de software), el emisor
    **delega** el servicio en esa CUIT desde su Administrador de Relaciones.
 4. **Punto de venta**: ABM de puntos de venta → sistema **"RECE para aplicativo
@@ -83,5 +87,6 @@ openssl req -new -key clave.key -subj "/C=AR/O=Razon Social/CN=mi-sistema/serial
 En Git Bash de Windows el `-subj` que empieza con `/` se convierte en ruta:
 anteponé `MSYS_NO_PATHCONV=1` al comando.
 
-Documentación oficial: <https://www.afip.gob.ar/ws/> (WSAA: obtener
-certificado, asociarlo a un servicio de producción y delegar).
+Documentación oficial: <https://www.afip.gob.ar/ws/documentacion/wsaa.asp>
+(obtener el certificado de producción y asociarlo a un servicio) y el manual
+de WSASS: <https://www.afip.gob.ar/ws/WSASS/html/introduccion.html>.

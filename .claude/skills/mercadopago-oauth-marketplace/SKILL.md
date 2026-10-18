@@ -22,8 +22,11 @@ En Tiendafy: `MercadoPagoOAuthClient.cs`, `Payments.Core/Features/Connect/OAuthC
      ?client_id={APP_ID}&response_type=code&platform_id=mp
      &state={state cifrado}&redirect_uri={RedirectUri}
    ```
-   El `state` lleva tienda + hora, cifrado (purpose
-   `Tiendafy.Payments.MercadoPagoOAuthState.v1`), y vale 15 minutos.
+   (La doc actual usa `auth.mercadopago.com`; las dos llevan al login.) El
+   `state` lleva tienda + hora, cifrado (purpose
+   `Tiendafy.Payments.MercadoPagoOAuthState.v1`), y vale 15 minutos. Si algún
+   día se prende PKCE en la app, `code_challenge` y `code_challenge_method`
+   pasan a ser obligatorios (y `code_verifier` en el canje): hoy no se usa.
 2. Mercado Pago vuelve a `GET /api/v1/payments/mercadopago/callback?code=…&state=…`
    **sin header de tienda**: la tienda sale del `state`, nunca de la request.
 3. Canje:
@@ -34,7 +37,10 @@ En Tiendafy: `MercadoPagoOAuthClient.cs`, `Payments.Core/Features/Connect/OAuthC
    client_id=…&client_secret=…&grant_type=authorization_code&code=…&redirect_uri=…
    ```
    Respuesta: `access_token`, `refresh_token`, `user_id`, `public_key`,
-   `expires_in` (15552000 s = 180 días), `scope`.
+   `expires_in` (15552000 s = 180 días), `scope`. El `code` vale 10 minutos.
+   La doc muestra el canje con JSON (y un `test_token` opcional para
+   credenciales de prueba); Tiendafy manda form-urlencoded, el formato
+   estándar de OAuth 2.0: todavía no se probó contra la API real.
 4. Se cifran los tokens (purpose `Tiendafy.Payments.MercadoPagoTokens.v1`) y
    se crea o actualiza la conexión. El navegador vuelve a `AdminReturnUrl`
    con `?mp=connected` o `?mp=error`.
@@ -53,8 +59,8 @@ En Tiendafy: `MercadoPagoOAuthClient.cs`, `Payments.Core/Features/Connect/OAuthC
   conexión sin `public_key` (vieja) hay que reconectarla.
 - Nunca mezclar el token de la plataforma con el de la tienda: el pago se
   acredita a quien es dueño del token.
-- El comprador ve el `statement_descriptor` de la tienda (configurable, hasta
-  22 caracteres).
+- El comprador ve el `statement_descriptor` de la tienda (configurable; la
+  guía oficial admite hasta 13 caracteres, ver `mercadopago-checkout-pro`).
 
 ## Comisión de la plataforma
 
@@ -81,3 +87,5 @@ su cuenta).
 | Refresh falla siempre | La tienda revocó la app | Reconectar (el aviso `mp-connect` lo anticipa) |
 
 Docs: <https://www.mercadopago.com.ar/developers/es/docs/security/oauth/introduction>
+y el flujo con `authorization_code`:
+<https://www.mercadopago.com.ar/developers/es/docs/security/oauth/creation>.

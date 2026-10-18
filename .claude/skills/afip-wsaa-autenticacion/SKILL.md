@@ -27,18 +27,22 @@ En Tiendafy: `Fiscal.Infrastructure/Wsaa/TraSigner.cs` (TRA y firma),
 </loginTicketRequest>
 ```
 
-- `generationTime` en el pasado y `expirationTime` en el futuro, con offset.
-  Tiendafy usa ahora −10 min / +10 min: holgado contra reloj corrido. El TRA no
-  define cuánto dura el TA (lo decide WSAA, hasta 12 h).
+- `generationTime` en el pasado y `expirationTime` en el futuro, con offset;
+  la especificación admite hasta 24 h para cada lado. Tiendafy usa −10 min /
+  +10 min: holgado contra reloj corrido. El TRA no define cuánto dura el TA:
+  la especificación dice 12 h desde la emisión.
 - `uniqueId` es `unsignedInt`: epoch en segundos entra hasta 2106.
 - `service`: `wsfe` para WSFEv1; el padrón tiene su propio id (ver
   `afip-padrones-validaciones`). Cada servicio pide su propio TA.
 
 ## Firma CMS
 
-CMS "attached" (el TRA va adentro) con SHA-256, incluyendo el certificado del
-firmante. En .NET: `SignedCms` + `CmsSigner` con
-`X509IncludeOption.EndCertOnly`.
+CMS "attached" (`SignedData` con el TRA adentro), incluyendo el certificado
+del firmante. En .NET: `SignedCms` + `CmsSigner` con
+`X509IncludeOption.EndCertOnly`; el digest queda en el default de .NET
+(SHA-256). La especificación técnica v1.2.2 dice "SHA1+RSA" y Tiendafy todavía
+no hizo un `loginCms` contra ARCA real: si el primero da `cms.sign.invalid`,
+revisar el digest antes que la clave.
 
 Gotcha de Windows: un `X509Certificate2` armado con `CreateFromPem` tiene clave
 efímera y **no firma CMS**. Hay que pasar por PKCS#12
@@ -97,7 +101,13 @@ WSFEv1 devuelve 600 o 601 (ver `afip-troubleshooting`).
 | `coe.notAuthorized` ("Computador no autorizado") | El certificado no está autorizado a ese servicio | Crear la autorización en WSASS (homologación) o en el Administrador de Relaciones (producción) |
 | `cms.cert.untrusted` / `cms.cert.expired` | Certificado de otro ambiente, vencido o que no emitió ARCA | Certificado del ambiente correcto |
 | `cms.bad` / `cms.sign.invalid` | CMS mal armado o clave que no corresponde | Revisar que la clave sea la del CSR |
-| `xml.generationTime.invalid` / `xml.expirationTime.invalid` | Reloj corrido o tiempos fuera de rango | NTP en el servidor; offset en las fechas |
+| `xml.generationTime.invalid` / `xml.expirationTime.expired` / `xml.expirationTime.invalid` | Generación en el futuro o de más de 24 h; expiración ya pasada o a más de 24 h | NTP en el servidor; offset en las fechas |
+| `wsn.notFound` | Id de servicio inexistente en el TRA | Revisar el `service` |
+| `wsaa.unavailable` / `wsaa.internalError` / `wsn.unavailable` | Caída de ARCA | Reintentar, no antes de 60 s |
+
+Regla de la especificación: ante un error que **no** sea `wsaa.*` ni
+`wsn.unavailable`, no pedir otro TA hasta corregir la causa (autorización,
+reloj, desarrollo); ante esos, no pedir otro dentro de los 60 s siguientes.
 
 ## Lo que NO hay que hacer
 
@@ -106,3 +116,6 @@ WSFEv1 devuelve 600 o 601 (ver `afip-troubleshooting`).
   de DH chico está solo en `servicios1` y se resuelve ofreciendo ECDHE (ver
   `afip-troubleshooting`).
 - Pedir un TA por request.
+
+Especificación técnica de WSAA:
+<https://www.afip.gob.ar/ws/WSAA/Especificacion_Tecnica_WSAA_1.2.2.pdf>.

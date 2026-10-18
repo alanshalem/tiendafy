@@ -30,14 +30,23 @@ descripciones comparten un presupuesto de contexto.
   verdad del proyecto son `docs/integraciones/arca.md` y
   `docs/integraciones/mercadopago.md`: si se aprende algo de la API real, va
   primero ahí y después a la skill. Lo que dice la skill de la API se contrasta
-  con la documentación oficial (links al final de cada `*-overview`); última
-  revisión: 16-oct-2026 (manual WSFEv1 v4.7).
+  con la documentación oficial (links al final de cada `*-overview`) y con el
+  código; última revisión: 18-oct-2026 (manual WSFEv1 v4.8, constancia de
+  inscripción v4.1, WSAA v1.2.2; Mercado Pago contra su doc y los validadores
+  de webhooks de sus SDK).
 - **seo-audit**: copia sin cambios del original. Para actualizarla, bajá
   `skills/seo-audit/` del repo de origen, reemplazá la carpeta (dejando
   `LICENSE`) y actualizá versión y commit en esta tabla. No se usa el CLI
   `skills` (`npx skills`): instala en `.agents/skills/` y deja enlaces en
-  `.claude/skills/`, que en Windows y en git no sirven.
+  `.claude/skills/`, que en Windows y en git no sirven. Al 18-oct-2026,
+  `6b9e938` seguía siendo el último commit de esa carpeta.
+- **Otras integraciones** (Mercado Libre, Payway, Andreani, Correo Argentino,
+  Resend, WhatsApp…) no tienen skill a propósito: lo que hay que saber está en
+  `docs/integraciones/*.md` y una skill lo duplicaría. Se suma una solo si
+  aporta algo que no está ahí y está verificado contra la doc oficial.
 - Contenido de terceros solo con una licencia que permita redistribuirlo (el
   repo es público) y con su aviso de copyright. Si no, se enlaza.
 - Validar el frontmatter después de editar: tiene que parsear como YAML y
-  tener `name` (igual a la carpeta) y `description`.
+  tener `name` (igual a la carpeta) y `description`. Sirve el paquete `yaml`
+  que ya está en `node_modules/.pnpm` (`YAML.parse` del bloque entre los
+  `---`, con `strict: true`).

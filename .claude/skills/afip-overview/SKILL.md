@@ -50,12 +50,19 @@ hosts siguen en `afip.gov.ar` aunque el organismo se llame ARCA: no los
    `FECompConsultar` antes de pedir otro número.
 6. PDF con el QR de ARCA (RG 4892).
 
+En Tiendafy, además: "ya facturada" se mira **por ambiente** (una factura de
+homologación no cuenta en producción); una venta puede tener **varias notas
+de crédito**, cada una con su clave y entre todas sin superar la factura; los
+emails "factura" y "nota-credito" no salen con comprobantes de homologación.
+El detalle está en `docs/integraciones/arca.md`.
+
 ## Cambios normativos que importan (2025-2026)
 
 - **Condición frente al IVA del receptor** (`CondicionIVAReceptorId`, RG
   5616/2024): campo nuevo desde el manual v4.0 (mar-2025), opcional desde
-  abril de 2025 y **obligatorio desde el 1-dic-2026**: sin él, ARCA rechaza.
-  Además, el valor tiene que ser válido para la clase del comprobante (ver
+  abril de 2025 y **obligatorio desde el 1-dic-2026** (manual v4.8: sin él
+  rechaza con 10246 y la observación 10245 queda en desuso). Además, el valor
+  tiene que ser válido para la clase del comprobante (ver
   `afip-tipos-comprobantes`). Tiendafy ya lo manda siempre.
 - **Umbral para identificar al consumidor final**: $10.000.000 desde el
   29-may-2025 (RG 5700/2025). Es el default del umbral de la tienda.
@@ -63,8 +70,11 @@ hosts siguen en `afip.gov.ar` aunque el organismo se llame ARCA: no los
   operación sujeta a retención".
 - **CAEA** (RG 5782, manual v4.6, ago-2026): pasa a ser solo de contingencia.
   Tiendafy no usa CAEA y no lo va a usar (factura online, una por venta).
-- Manual vigente al 16-oct-2026: WSFEv1 v4.7 (1-sep-2026); hay noticias de
-  una v4.8. Antes de implementar algo nuevo, bajá el último.
+- Manual vigente: WSFEv1 **v4.8** ("revisión correspondiente al 1 de
+  diciembre de 2026", ya publicada en oct-2026 en `arca.gob.ar`). Respecto de
+  la v4.7 solo cambia lo de `CondicionIVAReceptorId`. El link de `afip.gob.ar`
+  (`manual-desarrollador-ARCA-COMPG.pdf`) seguía en v4.7 el 18-oct-2026: antes
+  de implementar algo nuevo, bajá los dos y usá el de número más alto.
 
 ## Reglas duras
 
@@ -84,8 +94,12 @@ hosts siguen en `afip.gov.ar` aunque el organismo se llame ARCA: no los
 
 - Portal de web services: <https://www.afip.gob.ar/ws/> (Documentación →
   manuales de WSAA y de WSFEv1).
-- Manual del desarrollador WSFEv1 (RG 4291):
+- Manual del desarrollador WSFEv1 (RG 4291), v4.8:
+  <https://www.arca.gob.ar/fe/ayuda/documentos/wsfev1-RG-4291.pdf> (el de
   <https://www.afip.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf>
+  estaba en v4.7)
+- Especificación técnica de WSAA (v1.2.2):
+  <https://www.afip.gob.ar/ws/WSAA/Especificacion_Tecnica_WSAA_1.2.2.pdf>
 - Catálogo de otros web services (padrón y constancia):
   <https://www.afip.gob.ar/ws/documentacion/catalogo.asp>
 - Pasos para consumir un web service de factura electrónica:

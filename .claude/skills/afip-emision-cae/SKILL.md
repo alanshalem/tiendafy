@@ -15,18 +15,22 @@ http://ar.gov.afip.dif.FEV1/{Operación}`. Detalle de campos:
 
 ## El orden que usa Tiendafy (`EmitInvoiceHandler`)
 
-1. Cortes sin llamar a ARCA: ya hay factura autorizada, consumidor final
-   anónimo por encima del umbral, el comprador es la propia tienda (ARCA no
-   deja facturarse a uno mismo).
+1. Cortes sin llamar a ARCA: ya hay factura autorizada **en el ambiente
+   actual** (una de homologación no cuenta en producción) o, para una NC, ya
+   hay una autorizada con la misma clave; consumidor final anónimo por encima
+   del umbral; el comprador es la propia tienda (ARCA no deja facturarse a uno
+   mismo).
 2. Lock de **sesión** por venta y después por serie (tienda, ambiente, punto
    de venta, tipo). Dentro del lock de la venta se repite el corte "ya tiene
-   factura".
+   factura" y, para una NC, el tope: lo acreditado más lo que está en curso más
+   la NC nueva no supera la factura (`CreditNoteLimit`).
 3. `FECompUltimoAutorizado(PtoVta, CbteTipo)` → número = **ese + 1, exacto**.
    La secuencia local es un espejo y se corrige si quedó desfasada.
 4. **Reconciliación**: cada comprobante de la serie que quedó `Pending` se
    consulta con `FECompConsultar`. Si ARCA lo tiene con el mismo receptor e
-   importe, se adopta su CAE. "No existen datos" (602) significa que nunca
-   llegó; cualquier otra duda frena la serie hasta revisarla a mano.
+   importe, se adopta su CAE (una NC solo adopta el pendiente de su misma
+   clave). "No existen datos" (602) significa que nunca llegó; cualquier otra
+   duda frena la serie hasta revisarla a mano.
 5. **Write-ahead**: se graba `Pending` con su número antes de pedir el CAE.
 6. `FECAESolicitar`. Autorizado → CAE. Rechazado → el número no se consumió.
    Sin respuesta (timeout, respuesta ilegible, HTTP de error sin SOAP Fault,
@@ -79,6 +83,7 @@ mismo da 10016 si ya se usó.
   total − neto.
 - Importes de notas de crédito: **positivos**, con `CbtesAsoc` apuntando a la
   factura. La NC no puede superar al comprobante asociado (observación 10237).
+  El manual no dice nada de la suma de varias NC: ese tope lo pone Tiendafy.
 - `CbteFch`: hasta 5 días antes o después (Concepto 1, sin salir del mes) o 10
   (Concepto 2 y 3), y **no anterior al último comprobante** de esa serie
   (10016). Vacía = fecha de proceso.
@@ -116,7 +121,7 @@ mismo da 10016 si ya se usó.
 | 10015 | B en lote por encima del umbral sin identificar | Identificar al receptor |
 | 10048 | `ImpTotal` no cierra | Recalcular con la fórmula de arriba |
 | 10070 / 10071 | Falta `Iva` en A/B / sobra `Iva` en C | Según la clase |
-| 10242 / 10243 / 10246 | `CondicionIVAReceptorId` fuera del catálogo / no válida para la clase / faltante (rechazo desde el 1-dic-2026; antes, observación 10245) | `FEParamGetCondicionIvaReceptor` |
+| 10242 / 10243 / 10246 | `CondicionIVAReceptorId` fuera del catálogo / no válida para la clase / faltante (rechazo desde el 1-dic-2026, manual v4.8; antes, observación 10245) | `FEParamGetCondicionIvaReceptor` |
 | 10247 | CUIT receptor inactivo o inválido (no aplica a NC) | Verificar el CUIT |
 | 600 / 601 | Token y firma no corresponden, o el CUIT no está en el TA | Delegación o certificado (ver `afip-troubleshooting`) |
 

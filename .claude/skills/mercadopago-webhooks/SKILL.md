@@ -29,23 +29,34 @@ id:{data.id};request-id:{x-request-id};ts:{ts};
 ```
 
 - `v1 = HMAC-SHA256(secret, manifest)` en hex; comparar en tiempo constante.
-- La doc toma `data.id` **de la query** (`data.id_url`). Si es alfanumérico
-  (ids de Orders, `ORD01…`), va **en minúsculas**. Si falta algún valor, se
-  saca ese tramo del template.
+- La referencia hoy es el `WebhookSignatureValidator` de las SDK oficiales
+  (Node, .NET, Java, Python, PHP, Ruby): la página de webhooks ya no muestra el
+  template y remite a las SDK. Lo que hacen:
+  - `data.id` **de la query**, tal como llega. Ya no se pasa a minúsculas: la
+    SDK de Node lo hacía y lo sacó en jun-2026 ("MercadoPago signs the
+    notification using the original casing"). Lo que digan guías viejas sobre
+    minúsculas para ids alfanuméricos, no.
+  - Si falta `data.id` o `x-request-id`, se saca ese tramo del manifest.
+  - `ts` es en **segundos** (la SDK de Node lo corrigió en ago-2026). Ojo: el
+    ejemplo de la guía de notificaciones de Checkout Pro muestra un `ts` de 13
+    dígitos (milisegundos); el de la página de webhooks, de 10.
+  - Las notificaciones de QR no vienen firmadas.
 - El secreto es **de la aplicación** (uno solo para todas las tiendas
   conectadas), se ve en "Tus integraciones" → Webhooks y se rota con
   "Restablecer".
-- Tiendafy rechaza si `ts` difiere más de 5 minutos del reloj del servidor.
-  Sin `MercadoPago:WebhookSecret`, **todo** webhook da 401.
-- Tiendafy toma `data.id` del body y usa la query como respaldo: para
-  `payment` (ids numéricos) da lo mismo; con Orders habría que usar la query
-  en minúsculas.
+- Tiendafy (`MercadoPagoWebhookValidator`, sin la SDK) rechaza si `ts` difiere
+  más de 5 minutos del reloj del servidor. Sin `MercadoPago:WebhookSecret`,
+  **todo** webhook da 401. Toma `data.id` del body y usa la query como
+  respaldo: para `payment` es el mismo valor; con Orders conviene la query.
 
 ## Entrega y reintentos
 
 - Contestar **200 o 201 en menos de 22 s**. Si no, Mercado Pago reintenta cada
-  15 minutos y después espacia los intentos. Un aviso ya contestado no se
-  reenvía: por eso el inbox es durable y el procesamiento va aparte.
+  15 minutos y, después del tercer intento, espacia los intentos. Un aviso ya
+  contestado no se reenvía: por eso el inbox es durable y el procesamiento va
+  aparte.
+- Solo se guardan los avisos `type = payment`; los demás se contestan 200 y
+  se descartan.
 - Reintentos propios del worker: 30 s, 2, 10 y 45 min, 3, 6 y 12 h (8
   intentos) y después `dead`. El panel los ve en
   `GET /payments/mercadopago/webhooks/health` y los revive con
@@ -96,4 +107,8 @@ El IPN viejo (`?topic=…&id=…`, sin firma) no se usa.
 | Eventos `dead` | `last_error` en `payment_webhook_events`; revivir desde el panel |
 | Aviso de un `user_id` desconocido | Cuenta desconectada de la tienda o de otra app |
 
-Docs: <https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks>
+Docs: <https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks>,
+validador oficial de referencia:
+<https://github.com/mercadopago/sdk-nodejs/blob/master/src/utils/webhook/index.ts>
+(en .NET, `MercadoPago.Webhook.WebhookSignatureValidator`, ver
+<https://github.com/mercadopago/sdk-dotnet/blob/master/docs/webhooks.md>).
