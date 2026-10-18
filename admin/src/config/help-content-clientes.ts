@@ -18,7 +18,7 @@ export const CLIENTES = {
         paragraphs: [
           'En Clientes ves y buscás tu agenda por nombre, email o teléfono. Cada venta pagada crea o actualiza sola la ficha del comprador, así la agenda se arma vendiendo.',
           'Al lado de cada cliente están sus compras, el total que gastó (descontando reembolsos) y la fecha de su última compra. Tocá el encabezado de esas columnas para ordenar: por ejemplo, los que más gastaron primero.',
-          'El selector de segmento filtra lo que más se pregunta: los que compraron hace más de 90 o 180 días (a quién volver a escribirle), los que compraron 2 o 3 veces o más (tus fieles) y los que todavía no compraron. Si usás etiquetas, también podés filtrar por etiqueta. “Exportar” baja exactamente lo filtrado.',
+          'El selector de segmento filtra lo que más se pregunta: los que compraron hace más de 90 o 180 días (a quién volver a escribirle), los que compraron 2 o 3 veces o más (tus fieles) y los que todavía no compraron. Si usás etiquetas, también podés filtrar por etiqueta.',
           'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo). El menú ⋮ de cada cliente tiene “Ver ficha”, “Editar” y “Eliminar”.',
         ],
         blocks: [
@@ -82,7 +82,8 @@ export const CLIENTES = {
         heading: 'Responder sin salir de la bandeja',
         paragraphs: [
           'Cada canal responde por donde siempre: el chat posventa le llega al comprador en su cuenta, el mensaje de contacto se contesta por email (las respuestas del cliente te llegan a vos) y en Mercado Libre la respuesta sale publicada.',
-          'Las preguntas de Mercado Libre muestran la publicación —foto, título, precio y stock—, así contestás sin abrir Mercado Libre.',
+          'Las preguntas de Mercado Libre muestran la publicación —foto, título, precio y stock—, así contestás sin abrir Mercado Libre. Los mensajes de una venta de Mercado Libre tienen un tope de 350 caracteres, que pone Mercado Libre: el contador te avisa.',
+          'En las preguntas de Mercado Libre y en el chat posventa, el botón con el destello (“Sugerir con IA”) te escribe un borrador de respuesta para que lo revises antes de mandarlo. Si no lo ves, la plataforma no tiene cargada la clave de IA.',
         ],
         blocks: [
           {
@@ -97,7 +98,7 @@ export const CLIENTES = {
         heading: 'Asignar, marcar y archivar',
         paragraphs: [
           'Asigná cada conversación a alguien del equipo para que no la contesten dos personas (o nadie). Solo aparecen quienes pueden atender ese canal según Roles y permisos. “Tomarla” te la asigna a vos.',
-          'Arriba tenés las solapas: “Abiertas”, “Sin leer”, “Mías” (las asignadas a vos), “Sin asignar” y “Archivadas”.',
+          'Arriba tenés las solapas: “Abiertas”, “Sin leer”, “Mías” (las asignadas a vos), “Sin asignar” y “Archivadas”. Al lado, un selector para ver un solo canal y un buscador por nombre, email o texto.',
           'Abrir una conversación la marca leída (también en su pantalla de siempre). Si querés volver a mirarla después, tocá “No leída”.',
           '“Archivar” la saca de la lista hasta que el cliente vuelva a escribir: ahí reaparece sola, sin leer. Lo archivado se ve en la solapa “Archivadas”, y “Desarchivar” la devuelve a mano.',
         ],
@@ -121,7 +122,8 @@ export const CLIENTES = {
         paragraphs: [
           'El cliente, desde su cuenta → Mis pedidos, toca “Consultar sobre este pedido” y abre un chat ligado a esa compra. Puede escribir y adjuntar fotos (JPG/PNG) o PDF de hasta 10 MB.',
           'Todas sus consultas le quedan juntas en su cuenta, en “Mis conversaciones”: con el número de pedido, el último mensaje y cuáles tienen respuestas tuyas sin leer. Tocando una retoma el chat de esa compra.',
-          'Vos respondés desde Chat posventa en el menú —una lista con todas las conversaciones, las no leídas primero y con contador— o desde la Bandeja, junto con el resto de los canales.',
+          'Vos respondés desde Chat posventa en el menú —una lista con todas las conversaciones, las no leídas primero— o desde la Bandeja, junto con el resto de los canales. Arriba, “Esperando respuesta” (con mensajes del cliente sin leer) y “Abiertas” filtran la lista con un toque. Vos también podés adjuntar fotos o un PDF.',
+          'Al comprador no le llega un email con tu respuesta: la ve cuando entra a su cuenta, donde “Mis conversaciones” le marca las que tienen respuestas sin leer. Si es urgente, escribile también por email o WhatsApp desde su ficha en Clientes.',
         ],
         blocks: [{ type: 'path', segments: ['Chat posventa'] }],
       },
@@ -134,13 +136,13 @@ export const CLIENTES = {
       {
         heading: 'Cerrar y reabrir',
         paragraphs: [
-          'Cuando la consulta se resuelve, cerrá la conversación. Si el cliente vuelve a escribir, se reabre sola — no se pierde nada.',
+          'Cuando la consulta se resuelve, tocá “Cerrar”. Si el cliente vuelve a escribir, se reabre sola — no se pierde nada.',
         ],
       },
       {
         heading: 'Una respuesta sugerida con IA',
         paragraphs: [
-          'Al lado del campo para responder está “Sugerir con IA”: escribe un borrador de respuesta con lo que dice la conversación y el pedido. Lo revisás, lo corregís y recién ahí lo mandás — nunca sale nada solo.',
+          'Al lado del campo para responder está el botón con el destello (“Sugerir con IA”): escribe un borrador de respuesta con lo que dice la conversación y el pedido. Lo revisás, lo corregís y recién ahí lo mandás — nunca sale nada solo.',
           'Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
         ],
       },
@@ -165,7 +167,7 @@ export const CLIENTES = {
             rows: [
               [
                 'Ventas',
-                'Instrucciones de pago (a quien eligió transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo), Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro, en lugar de la de envío), Confirmación de envío (con seguimiento), Pedido de reseña (unos días después del despacho), Cancelación de compra, Reembolso parcial y Factura (con el PDF adjunto, cuando la venta tiene su CAE)',
+                'Instrucciones de pago (a quien eligió transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo), Confirmación de pago (cuando la venta queda pagada), Lista para retirar (cuando despachás un pedido de retiro, en lugar de la de envío), Confirmación de envío (con seguimiento), Pedido de reseña (unos días después del despacho), Cancelación de compra, Reembolso parcial, Factura y Nota de crédito (estas dos con el PDF adjunto, cuando el comprobante tiene su CAE)',
               ],
               [
                 'Cuenta de usuarios',
@@ -173,7 +175,21 @@ export const CLIENTES = {
               ],
               [
                 'Promociones',
-                'Carritos abandonados (una hora después de que alguien deja la compra a medias), Avisame cuando ingrese, Bajó un favorito y Volvió un favorito',
+                'Carritos abandonados, Avisame cuando ingrese (cuando vuelve el stock de lo que alguien pidió), Bajó un favorito y Volvió un favorito',
+              ],
+            ],
+          },
+          {
+            type: 'table',
+            headers: ['Viene', 'Emails'],
+            rows: [
+              [
+                'Prendido',
+                'Instrucciones de pago, Confirmación de pago, Lista para retirar, Confirmación de envío, Pedido de reseña, Carritos abandonados y Avisame cuando ingrese',
+              ],
+              [
+                'Apagado',
+                'Cancelación de compra y Reembolso parcial (igual avisan, ver abajo), Factura, Nota de crédito, Bajó un favorito y Volvió un favorito',
               ],
             ],
           },
@@ -186,21 +202,29 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Cancelación de compra y Reembolso parcial son la excepción: cuando cancelás una venta (o se cancela sola porque venció el plazo de una transferencia), la reembolsás entera o devolvés una parte, al comprador siempre le llega el aviso. Apagados sale con un texto estándar; prendelos para mandar el tuyo.',
+            text: 'Cancelación de compra y Reembolso parcial son la excepción: al comprador el aviso le llega siempre. Apagados sale con un texto estándar; prendelos para mandar el tuyo. El detalle está más abajo, en “Reembolsos y cancelaciones”.',
           },
+        ],
+      },
+      {
+        heading: 'Carritos abandonados',
+        paragraphs: [
+          'Le llega a todo el que escribió su email en el checkout y no terminó la compra, aunque no tenga cuenta: el email queda guardado apenas lo escribe, y debajo del campo el checkout le avisa que, si deja la compra sin terminar, le mandás un recordatorio. Sale alrededor de una hora después de lo último que tocó, trae lo que quedó en el carrito y el link para volver a tu tienda.',
+          'Uno solo por comprador: no le llega si después compró (con esa compra o con otra), si eligió transferencia o efectivo (ese pedido ya tiene sus propios avisos) ni por un carrito de hace más de 7 días. Es un email de promoción: trae el link “Darme de baja” y nunca le llega a quien se dio de baja de tus novedades.',
+          'Viene prendido; si lo apagás, deja de salir. El de WhatsApp va por separado y pide permiso propio: lo explica el artículo «WhatsApp automático». La lista de carritos está en Ventas → Carritos abandonados.',
         ],
       },
       {
         heading: 'Con la estética de tu tienda',
         paragraphs: [
-          'Todos los emails salen con un diseño profesional: tu logo (el del editor de diseño), tu color primario, la tabla del pedido con fotos de los productos, subtotal, descuento, envío y total, y la dirección de entrega.',
+          'Todos los emails salen con tu logo (el del editor de diseño) y tu color primario. Los de un pedido pueden llevar, con {{items}}, la tabla del pedido: fotos de los productos, subtotal, descuentos, envío, total y dirección de entrega.',
           'Si todavía no subiste logo, se muestra el nombre de la tienda. Subilo en Canales de venta → Tienda online.',
         ],
       },
       {
         heading: 'Editá el contenido',
         steps: [
-          'En Configuración → E-mails automáticos, tocá “Editar contenido”.',
+          'En Configuración → E-mails automáticos, tocá “Editar contenido” en la tarjeta del email.',
           'Cambiá el asunto y el cuerpo con el editor. Usá variables como {{name}}, {{order_id}}, {{total}} o {{items}} — se reemplazan al enviar.',
           'La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu branding y datos de ejemplo.',
         ],
@@ -214,8 +238,14 @@ export const CLIENTES = {
               ['{{order_id}}', 'El número del pedido, sin el # (ej. 1042)'],
               ['{{tracking_link}}', 'El link a “Seguí tu pedido” de esa compra (abre sin pedir datos)'],
               ['{{total}}', 'El total pagado'],
-              ['{{items}}', 'La tabla de productos con fotos y precios'],
-              ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],
+              [
+                '{{items}}',
+                'La tabla de productos con fotos y precios (en Carritos abandonados, la lista de lo que quedó en el carrito)',
+              ],
+              [
+                '{{link}}',
+                'El link del botón en los emails que no son de un pedido: verificar el email, cambiar la contraseña, volver a la tienda (carrito), dejar la reseña o ver el producto. En los de un pedido usá {{tracking_link}}',
+              ],
               ['{{product}}', 'El producto (solo en los avisos de favoritos y de “Avisame cuando ingrese”)'],
               [
                 '{{price}}',
@@ -238,7 +268,7 @@ export const CLIENTES = {
         heading: 'Avisos de favoritos',
         paragraphs: [
           'Tus clientes con cuenta pueden guardar productos en Favoritos. Si activás “Bajó un favorito”, les llega un email cuando un producto que guardaron baja de precio (al menos un 5%); con “Volvió un favorito”, cuando un producto que estaba sin stock vuelve a tener. El sistema los revisa cada media hora, y manda como mucho un aviso por día por cada favorito.',
-          'Vienen apagados: los prendés vos. Son emails de promoción, así que quien se dio de baja de tus novedades no los recibe.',
+          'Vienen apagados: los prendés vos. Son emails de promoción: traen el link “Darme de baja”, y quien se dio de baja de tus novedades no los recibe. Esa baja es una sola para todo lo promocional (campañas, carritos abandonados, favoritos, pedido de reseña): se da de baja desde cualquiera y deja de recibir todos. Los emails de sus compras le siguen llegando.',
         ],
         blocks: [
           {
@@ -253,6 +283,14 @@ export const CLIENTES = {
         paragraphs: [
           '“Cancelación de compra” sale cuando cancelás a mano una venta sin cobrar desde Ventas, cuando una venta por transferencia o efectivo se cancela sola porque venció el plazo para pagar, y cuando reembolsás una venta entera. Sale siempre, una vez por venta: con tu texto si la prendiste; si no, con uno estándar (el de la que vence sola le explica que no registraste el pago a tiempo y que, si ya pagó, te escriba con el comprobante).',
           'Un reembolso siempre le avisa al comprador: si tenés “Cancelación de compra” apagada, le llega igual un aviso corto de que se le devolvió la plata. Las ventas de mostrador sin email no reciben nada.',
+          '“Reembolso parcial” sale cada vez que devolvés una parte (desde Ventas o desde tu cuenta de Mercado Pago), con cuánto le devolviste y por dónde vuelve la plata. También sale siempre: apagado, con el texto estándar. El motivo que escribís al reembolsar o cancelar no se le muestra al comprador.',
+        ],
+      },
+      {
+        heading: 'Factura y nota de crédito',
+        paragraphs: [
+          'Prendidos, le mandan al comprador el PDF de la factura cuando la venta obtiene su CAE, y el de cada nota de crédito (por un reembolso o un ajuste) cuando se emite. Sale una sola vez por comprobante.',
+          'No salen mientras facturás en homologación (la facturación de prueba): ese comprobante no tiene validez. Tampoco en las ventas de Mercado Libre ni en las de mostrador sin email.',
         ],
       },
       {
@@ -264,7 +302,7 @@ export const CLIENTES = {
       {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
-          'Arriba de esta pantalla, el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de pago, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
+          'Arriba de esta pantalla (y de Email marketing), el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de pago, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
         ],
       },
     ],
@@ -295,10 +333,17 @@ export const CLIENTES = {
         heading: 'Crear y enviar una campaña',
         steps: [
           'En Email marketing → Nueva campaña, escribí el asunto y el contenido. La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu logo y colores.',
-          'Elegí la audiencia: compradores (compraron alguna vez), todos los contactos con email, suscriptores a novedades (los que dejaron su email en el newsletter, el pie o la página de “en construcción”) o una selección manual. Afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo, si compró alguno de ciertos productos o si los tiene en favoritos. El conteo se actualiza en vivo.',
+          'Elegí la audiencia: compradores (compraron alguna vez), todos los contactos con email, suscriptores a novedades (los que dejaron su email en el formulario de novedades: la sección del inicio, la ventana de promoción, el pie o la página de “en construcción”) o una selección manual. Afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo, si compró alguno de ciertos productos o si los tiene en favoritos. El conteo se actualiza en vivo.',
           'Sumá productos destacados: se muestran como tarjetas con foto, precio y link a tu tienda.',
           'Asociá un cupón (opcional): después el detalle te dice cuántas ventas y cuánta plata generó la campaña.',
-          'Enviate una prueba, y después Enviar ahora o Programar para una fecha y hora.',
+          'Con “Enviar prueba” te la mandás a vos, y después “Enviar ahora” o “Programar” para una fecha y hora. “Guardar borrador” la deja para seguir otro día.',
+        ],
+      },
+      {
+        heading: 'Duplicar, desprogramar y frenar',
+        paragraphs: [
+          'En la lista, cada campaña tiene sus botones (al pasar el mouse dicen qué hacen): Métricas (las enviadas), Duplicar (una copia como borrador, para repetir una que anduvo bien), Editar (las que todavía no salieron), Cancelar y Borrar.',
+          '“Cancelar” en una programada la vuelve a dejar sin programar (no se borra). En una que se está enviando —sale en tandas— frena lo que falta; lo que ya salió no se puede deshacer.',
         ],
       },
       {
@@ -310,7 +355,7 @@ export const CLIENTES = {
       {
         heading: 'Medir lo que pasó',
         paragraphs: [
-          'En el detalle de cada campaña enviada ves: enviados y fallidos, aperturas y clicks, bajas que generó, costo estimado y — si asociaste un cupón — las ventas y el dinero atribuidos a la campaña.',
+          'En las métricas de cada campaña enviada ves: enviados y fallidos (con la lista de las direcciones que fallaron), aperturas y clicks, bajas que generó, costo estimado y — si asociaste un cupón — las ventas y el dinero atribuidos a la campaña.',
         ],
         blocks: [
           {
@@ -329,14 +374,14 @@ export const CLIENTES = {
       {
         heading: 'La baja es automática (y obligatoria)',
         paragraphs: [
-          'Cada campaña sale con un link de “Dejar de recibir novedades” al pie. Quien se da de baja entra en una lista de supresión y no recibe NUNCA más campañas tuyas — aunque siga apareciendo en la audiencia. Sus emails de compra (confirmaciones, envíos) siguen llegando: son otra categoría.',
+          'Cada campaña sale con un link de “Dejar de recibir novedades” al pie. Quien se da de baja —o marca tu email como spam, o tiene una dirección que rebota— entra en una lista de supresión y no recibe NUNCA más campañas tuyas, aunque siga apareciendo en la audiencia. Tampoco los avisos promocionales automáticos (carritos abandonados, favoritos, pedido de reseña). Sus emails de compra (confirmaciones, envíos) siguen llegando: son otra categoría.',
           'Esto no es opcional: mandar marketing sin opción de baja es spam, te denuncian los proveedores de correo y arruina la entregabilidad de todos tus emails, incluidos los transaccionales.',
         ],
       },
       {
         heading: 'Buenas prácticas para no caer en spam',
         paragraphs: [
-          'Mandá poco y bueno: una campaña quincenal con contenido real rinde más que tres semanales de relleno. Asuntos honestos (sin MAYÚSCULAS ni “GRATIS!!!”), siempre con tu dominio verificado en Resend, y mirá el panel de uso: cada envío cuenta para tu costo mensual.',
+          'Mandá poco y bueno: una campaña quincenal con contenido real rinde más que tres semanales de relleno. Asuntos honestos (sin MAYÚSCULAS ni “GRATIS!!!”), y mirá el panel “Uso del mes”: cada envío cuenta para el costo mensual.',
         ],
         blocks: [
           {
@@ -374,24 +419,25 @@ export const CLIENTES = {
       {
         heading: 'Conectar y probar',
         steps: [
-          'En Configuración → WhatsApp automático, pegá el Phone Number ID y el token, y tocá Conectar.',
+          'En Configuración → WhatsApp automático, pegá el Phone Number ID y el token (el “Número visible” es opcional, solo para que lo reconozcas) y tocá “Conectar”.',
           'Usá “Enviar mensaje de prueba” con tu propio número para validar la conexión (en modo prueba de Meta solo llega a números registrados como testers).',
+          'Si cambiás el token, “Actualizar credenciales”; “Desconectar” deja de mandar todos los mensajes automáticos hasta que vuelvas a conectar.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'WhatsApp automático'] }],
       },
       {
         heading: 'Las plantillas las aprueba Meta',
         paragraphs: [
-          'A diferencia de los emails, el texto de cada mensaje es una plantilla que creás y Meta aprueba en el Meta Business Manager (tarda 24-48 hs). En Tiendafy activás cada tipo de mensaje y le indicás el nombre exacto de tu plantilla aprobada y su idioma.',
-          'Cada tarjeta te muestra un texto sugerido para copiar al crear la plantilla en Meta, y qué variables enviamos en cada posición ({{1}}, {{2}}…).',
+          'A diferencia de los emails, el texto de cada mensaje es una plantilla que creás y Meta aprueba en el Meta Business Manager (tarda 24-48 hs). En Tiendafy, “Configurar plantilla” en la tarjeta de cada mensaje te pide el nombre exacto de tu plantilla aprobada y su idioma (de fábrica, es_AR); después lo prendés con su interruptor. Los interruptores se habilitan recién cuando conectaste WhatsApp.',
+          'Ahí mismo tenés un texto sugerido para copiar al crear la plantilla en Meta, y qué variables enviamos en cada posición ({{1}}, {{2}}…).',
         ],
       },
       {
         heading: 'Qué conviene activar',
         paragraphs: [
-          'Los que salen hoy: Confirmación de compra, Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso (cuando reembolsás una venta entera) y Carritos abandonados.',
-          'Confirmación de compra y Confirmación de pago salen en el mismo momento, cuando la venta queda pagada: son dos textos para elegir («recibimos tu pedido» o «acreditamos tu pago»). Prendé una sola; con las dos, al comprador le llegan dos mensajes. Las ventas de mostrador no mandan ninguna.',
-          'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta, y Meta exige que la persona haya aceptado recibirlo: por eso sale solo a quien tildó, junto al teléfono en el checkout, que le avises por WhatsApp si deja la compra sin terminar (la casilla aparece cuando prendés esta plantilla), y nunca a quien se dio de baja de tus novedades. Usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
+          'Los que salen hoy: Confirmación de compra, Confirmación de pago, Pedido en camino (con el número de seguimiento), Listo para retirar, Reembolso (cuando reembolsás una venta entera, desde Ventas o desde tu cuenta de Mercado Pago) y Carritos abandonados. Cancelar una venta sin cobrar o devolver una parte avisa solo por email. Todos salen al teléfono que el comprador dejó en el checkout; sin teléfono, no sale nada.',
+          'Confirmación de compra y Confirmación de pago salen en el mismo momento, cuando la venta queda pagada: son dos textos para elegir («recibimos tu pedido» o «acreditamos tu pago»). Prendé una sola; con las dos, al comprador le llegan dos mensajes. Las ventas de mostrador no mandan ninguna de las dos.',
+          'Los transaccionales rinden oro: confirmación de pago, pedido en camino y listo para retirar. El de carritos abandonados es marketing para Meta, y Meta exige que la persona haya aceptado recibirlo. Por eso, cuando lo prendés, el checkout suma junto al teléfono la casilla “Quiero que [tu tienda] me avise por WhatsApp si dejo la compra sin terminar”, que arranca sin tildar: el mensaje sale solo a quien la tildó, a la misma hora que el email de recordatorio, y nunca a quien se dio de baja de tus novedades. Usalo con moderación — abusar degrada la calidad de tu número y Meta te limita el volumen.',
         ],
       },
       {
@@ -403,7 +449,7 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'A diferencia de Mercado Pago/Libre o Resend, acá NO hay credenciales de plataforma: WhatsApp es 100% por tienda. Cada tienda crea su propia app en Meta con su propio número — nada que configurar en el servidor.',
+            text: 'A diferencia de Mercado Pago, Mercado Libre o los emails, acá no hay nada que configure quien administra la plataforma: WhatsApp es 100% por tienda. Cada tienda crea su propia app en Meta con su propio número.',
           },
         ],
       },
@@ -603,7 +649,7 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'tip',
-            text: 'El contador de caracteres usa el límite más chico de las redes elegidas (X: 280, Instagram: 2.200, Facebook: 5.000, Telegram: 4.096). Instagram además exige al menos una imagen — el composer te avisa antes de publicar.',
+            text: 'El contador de caracteres usa el límite más chico de las redes elegidas (X: 280, Instagram: 2.200, Facebook: 5.000, Telegram: 4.096). Instagram además exige al menos una imagen y publica solo la primera; a X sale solo el texto. El composer te avisa antes de publicar.',
           },
         ],
       },
@@ -611,13 +657,15 @@ export const CLIENTES = {
         heading: 'Mejorar el texto con IA, y medir lo que vende',
         paragraphs: [
           '“Mejorar con IA” reescribe tu borrador con tono vendedor, sin perder el link ni el cupón que hayas puesto. Es un punto de partida: lo revisás antes de programar. Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
-          'Cuando sumás la foto de un producto del catálogo, el post suma también el link a ese producto con una marca de origen, así que las visitas y las ventas que traen aparecen como “Redes sociales” en Estadísticas (Visión general → De dónde llegan tus ventas, y Visitas → Fuentes de tráfico). Si además le ponés un cupón al post, el Reporte de cupones te dice cuánto vendió.',
+          'Cuando sumás la foto de un producto del catálogo, el post suma también el link a ese producto con una marca de origen, así que las visitas y las ventas que traen aparecen como “Redes sociales” en Estadísticas (Visión general → De dónde llegan tus ventas, y Visitas → Fuentes de tráfico). Si además le ponés un cupón al post (“Cupón para medir ventas”), arriba de Redes sociales “Ventas atribuidas” suma lo vendido con los cupones de los posts del mes, y el Reporte de cupones lo detalla.',
         ],
       },
       {
         heading: 'Si una red falla',
         paragraphs: [
-          'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en su detalle ves exactamente qué red falló y por qué (acceso vencido, límite de la red, imagen inválida). Reconectás la cuenta o corregís el post y tocás “Reintentar”: vuelve a mandar solo a las redes que fallaron.',
+          'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en Publicaciones ves exactamente qué red falló y por qué (acceso vencido, límite de la red, imagen inválida). Si era la cuenta o un límite de la red, reconectá o esperá lo que diga el error y tocá “Reintentar”: vuelve a mandar, en el próximo minuto, solo a las redes que fallaron.',
+          'Un post con errores, o que ya salió en alguna red, no se edita (cambiarlo lo volvería a publicar donde ya salió). Si el problema era el texto o la imagen, armá uno nuevo para esa red.',
+          'Un post programado que todavía no salió se puede editar, volver a borrador o eliminar desde Publicaciones.',
         ],
       },
     ],
@@ -646,7 +694,7 @@ export const CLIENTES = {
       {
         heading: 'Moderar',
         paragraphs: [
-          'En Reseñas ves las pendientes, las aprobadas y las ocultas. De fábrica, las de 4 y 5 estrellas se publican solas y las demás esperan que las mires: aprobala para que se vea, u ocultala si no corresponde (no habla del producto, insulta, tiene datos personales).',
+          'En Reseñas ves las pendientes, las aprobadas y las ocultas (o todas), con un buscador por producto, texto o email y un filtro por estrellas. De fábrica, las de 4 y 5 estrellas se publican solas y las demás esperan que las mires: aprobala para que se vea, u ocultala si no corresponde (no habla del producto, insulta, tiene datos personales).',
           'La respuesta de la tienda se publica debajo de la reseña. Contestar una opinión negativa con una solución vende más que ocultarla.',
           'Cualquier visitante puede denunciar una reseña. Cuando tres personas distintas la denuncian, sale de la tienda y vuelve a Pendientes marcada como “Denunciada”, para que decidas vos.',
         ],
@@ -656,7 +704,7 @@ export const CLIENTES = {
         heading: 'Configuración',
         paragraphs: [
           'Con “Configuración” en Reseñas elegís desde cuántas estrellas se aprueban solas (o que pasen todas por vos), si la tienda muestra las reseñas, y el email que pide la opinión: si sale y cuántos días después del despacho (de fábrica, 7).',
-          'El email sale una sola vez por compra, respeta a quien se dio de baja de tus emails y trae su link de baja. Su texto se edita en Configuración → E-mails automáticos (“Pedido de reseña”).',
+          'El email sale una sola vez por compra, respeta a quien se dio de baja de tus emails y trae su link de baja. Su texto se edita en Configuración → E-mails automáticos (“Pedido de reseña”); prenderlo o apagarlo ahí o acá es lo mismo.',
         ],
       },
       {
