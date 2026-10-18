@@ -20,9 +20,7 @@ obj/
 *.user
 *.suo
 .vs/
-.vs
 appsettings.local.json
-.env.local
 
 # Node
 node_modules/
@@ -40,12 +38,6 @@ out/
 .env.*
 !.env.example
 !.env.*.example
-
-# Terraform
-terraform.tfstate*
-.terraform/
-.terraform.lock.hcl
-crash.log
 
 # Docker
 docker-compose.override.yml
@@ -76,14 +68,6 @@ Thumbs.db
 *.dump
 infra/docker/backups/
 
-# Local uploads
-uploads/
-tmp/
-
-# Redis persistence
-dump.rdb
-appendonly.aof
-
 # SSL certs (local dev)
 *.pem
 *.crt
@@ -93,9 +77,8 @@ appendonly.aof
 e2e/test-results/
 e2e/playwright-report/
 
-# Resultados de tests y cobertura
+# Resultados de tests (la cobertura ya está arriba, en Testing)
 **/TestResults/
-**/coverage/
 
 # Sesión del admin del seed que guarda el setup del e2e
 e2e/tests/.auth/

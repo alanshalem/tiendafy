@@ -89,7 +89,6 @@ describe('servidor', () => {
   it('sin DSN, nada', async () => {
     vi.stubEnv('PUBLIC_SENTRY_DSN', '');
     vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', '');
-    vi.stubEnv('SENTRY_DSN', '');
     const { register } = await import('../../instrumentation');
     await register();
     expect(sentry.init).not.toHaveBeenCalled();

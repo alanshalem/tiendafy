@@ -6,7 +6,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # pnpm 11 rechaza paquetes publicados hace <24 h (guard de supply chain,
+    # pnpm 12 rechaza paquetes publicados hace <24 h (guard de supply chain,
     # minimumReleaseAge). El cooldown hace que Dependabot solo proponga
     # versiones con al menos 2 días de maduración — sin PRs rojos por eso.
     cooldown:
@@ -23,10 +23,15 @@ updates:
       # Sus paquetes satélite exigen el mismo major que vitest: solos no sirven.
       - dependency-name: '@vitest/*'
         update-types: [version-update:semver-major]
-      # TypeScript 7 (el compilador nuevo) y ESLint 10 dependen de que
-      # typescript-eslint, eslint-config-next y el plugin de hooks los soporten.
+      # TypeScript 7 (el compilador nuevo) depende de que typescript-eslint y
+      # el plugin de hooks lo soporten.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
+      # El panel ya está en ESLint 10, pero la tienda sigue en 9 hasta que
+      # eslint-plugin-react (lo trae eslint-config-next) soporte la API del 10.
+      # Dependabot no deja ignorar por paquete del workspace (hay una sola
+      # entrada para la raíz), así que el ignore es para los dos: el próximo
+      # major del panel también va a mano.
       - dependency-name: eslint
         update-types: [version-update:semver-major]
       - dependency-name: '@vitejs/plugin-react'
@@ -77,3 +82,24 @@ updates:
     ignore:
       - dependency-name: node
         update-types: [version-update:semver-major]
+  # Caddy del proxy de borde (infra/edge): el builder y la imagen final llevan
+  # el mismo tag, Dependabot los sube juntos en el mismo PR.
+  - package-ecosystem: docker
+    directory: /infra/edge
+    schedule:
+      interval: weekly
+
+  # Imágenes de terceros de los compose (Postgres, rclone, MinIO). Las nuestras
+  # van con ${REGISTRY}/${TAG} y las fija deploy.sh, no Dependabot.
+  - package-ecosystem: docker-compose
+    directory: /infra/docker
+    schedule:
+      interval: weekly
+    ignore:
+      # El salto de major de Postgres necesita infra/pg-upgrade.sh (dump y
+      # restore), y CI tiene que subir junto (servicio postgres de los workflows).
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      # La imagen de pgAdmin de dev se construye local (infra/docker/pgadmin):
+      # no está en ningún registry.
+      - dependency-name: tiendafy-pgadmin
