@@ -47,10 +47,15 @@ Confirmado en el manual oficial "Consulta a Padrón Constancia de Inscripción",
   namespace `http://a5.soap.ws.server.puc.sr/`, métodos `dummy`,
   `getPersona_v2` y `getPersonaList_v2` (hasta 250 claves; `getPersona` y
   `getPersonaList` siguen por compatibilidad).
-- **Hosts**: el manual v4.1 da `awshomo.arca.gob.ar` / `aws.arca.gob.ar`,
-  pero el 16-oct-2026 `awshomo.arca.gob.ar` **no resolvía** (DNS).
-  `aws.arca.gob.ar`, `aws.afip.gov.ar` y `awshomo.afip.gov.ar` contestan el
-  mismo WSDL. Tiendafy usa los de `afip.gov.ar`.
+- **Hosts**: el manual v4.1 da `awshomo.arca.gob.ar` / `aws.arca.gob.ar`. El
+  16-oct-2026 `awshomo.arca.gob.ar` no resolvía por DNS; el 18-oct ya
+  resolvía a la misma IP que `awshomo.afip.gov.ar` y devolvía el WSDL. Los
+  cuatro hosts contestan el mismo servicio. Tiendafy sigue con los de
+  `afip.gov.ar` (`FiscalEndpointsOptions`); cambiarlos pide repetir las
+  pruebas de TLS.
+- El id del servicio para WSAA puede ser largo: `ws_sr_constancia_inscripcion`
+  tiene 28 caracteres (la columna del servicio en `fiscal_access_tokens` tuvo
+  que ensancharse).
 - El certificado necesita autorización aparte para el servicio del padrón,
   además de `wsfe`, y su propio TA (en homologación, desde WSASS).
 - Request: `token`, `sign`, `cuitRepresentada` (tiene que estar en las
@@ -107,8 +112,8 @@ No hardcodear lo que puede cambiar; cachear horas, no días.
 
 ## Condición frente al IVA del receptor (RG 5616)
 
-Obligatoria en cada comprobante desde el **1-dic-2026**; hasta entonces ARCA
-observa. Ids y combinaciones válidas por clase: skill
+Obligatoria en cada comprobante desde el **1-dic-2026** (manual WSFEv1 v4.8);
+hasta entonces ARCA observa (10245). Ids y combinaciones válidas por clase: skill
 `afip-tipos-comprobantes`. En Tiendafy: enum `CondicionIvaReceptor`
 (`ComprobanteEnums.cs`), hoy con 1, 4, 5 y 6.
 

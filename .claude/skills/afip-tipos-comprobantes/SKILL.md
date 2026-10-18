@@ -25,7 +25,8 @@ Tiendafy emite solo 1, 6, 11 y sus notas de crédito 3, 8, 13 (enum
 
 ## CondicionIVAReceptorId válidos por clase
 
-Del manual WSFEv1 v4.7 (sección "Condición frente al IVA del receptor"):
+Del manual WSFEv1 v4.8 (sección "Condición frente al IVA del receptor"; igual
+que en la v4.7):
 
 | Id | Condición | A / A con leyenda | B | C | 49 |
 |---|---|:-:|:-:|:-:|:-:|
@@ -62,6 +63,8 @@ Consecuencias:
   → consumidor final.
 - La emisión automática no consulta el padrón y el checkout no pide la
   condición: un RI persona física recibe B salvo que se facture a mano.
+- RI que le factura A a un monotributista: el PDF lleva la leyenda de la Ley
+  27.618.
 
 ## Reglas por clase
 
@@ -83,7 +86,14 @@ no mayores que el asociado (observación 10237). Mismo receptor que la
 factura: el manual solo lo valida explícitamente para FCE (10183) y remitos
 (10122), pero una NC a otro receptor no anula la factura para nadie. Tiendafy
 copia de la factura el documento y la condición guardada
-(`receptor_condicion`), no los de la venta.
+(`receptor_condicion`), no los de la venta. (El 10123 que citan algunos
+comentarios del código como "receptor distinto" es otra cosa: opcionales de la
+RG 4004-E en B y C.)
+
+Una venta puede tener **varias NC** (una por reembolso o ajuste, cada una con
+su clave); entre todas no superan la factura. Ese tope es de Tiendafy
+(`CreditNoteLimit`): ARCA solo observa la NC que supera al comprobante
+asociado (10237).
 
 **FCE MiPyME (201/206/211):** `CantReg` 1, `FchVtoPago`, CBU en opcionales,
 fecha −5/+1 día. Solo si algún día se le vende a una gran empresa por encima

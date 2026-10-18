@@ -1,4 +1,4 @@
-# Códigos de WSFEv1 (FECAESolicitar), según el manual v4.7
+# Códigos de WSFEv1 (FECAESolicitar), según el manual v4.8
 
 Solo los que pueden aparecer en lo que hace Tiendafy (A, B, C y sus NC, en
 pesos, productos). Para el resto, el manual: sección "Validaciones y errores"
@@ -75,6 +75,14 @@ de `FECAESolicitar`. El texto exacto lo manda ARCA en `Msg`: mostralo siempre.
 | Código | Validación |
 |---|---|
 | 10040 | Tipos que se pueden asociar (NC A → A, NC B → B, NC C → C; tabla en `afip-tipos-comprobantes`) |
+| 10122 | Con remitos asociados (88, 91, 988, 990–997), el receptor tiene que ser el del asociado |
+| 10183 | FCE: el receptor tiene que ser el del comprobante asociado |
+
+### Opcionales
+
+| Código | Validación |
+|---|---|
+| 10123 | B o C con opcionales de la RG 4004-E: solo Id 17, 1801, 1802. **No** es "receptor distinto" |
 
 ## Observaciones (hay CAE)
 
@@ -88,7 +96,7 @@ de `FECAESolicitar`. El texto exacto lo manda ARCA en `Msg`: mostralo siempre.
 | 10236 | El monto excede la categoría del Monotributo del emisor |
 | 10237 | La NC supera al comprobante asociado |
 | 10238 | El CUIT receptor no existe |
-| 10245 | Falta `CondicionIVAReceptorId` (hasta que sea obligatorio) |
+| 10245 | Falta `CondicionIVAReceptorId` (hasta el 30-nov-2026; en desuso desde la v4.8) |
 | 10249 | El documento es de una persona fallecida sin sucesión indivisa |
 
 ## Eventos (`Events`)

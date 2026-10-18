@@ -45,11 +45,11 @@ negocian ECDHE: por eso "anda en homologación y revienta en producción".
   imagen de runtime (tabla y comandos en `docs/integraciones/arca.md`).
 - Ningún host de ARCA habla TLS 1.3 hoy (oct-2026).
 
-**Hosts:** siempre explícitos por ambiente. El certificado TLS de producción no
-cubre `.gob.ar`: no derivar hosts reemplazando el dominio. Aunque un manual
-nuevo dé la URL en `arca.gob.ar`, probala antes: el 16-oct-2026
-`awshomo.arca.gob.ar` (padrón de homologación, del manual de constancia v4.1)
-no resolvía por DNS.
+**Hosts:** siempre explícitos por ambiente, nunca derivados reemplazando el
+dominio. Aunque un manual nuevo dé la URL en `arca.gob.ar`, probala antes
+(DNS, certificado, TLS desde la imagen): el 16-oct-2026 `awshomo.arca.gob.ar`
+(padrón de homologación, del manual de constancia v4.1) no resolvía por DNS;
+el 18-oct ya andaba.
 
 ## Padrón (constancia de inscripción)
 
@@ -88,6 +88,7 @@ de baja por deuda). Revisar primero el estado del contribuyente.
 | 10013 | A sin `DocTipo` 80 | A siempre a CUIT |
 | 10284 | El número no corresponde al tipo de documento CUIT | Revisar el CUIT |
 | 10040 | NC asociada a una factura de otra clase | NC de la misma clase que la factura |
+| 10123 | Opcionales de la RG 4004-E en un B o C (no es "receptor distinto", como dicen algunos comentarios del código) | Tiendafy no manda opcionales: si aparece, algo cambió |
 | 10048 | `ImpTotal` no cierra | Recalcular |
 | 10070 / 10071 | Falta `Iva` en A/B / sobra en C | Según la clase |
 | 10242 / 10243 / 10246 | Condición del receptor inválida / no válida para la clase / faltante | `afip-tipos-comprobantes` |
@@ -100,8 +101,9 @@ Observaciones que no rechazan pero conviene mostrar: 10017/10063 (receptor de
 A no activo en el padrón o en IVA), 10041 (la factura asociada no está en
 ARCA), 10188 (correspondía FCE), 10235/10236 (el monto
 excede la categoría de Monotributo), 10237 (la NC supera a la factura), 10238
-(el CUIT no existe), 10245 (falta la condición frente al IVA, obligatoria
-desde el 1-dic-2026), 10249 (receptor fallecido).
+(el CUIT no existe), 10245 (falta la condición frente al IVA; desde el
+1-dic-2026, manual v4.8, queda en desuso y la falta rechaza con 10246), 10249
+(receptor fallecido).
 
 Catálogo ampliado: `references/codigos-error.md`.
 
@@ -116,4 +118,5 @@ Catálogo ampliado: `references/codigos-error.md`.
 - Comprobante grabado `Pending` antes de llamar (write-ahead).
 
 Soporte de ARCA: el manual de WSFEv1 lista los canales de atención (sección
-"Canales de atención"). Documentación: <https://www.afip.gob.ar/ws/>.
+"Canales de atención"). Documentación: <https://www.afip.gob.ar/ws/>; manual
+WSFEv1 v4.8: <https://www.arca.gob.ar/fe/ayuda/documentos/wsfev1-RG-4291.pdf>.

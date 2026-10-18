@@ -1,4 +1,4 @@
-# Campos de FECAEDetRequest (WSFEv1, manual v4.7)
+# Campos de FECAEDetRequest (WSFEv1, manual v4.8)
 
 En el orden de la `xsd:sequence` (el orden importa).
 
@@ -23,7 +23,8 @@ En el orden de la `xsd:sequence` (el orden importa).
 | `ImpTrib` | Suma de `Tributos` | Idem |
 | `ImpIVA` | Suma de `Iva[].Importe` (10023) | 0 |
 
-Tolerancia: error relativo ≤ 0,01% o absoluto ≤ 0,01. Redondeo half-even.
+Tolerancia: error relativo ≤ 0,01% o absoluto ≤ 0,01 × cantidad de alícuotas
+(o de tributos). Redondeo: "Round Half Even" (lo dice el manual).
 Notas de crédito y débito: importes **positivos**.
 
 ## Servicios (Concepto 2 o 3)
@@ -59,7 +60,9 @@ Tabla por clase en la skill `afip-tipos-comprobantes`. Catálogo:
 
 `Cuit` (del emisor del asociado) y `CbteFch` son opcionales. En lugar de
 `CbtesAsoc` se puede mandar `PeriodoAsoc` (`FchDesde`/`FchHasta`). La NC
-tiene que ser de la misma clase y al mismo receptor que la factura.
+tiene que ser de la misma clase que la factura (10040); el mismo receptor lo
+valida el manual solo para FCE (10183) y remitos asociados (10122), pero
+Tiendafy lo copia siempre de la factura.
 
 **`Tributos`**: `Id` (`FEParamGetTiposTributos`), `Desc`, `BaseImp`, `Alic`,
 `Importe`. B a no categorizado (23000000000) con importe exige el tributo 13,
