@@ -8,6 +8,9 @@ export const ENVIOS = {
     sections: [
       {
         heading: 'Crear un medio de envío',
+        paragraphs: [
+          'En esta pantalla hay dos cosas que se usan juntas: “Tus tarifas”, con un precio fijo que ponés vos (retiro en el local, tu reparto, un precio único para todo el país), y “Correos que cotizan solos”, que calculan el precio según el destino. En el checkout el comprador ve todas juntas.',
+        ],
         steps: [
           'En Configuración → Medios de envío, tocá “Agregar medio de envío”.',
           'Elegí el tipo: Envío a domicilio (el cliente carga su dirección) o Retiro en punto (vos cargás la dirección y horarios del punto).',
@@ -20,7 +23,7 @@ export const ENVIOS = {
         heading: 'Cómo lo ve el comprador',
         paragraphs: [
           'En el paso Entrega del checkout, el cliente ve todas las opciones activas con su precio y plazo, y elige una. El costo se suma al total y queda registrado en la orden y en el email de confirmación.',
-          'Podés desactivar un medio sin borrarlo: editalo y apagá “Activo”. Deja de ofrecerse, pero las ventas que ya lo usaron no cambian.',
+          'Podés desactivar un medio sin borrarlo: editalo (el lápiz) y apagá “Activo”. Deja de ofrecerse, pero las ventas que ya lo usaron no cambian. Con el tacho se elimina.',
         ],
       },
       {
@@ -94,14 +97,14 @@ export const ENVIOS = {
       {
         heading: 'Retiro en el local: avisá que está listo',
         paragraphs: [
-          'En una venta de retiro no hay seguimiento: cuando el pedido está armado, abrí la venta y tocá “Lista para retirar”. El comprador recibe el aviso de que puede pasar a buscarlo (el email “Lista para retirar”, y WhatsApp si lo activaste), y la venta queda como “Lista para retirar”.',
+          'En una venta de retiro no hay seguimiento: cuando el pedido está armado, abrí la venta y tocá “Lista para retirar” (en el Escáner y en Despacho el botón se llama igual). El comprador recibe el aviso de que puede pasar a buscarlo (el email “Lista para retirar”, y WhatsApp si lo activaste), y la venta queda como “Lista para retirar”.',
           'Los botones de los correos no aparecen en una venta de retiro: no hay nada que despachar.',
         ],
       },
       {
         heading: 'Si un envío queda “a revisar”',
         paragraphs: [
-          'Puede pasar que el correo cree el envío y que la respuesta no llegue a guardarse acá (un corte, una demora). Para no pagar dos envíos, la venta no te deja crear otro y muestra un aviso: “Puede que … haya creado el envío de esta venta, pero no quedó guardado acá”, con lo que haya contestado el correo.',
+          'Puede pasar que el correo cree el envío y que la respuesta no llegue a guardarse acá (un corte, una demora). Para no pagar dos envíos, la venta no te deja crear otro y muestra un aviso: “Puede que … haya creado el envío de esta venta, pero no quedó guardado acá”, con lo que haya contestado el correo. Lo resuelve quien tiene el permiso “Despachar pedidos”.',
         ],
         steps: [
           'Entrá al panel del correo (Andreani, Zipnova o MiCorreo) y buscá el envío de esa venta.',
@@ -122,14 +125,14 @@ export const ENVIOS = {
   correoArgentino: {
     title: 'Envíos con Correo Argentino',
     intro:
-      'Conectá la API oficial MiCorreo: el checkout cotiza el envío en vivo por código postal y los envíos se dan de alta desde la venta.',
+      'Conectá tu cuenta de MiCorreo: el checkout cotiza el envío en vivo por código postal y los envíos se dan de alta desde la venta.',
     category: 'Envíos',
     sections: [
       {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Cuando está activa, el comprador ingresa su código postal en el checkout y ve las tarifas reales de Correo Argentino: entrega a domicilio y retiro en una sucursal de Correo (elige cuál, por provincia). El precio se suma al total y queda registrado en la venta.',
-          'El precio lo firma el servidor al cotizar: el comprador no puede manipularlo, y si el carrito cambia después de cotizar, el checkout pide recotizar.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito después de cotizar, el checkout pide cotizar de nuevo.',
         ],
       },
       {
@@ -154,7 +157,7 @@ export const ENVIOS = {
           'Pegá el userToken y el passwordToken. Se guardan cifrados y nunca se vuelven a mostrar.',
           'Elegí el ambiente y cargá el “CP de origen (despacho)”: el código postal desde donde despachás.',
           'Definí el paquete estimado por unidad (peso y medidas): se usa para los productos que no tienen su peso y sus medidas cargados. Límites de Correo: 25 kg y 150 cm por lado.',
-          'Elegí qué ofrecer: envío a domicilio, retiro en sucursal de Correo o ambos, y tocá “Guardar”.',
+          'Elegí qué ofrecer (“Ofrecer envío a domicilio”, “Ofrecer retiro en sucursal de Correo” o ambos), dejá prendido “Activo (cotizar en el checkout)” y tocá “Guardar”.',
           'Volvé a abrirlo con “Editar” y tocá “Probar cotización”: valida todo con datos reales.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Correo Argentino'] }],
@@ -162,7 +165,7 @@ export const ENVIOS = {
       {
         heading: 'Empezá en modo prueba',
         paragraphs: [
-          'Con el ambiente en “Prueba (homologación)” cotizás contra el servidor de prueba de Correo: ideal para validar la configuración sin tocar tu cuenta real. Cuando funcione, cambiá a Producción con las credenciales de producción.',
+          'Con el ambiente en “Prueba (homologación)” cotizás con el ambiente de prueba de Correo (la tarjeta lo marca como “Modo prueba”): ideal para validar la configuración sin tocar tu cuenta real. Cuando funcione, cambiá a Producción con las credenciales de producción.',
         ],
       },
       {
@@ -177,9 +180,9 @@ export const ENVIOS = {
       {
         heading: 'El flujo completo cuando te compran',
         paragraphs: [
-          'Automático: la cotización, el precio (firmado por el servidor, no manipulable), la dirección o sucursal en la venta, y el aviso al cliente cuando marcás enviada.',
-          'Un click: “Crear envío en Correo Argentino” en la venta pagada — importa el envío a tu cuenta de MiCorreo con el destinatario y la dirección precargados, sin retipear nada. El alta queda registrada en la venta (“Correo Argentino · alta en MiCorreo”) y no se puede dar de alta dos veces.',
-          'Manual (en el panel de MiCorreo, la API de Correo no lo permite de otra forma): pagar el envío, generar la etiqueta y obtener el número de seguimiento. Es igual en todas las plataformas que integran MiCorreo.',
+          'Automático: la cotización, el precio, la dirección o sucursal en la venta, y el aviso al cliente cuando marcás enviada.',
+          'Desde la venta: “Crear envío en Correo Argentino” da de alta el envío en tu cuenta de MiCorreo, sin retipear nada. El alta queda registrada en la venta (“Correo Argentino · alta en MiCorreo”) y no se puede dar de alta dos veces.',
+          'En el panel de MiCorreo (Correo no deja hacerlo desde otro sistema): pagar el envío, generar la etiqueta y obtener el número de seguimiento. Es igual en todas las plataformas que trabajan con MiCorreo.',
         ],
       },
       {
@@ -189,7 +192,7 @@ export const ENVIOS = {
           'El envío queda importado en tu cuenta de MiCorreo, con el número de tu pedido.',
           'Entrá al panel de MiCorreo: el envío ya está cargado. Pagalo y generá la etiqueta — recién ahí Correo te da el número de seguimiento.',
           'Imprimí la etiqueta, pegala al paquete y llevalo a tu sucursal de Correo.',
-          'Volvé a la venta y tocá “Marcar enviada” con ese número de seguimiento: el cliente recibe el email (y WhatsApp si lo activaste) de “pedido en camino” automáticamente.',
+          'Volvé a la venta y tocá “Marcar enviada” con ese número de seguimiento: el cliente recibe el email (y WhatsApp si lo activaste) de “pedido en camino” automáticamente. Si ya la habías marcado enviada sin número, usá “Editar seguimiento”: se guarda y le llega el aviso de nuevo, con el número.',
           'Con el número cargado, el botón “Seguimiento” de la venta te dice en qué anda el envío según Correo.',
         ],
       },
@@ -213,22 +216,22 @@ export const ENVIOS = {
   zipnova: {
     title: 'Envíos con Zipnova',
     intro:
-      'Andreani, OCA y más transportes detrás de una sola API: cotización en vivo en el checkout y envíos con etiqueta PDF desde la venta.',
+      'Andreani, OCA y más transportes con una sola cuenta: cotización en vivo en el checkout y envíos con etiqueta PDF desde la venta.',
     category: 'Envíos',
     sections: [
       {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Zipnova es un agregador: una sola cuenta te conecta con varios transportes a la vez. Con la integración activa, el comprador pone su ciudad y código postal en el checkout y ve las opciones reales de tu cuenta (por ejemplo “Andreani Estándar $4.200” y “OCA Estándar $4.600”), cada una con su fecha estimada.',
-          'El precio lo firma el servidor al cotizar: no se puede manipular, y si el carrito cambia el checkout pide recotizar.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito el checkout pide cotizar de nuevo. Si Zipnova tarda o no responde, el checkout sigue con las demás opciones.',
         ],
       },
       {
         heading: 'Qué necesitás',
         steps: [
           'Una cuenta en Zipnova con al menos un transporte habilitado y saldo.',
-          'Las credenciales de API: en el panel de Zipnova, Configuración → Integraciones → Gestionar credenciales. Ahí generás el API Token y el API Secret.',
-          'Tu número de cuenta (account ID) — figura en el mismo panel.',
+          'Tus credenciales: en el panel de Zipnova, Configuración → Integraciones → Gestionar credenciales. Ahí generás el API Token y el API Secret.',
+          'El ID de tu cuenta: figura en el mismo panel.',
         ],
       },
       {
@@ -236,8 +239,8 @@ export const ENVIOS = {
         steps: [
           'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Zipnova.',
           'Pegá el API Token y el API Secret. Se guardan cifrados y nunca se vuelven a mostrar.',
-          'Elegí el país de tu cuenta (define a qué servidor de Zipnova se habla) y cargá el número de cuenta.',
-          'Origen: dejalo vacío para usar el origen por defecto de tu cuenta Zipnova, o poné el ID de una ubicación puntual.',
+          'Elegí el “País de la cuenta” (Argentina, Chile o México) y cargá el “ID de cuenta”.',
+          'Origen: dejalo vacío para usar el origen por defecto de tu cuenta Zipnova, o poné el ID de una dirección de tu libreta de direcciones de Zipnova.',
           'Definí el paquete estimado por unidad (peso y medidas en cm), para los productos que no tengan los suyos, y tocá “Guardar”.',
           'Volvé a abrirlo con “Editar”: en “Probar cotización” poné una ciudad, provincia y CP y tocá “Cotizar”. Es gratis, no crea nada y valida todo el circuito con datos reales.',
         ],
@@ -272,7 +275,7 @@ export const ENVIOS = {
       {
         heading: 'Correo Argentino y Zipnova a la vez',
         paragraphs: [
-          'Podés tener las dos integraciones activas: el comprador ve todas las opciones cotizadas juntas en el checkout y elige la que prefiera. También podés pausar una sin desconectarla.',
+          'Podés tener las dos integraciones activas: el comprador ve todas las opciones cotizadas juntas en el checkout y elige la que prefiera. También podés pausar una sin desconectarla: “Editar” y apagá el interruptor de activo; la tarjeta queda como “Pausado”.',
         ],
       },
     ],
@@ -288,7 +291,7 @@ export const ENVIOS = {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Con la integración activa, el comprador pone su código postal en el checkout y ve el precio real de Andreani para su destino. Después, desde la venta pagada, generás el envío y descargás la etiqueta para pegar en el paquete.',
-          'El precio lo firma el servidor al cotizar: no se puede manipular desde el navegador, y si el carrito cambia el checkout pide recotizar.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito el checkout pide cotizar de nuevo.',
         ],
       },
       {
@@ -320,9 +323,10 @@ export const ENVIOS = {
         steps: [
           'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Andreani.',
           'Cargá usuario y contraseña. La contraseña se guarda cifrada y no se vuelve a mostrar.',
-          'Poné el código de cliente y los contratos que tengas.',
-          'Completá los datos del remitente y la dirección desde donde despachás: van en cada envío que generes.',
-          'Definí el paquete por unidad (peso y medidas), para los productos que no tengan los suyos, y guardá.',
+          'Poné el código de cliente, la “Sucursal de imposición” (desde la que despachás, por ejemplo PRC) y los contratos que tengas: “Contrato · entrega a domicilio” y “Contrato · retiro en sucursal”.',
+          'Completá “Remitente y origen”: tus datos y la dirección desde donde despachás. Van en cada envío que generes.',
+          'Definí el paquete por unidad (peso y medidas), para los productos que no tengan los suyos, y el “Coeficiente de aforo” de tu contrato.',
+          'Dejá prendido “Ofrecer Andreani en el checkout” y guardá. “Usar el ambiente de pruebas (QA)” es solo para probar: las tarifas y los envíos no son reales, y Andreani te lo tiene que habilitar.',
           'Tocá “Probar conexión” para verificar que Andreani te reconoce.',
         ],
         blocks: [
@@ -337,14 +341,14 @@ export const ENVIOS = {
       {
         heading: 'Las medidas cambian el precio tanto como el peso',
         paragraphs: [
-          'Andreani cobra por el mayor entre el peso real del paquete y su “peso volumétrico”, que sale de las medidas. Una caja grande y liviana puede costar más que una chica y pesada.',
+          'Andreani cobra por el mayor entre el peso real del paquete y su “peso volumétrico”, que sale de las medidas multiplicadas por el coeficiente de aforo de tu contrato (cuántos gramos cuenta cada cm³; 0,35 si tu contrato no dice otro). Una caja grande y liviana puede costar más que una chica y pesada.',
           'Por eso las medidas de tus productos (y el paquete por defecto, para los que no las tienen) no son un detalle: si ponés medidas más grandes que las reales, vas a cotizarle de más al comprador; si las ponés más chicas, la diferencia la vas a pagar vos.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Andreani no acepta bultos de más de un metro cúbico aproximadamente. Si vendés algo más grande, va a hacer falta dividirlo en varios paquetes.',
+            text: 'Andreani no acepta bultos de más de un metro cúbico aproximadamente (la configuración te avisa si el paquete por unidad lo supera). Si vendés algo más grande, va a hacer falta dividirlo en varios paquetes.',
           },
         ],
       },
@@ -400,7 +404,7 @@ export const ENVIOS = {
         paragraphs: [
           '“Seguimiento” le pregunta a Andreani por el envío y te muestra el último estado: Generado, Despachado, En tránsito, En reparto, Visita fallida, En sucursal, Entregado o Devuelto. El estado queda anotado al lado del número, en la venta.',
           'Andreani no publica la lista completa de estados que puede informar, así que traducimos los que conocemos y mostramos “Sin novedades” cuando aparece uno que no reconocemos. Para el recorrido completo, buscá el número de seguimiento en la web de Andreani.',
-          'Cuando Andreani informa “Entregado”, la página “Seguí tu pedido” del comprador lo muestra como entregado. El aviso de “pedido en camino” sale cuando vos marcás la venta como enviada, no por los cambios de estado de Andreani.',
+          'El estado no se actualiza solo: se guarda cada vez que alguien toca “Seguimiento”. Cuando esa consulta trae “Entregado”, la página “Seguí tu pedido” del comprador lo muestra como entregado. El aviso de “pedido en camino” sale cuando vos marcás la venta como enviada, no por los cambios de estado de Andreani.',
         ],
       },
     ],
@@ -425,7 +429,7 @@ export const ENVIOS = {
         heading: 'La cola de pedidos para preparar',
         paragraphs: [
           'La solapa “Pedidos para preparar” lista todo lo cobrado y sin despachar, lo más viejo primero (es lo que más espera el comprador). Filtrá por envío —Andreani, Zipnova, Correo Argentino, retiro en el local o envío propio— y por fecha de cobro. Cada pedido aparece con su número (#1042) y dice si ya tiene el envío creado.',
-          'Elegí los pedidos que vas a preparar juntos y usá los botones de arriba: “Lista de picking”, “Etiquetas” y “Remitos”.',
+          'Elegí los pedidos que vas a preparar juntos (hasta 100 por tanda) y usá los botones de arriba: “Lista de picking”, “Etiquetas” y “Remitos”. Si el comprador dejó una nota, aparece debajo de su nombre.',
         ],
         blocks: [
           { type: 'path', segments: ['Ventas', 'Despacho'] },
