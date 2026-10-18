@@ -72,6 +72,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `ForwardedHeaders:KnownNetworks` | CIDRs de los proxies en los que se confía para `X-Forwarded-For`; también marcan el tráfico interno del storefront, que no tiene techo global | `[]` | `TRUSTED_PROXY_CIDR_0..2` (default: los tres rangos privados) |
 | `RateLimiting:GlobalPermitLimit` | Pedidos por minuto por IP | `300` (dev: `5000`, en `appsettings.Development.json`) | No se mapea (usa 300) |
 | `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta: formularios públicos (login, registro, contacto, cupón, reseñas, "avisame"); pagos de la tienda | `10` / `15` | No se mapea |
+| `RateLimiting:CheckoutContactPermitLimit` | Guardados del email del checkout (`POST /checkout/contact`) cada 5 min por IP | `30` (dev: `1000`) | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
 | `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 
