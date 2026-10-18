@@ -4,6 +4,7 @@ Facturación electrónica de las ventas con CAE online (WSFEv1). Estado:
 **completo en código y probado contra un ARCA simulado**; contra ARCA real solo
 se verificó `FEDummy` en homologación. Falta activar un certificado (primero de
 homologación, después de producción) para emitir el primer CAE de verdad.
+Revisado contra el código y los manuales de ARCA el 18-oct-2026.
 
 ## Qué hace en Tiendafy
 
@@ -67,8 +68,11 @@ del 21% (el envío se factura como ítem gravado al 21%).
 | Facturar una orden, estado fiscal y PDF | `backend/src/Api/Endpoints/OrderEndpoints.cs` |
 | PDF para el comprador (desde su pedido) | `backend/src/Api/Endpoints/ShopOrdersEndpoints.cs` (`/shop/orders/{id}/invoice.pdf`) |
 | Facturar una venta de Mercado Libre | `backend/src/Api/Endpoints/MeliEndpoints.cs` (`POST /admin/meli/orders/{meliOrderId}/invoice`) |
-| Disparadores | `Api/Orders/PaidOrderSideEffects.cs`, `OrderFulfillment.cs`, `RefundedOrderSideEffects.cs`, `Api/Meli/MeliSyncService.cs` |
-| Panel | `admin/src/pages/Settings/FiscalInvoicing.tsx` (Configuración → Facturación) |
+| Notas de crédito: claves, tope y cuenta de lo acreditado | `Fiscal.Core/Domain/CreditNotes.cs`, `Fiscal.Infrastructure/Emission/CreditNoteLedger.cs`, `backend/src/Api/Fiscal/CreditNoteIssuer.cs`, `OrderCreditNotes.cs` |
+| PDF de la venta y libro IVA | `backend/src/Api/Fiscal/OrderInvoicePdf.cs`, `VatBookCsv.cs` |
+| Qué factura cuenta en Mercado Libre (ambiente) | `backend/src/Api/Meli/MeliInvoices.cs` |
+| Disparadores | Factura: `Api/Orders/PaidOrderSideEffects.cs`, `OrderFulfillment.cs`. NC: `Api/Orders/OrderRefundService.cs`, `Api/Payments/PaymentWebhookWorker.cs`. Mercado Libre: `Api/Meli/MeliSyncService.cs` |
+| Panel | `admin/src/pages/Settings/FiscalInvoicing.tsx` y `fiscal-invoicing-steps.tsx` (Configuración → Facturación); en Ventas, `orders-fiscal.tsx`, `orders-invoice-dialog.tsx`, `orders-credit-note-dialog.tsx` y la casilla de `orders-refund.tsx`; en Mercado Libre, `mercadolibre-ventas.tsx` |
 
 Tablas: `fiscal_configs`, `fiscal_points_of_sale`, `fiscal_certificates`,
 `fiscal_access_tokens`, `fiscal_documents`, `fiscal_sequences`,
@@ -89,7 +93,10 @@ Casi todo es por tienda y se carga en el panel:
 | ¿Se puede facturar? | `GET /api/v1/fiscal/readiness` | Emisor + certificado activo + punto de venta |
 
 Permisos: `FiscalConfig` para configurar, probar la conexión y bajar el libro
-IVA; `FiscalEmit` para emitir, reintentar un job y consultar el padrón.
+IVA; `FiscalEmit` para emitir (facturas y notas de crédito, también las de
+Mercado Libre), reintentar un job y consultar el padrón. `readiness` lo ve
+cualquiera con `OrdersRead`, `MeliOperate` o alguno de los dos fiscales: es lo
+que decide si el panel ofrece el botón "Facturar".
 
 Del servidor:
 
@@ -100,7 +107,10 @@ Del servidor:
 - `Fiscal:Endpoints:*` (opcional) pisa los hosts por defecto: `WsaaHomologacion`,
   `WsaaProduccion`, `WsfeHomologacion`, `WsfeProduccion`,
   `ConstanciaInscripcionHomologacion`, `ConstanciaInscripcionProduccion`. Hoy
-  no se setea en ningún ambiente.
+  no se setea en ningún ambiente. Los de WSFEv1 por defecto
+  (`wswhomo.afip.gov.ar` y `servicios1.afip.gov.ar`, `/wsfev1/service.asmx`)
+  son los que da el manual del desarrollador de ARCA v4.7 (revisado el
+  18-oct-2026).
 
 ## Flujos
 
@@ -137,8 +147,11 @@ queda en error y `ok` en falso.
 rechaza ese servicio (el certificado solo se asoció al nombre viejo), prueba
 con `ws_sr_padron_a5`: las tiendas configuradas antes siguen andando y el
 diagnóstico les pide asociar el nuevo. Cada servicio tiene su TA en
-`fiscal_access_tokens`; el del servicio viejo queda ahí hasta vencer y no se
-usa más. La condición sale de `datosMonotributo` (Monotributo), del impuesto 30
+`fiscal_access_tokens`; cuando la tienda asocia el nuevo, el del viejo queda
+ahí hasta vencer y no se usa más. La columna `service` es de 64 caracteres:
+hasta el 17-oct era de 20, `ws_sr_constancia_inscripcion` (28) no entraba y la
+consulta al padrón y la prueba de conexión daban error 500 (migración
+`WidenAccessTokenService`). La condición sale de `datosMonotributo` (Monotributo), del impuesto 30
 (RI) o 32 (exento) de `datosRegimenGeneral`, o consumidor final; si ARCA no
 manda un régimen porque no puede emitir esa parte de la constancia
 (`errorRegimenGeneral` / `errorMonotributo`), contesta `Padron.NoCondition` en
@@ -152,9 +165,10 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
 
 **Emisión** (`EmitInvoiceHandler`), en este orden:
 
-1. Cortes previos, sin llamar a ARCA: la orden ya tiene factura (o nota de
-   crédito) autorizada **en el ambiente actual**; consumidor final anónimo por
-   encima del umbral; el comprador es la propia tienda. Lo de homologación no
+1. Cortes previos, sin llamar a ARCA: la orden ya tiene factura autorizada
+   **en el ambiente actual** (en una nota de crédito, la de esa misma clave:
+   ver abajo); consumidor final anónimo por encima del umbral; el comprador es
+   la propia tienda. Lo de homologación no
    cuenta en producción (ni al revés): una venta facturada de prueba se
    factura de verdad después de pasar a producción.
 2. Receptor: 11 dígitos con verificador válido = CUIT; 7 u 8 = DNI; si no,
@@ -185,17 +199,22 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    el próximo intento. Solo un SOAP Fault es rechazo.
 
 **Automática.** Los disparadores encolan un job único por (tienda, orden,
-tipo, clave) —la factura con clave vacía, cada NC con la suya— si la facturación está habilitada (se habilita sola al activar un
-certificado del mismo ambiente que el emisor) y automática; la factura,
-además, solo si el disparador coincide. Si el job de esa orden ya terminó con
-un comprobante de otro ambiente (homologación), vuelve a empezar en el
-actual. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
-transitorios con espera de 1, 2, 4… hasta 60 minutos (8 intentos) y manda a
-fallidos los rechazos de ARCA y la falta de documento del comprador, porque
-reintentar no los arregla. Un job tomado (`Processing`) hace más de 15
-minutos se da por abandonado (el proceso murió con él) y vuelve a la cola: el
-reintento va por el emisor, que reconcilia el pendiente con ARCA antes de
-pedir otro número. Desde Ventas se ve el estado (`GET /orders/{id}/fiscal`) y
+tipo, clave) —la factura con clave vacía, cada NC con la suya— si la
+facturación está habilitada (se habilita sola al activar un certificado del
+mismo ambiente que el emisor) y automática; la factura, además, solo si el
+disparador coincide. Una NC también se encola con la automática apagada
+cuando alguien la pide (la casilla del reembolso, el botón a mano) o cuando
+la auto-factura de Mercado Libre está prendida. Si el job de esa orden ya
+terminó con un comprobante de otro ambiente (homologación), vuelve a empezar
+en el actual. El worker corre cada 10 s, toma 20 por vuelta, reintenta los
+fallos transitorios con espera de 1, 2, 4… hasta 60 minutos (8 intentos) y
+manda a fallidos los rechazos de ARCA, la falta de documento del comprador y
+la nota de crédito que ya no entra en la factura (o que no tiene factura),
+porque reintentar no los arregla. Si el emisor contesta que ya estaba hecho
+(otro camino lo emitió), el job se cierra con ese comprobante en vez de
+fallar. Un job tomado (`Processing`) hace más de 15 minutos se da por
+abandonado (el proceso murió con él) y vuelve a la cola: el reintento va por
+el emisor, que reconcilia el pendiente con ARCA antes de pedir otro número. Desde Ventas se ve el estado (`GET /orders/{id}/fiscal`) y
 se reintenta (`POST /fiscal/jobs/{id}/retry`).
 
 **Email al comprador.** Cuando una factura de una orden de la tienda obtiene
@@ -226,8 +245,8 @@ Una venta puede tener **varias**: cada pedido lleva una clave
 | Reembolso desde el panel (`POST /orders/{id}/refund`) | `reembolso:{id del registro del reembolso}` | Con emisión automática, siempre; sin ella, si viene `creditNote: true` (la casilla, con permiso de facturar) |
 | Reembolso que avisa Mercado Pago (webhook) | `reembolso-pasarela:{devuelto antes}-{devuelto después}` (centavos) | Con emisión automática |
 | A mano (`POST /orders/{id}/credit-notes` o, en una venta de ML, `POST /admin/meli/orders/{id}/credit-notes`; permiso `FiscalEmit`) | `manual:{clave del panel}` | Siempre; el panel manda una clave por diálogo |
-| Cancelación de Mercado Libre | `ml-cancelacion` | Con la auto-factura de ML o la automática de la tienda |
-| Devolución parcial de Mercado Libre (`partially_refunded`) | `ml-reembolso:{devuelto antes}-{devuelto después}` (centavos) | Con la auto-factura de ML o la automática de la tienda |
+| Cancelación de Mercado Libre (`cancelled` o `refunded`), por lo que queda de la factura | `ml-cancelacion` | Con la auto-factura de ML o la automática de la tienda |
+| Devolución parcial de Mercado Libre (lo devuelto crece y la venta no está `cancelled` ni `refunded`) | `ml-reembolso:{devuelto antes}-{devuelto después}` (centavos) | Con la auto-factura de ML o la automática de la tienda |
 
 En Mercado Libre lo devuelto sale de la orden (`GET /orders/{id}`): la suma
 de `payments[].transaction_amount_refunded` (`MeliOrder.RefundedAmount`). Cada
@@ -257,7 +276,9 @@ baja una NC puntual.
 
 **Libro IVA.** `GET /fiscal/documents/export?year&month`: comprobantes
 autorizados del ambiente en que factura la tienda (columna "Ambiente";
-homologación no tiene validez fiscal), del mes en hora argentina.
+homologación no tiene validez fiscal), del mes en hora argentina, con `;` y
+BOM para el Excel argentino. El archivo de homologación se baja como
+`libro-iva-ventas-AAAA-MM-homologacion.csv`, para que no se confunda con uno real.
 
 **Ambientes en la venta.** `GET /orders/{id}/fiscal` devuelve el ambiente
 actual y el de cada comprobante: el panel muestra como factura de la venta la
@@ -301,15 +322,17 @@ producción y la auto-factura la factura de verdad en el próximo aviso.
   `DH_KEY_TOO_SMALL`: por eso el cliente ofrece solo ECDHE (ver abajo).
 - En Windows un certificado armado desde PEM no firma CMS: hay que pasar por
   PKCS#12 (`TraSigner.LoadForSigning`).
-- Padrón: `ws_sr_padron_a5` está deprecado; el servicio es
-  `ws_sr_constancia_inscripcion` (manual v4.1, mar-2026), con la misma URL
-  (`personaServiceA5`), el mismo namespace (`http://a5.soap.ws.server.puc.sr/`)
-  y el mismo `getPersona_v2`. Los hijos de la respuesta van sin namespace, un
-  CUIT inexistente vuelve como SOAP Fault ("No existe persona con ese Id"; en
-  `getPersonaList_v2`, como `errorConstancia`) y el certificado necesita
-  autorización aparte para el servicio. El manual ya da las URL en
-  `arca.gob.ar`, pero el 16-oct-2026 `awshomo.arca.gob.ar` no resolvía: se
-  usan las de `afip.gov.ar`, que andan en los dos ambientes.
+- Padrón: `ws_sr_padron_a5` está deprecado (el catálogo de web services de
+  ARCA lo dice así); el servicio es `ws_sr_constancia_inscripcion` (manual
+  v4.1, 27-feb-2026), con la misma URL (`personaServiceA5`), el mismo
+  namespace (`http://a5.soap.ws.server.puc.sr/`) y el mismo `getPersona_v2`.
+  Los hijos de la respuesta van sin namespace, un CUIT inexistente vuelve como
+  SOAP Fault ("No existe persona con ese Id"; en `getPersonaList_v2`, como
+  `errorConstancia`) y el certificado necesita autorización aparte para el
+  servicio. El manual ya da las URL en `arca.gob.ar`. El 16-oct-2026
+  `awshomo.arca.gob.ar` no resolvía y se quedaron las de `afip.gov.ar`, que
+  andan en los dos ambientes; el 18-oct los dos hosts `arca.gob.ar` ya
+  resuelven (a las mismas IP) y devuelven el WSDL.
 - ARCA no deja facturarse a uno mismo, y su mensaje no lo dice claro: pasa al
   probar con el CUIT de la propia empresa.
 
@@ -369,10 +392,14 @@ con apt) y con un `SslStream` publicado para `linux-x64`.
 ## Cómo probar
 
 Automático: `backend/tests/IntegrationTests/FiscalEmissionTests.cs`,
-`FiscalFlowTests.cs` y `FiscalWorkerTests.cs` contra `Infrastructure/FakeArca.cs`
-(una CA de prueba que firma el CSR real y un ARCA en SOAP que se puede romper a
-pedido), y en `backend/tests/UnitTests/Fiscal/` los de dominio, WSAA, WSFEv1,
-padrón, PDF y `ArcaGotchasTests.cs`.
+`FiscalFlowTests.cs`, `FiscalWorkerTests.cs` y `CreditNoteFlowTests.cs` (las
+NC de reembolsos, a mano y el tope) contra `Infrastructure/FakeArca.cs` (una
+CA de prueba que firma el CSR real y un ARCA en SOAP que se puede romper a
+pedido); las NC de Mercado Libre y del webhook de Mercado Pago están en
+`MercadoLibreFlowTests.cs` y `MercadoPagoFlowTests.cs`. En
+`backend/tests/UnitTests/Fiscal/` van los de dominio (CUIT, importes, claves y
+tope de NC, jobs), WSAA, WSFEv1, padrón, certificado, PDF y
+`ArcaGotchasTests.cs`.
 
 Homologación:
 
