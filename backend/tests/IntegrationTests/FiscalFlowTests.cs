@@ -275,13 +275,15 @@ public sealed class FiscalFlowTests
         // Pasa a producción, con su certificado. La venta muestra la factura
         // de prueba como tal, no ofrece su PDF y se puede facturar de nuevo.
         await merchant.SwitchFiscalEnvironmentAsync("PRODUCCION");
-        await merchant.PutAsync("/api/v1/fiscal/config/emission", new
+        // El mismo valor que manda el panel (y que devuelve GET /fiscal/config).
+        var emission = await merchant.PutAsync("/api/v1/fiscal/config/emission", new
         {
             autoInvoice = true,
-            trigger = "FULFILLMENT",
+            trigger = "ONFULFILLMENT",
             defaultPointOfSaleId = posId,
             consumerFinalThresholdMinorUnits = 0L,
         });
+        Assert.Equal("ONFULFILLMENT", emission.GetProperty("trigger").GetString());
         var status = await merchant.GetAsync($"/api/v1/orders/{manual}/fiscal");
         Assert.Equal("PRODUCCION", status.GetProperty("environment").GetString());
         Assert.Equal("HOMOLOGACION", Assert.Single(status.GetProperty("documents").EnumerateArray()).GetProperty("environment").GetString());

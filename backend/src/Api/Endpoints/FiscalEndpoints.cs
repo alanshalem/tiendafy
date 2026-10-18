@@ -77,7 +77,10 @@ public static class FiscalEndpoints
         {
             var cfg = await db.Configs.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
             if (cfg is null) return Error.Conflict("Fiscal.NoConfig", "Configurá primero los datos del emisor.").ToProblem();
-            var trigger = string.Equals(req.Trigger, "FULFILLMENT", StringComparison.OrdinalIgnoreCase)
+            // "ONFULFILLMENT" es lo que devuelve GET /fiscal/config y lo que manda
+            // el panel. Antes solo se aceptaba "FULFILLMENT": elegir "Al despachar
+            // el pedido" se guardaba como "Al acreditarse el pago", sin aviso.
+            var trigger = req.Trigger?.ToUpperInvariant() is "ONFULFILLMENT" or "FULFILLMENT"
                 ? EmissionTrigger.OnFulfillment : EmissionTrigger.OnPayment;
             cfg.SetEmissionPreferences(req.AutoInvoice, trigger, req.DefaultPointOfSaleId,
                 req.ConsumerFinalThresholdMinorUnits ?? 0);
