@@ -83,12 +83,12 @@ export const PLATAFORMA = {
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Staging y producción corren exactamente las mismas imágenes, y tu máquina el mismo código. Lo único que cambia es el archivo de configuración: qué base de datos usan, a qué bucket de imágenes escriben y si las credenciales de cobro son reales o de prueba.',
+            text: 'Staging y producción corren exactamente las mismas imágenes, y tu máquina el mismo código. Lo único que cambia es el archivo de configuración: qué base de datos usan, a qué bucket de imágenes escriben y si las credenciales de cobro son reales o de prueba. Esa configuración entra al arrancar, nunca al compilar: la tienda la lee de sus variables PUBLIC_* y el panel reescribe su config.js cada vez que arranca su contenedor.',
           },
           {
             type: 'callout',
             tone: 'info',
-            text: 'Hoy el servidor corre solo producción: staging quedó pospuesto para no quedarse sin memoria. Todo está preparado para prenderlo cuando haga falta: completar su archivo de variables y sumar su sitio en el borde.',
+            text: 'Producción está abierta al público desde el 13 de octubre de 2026, con el borde (Caddy) delante. Hoy el servidor corre solo producción: staging quedó pospuesto para no quedarse sin memoria. Todo está preparado para prenderlo cuando haga falta: completar su archivo de variables y sumar su sitio en el borde.',
           },
         ],
       },
@@ -172,10 +172,7 @@ export const PLATAFORMA = {
           {
             type: 'checklist',
             items: [
-              'Un medio de cobro conectado y probado con una compra real de monto chico',
-              'Al menos un medio de envío configurado, con un envío de prueba generado',
-              'Facturación con el certificado de producción, no el de pruebas',
-              'Emails llegando de verdad: dominio del remitente verificado',
+              'Cobros, envíos, facturación, imágenes y emails verificados con el artículo «Checklist antes de cobrar y despachar de verdad»',
               'La tienda abre en su dirección definitiva, con el candado de seguridad',
               'Un segundo dueño cargado en Configuración → Usuarios',
               'Razón social, CUIT y domicilio cargados en Configuración → Datos legales',
@@ -216,21 +213,26 @@ export const PLATAFORMA = {
               ['SDK de .NET 10', 'Compila y corre la API', 'dotnet --version'],
               [
                 'Node 26',
-                'Corre el panel y las tiendas. pnpm, el instalador de paquetes, lo instala el setup si falta',
+                'Corre el panel y las tiendas. pnpm 12, el instalador de paquetes, lo instala el setup si falta (la versión exacta la fija package.json)',
                 'node --version',
               ],
             ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El paso a paso completo, con las opciones de cada script y los problemas comunes, está en la guía docs/primeros-pasos.md del repositorio. Acá va lo indispensable.',
           },
         ],
       },
       {
         heading: 'La primera vez',
         paragraphs: [
-          'Un solo comando deja todo listo: verifica que estén las herramientas, levanta la infraestructura, instala las dependencias, compila y corre los tests. Si algo falta, avisa cuál.',
+          'Un solo comando deja todo listo: verifica que estén las herramientas, levanta la infraestructura (Postgres 18, MinIO y pgAdmin), instala las dependencias, compila la API y corre sus tests. Si algo falta, avisa cuál.',
         ],
         steps: [
           'Clonar el repositorio y entrar a la carpeta.',
-          'Correr setup.ps1 en Windows, o setup.sh en Linux y Mac.',
+          'Correr setup.ps1 en Windows, o setup.sh en Linux y Mac (con -SkipTests, o --skip-tests, saltea los tests).',
           'Esperar. La primera vez baja bastante: contenedores, paquetes de .NET y de Node.',
         ],
         blocks: [
@@ -273,7 +275,11 @@ export const PLATAFORMA = {
                 'dev-up.ps1 -Tunnel',
                 'Expone la API a internet con una dirección temporal, para probar webhooks de Mercado Pago',
               ],
-              ['dev-down.ps1', 'Apaga todo'],
+              ['dev-down.ps1', 'Apaga todo (con -KeepInfra deja arriba la base y el almacenamiento)'],
+              [
+                'pnpm verify',
+                'Lo mismo que corre CI salvo el e2e, en fases que no agotan la memoria. Con --front, solo panel, tiendas y paquetes compartidos; con --back, solo la API',
+              ],
             ],
           },
         ],
@@ -293,12 +299,17 @@ export const PLATAFORMA = {
                 'subdominio.localhost:3000',
                 'Cada tienda en su subdominio, sin tocar archivos del sistema',
               ],
-              ['Base de datos', 'localhost:5432', 'Usuario, clave y base: tiendafy'],
+              [
+                'Base de datos',
+                'localhost:5432',
+                'Postgres 18 en el contenedor tiendafy-postgres. Usuario, clave y base: tiendafy',
+              ],
               [
                 'Almacenamiento',
                 'localhost:9000 · consola en 9001',
                 'MinIO: hace de Cloudflare R2 sin pagar nada',
               ],
+              ['pgAdmin', 'localhost:8081', 'Para mirar la base por dentro (ver más abajo)'],
             ],
           },
           {
@@ -311,7 +322,7 @@ export const PLATAFORMA = {
       {
         heading: 'Entrar y tener con qué probar',
         paragraphs: [
-          'El sistema arranca vacío pero no desnudo: al levantar en modo desarrollo se siembran un usuario del panel con acceso a todas las tiendas y compradores de prueba en cada una. Las credenciales están en docs/usuarios-de-prueba.md del repositorio.',
+          'El sistema arranca vacío pero no desnudo: al levantar en modo desarrollo se siembran una cuenta del panel por rol (dueño, administrador, vendedor…) con acceso a todas las tiendas, y dos compradores de prueba en cada una. Las credenciales están en docs/usuarios-de-prueba.md del repositorio.',
           'Para que el panel tenga algo que mostrar —ventas, clientes, estadísticas, campañas— hay un cargador de datos de demostración que llena todo de una vez. Es idempotente y solo existe en desarrollo.',
         ],
         blocks: [
@@ -326,14 +337,14 @@ export const PLATAFORMA = {
         heading: 'Mirar la base de datos por dentro',
         paragraphs: [
           'El entorno trae pgAdmin: se levanta junto con el resto del proyecto y queda en localhost:8081. Entra directo, sin pantalla de login, y con la base ya conectada — no hay nada que configurar ni contraseñas que recordar.',
-          'Antes de abrirlo conviene saber una cosa, o el mapa se lee mal: de casi cien tablas, solo un puñado tiene clave foránea declarada. No es un olvido. Cada módulo es dueño de sus tablas y referencia a los demás por id, sin clave foránea, para que uno se pueda cambiar o migrar sin arrastrar al resto. Las relaciones existen, pero las hace cumplir el código.',
+          'Antes de abrirlo conviene saber una cosa, o el mapa se lee mal: de algo más de cien tablas, solo un puñado tiene clave foránea declarada. No es un olvido. Cada módulo es dueño de sus tablas y referencia a los demás por id, sin clave foránea, para que uno se pueda cambiar o migrar sin arrastrar al resto. Las relaciones existen, pero las hace cumplir el código.',
         ],
         blocks: [
           {
             type: 'table',
             headers: ['Qué hay en la base', 'Cuántos'],
             rows: [
-              ['Tablas', 'Casi cien, repartidas entre una veintena de módulos'],
+              ['Tablas', 'Algo más de cien, repartidas entre una veintena de módulos'],
               [
                 'Claves foráneas declaradas',
                 'Unas veinte, todas de un padre con sus hijos dentro de un mismo módulo',
@@ -362,18 +373,7 @@ export const PLATAFORMA = {
       {
         heading: 'Convivir con otro proyecto en la misma máquina',
         paragraphs: [
-          'El panel tiene el puerto fijo, así que nunca choca. Las tiendas usan el 3000 y ese sí lo pelean con casi cualquier otro proyecto web.',
-        ],
-        steps: [
-          'Levantar las tiendas en otro puerto: dev-up.ps1 -StorefrontPort 3002 (cualquiera libre).',
-          'Nada más: el script le avisa solo al panel dónde quedaron, escribiendo VITE_STOREFRONT_ORIGIN en admin/.env.local.',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'warning',
-            text: 'Si las tiendas se levantan a mano en otro puerto, sin el script, hay que cambiar VITE_STOREFRONT_ORIGIN en admin/.env.local. Si no, el botón “Ver mi tienda” y la vista previa del editor de diseño apuntan al puerto de la otra aplicación. Parecen rotos y no lo están.',
-          },
+          'El panel tiene el puerto fijo, así que nunca choca. Las tiendas usan el 3000 y ese sí lo pelean con casi cualquier otro proyecto web: levantalas con dev-up.ps1 -StorefrontPort y un puerto libre, y el script le avisa solo al panel dónde quedaron (escribe VITE_STOREFRONT_ORIGIN en admin/.env.local). Si las levantás a mano, sin el script, ese valor lo cambiás vos; si no, “Ver mi tienda” y la vista previa del editor apuntan a la otra aplicación.',
         ],
       },
       {
@@ -811,9 +811,11 @@ export const PLATAFORMA = {
         paragraphs: [
           'Cada cambio que entra a la rama principal se construye UNA vez: las pruebas corren y las imágenes quedan guardadas, marcadas con el identificador de ese cambio (sha-a1b2c3d). Publicar es elegir una de esas versiones; nunca se vuelve a construir.',
           'Eso es lo que hace que probar sirva. Si cada ambiente recompilara, lo que sale no serían los mismos archivos que se revisaron, y la prueba pasaría a ser una aproximación.',
-          'Hoy la publicación se hace a mano, en el servidor, con un solo comando: ./infra/deploy.sh prod sha-XXXXXXX. En producción la versión es obligatoria y no puede ser “latest”, que es lo último de la rama y no deja saber a qué volver.',
+          'Hoy la publicación se hace a mano, en el servidor: un git pull en /srv/tiendafy (el script usa el compose y los scripts del repositorio) y después ./infra/deploy.sh prod sha-XXXXXXX. En producción la versión es obligatoria y no puede ser “latest”, que es lo último de la rama y no deja saber a qué volver.',
+          'Un cambio en el archivo de variables se aplica igual: volviendo a correr el deploy con la versión que ya está corriendo.',
         ],
         steps: [
+          'Si el compose pide otra versión mayor de Postgres que la que corre, se frena y pide primero ./infra/pg-upgrade.sh (ver «Mantener la plataforma andando»).',
           'Trae las imágenes de esa versión (solo las de la aplicación: la base no se actualiza en un deploy).',
           'Hace una copia de la base, justo antes de tocarla.',
           'Corre las migraciones de la base con la versión nueva.',
@@ -1013,8 +1015,8 @@ export const PLATAFORMA = {
         steps: [
           'Cargar los datos del emisor y generar la solicitud del certificado desde Configuración → Facturación (“Generar solicitud (CSR)”).',
           'Subirla a ARCA con clave fiscal: en homologación, por el WSASS; en producción, por Administración de Certificados Digitales.',
-          'En el Administrador de Relaciones de ARCA, autorizar ese certificado al servicio de factura electrónica (y al del padrón, si se va a consultar).',
-          'Pegar en el panel el certificado que emite ARCA.',
+          'En el Administrador de Relaciones de ARCA, autorizar ese certificado al servicio de factura electrónica (wsfe) y, si se va a usar “Consultar en ARCA” al facturar, también al de constancia de inscripción (ws_sr_constancia_inscripcion).',
+          'Pegar en el panel el certificado que emite ARCA y tocar “Activar certificado”.',
           'En producción, crear el punto de venta en ARCA del tipo “RECE para aplicativo y web services” y cargar ese número en el panel.',
           'Usar “Probar conexión con ARCA”. Probar en homologación y recién después pasar a producción: el certificado es uno por ambiente.',
         ],
@@ -1056,7 +1058,7 @@ export const PLATAFORMA = {
             items: [
               'Mercado Pago: cuenta conectada y una compra real de monto chico, aprobada y devuelta',
               'Mercado Pago: el webhook llega — probado cerrando el navegador antes de volver a la tienda',
-              'Payway: credenciales de producción y ambiente cambiado a “Producción”',
+              'Payway: credenciales de producción y ambiente cambiado a “Producción — cobra de verdad”',
               'Payway: host de producción y tabla de medios de pago confirmados por escrito',
               'Payway: un cobro real hecho y devuelto',
               'El nombre que aparece en el resumen de la tarjeta es el correcto',
@@ -1156,7 +1158,7 @@ export const PLATAFORMA = {
               ],
               [
                 'El panel abre pero no puede hablar con la API',
-                'La configuración que el contenedor escribe al arrancar quedó apuntando al ambiente equivocado',
+                'El config.js que el contenedor del panel escribe al arrancar quedó apuntando a otro ambiente. Sale de STACK_DOMAIN en el archivo de variables: corregirlo y volver a desplegar',
               ],
               [
                 'Una tienda de staging pide certificado o da error de seguridad',
@@ -1240,9 +1242,36 @@ export const PLATAFORMA = {
               'Emails rebotados en aumento: puede ser el dominio del remitente',
               'Cuentas de redes o de Meta Ads que piden “Reconectar”: un permiso que la red revocó',
               'Errores nuevos en Sentry, si está configurado',
-              'Espacio en disco del servidor: los backups y los logs crecen',
+              'Espacio en disco del servidor: los backups (14 días más una copia por deploy) y las imágenes de cada versión publicada se acumulan. Los logs no: cada contenedor guarda tres archivos de 10 MB que rotan solos',
               'Que el backup diario esté generando archivos nuevos y que el control semanal termine en OK, no solo que el proceso esté vivo',
             ],
+          },
+        ],
+      },
+      {
+        heading: 'Actualizar Postgres',
+        paragraphs: [
+          'La base corre Postgres 18 y el deploy no la toca nunca, a propósito: actualizarla la reinicia.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué', 'Cómo'],
+            rows: [
+              [
+                'Un parche dentro de la 18 (18.6 → 18.7)',
+                'A mano, en un horario tranquilo: traer y volver a levantar solo postgres y pg-backup. Corta la base unos segundos',
+              ],
+              [
+                'Una versión mayor nueva',
+                './infra/pg-upgrade.sh prod y después un deploy. Ensaya primero sobre una copia, guarda un dump, cuenta las filas antes y después, y deja el volumen viejo como vuelta atrás. Si no corrés esto, deploy.sh se frena y te lo pide',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Los comandos exactos están en la guía docs/despliegue.md del repositorio, sección “Cambiar de major de Postgres”.',
           },
         ],
       },

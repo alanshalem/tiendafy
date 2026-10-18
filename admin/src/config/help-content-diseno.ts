@@ -20,6 +20,7 @@ export const DISENO = {
         paragraphs: [
           'En Canales de venta → Tienda online se abre “Editar diseño”: a la izquierda las opciones, a la derecha tu tienda tal como la va a ver tu cliente. Todo lo que cambiás se ve al instante.',
           'Las opciones están ordenadas en grupos numerados, de lo general a lo particular. Lo que se configura en otra pantalla (el checkout y las páginas de contenido) aparece al final con un ícono de link que te lleva ahí.',
+          'Si manejás varias tiendas, cambiás a la otra desde su nombre arriba (o desde el menú ⋯ → “Editar …” en pantallas chicas). De fábrica el editor lo usan el dueño y el administrador (permiso “Diseño y páginas de la tienda”); se cambia en Configuración → Roles y permisos.',
         ],
         blocks: [
           { type: 'path', segments: ['Canales de venta', 'Tienda online'] },
@@ -54,8 +55,8 @@ export const DISENO = {
         heading: 'La vista previa',
         paragraphs: [
           'Arriba elegís cómo verla: Celulares, Tablets o Computadoras. La tienda se dibuja al ancho real de ese dispositivo y se achica para entrar en la pantalla (abajo te dice, por ejemplo, “Celular · 390 px · al 62%”), así que lo que ves es lo que se va a ver, no una aproximación. El editor recuerda el último que elegiste.',
-          'Con el botón “Esconder el panel de opciones” la vista previa ocupa todo el ancho. Tocá cualquier parte de la tienda en la vista previa y se abre el panel que la edita.',
-          'La vista previa sigue al panel abierto: en Listado de productos muestra el listado, en Detalle de producto un producto real, en Contacto la página de contacto y en Carrito de compras abre el carrito.',
+          'Con el botón “Esconder el panel de opciones” la vista previa ocupa todo el ancho. Al pasar el mouse por el encabezado, el pie o una sección del inicio en la vista previa aparece “Editar”: tocalo y se abre su panel. Las secciones tienen además un tacho para eliminarlas (con “Deshacer”).',
+          'La vista previa sigue al panel abierto: en Listado de productos muestra el listado, en Detalle de producto un producto real, en Contacto la página de contacto, en Carrito de compras abre el carrito y en Tienda en construcción muestra esa página. Al abrir el encabezado, el pie, el botón de WhatsApp o una sección, baja hasta ahí.',
         ],
         blocks: [
           {
@@ -104,7 +105,7 @@ export const DISENO = {
         heading: 'Programar una publicación',
         paragraphs: [
           'Con “Programar” elegís fecha y hora, y el diseño sale solo en ese momento. Se programa el diseño tal como está cuando tocás el botón: podés seguir editando el borrador después, y lo que sigas cambiando no entra en la publicación programada ni se pisa cuando sale.',
-          'Mientras hay una publicación pendiente el botón dice “Programado” y la podés cancelar.',
+          'La fecha tiene que ser futura y como mucho dentro de un año. Mientras hay una publicación pendiente el botón dice “Programado”: al tocarlo ves para cuándo está y la podés cancelar. Cuando sale, lo que estaba publicado antes queda en el historial, igual que al publicar a mano.',
         ],
         blocks: [
           {
@@ -123,7 +124,7 @@ export const DISENO = {
       {
         heading: 'Si otra persona o pestaña cambió el diseño',
         paragraphs: [
-          'Si tenés el editor abierto en dos pestañas, o alguien de tu equipo edita a la vez, el editor no pisa los cambios del otro sin avisar. Aparece “El diseño cambió en otra pestaña o lo editó otra persona” y elegís:',
+          'Si tenés el editor abierto en dos pestañas, alguien de tu equipo edita a la vez o salió una publicación programada, el editor no pisa los cambios del otro sin avisar. Aparece “El diseño cambió en otra pestaña o lo editó otra persona” y elegís:',
         ],
         blocks: [
           {
@@ -149,15 +150,15 @@ export const DISENO = {
       {
         heading: 'Galería de diseños',
         paragraphs: [
-          'Si preferís arrancar de una base, “Elegí un diseño listo” abre la galería con combinaciones armadas por rubro (moda, deco, alimentos, tecnología, gimnasio y más) y los diseños de las marcas del grupo. Tocá “Usar este diseño” y después “Aplicar al borrador”.',
-          'Un diseño de la galería cambia lo visual: colores, tipografía, encabezado (tu menú se mantiene), estilo, la barra de anuncio y las secciones del inicio, que se reemplazan por las del diseño. Lo que cargaste vos queda como está: pie de página, contacto, carrito, listado, botón de WhatsApp y CSS propio.',
+          'Si preferís arrancar de una base, “Elegí un diseño listo” abre la pantalla “Diseños para tu tienda”, con combinaciones armadas por rubro (moda, deco, alimentos, tecnología, gimnasio y más) y los diseños de las marcas del grupo. Tocá “Usar este diseño” y después “Aplicar al borrador”: la ventana te dice qué cambia ese diseño en particular, y al aplicarlo volvés al editor.',
+          'Un diseño de la galería cambia lo visual: colores, tipografía, estilo, el encabezado y las secciones del inicio, que se reemplazan por las del diseño; algunos traen también su barra de anuncio. Del encabezado se mantienen tu menú y si el celular muestra el menú desplegable, pero los colores por página vuelven a “Igual que el general”. Lo que cargaste vos queda como está: pie de página, contacto, carrito, listado, botón de WhatsApp y CSS propio.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
             title: 'Se aplica al borrador',
-            text: 'Tu tienda no cambia hasta que publiques, y se deshace con Ctrl+Z. Ojo con los diseños de marca: algunos traen su propio logo y textos para Google, y otros prenden la “Tienda en construcción”. Revisá antes de publicar.',
+            text: 'Tu tienda no cambia hasta que publiques, y se deshace con Ctrl+Z. Ojo con los diseños de marca: algunos traen su propio logo, favicon y textos para Google, y otros prenden la “Tienda en construcción”. Revisá antes de publicar.',
           },
         ],
       },
@@ -165,6 +166,7 @@ export const DISENO = {
         heading: 'Copiar el diseño de otra tienda',
         paragraphs: [
           'Si manejás más de una tienda, “Copiar el diseño de otra tienda” trae a tu borrador lo PUBLICADO de la otra: colores, fuentes, encabezado, pie y secciones. Los productos de cada tienda no se tocan, y tu tienda no cambia hasta que publiques.',
+          'Solo se puede copiar de una tienda donde vos también podés editar el diseño y que ya tenga algo publicado; si no, avisa que no se pudo copiar.',
         ],
         blocks: [
           {
@@ -178,7 +180,7 @@ export const DISENO = {
       {
         heading: 'Identidad: logo y cómo aparecés en Google',
         paragraphs: [
-          'En Logo de la tienda cargás el logo (sin logo se muestra el nombre de la tienda), el favicon (el iconito de la pestaña del navegador) y la “Imagen al compartir”, la que se ve cuando alguien pasa el link de tu tienda por WhatsApp o redes.',
+          'En Logo de la tienda (el panel “Identidad de tu tienda”) cargás el logo (sin logo se muestra el nombre de la tienda) y elegís su tamaño en el encabezado, el favicon (el iconito de la pestaña del navegador) y la “Imagen al compartir”, la que se ve cuando alguien pasa el link de tu tienda por WhatsApp o redes.',
           'Debajo de la imagen ves cómo queda el link en un chat de WhatsApp (en claro u oscuro, como tengas el panel): con imagen al compartir, la foto va grande arriba; si no subiste una, va tu logo en chico (si es SVG, ninguna: las redes no lo leen). Lo ideal es una de 1200 × 630 px.',
           'Ahí mismo, en “Cómo aparecés en Google”, van el título y la descripción para buscadores, con una vista previa del resultado tal como se ve en un celular, que se actualiza mientras escribís: el favicon, tu dominio y los textos cortados donde los corta Google. Debajo de cada campo, un contador te avisa si quedó corto o tan largo que Google lo va a cortar (ideal: hasta 60 caracteres el título y 150-160 la descripción). Si los dejás vacíos, se usa un texto con el nombre de tu tienda, el mismo que muestra la vista previa. Mirá también el artículo “Aparecer en Google (SEO)”.',
         ],
@@ -186,7 +188,7 @@ export const DISENO = {
       {
         heading: 'Colores, letra, botones y estilo',
         paragraphs: [
-          'En Colores de tu marca tenés combinaciones listas (claras y oscuras) o elegís cada color. Si un texto no se va a leer bien sobre su fondo, el editor te avisa: “No se lee” o “Se lee justo”. En Tipo de letra elegís una combinación lista o una letra para los títulos y otra para el resto.',
+          'En Colores de tu marca tenés combinaciones listas (claras y oscuras) o elegís cada color: el principal (botones y destacados), uno de acento si querés, el fondo y los textos. Si un texto no se va a leer bien sobre su fondo, el editor te avisa: “No se lee” o “Se lee justo”. En Tipo de letra elegís una combinación lista o una letra para los títulos y otra para el resto.',
           'En Estilo y movimiento definís los bordes (redondeado, suave o cuadrado), el estilo de los botones (forma, lleno o solo contorno, y texto normal o en MAYÚSCULAS, con una muestra en vivo), los íconos, cuánto se mueven las cosas y qué tan apretado o aireado se ve todo.',
         ],
         blocks: [
@@ -201,7 +203,7 @@ export const DISENO = {
       {
         heading: 'Tu marca en todos lados',
         paragraphs: [
-          'El logo y el color primario que definas acá se usan también en los e-mails automáticos que reciben tus clientes. Subí un logo de hasta ~160 px de ancho para que se vea nítido.',
+          'El logo y el color principal que definas acá se usan también en los e-mails automáticos que reciben tus clientes. Ahí el logo va arriba y chico (hasta 56 px de alto y 220 de ancho): uno apaisado y sin márgenes de sobra se lee mejor.',
         ],
         blocks: [
           {
@@ -265,7 +267,7 @@ export const DISENO = {
       {
         heading: 'Agregar una sección',
         steps: [
-          'Tocá “Agregar sección”, o el “+” que aparece entre dos secciones al pasar el mouse para meterla justo ahí.',
+          'Tocá “Agregar sección”, o el “+” que aparece entre dos secciones al pasar el mouse para meterla justo ahí (con el dedo no hay “+”: usá el menú ⋯ → Agregar sección arriba o abajo).',
           'Se abre el selector con todas las secciones agrupadas (Imágenes, Productos, Contenido, Confianza, Contacto), cada una con una miniatura. Arriba te dice dónde va a quedar: “Va entre «Carrusel» y «Destacados»”.',
           'Buscá por nombre si querés: “banners”, “preguntas”, “video”. Enter elige la primera.',
           'La sección se agrega con contenido de ejemplo y se abre para que la completes.',
@@ -286,7 +288,10 @@ export const DISENO = {
             headers: ['Opción', 'Qué hace'],
             rows: [
               ['Cambiar nombre', 'Le pone un nombre propio para reconocerla en la lista. Solo lo ves vos.'],
-              ['Duplicar', 'Hace una copia justo abajo, llamada «… (copia)».'],
+              [
+                'Duplicar',
+                'Hace una copia justo abajo, llamada «… (copia)». No está para las que van una sola vez.',
+              ],
               [
                 'Agregar sección arriba / abajo',
                 'Abre el selector para meter una sección nueva en ese lugar.',
@@ -467,7 +472,7 @@ export const DISENO = {
       {
         heading: 'Encabezado',
         paragraphs: [
-          'Con los estilos rápidos (Clásico, Centrado, Inmersivo o Minimal), cada uno con su dibujito, cambiás todo de una vez. Después elegís la disposición en la computadora (menú al centro, logo al centro, menú junto al logo o menú a la derecha) y el tamaño del logo (chico, mediano o grande), también con su muestra.',
+          'Con los estilos rápidos (Clásico, Centrado, Inmersivo o Minimal), cada uno con su dibujito, cambiás todo de una vez. Después elegís la disposición en la computadora (menú al centro, logo al centro, menú junto al logo o menú a la derecha) y el tamaño del logo (chico, mediano o grande), también con su muestra. En el celular el encabezado va siempre igual: el menú (☰) a la izquierda, el logo y los íconos.',
           'En “Colores” van el fondo, el texto e íconos (en Automático usa el que mejor se lee sobre el fondo) y el borde de abajo (ninguno, línea o sombra). En “Comportamiento”: si queda siempre visible al bajar, si en el celular hay menú desplegable (☰) y si va transparente sobre la foto de portada. En “Buscador y carrito”, si se muestran y cómo.',
         ],
         blocks: [
@@ -497,7 +502,7 @@ export const DISENO = {
       {
         heading: 'La barra de anuncio',
         paragraphs: [
-          'Es la franja angosta arriba de todo (“Envío gratis desde $50.000”). Se configura en Encabezado → Barra de anuncio: podés cargar varios anuncios, cada uno con su link, y reordenarlos, duplicarlos o borrarlos con el menú ⋯ de cada uno.',
+          'Es la franja angosta arriba de todo (“Envío gratis desde $50.000”). Se prende con “Mostrar barra de anuncio” en Encabezado → Barra de anuncio: podés cargar varios anuncios, cada uno con su link opcional, y reordenarlos, duplicarlos o borrarlos con el menú ⋯ de cada uno.',
         ],
         blocks: [
           {
@@ -511,7 +516,7 @@ export const DISENO = {
               ],
               [
                 'Uno por vez',
-                'Se ve un anuncio solo y cambia al siguiente cada 3 a 10 segundos (vos elegís cuántos), con flechas para pasarlos.',
+                'Se ve un anuncio solo y cambia al siguiente cada 3 a 10 segundos (vos elegís cuántos en “Cada cuánto cambia”), con flechas para pasarlos. Con un solo anuncio queda fijo.',
               ],
             ],
           },
@@ -567,11 +572,11 @@ export const DISENO = {
               ],
               [
                 'Qué muestra cada producto',
-                'Precio, precio tachado, botón “Agregar al carrito”, stock, precio con transferencia y cuotas sin interés.',
+                'Precio, precio tachado, botón “Agregar al carrito”, disponibilidad (“Sin stock” o “¡Últimas N!”) y precio con transferencia.',
               ],
               [
                 'Filtros del costado',
-                'Categorías, precio, marca, color y talle. Cada filtro aparece solo si tus productos tienen ese dato.',
+                'Categorías, precio (desde / hasta), marca, y color, talle y otras opciones. Cada filtro aparece solo si tus productos tienen ese dato.',
               ],
             ],
           },
@@ -591,7 +596,7 @@ export const DISENO = {
         paragraphs: [
           'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra (y la información del producto acompaña al bajar), ideal para indumentaria y productos con detalles. En el celular, la apilada se desliza de costado para que el precio y el botón de compra no queden lejos.',
           'Además elegís si se muestran el SKU, el stock, los productos relacionados, los logos de medios de pago y el botón “Consultar por este producto”, que abre WhatsApp con el número del Botón de WhatsApp.',
-          'El precio con transferencia y las cuotas sin interés ya no se cargan acá: se configuran en Configuración → Medios de pago (Transferencia, efectivo y cuotas), porque el checkout los tiene que cobrar. La ficha y el listado los muestran solos.',
+          'El % de descuento por transferencia y las cuotas sin interés no se cargan en el diseño: se configuran en Configuración → Medios de pago (lo explica el artículo «Transferencia, efectivo y cuotas sin interés»), porque el checkout los tiene que cobrar. La ficha y el listado los muestran solos; en el listado, el precio con transferencia se puede apagar con “Mostrar precio con transferencia”.',
         ],
       },
       {
@@ -606,10 +611,10 @@ export const DISENO = {
         heading: 'Pie de página',
         paragraphs: [
           'Estilos rápidos: Mínimo, Completo o En columnas. La disposición puede ser todo al centro o en columnas, y el pie puede tener su propio color de fondo: el texto se ajusta solo para que se lea.',
-          'En “Columnas” armás el pie como en las tiendas grandes: qué columnas hay, con qué título y en qué orden, hasta cinco. Hay seis tipos: Marca y redes (tu logo, el texto del pie y los íconos de tus redes), Links (una lista con su título, por ejemplo “Ayuda”, con links elegidos con el selector de links: una categoría, un producto, una página, cualquier dirección o un WhatsApp), Páginas de contenido (las que publicaste, solas), Contacto, Suscripción a novedades y Texto (un párrafo libre, como “Quiénes somos”). Los de marca, páginas, contacto y novedades van una sola vez.',
+          'En “Columnas” armás el pie como en las tiendas grandes: qué columnas hay, con qué título y en qué orden, hasta cinco. Hay seis tipos: Marca y redes (tu logo, el texto del pie y los íconos de tus redes), Links (una lista con su título, por ejemplo “Ayuda”, con hasta 12 links elegidos con el selector de links: una categoría, un producto, una página, cualquier dirección o un WhatsApp), Páginas de contenido (las que publicaste, solas), Contacto, Suscripción a novedades y Texto (un párrafo libre, como “Quiénes somos”). Los de marca, páginas, contacto y novedades van una sola vez.',
           'Cada columna es una fila: tocala para cambiarle el título o sus links (los links se ordenan, se renombran y se quitan adentro), y con ⋯ la movés arriba o abajo, le cambiás el nombre o la eliminás. Al abrirla, la vista previa baja hasta el pie y la resalta. Una columna sin nada para mostrar (contacto sin datos, páginas sin publicar) no deja un hueco en la tienda.',
           'En la computadora las columnas van lado a lado, con la de tu marca un poco más ancha; en el celular, una debajo de la otra, y las listas de links quedan plegadas con su título para que el pie no sea un scroll largo. Todo al centro apila las mismas columnas en su orden; ahí el título de una lista solo se ve si le pusiste uno.',
-          'Los datos siguen en su lugar del panel y las columnas los muestran: el texto del pie, tus redes (Instagram, Facebook, TikTok, YouTube, X), los logos de los medios de pago que aceptás y tus datos de contacto (WhatsApp, direcciones, teléfonos y emails, varios de cada uno). Si tu pie es de antes de las columnas, el editor arma solo las equivalentes y la tienda se ve igual que siempre.',
+          'Los datos siguen en su lugar del panel y las columnas los muestran: el texto del pie, tus redes (Instagram, Facebook, TikTok, YouTube, X), los logos de medios de pago que marques en “Medios de pago” y tus datos de contacto en “Contacto en el pie” (WhatsApp, direcciones, teléfonos y emails, varios de cada uno). Si tu pie es de antes de las columnas, el editor arma solo las equivalentes y la tienda se ve igual que siempre.',
           'El pie también tiene el Botón de Arrepentimiento y los links legales: esos los pone la tienda sola, porque son obligatorios.',
         ],
       },

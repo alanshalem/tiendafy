@@ -43,7 +43,7 @@ export const LEGAL = {
           'El certificado es el “DNI” de tu tienda ante ARCA: sin él, ARCA no acepta pedidos de factura. Se obtiene con un ida y vuelta simple:',
         ],
         steps: [
-          'Tocá “Generar solicitud (CSR)” y después “Descargar CSR”.',
+          'Tocá “Generar solicitud (CSR)”: el archivo se descarga solo (si no, usá “Descargar CSR” o “Copiar”).',
           'Entrá a ARCA con tu clave fiscal → “Administración de Certificados Digitales” → creá un alias y subí el CSR. En Homologación el trámite se hace en el WSASS, el autoservicio de prueba de ARCA, no en el portal de producción.',
           'ARCA te devuelve el certificado firmado (un archivo .pem o .crt): abrilo con un editor, copiá todo, pegalo en “Pegá acá el certificado firmado por ARCA” y tocá “Activar certificado”.',
           'Después, en “Administrador de Relaciones de Clave Fiscal”, autorizá al servicio “Facturación Electrónica” (wsfe) para ese alias.',
@@ -56,13 +56,19 @@ export const LEGAL = {
             title: 'El servicio del padrón cambió de nombre',
             text: 'ARCA dio de baja el nombre viejo del padrón (ws_sr_padron_a5) y lo reemplazó por ws_sr_constancia_inscripcion. Si tu certificado solo tiene el viejo, la consulta todavía anda, pero “Probar la conexión” te avisa: asociale el nuevo antes de que ARCA lo corte.',
           },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Cuando el certificado está por vencer',
+            text: 'Con el certificado activo, la tarjeta muestra el titular y la fecha en que vence. Antes de esa fecha tocá “Regenerar certificado” y repetí este trámite: mientras no actives el nuevo, se sigue facturando con el anterior.',
+          },
         ],
       },
       {
         heading: 'Tu clave privada nunca sale de acá',
         paragraphs: [
-          'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA. Si alguien la tuviera podría facturar en tu nombre — por eso se cuida así.',
-          'Además, de entrada solo Dueño, Administrador y Finanzas pueden tocar la configuración fiscal o emitir comprobantes; un vendedor o soporte no puede. Si en tu tienda lo hace otra persona, se habilita para su rol en Configuración → Roles y permisos, o solo para esa persona como excepción en Configuración → Usuarios.',
+          'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no sale del sistema. Solo se usa internamente para firmar los pedidos a ARCA. Si alguien la tuviera podría facturar en tu nombre — por eso se cuida así.',
+          'Además, de entrada solo Dueño, Administrador y Finanzas tienen los permisos “Configurar la facturación (ARCA)” (esta pantalla y el libro IVA ventas) y “Emitir y anular facturas” (facturar, notas de crédito y “Consultar en ARCA”); un vendedor o soporte no. Si en tu tienda lo hace otra persona, se habilita para su rol en Configuración → Roles y permisos, o solo para esa persona como excepción en Configuración → Usuarios.',
         ],
         blocks: [
           {
@@ -75,7 +81,8 @@ export const LEGAL = {
       {
         heading: 'Paso 3 — Puntos de venta',
         paragraphs: [
-          'El punto de venta es el “talonario” numerado de tus facturas (el 0001 de “0001-00000123”). Se crea en ARCA: “Administración de puntos de venta y domicilios”, con el sistema de facturación “Web Services”. Después cargás ese número en el panel.',
+          'El punto de venta es el “talonario” numerado de tus facturas (el 0001 de “0001-00000123”). Se crea en ARCA: “Administración de puntos de venta y domicilios”, con el sistema de facturación “Web Services”. Después, en el paso 3 del panel, escribís ese “Número”, si querés una “Etiqueta (opcional)” (por ejemplo “Web”) y tocás “Agregar”.',
+          'En Homologación ARCA acepta cualquier número y no deja verificarlo: el control real del punto de venta se hace cuando probás la conexión en Producción.',
         ],
         blocks: [
           {
@@ -103,14 +110,14 @@ export const LEGAL = {
       {
         heading: 'Facturar una venta a mano',
         paragraphs: [
-          'Si una venta no se facturó sola (la facturación automática estaba apagada, o es una venta vieja), abrí la venta y en el recuadro “Facturación (ARCA)” tocá “Facturar ahora”. Si la automática falló, el botón es “Reintentar”, y “PDF” descarga la factura o cada nota de crédito.',
+          'Si una venta cobrada no se facturó sola (la facturación automática estaba apagada, o es una venta vieja), abrí la venta y en el recuadro “Facturación (ARCA)” tocá “Facturar ahora”. Si la automática falló, el recuadro dice “Falló la facturación automática” con el motivo y aparece también “Reintentar”; si falló una nota de crédito, “Reintentar la nota de crédito”. “PDF” descarga la factura o cada nota de crédito.',
           'En el diálogo cargás el DNI o CUIT del comprador (vacío = consumidor final sin identificar). Con un CUIT, “Consultar en ARCA” trae del padrón el nombre, el domicilio y la condición frente al IVA, y con eso sale el tipo de factura correcto. Si no elegís condición, a una sociedad le sale Factura A y a una persona, B.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
-            text: 'El número solo no alcanza: un CUIL y el CUIT de un monotributista tienen la misma forma. Por eso, sin otro dato, a una persona se la factura como consumidor final. Si es Responsable Inscripto y te pide Factura A, tocá “Consultar en ARCA” o elegí su condición antes de facturar.',
+            text: 'El número solo no alcanza: un CUIL y el CUIT de un monotributista tienen la misma forma. Por eso, sin otro dato, a una persona se la factura como consumidor final. Si sos Responsable Inscripto y el comprador es Responsable Inscripto o monotributista, le corresponde Factura A: tocá “Consultar en ARCA” o elegí su condición antes de facturar.',
           },
         ],
       },
@@ -148,7 +155,7 @@ export const LEGAL = {
         heading: 'Libro de IVA ventas y compras',
         paragraphs: [
           'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA ventas”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total, CAE y ambiente). Es lo que te pide tu contador.',
-          'Entran solo los comprobantes del ambiente en el que estás facturando: mientras estés en Homologación, el libro es de prueba y la columna “Ambiente” lo dice en cada fila. El mes se cuenta en hora argentina: una factura del 31 a las 23 h es de ese mes.',
+          'Entran solo los comprobantes del ambiente en el que estás facturando: mientras estés en Homologación, el libro es de prueba: la columna “Ambiente” lo dice en cada fila y el archivo lleva “-homologacion” en el nombre. El mes se cuenta en hora argentina: una factura del 31 a las 23 h es de ese mes.',
           'El de compras sale de Compras e importaciones → Órdenes de compra, con el botón “Libro IVA compras”: junta las facturas de proveedores que cargaste en cada compra.',
         ],
       },
@@ -157,13 +164,15 @@ export const LEGAL = {
         steps: [
           'Con todo configurado en Homologación, hacete una compra de prueba y verificá que la venta muestre su factura con CAE.',
           'Descargá el PDF desde el detalle de la venta (recuadro “Facturación (ARCA)”).',
-          'Cuando funcione, repetí el certificado para el ambiente Producción (ARCA usa certificados separados) y cambiá el ambiente. Desde ahí, facturas reales.',
+          'Cuando funcione, en el paso 1 cambiá el “Ambiente” a Producción y tocá “Guardar datos”.',
+          'En el paso 2 tocá “Regenerar certificado” (o “Generar solicitud (CSR)”), hacé el trámite en el portal de ARCA (ya no en WSASS) y activá el certificado nuevo.',
+          'Revisá que el punto de venta sea el de Web Services real y tocá “Probar conexión con ARCA”. Desde ahí, facturas reales.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
-            text: 'El certificado de Homologación NO sirve en Producción: ARCA usa certificados separados por ambiente. Al pasar a Producción hay que repetir el trámite del certificado una vez más.',
+            text: 'El certificado de Homologación NO sirve en Producción: ARCA usa certificados separados por ambiente. Entre que guardás Producción y activás el certificado nuevo no sale ninguna factura (las que fallen se reintentan desde la venta), así que hacé los dos pasos seguidos.',
           },
           {
             type: 'callout',
@@ -231,7 +240,7 @@ export const LEGAL = {
       {
         heading: '¿Por qué la factura puede tardar unos minutos?',
         paragraphs: [
-          'La factura se emite “por atrás”, después de cerrar la venta. Es a propósito: ARCA a veces está lento o en mantenimiento, y si el botón de pagar dependiera de su respuesta, una caída de ARCA te rompería la venta. Primero se cobra (tu cliente ya compró), y la factura sale minutos después; si ARCA está caído, Tiendafy reintenta solo hasta que salga. Es como lo hacen todos los sistemas serios.',
+          'La factura se emite “por atrás”, después de cerrar la venta. Es a propósito: ARCA a veces está lento o en mantenimiento, y si el botón de pagar dependiera de su respuesta, una caída de ARCA te rompería la venta. Primero se cobra (tu cliente ya compró), y la factura sale minutos después; si ARCA está caído, Tiendafy reintenta solo hasta que salga. Mientras tanto, la venta muestra “Facturación en proceso…”.',
         ],
       },
       {
@@ -262,7 +271,7 @@ export const LEGAL = {
               },
               {
                 term: 'CSR',
-                def: 'El “formulario de pedido” del certificado. Tiendafy lo arma, vos lo subís a ARCA, ARCA te devuelve el certificado. Una sola vez.',
+                def: 'El “formulario de pedido” del certificado. Tiendafy lo arma, vos lo subís a ARCA, ARCA te devuelve el certificado. Se repite al pasar a Producción y cuando el certificado vence.',
               },
               {
                 term: 'TA',
@@ -312,13 +321,13 @@ export const LEGAL = {
         heading: 'Términos y condiciones / Política de privacidad',
         paragraphs: [
           'Tu tienda publica automáticamente Términos y condiciones y Política de privacidad genéricos en /terminos y /privacidad, enlazados desde el pie.',
-          'Si querés textos propios, creá en Páginas de contenido una página con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”): tu versión reemplaza a la genérica automáticamente.',
+          'Si querés textos propios, creá en Páginas de contenido una página con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”) y dejala “Publicada”: tu versión reemplaza a la genérica automáticamente. Un borrador no la reemplaza.',
         ],
       },
       {
         heading: 'Facturación obligatoria',
         paragraphs: [
-          'Toda venta debe facturarse ante ARCA. Configurá la facturación electrónica en Configuración → Facturación y se emite sola (mirá el artículo de Facturación electrónica).',
+          'Toda venta debe facturarse ante ARCA. Configurá la facturación electrónica en Configuración → Facturación y se emite sola. Lo explica el artículo «Facturación electrónica (ARCA)».',
         ],
       },
       {
@@ -390,7 +399,7 @@ export const LEGAL = {
         heading: 'Dónde se cargan',
         blocks: [{ type: 'path', segments: ['Configuración', 'Datos legales'] }],
         paragraphs: [
-          'Si ya configuraste la facturación electrónica, la razón social, el CUIT y la condición se toman de ahí mientras no cargues otros: no hace falta escribirlos dos veces.',
+          'Si ya configuraste la facturación electrónica, la razón social, el CUIT y la condición se toman de ahí mientras no cargues otros: no hace falta escribirlos dos veces. Cuando guardás esta pantalla quedan como propios: si después cambiás la facturación, actualizalos acá también.',
           'Completá lo que haga falta y tocá “Guardar” en la barra de abajo.',
         ],
       },

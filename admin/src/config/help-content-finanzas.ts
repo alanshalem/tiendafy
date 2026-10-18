@@ -33,10 +33,17 @@ export const FINANZAS = {
         ],
       },
       {
+        heading: 'Editar o dar de baja una cuenta',
+        paragraphs: [
+          'Tocá la tarjeta de la cuenta para cambiarle el nombre o el detalle. Si ya no la usás, destildá “Cuenta activa”: deja de sumarse en el total y de ofrecerse para movimientos, transferencias, cobros y pagos, pero sus movimientos quedan en la lista.',
+        ],
+      },
+      {
         heading: 'Movimientos y transferencias',
         paragraphs: [
           'Con el botón “Movimiento” cargás cualquier entrada o salida que no viene de un cobro o un pago de Cuentas corrientes: un gasto, un retiro del dueño, un aporte. Lleva concepto y, si querés, una referencia (número de comprobante, de cheque).',
-          'Con “Transferir” (aparece cuando tenés dos cuentas o más) movés plata de una cuenta tuya a otra: del efectivo al banco, por ejemplo. No es un ingreso ni un gasto, así que quedan los dos movimientos atados entre sí y no infla los totales de entradas y salidas.',
+          'Con “Transferir” (aparece cuando tenés dos cuentas activas o más) movés plata de una cuenta tuya a otra: del efectivo al banco, por ejemplo. No es un ingreso ni un gasto, así que quedan los dos movimientos atados entre sí, con la etiqueta “Transferencia”, y no infla los totales de entradas y salidas.',
+          'Abajo está la lista de “Movimientos” de todas las cuentas; con “Filtrar por cuenta” ves los de una sola.',
         ],
         blocks: [
           {
@@ -104,19 +111,26 @@ export const FINANZAS = {
       {
         heading: 'De dónde salen los movimientos',
         paragraphs: [
-          'La mayoría entran solos. Una venta manual o un presupuesto aceptado con el cobro "Cuenta corriente (queda debiendo)" carga la deuda del cliente. Si después reembolsás esa venta, el reembolso no devuelve plata: baja la deuda (o le deja saldo a favor si ya la había pagado). La factura que cargás en una orden de compra carga la deuda con el proveedor.',
+          'La mayoría entran solos. Una venta manual o un presupuesto aceptado con el cobro "Cuenta corriente (queda debiendo)" carga la deuda del cliente. Si después reembolsás esa venta, el reembolso no devuelve plata: baja la deuda (o le deja saldo a favor si ya la había pagado). En el estado de cuenta figura como “Nota de crédito”: es un movimiento de la cuenta corriente, no un comprobante de ARCA (si la venta estaba facturada, la nota de crédito de ARCA va aparte). La factura que cargás en una orden de compra carga la deuda con el proveedor, si la compra tiene ficha de proveedor.',
           'A mano se cargan dos cosas: el saldo que venía de antes del sistema, y las correcciones. Las dos con el botón "Ajuste", que siempre pide un motivo — un saldo que cambia sin dejar rastro es un saldo que no podés defender cuando el cliente lo discuta.',
         ],
         blocks: [{ type: 'path', segments: ['Tesorería', 'Cuentas corrientes'] }],
+      },
+      {
+        heading: 'El estado de cuenta de cada uno',
+        paragraphs: [
+          'La lista muestra solo a quienes tienen saldo. Tocá un cliente o un proveedor para ver todo lo que pasó con él, de lo más nuevo a lo más viejo: cada comprobante con su Debe, su Haber y el saldo después de cada movimiento. Los que están saldados en parte llevan la etiqueta “Pendiente” con lo que falta.',
+          'Desde ahí, “Registrar cobro” (o “Registrar pago”) ya viene con ese contacto elegido.',
+        ],
       },
       {
         heading: 'Registrar un cobro o un pago',
         steps: [
           'Tocá "Registrar cobro" (o "Registrar pago" si estás en la solapa de proveedores).',
           'Elegí el cliente o el proveedor. Tiene que estar en la agenda: el saldo se acumula por ficha.',
-          'Elegí la cuenta donde entra (o de donde sale) la plata y escribí el importe.',
+          'En “Entra en” (o “Sale de”) elegí la caja o el banco y escribí el importe. Si todavía no tenés cuentas activas, el link “Crear cuenta” te lleva a Tesorería.',
           'Imputá: marcá a qué comprobantes se aplica. El botón "Imputar lo más viejo primero" lo hace solo, que es como se cancela una cuenta normalmente.',
-          'Guardá. Queda el recibo numerado, baja el saldo del contacto y se mueve la caja o el banco, todo junto.',
+          'Tocá “Registrar”. Queda el recibo numerado (REC-0001 en los cobros, OP-0001 en los pagos), baja el saldo del contacto y se mueve la caja o el banco, todo junto.',
         ],
         blocks: [
           {
@@ -130,7 +144,7 @@ export const FINANZAS = {
       {
         heading: 'Anular un recibo',
         paragraphs: [
-          'Si un cheque rebota o cargaste mal un cobro, anulás el recibo. Se revierten las tres cosas que hizo: vuelve la deuda, se descuenta la plata de la cuenta donde entró y se liberan las imputaciones.',
+          'Si un cheque rebota o cargaste mal un cobro, anulás el recibo: en la lista “Recibos de cobro” (u “Órdenes de pago”, en Proveedores) tocá “Anular” y confirmá. Se revierten las tres cosas que hizo: vuelve la deuda, se descuenta la plata de la cuenta donde entró y se liberan las imputaciones.',
           'Los movimientos de caja no se borran: se contra-asientan. Así el arqueo que hiciste ayer sigue dando lo que dio, y el recibo queda a la vista marcado como anulado en vez de desaparecer.',
         ],
         blocks: [
