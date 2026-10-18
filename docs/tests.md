@@ -190,8 +190,8 @@ que alimenta el sorteo lleva `OrderBy`). Por eso, en los tests:
 
 | Workflow | Cuándo | Qué hace |
 | --- | --- | --- |
-| `backend-ci.yml` | Push a `main` y PR que tocan `backend/` | Build Release con `-warnaserror`, `dotnet format --verify-no-changes`, unitarios e integración (Postgres 18 como servicio), pisos de cobertura |
-| `frontend-ci.yml` | Push a `main` y PR que tocan frontends, `shared/`, `e2e/`, `test-fixtures/` o la config de pnpm/Node | `pnpm format:check`, `pnpm -r run type-check`, ESLint de panel y tienda, builds de producción, vitest con cobertura |
+| `backend-ci.yml` | Push a `main` y PR que tocan `backend/` o `.editorconfig` | Build Release con `-warnaserror`, `dotnet format --verify-no-changes`, unitarios e integración (Postgres 18 como servicio), pisos de cobertura |
+| `frontend-ci.yml` | Push a `main` y PR que tocan frontends, `shared/`, `e2e/`, `test-fixtures/`, `.editorconfig` o la config de pnpm/Node | `pnpm format:check`, `pnpm -r run type-check`, ESLint de panel y tienda, builds de producción, vitest con cobertura |
 | `e2e.yml` | Push a `main` y PR que tocan backend o frontends | API en Development + builds de producción de tienda y panel sobre una base vacía (`E2E_SEED=1`, tienda `e2etienda`), Playwright |
 | `codeql.yml` | Push a `main`, PR a `main` y los lunes | CodeQL JS/TS y C#. Los hallazgos se suben a la pestaña Security del repo y el SARIF se evalúa en el workflow: un hallazgo `error` rompe el build, un `warning` se anota |
 | `gitleaks.yml` | Push a `main` y PR | Secretos en todo el historial |
@@ -201,7 +201,10 @@ CodeQL y gitleaks se saltean en los PR de Dependabot (token de solo lectura) y
 corren igual al mergear. Dependabot (`.github/dependabot.yml`) agrupa semanal
 con 2 días de espera, para no proponer versiones que pnpm todavía rechaza por
 recientes; los majors del stack de Vite/Vitest, TypeScript, ESLint,
-`@types/node` y `react-router-dom` se hacen a mano.
+`@types/node` y `react-router-dom` se hacen a mano. También vigila la imagen
+de Caddy (`infra/edge`) y las de los compose de `infra/docker`, salvo el major
+de Postgres, que se sube a mano con `infra/pg-upgrade.sh` (y junto con él el
+`postgres:18-alpine` de `backend-ci.yml` y `e2e.yml`, que Dependabot no ve).
 
 ## Números de referencia (carga)
 
