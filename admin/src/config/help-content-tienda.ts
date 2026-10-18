@@ -18,7 +18,21 @@ export const TIENDA = {
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Si creás una página con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”), reemplaza automáticamente a la versión genérica que publica tu tienda.',
+            text: 'Si creás una página publicada con la URL “terminos” (o “terminos-y-condiciones”) o “privacidad” (o “politica-de-privacidad”), reemplaza automáticamente a la versión genérica que publica tu tienda.',
+          },
+        ],
+      },
+      {
+        heading: 'Editar, borrar y cambiar la URL',
+        paragraphs: [
+          'La lista tiene un buscador por título o dirección. Con el menú ⋮ de cada página la editás o la eliminás (pide confirmación). Dos páginas no pueden tener la misma URL: si ya existe, te avisa al guardar.',
+          'Un cambio en una página puede tardar hasta un minuto en verse en la tienda.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si le cambiás la URL a una página ya publicada, o la borrás, los links viejos (en Google, en un posteo, en un mail) dan “página no encontrada”. Creá una redirección de la dirección vieja a la nueva: lo explica el artículo «Redirecciones».',
           },
         ],
       },
@@ -37,7 +51,20 @@ export const TIENDA = {
     intro:
       'Mirá cómo va tu negocio: ventas, productos, visitas, ganancia y cupones, comparado con el período anterior.',
     category: 'Tu tienda online',
-    keywords: ['métricas', 'reportes', 'dashboard', 'utm', 'conversión', 'roas'],
+    keywords: [
+      'métricas',
+      'reportes',
+      'dashboard',
+      'utm',
+      'conversión',
+      'roas',
+      'ventas y clientes',
+      'visitas',
+      'visitantes',
+      'tiempo real',
+      'reporte de cupones',
+      'tráfico',
+    ],
     sections: [
       {
         heading: 'Qué encontrás',
@@ -49,29 +76,32 @@ export const TIENDA = {
             rows: [
               [
                 'Visión general',
-                'Facturación, ventas cobradas, ticket promedio y clientes, cada uno con su variación contra el período anterior. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas, lo más vendido y un resumen de tu tienda hoy (productos publicados, categorías, cupones activos, páginas).',
+                'Facturación, ventas cobradas y ticket promedio, cada uno con su variación contra el período anterior, y cuántos clientes tenés en total. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas, los cinco productos que más facturaron y un resumen de tu tienda hoy (productos publicados, borradores, archivados, categorías, cupones activos y páginas).',
               ],
               [
                 'Productos',
-                'Los más vendidos por unidades y los que más facturan, y lo que NO se vende: los publicados que no tuvieron ninguna venta en el período.',
+                'Unidades vendidas, cuántos productos distintos se vendieron, los más vendidos por unidades y los que más facturan, y lo que NO se vende: los publicados que no tuvieron ninguna venta en el período.',
               ],
               [
                 'Ventas y clientes',
-                'Facturación, ventas pagadas, ticket promedio, clientes nuevos, pedidos por estado y los días de la semana con más ventas.',
+                'Facturación, ventas pagadas, ticket promedio y clientes nuevos (los que compraron por primera vez), la facturación por día, los pedidos por estado y los cinco días que más facturaron.',
               ],
               [
                 'Rentabilidad',
-                'Cuánto ganás de verdad: costos, comisiones, ganancia por canal y el retorno real de Meta Ads.',
+                'Cuánto ganás de verdad: ganancia real, margen, costo de productos, comisiones, ganancia por día, por producto y por canal, y lo que te rinde la pauta de Meta Ads. Lo explica el artículo «Rentabilidad real».',
               ],
               [
                 'Visitas',
-                'Visitas, visitantes únicos, la conversión (de cada 100 que entran, cuántos compran), las fuentes de tráfico y las páginas más vistas.',
+                'Visitas (páginas vistas), visitantes únicos, la conversión (de cada 100 visitantes distintos, cuántos compran) y las ventas del período, con su variación; las visitas por día, las fuentes de tráfico y las páginas más vistas.',
               ],
               [
                 'Tiempo real',
-                'Quién está navegando tu tienda ahora, qué páginas, y cómo viene el día comparado con ayer a esta hora.',
+                'Lo que pasa en los últimos 5 minutos (visitantes activos, qué páginas miran y las últimas vistas), el pulso minuto a minuto de la última hora, y las ventas y lo facturado hoy contra lo que llevabas ayer a esta hora. Se actualiza solo cada 10 segundos.',
               ],
-              ['Reporte de cupones', 'Venta con cupón, descuento otorgado y usos, cupón por cupón.'],
+              [
+                'Reporte de cupones',
+                'Venta con cupón, descuento otorgado, usos y cupones activos; los que más venta trajeron y el detalle cupón por cupón (usos, pagados, venta, descuento y neto).',
+              ],
             ],
           },
         ],
@@ -79,7 +109,7 @@ export const TIENDA = {
       {
         heading: 'Elegir el período',
         paragraphs: [
-          'Arriba de cada pantalla elegís las fechas: hoy, últimos 7, 30 o 90 días, este mes, este año o un rango personalizado. Si no elegís nada, se muestran los últimos 30 días. Las variaciones (el número verde o rojo al lado de cada indicador) comparan contra el período anterior del mismo largo.',
+          'Arriba de cada pantalla (menos Tiempo real) elegís las fechas: hoy, últimos 7, 30 o 90 días, este mes, este año o un rango personalizado. Si no elegís nada, se muestran los últimos 30 días. Las variaciones (el número verde o rojo al lado de cada indicador) comparan contra el período anterior del mismo largo.',
           'El período es uno solo para todas las pantallas de estadísticas: si elegís “Este mes” en Visitas y pasás a Rentabilidad, sigue siendo este mes. También queda en la dirección, así que podés mandarle a alguien el link de lo que estás mirando.',
           'Los días se cuentan en hora argentina: una venta de las 23:30 cuenta en ese día, no en el siguiente.',
         ],
@@ -88,7 +118,7 @@ export const TIENDA = {
         heading: 'De dónde vienen tus ventas',
         paragraphs: [
           'Cada visita y cada venta guardan de dónde vino el comprador: la marca utm_source del link por el que entró en esa visita. Con eso se arman “De dónde llegan tus ventas” (Visión general), “Fuentes de tráfico” (Visitas) y “Ganancia por canal” (Rentabilidad). Lo que llega sin marca cuenta como directo.',
-          'Los links a productos que agregás a un post desde Redes sociales ya salen marcados (como “redes”). Para el resto —el link de tu bio, un aviso, un mensaje masivo de WhatsApp— agregale vos la marca al final: tutienda.com/productos?utm_source=instagram.',
+          'Los links a productos que agregás a un post desde Redes sociales ya salen marcados (como “redes”). Para el resto —el link de tu bio, un aviso, un mensaje masivo de WhatsApp— agregale vos la marca al final: tutienda.com/productos?utm_source=instagram. Las campañas de email no se marcan solas: si querés verlas como “Email marketing”, terminá sus links en ?utm_source=email.',
         ],
         blocks: [
           {
@@ -101,7 +131,7 @@ export const TIENDA = {
       {
         heading: 'Quién las ve',
         paragraphs: [
-          'De fábrica, las estadísticas las ven dueño, administrador, vendedor y finanzas. Rentabilidad va aparte, con el permiso de ver costos: dueño, administrador, catálogo y finanzas. Soporte no ve ninguna. Lo podés cambiar en Configuración → Roles y permisos.',
+          'De fábrica, las estadísticas las ven dueño, administrador, vendedor y finanzas (permiso “Ver estadísticas”). Rentabilidad va aparte, con el permiso “Ver costos y rentabilidad”: dueño, administrador, catálogo y finanzas. Soporte no ve ninguna. Lo podés cambiar en Configuración → Roles y permisos.',
         ],
       },
     ],
@@ -118,6 +148,7 @@ export const TIENDA = {
         paragraphs: [
           'En el editor de diseño (Canales de venta → Tienda online → Logo de la tienda, en el bloque “Cómo aparecés en Google”) definís el título y la descripción que se muestran en los resultados de búsqueda, con una vista previa de cómo se ven en un celular. Un buen título: “Marca — qué vendés” en menos de 60 caracteres; la descripción, un gancho de hasta 160.',
           'Como todo el diseño, el título y la descripción nuevos le llegan a Google recién cuando publicás.',
+          'Cada producto tiene además su propio bloque “SEO” en la ficha (Título SEO y Descripción SEO). Si lo dejás vacío, Google ve el nombre y la descripción del producto.',
         ],
         blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Logo de la tienda'] }],
       },
@@ -127,6 +158,7 @@ export const TIENDA = {
           'Cada tienda genera automáticamente su sitemap (/sitemap.xml) con todo el catálogo, sus categorías y tus páginas, su robots.txt y las URLs canónicas. Los productos publican datos estructurados (precio, stock, fotos) para que Google pueda mostrarlos como resultados enriquecidos, y las páginas de producto usan la primera foto como imagen al compartir en redes.',
           'Cada página se titula “Página · Tu tienda”, las categorías tienen su propia página que Google puede encontrar, un producto o una página que no existe responde como “no encontrada” (y no como una página vacía), y lo privado —el checkout, la cuenta del cliente y sus favoritos— queda fuera de Google.',
           'Si tu inicio tiene una sección de Preguntas frecuentes, Google recibe esas preguntas y respuestas en el formato que usa para mostrarlas directo en los resultados.',
+          'Con la tienda en construcción, el sitemap lista solo el inicio: el catálogo no aparece en Google hasta que abras.',
         ],
       },
       {
@@ -148,7 +180,7 @@ export const TIENDA = {
       {
         heading: 'Buenas prácticas de contenido',
         paragraphs: [
-          'Nombres de producto descriptivos (lo que la gente busca, no códigos internos), descripciones únicas y completas, y categorías bien armadas. Si cambiás la URL de un producto, creá una redirección en Configuración → Redirecciones para no perder el posicionamiento ganado.',
+          'Nombres de producto descriptivos (lo que la gente busca, no códigos internos), descripciones únicas y completas, y categorías bien armadas. Cambiarle el nombre a un producto o a una categoría no cambia su dirección, así que no perdés nada. Si borrás un producto o le cambiás la URL a una página de contenido, creá una redirección en Configuración → Redirecciones para no perder el posicionamiento ganado.',
           'Un dominio propio (en vez del subdominio gratis) suma confianza y marca — conectalo cuando estés listo.',
         ],
       },
@@ -165,7 +197,8 @@ export const TIENDA = {
         heading: 'Pegás un identificador, no un código',
         paragraphs: [
           'En otras plataformas hay una caja para pegar el fragmento que te da Google o Meta. Acá no, y es a propósito: el formulario donde tu cliente escribe el número de tarjeta está dentro de tu propia tienda, y un código de afuera metido en esa pantalla es exactamente la forma en que se roban tarjetas en el comercio electrónico.',
-          'Vos cargás el identificador —una cadena corta como G-ABCD123456— y el código lo escribe Tiendafy. Ninguna de estas herramientas se carga en la pantalla de pago, ni siquiera si el visitante ya aceptó.',
+          'Vos cargás el identificador —una cadena corta como G-ABCD123456— y el código lo escribe Tiendafy. Si no tiene la forma que corresponde (por ejemplo, pegaste el fragmento entero), no te deja guardar y te dice qué forma espera. Cuando una herramienta tiene identificador, su tarjeta dice “Activo”.',
+          'Ninguna de estas herramientas se carga en el checkout (la pantalla donde tu cliente completa sus datos y paga), ni siquiera si el visitante ya aceptó. Por eso Clarity no graba lo que pasa ahí.',
         ],
         blocks: [
           { type: 'path', segments: ['Configuración', 'Medición y píxeles'] },
@@ -200,7 +233,7 @@ export const TIENDA = {
       {
         heading: 'El permiso del visitante',
         paragraphs: [
-          'Con "Pedir permiso antes de medir" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga nunca y no se vuelve a preguntar. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
+          'Con "Pedir permiso antes de medir" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga y no se le vuelve a preguntar en ese navegador. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
           'Si el navegador manda la señal de "no me rastreen" (Global Privacy Control), se toma como un no sin preguntar.',
           'El interruptor “Medición encendida” corta todas las herramientas de golpe sin borrar lo que cargaste: sirve si algo se rompe o querés la tienda limpia por un rato.',
         ],
@@ -220,14 +253,14 @@ export const TIENDA = {
       {
         heading: 'Qué se mide y qué no',
         paragraphs: [
-          'Se cuentan las visitas a cada pantalla y, cuando una compra termina bien, la venta con su monto — que es lo que le permite a Google y a Meta decirte cuánto te rindió cada aviso. No se mide nada en la pantalla de pago.',
+          'Se cuentan las visitas a cada pantalla, los pasos de la compra (producto visto, agregado al carrito, inicio de la compra) y, cuando una compra termina bien, la venta con su monto, una sola vez por pedido. Eso es lo que le permite a Google y a Meta decirte cuánto te rindió cada aviso. No se mide nada en el checkout.',
           'Si necesitás una herramienta que no está en la lista, pedila: se agrega al catálogo con su cargador escrito por nosotros. La lista es corta a propósito, no por falta de ganas.',
         ],
       },
       {
         heading: 'Verificar tu dominio en Google o Meta',
         paragraphs: [
-          'Para eso no hace falta ningún código en la tienda: tanto Search Console como Meta aceptan verificar por DNS, agregando un registro TXT donde compraste el dominio. Es mejor así — sobrevive a cualquier cambio del sitio.',
+          'Para eso no hace falta ningún código en la tienda: tanto Search Console como Meta aceptan verificar por DNS, agregando un registro TXT donde administrás el dominio. Los pasos para Google están en el artículo «Aparecer en Google (SEO)».',
         ],
       },
     ],
@@ -241,7 +274,8 @@ export const TIENDA = {
       {
         heading: 'Para qué sirven',
         paragraphs: [
-          'Cada dirección que publicaste queda dando vueltas: en Google, en un mail, en un posteo, en el chat de alguien. Si cambiás el nombre de un producto o borrás una página, esa dirección deja de existir y el que la sigue cae en un error. Una redirección lo lleva directo al lugar nuevo, y Google le pasa a la dirección nueva el posicionamiento que tenía la vieja.',
+          'Cada dirección que publicaste queda dando vueltas: en Google, en un mail, en un posteo, en el chat de alguien. Si borrás un producto, le cambiás la URL a una página de contenido o la borrás, o venís de otra plataforma con otras direcciones, el que sigue el link viejo cae en “página no encontrada”. Una redirección lo lleva directo al lugar nuevo, y Google le pasa a la dirección nueva el posicionamiento que tenía la vieja.',
+          'Cambiarle el nombre a un producto o a una categoría no cambia su dirección: ahí no hace falta ninguna redirección.',
         ],
         blocks: [
           { type: 'path', segments: ['Configuración', 'Redirecciones'] },
@@ -255,11 +289,16 @@ export const TIENDA = {
       {
         heading: 'Cómo se cargan',
         steps: [
-          'Escribí la dirección vieja, solo la parte que va después del dominio: /remera-negra-vieja.',
-          'Escribí la nueva: /productos/remera-negra. También vale una dirección completa de otro sitio.',
+          'En “Dirección vieja” escribí solo la parte que va después del dominio: /remera-negra-vieja. Si pegás la dirección entera, se queda con esa parte; no importan las mayúsculas ni lo que venga después de un “?”.',
+          'En “Dirección nueva” escribí a dónde tiene que ir: /productos/remera-negra. También vale una dirección completa de otro sitio (con https://).',
           'Tocá Agregar. Se guarda al instante, no hay nada más que confirmar.',
         ],
         blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Cada dirección vieja tiene una sola redirección, y no puede apuntar a sí misma. Para borrar una, tocá el tacho de su fila: esa dirección vuelve a mostrar “página no encontrada”.',
+          },
           {
             type: 'callout',
             tone: 'info',
@@ -275,7 +314,7 @@ export const TIENDA = {
       {
         heading: 'La columna “Se usó”',
         paragraphs: [
-          'Cuenta cuántas visitas salvó cada regla. Una que dice “Nunca” después de varias semanas se puede borrar sin drama. Una que se usa mucho es la señal de que ese link viejo sigue circulando en algún lado: si está en un posteo o un mail tuyo, conviene corregirlo también en el origen.',
+          'Cuenta cuántas visitas salvó cada regla (con el mouse encima ves cuándo fue la última). Una que dice “Nunca” después de varias semanas se puede borrar sin drama. Una que se usa mucho es la señal de que ese link viejo sigue circulando en algún lado: si está en un posteo o un mail tuyo, conviene corregirlo también en el origen.',
         ],
       },
     ],
@@ -291,17 +330,31 @@ export const TIENDA = {
         paragraphs: [
           'Apenas creás la tienda tiene su dirección gratis: la ves en Configuración → Dominios, marcada “Siempre disponible”, con el botón “Abrir”. Ya funciona, no hace falta configurar nada, y sigue andando aunque después conectes tu dominio propio.',
         ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Dominios'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Esta pantalla es solo del dueño de la tienda: conectar o quitar un dominio no se le puede delegar a otro rol.',
+          },
+        ],
       },
       {
         heading: 'Configurá tu dominio propio',
         steps: [
           'Comprá tu dominio en cualquier registrador (NIC.ar para los .com.ar, o GoDaddy, Cloudflare, Donweb).',
           'En Configuración → Dominios, tocá “Conectar mi dominio” y escribilo sin https:// ni barra final.',
-          'La pantalla te muestra el registro CNAME exacto que tenés que crear: tipo, nombre y valor. Copiá el valor con el botón.',
-          'Entrá al panel de tu registrador, buscá la sección de DNS y creá ese registro.',
+          'La pantalla te muestra, en “Falta un paso en tu proveedor de dominios”, el registro CNAME exacto que tenés que crear: tipo, nombre y valor. Copiá el valor tocándolo.',
+          'Entrá donde administrás el DNS de tu dominio, buscá la sección de DNS y creá ese registro.',
           'Volvé a Dominios y tocá “Volver a verificar” (el botón redondo). Cuando el estado diga “Apuntando bien”, terminaste.',
         ],
         blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Dominios .com.ar',
+            text: 'NIC.ar no guarda registros: ahí solo delegás el dominio a un proveedor de DNS (por ejemplo, Cloudflare, que es gratis), y el CNAME se crea en ese proveedor. Para el dominio sin nada adelante (tumarca.com.ar) el nombre del registro es “@”; si tu proveedor no acepta un CNAME ahí, usá uno que sí, como Cloudflare.',
+          },
           {
             type: 'callout',
             tone: 'info',
@@ -345,9 +398,15 @@ export const TIENDA = {
         ],
       },
       {
+        heading: 'Quitar el dominio propio',
+        paragraphs: [
+          'El tacho de la fila de tu dominio lo desconecta (te pide confirmar): la tienda deja de responder en él y queda solo en el subdominio gratis. Después podés conectar otro.',
+        ],
+      },
+      {
         heading: 'Certificado de seguridad (SSL)',
         paragraphs: [
-          'El candado HTTPS se emite y renueva solo, sin que hagas nada y sin costo. No se puede emitir antes de que el dominio apunte, así que hasta ese momento la columna del certificado queda en espera. Después de que el DNS propague puede tardar unos minutos más, hasta la primera visita.',
+          'El candado HTTPS se emite y renueva solo, sin que hagas nada y sin costo. No se puede emitir antes de que el dominio apunte, así que hasta ese momento la columna Certificado dice “Cuando el dominio apunte”. Después de que el DNS propague puede tardar unos minutos más, hasta la primera visita.',
         ],
       },
     ],
