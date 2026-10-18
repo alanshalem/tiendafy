@@ -18,7 +18,6 @@ public interface ITenantRepository
     Task<bool> CustomDomainExistsAsync(string domain, Guid? excludeId = null, CancellationToken ct = default);
 
     Task AddAsync(Tenant tenant, CancellationToken ct = default);
-    Task<IReadOnlyList<Tenant>> ListAsync(int limit, Guid? afterId, CancellationToken ct = default);
 
     /// <summary>
     /// Una página de las tiendas pedidas (las de un usuario), por nombre, con
