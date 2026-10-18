@@ -30,9 +30,9 @@ Credenciales del panel y de los compradores: [usuarios-de-prueba.md](./usuarios-
 | `/productos`                      | Catálogo (`/productos/categorias`, `/inventario`, `/costos`, `/kits`, `/escaner`, `/exportar-importar`, `/listas-de-precios`, `/stock-bajo`). |
 | `/presupuestos`                   | Presupuestos.                                                                                             |
 | `/clientes`                       | Clientes y su ficha.                                                                                      |
-| `/bandeja`                        | Contacto, chat posventa y preguntas y mensajes de Mercado Libre en una sola lista.                        |
+| `/bandeja`                        | Contacto, chat posventa y preguntas y mensajes de Mercado Libre en una sola lista (cada canal suelto: `/mensajes` el contacto, `/posventa` el chat). |
 | `/estadisticas`                   | Ventas, productos, visitas, tiempo real, cupones y rentabilidad.                                          |
-| `/canales/tienda-online/disenios` | Editor de diseño (vista previa de la tienda en un iframe).                                                |
+| `/canales/tienda-online`          | Editor de diseño (vista previa de la tienda en un iframe); `/disenios`: la galería de diseños listos.     |
 | `/marketing`, `/descuentos`       | Campañas de email y cupones.                                                                              |
 | `/mercadolibre`                   | Ventas, preguntas, mensajes y publicaciones de Mercado Libre.                                             |
 | `/redes`                          | Redes sociales: calendario, posts y cuentas conectadas.                                                   |
