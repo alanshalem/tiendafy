@@ -215,7 +215,7 @@ flowchart LR
 | Cobros | Mercado Pago | OAuth por tienda (cobra en la cuenta de la tienda; `MarketplaceFeePercent` existe y arranca en 0). Checkout Pro (redirect) o Bricks (on-site). Webhooks validados por HMAC a un inbox durable. Reembolsos totales y parciales. | Tokens del vendedor cifrados |
 | Cobros | Payway (ex Decidir) | Tarjeta on-site con el SDK de Payway; el pago se crea desde la API. | Credenciales por tienda, cifradas |
 | Cobros | Transferencia / efectivo | Sin proveedor: la orden queda pendiente con instrucciones de pago y vence sola. | — |
-| Email | Resend | 13 plantillas automáticas editables por tienda (`EmailTemplateCatalog`) y campañas; layout con logo y color de la tienda. Sin API key, se escriben en el log. | API key + secreto del webhook |
+| Email | Resend | 15 plantillas automáticas editables por tienda (`EmailTemplateCatalog`) y campañas; layout con logo y color de la tienda. Sin API key, se escriben en el log. | API key + secreto del webhook |
 | WhatsApp | Cloud API de Meta | Conexión por tienda, mensajes por plantilla espejo de los emails. | Token por tienda, cifrado |
 | Facturación | ARCA | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE) + padrón (constancia de inscripción: condición de IVA del receptor). Certificado por tienda: CSR generado en el panel. | Clave privada y certificado cifrados; nunca salen por la API |
 | Envíos | Correo Argentino, Andreani, Zipnova | Cotización en el checkout con precio firmado (TTL 30 min), alta de envíos y etiquetas desde la venta. | Credenciales por tienda, cifradas |
@@ -263,18 +263,28 @@ Payway (en el momento o, si quedó en el medio, cuando `PaywayReconciliationWork
 lo reconsulta) y la venta manual del panel llegan al mismo `PaidOrderSideEffects`;
 la venta manual no manda WhatsApp.
 
-La sesión de checkout tiene 30 minutos: desde que se arma, y de nuevo desde
-que se envía (lo mismo que dura la reserva). `Open` → `Submitted` al reservar;
-después `ExpiredCheckoutWorker` la cierra: `Completed` si terminó en una venta
-cobrada, `Expired` si venció sin reservas activas (una transferencia pendiente
-estira la reserva y la sesión espera). Una sesión vencida no se envía ni se
-paga ("La compra venció: volvé a empezar desde el carrito"); la tienda paga
-desde la sesión abierta mientras siga vigente y con el mismo carrito (cada
-dato de contacto le estira el plazo) y arma una nueva si no, o después de un
-intento enviado, así que el comprador nunca queda trabado. Carritos abandonados cuenta lo que no es `Completed` y no terminó en una
-compra, uno por comprador (`AbandonedCarts`): las vencidas son carritos
-abandonados. Una sesión nace cuando el comprador escribe su email
-(`POST /checkout/contact`), no recién al pagar.
+**La sesión de checkout** nace cuando el comprador escribe su email
+(`POST /checkout/contact`), no recién al pagar, y dura 30 minutos: desde que
+se arma, y de nuevo desde que se envía (lo mismo que dura la reserva). Cada
+dato de contacto le estira el plazo y queda en `LastActivityAtUtc`, desde
+donde se cuenta el recordatorio de carrito abandonado. `Open` → `Submitted` al
+reservar; después `ExpiredCheckoutWorker` la cierra: `Completed` si terminó en
+una venta cobrada, `Expired` si venció sin reservas activas (una
+transferencia pendiente estira la reserva y la sesión espera).
+
+- Una sesión vencida no se envía ni se paga ("La compra venció: volvé a
+  empezar desde el carrito"). La tienda paga desde la sesión abierta mientras
+  siga vigente y con el mismo carrito, y arma una nueva si no, o después de un
+  intento enviado: el comprador nunca queda trabado.
+- **Una sesión produce como mucho una venta**: índice único en
+  `orders.checkout_session_id` (las ventas que no nacen de un checkout llevan
+  un id propio). `CheckoutOrderFactory` reusa la orden pendiente del mismo
+  medio, así un doble clic o dos pestañas no crean dos ventas ni cobran dos
+  veces (la clave de idempotencia de Mercado Pago es el id de la orden); una
+  pagada, cancelada o de otro medio da 409.
+- Carritos abandonados (pantalla y recordatorio, `Api/Notifications/AbandonedCarts.cs`)
+  cuenta uno por comprador lo que no es `Completed` y no terminó en una
+  compra: las sesiones vencidas son carritos abandonados.
 
 ## 5. Multi-tenancy
 

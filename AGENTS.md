@@ -42,7 +42,15 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
 - vitest limita sus workers en local (`test-fixtures/workers.ts`): no lo pises
   con `--maxWorkers` alto; una suite del panel con 19 workers se come la RAM.
 - Backend: `dotnet format backend.slnx --no-restore` antes de commitear (CI
-  corre `--verify-no-changes`).
+  corre `--verify-no-changes`). Compilá con `-c Release`: la API de `dev-up`
+  corre en Debug y tiene esos DLL tomados (MSB3027).
+- Con Docker apagado, prendé el Postgres de dev
+  (`docker compose -f infra/docker/docker-compose.dev.yml up -d postgres`) y
+  corré integración antes de commitear: dejarlo a CI costó tres bugs que nadie
+  había corrido.
+- Si cambia la forma de una respuesta de la API, regenerá
+  `test-fixtures/api.json` con `pnpm fixtures:api`: los tests del panel y la
+  tienda corren contra esas respuestas ([docs/tests.md](docs/tests.md#las-fixtures-de-la-api)).
 
 ## Reglas que no se ven en el código
 
@@ -101,5 +109,7 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
 - Nunca commitear `.env*` ni credenciales. Las del seed de desarrollo están en
   `docs/usuarios-de-prueba.md` y solo sirven en local.
 - El deploy es a mano, en el servidor: `./infra/deploy.sh prod sha-XXXXXXX`
-  (ver [docs/despliegue.md](docs/despliegue.md)). Las migraciones son un paso del
-  deploy, no corren al arrancar.
+  (ver [docs/despliegue.md](docs/despliegue.md)). En producción las migraciones
+  son un paso del deploy, no corren al arrancar (en dev, sí).
+- Un cambio que vuelve falso un documento lo actualiza en el mismo commit;
+  nombres y cómo renombrar un doc, en [docs/README.md](docs/README.md#cómo-mantener-esto).

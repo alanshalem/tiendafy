@@ -71,7 +71,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Cors:AllowedOrigins` | Orígenes extra. El dominio base y sus subdominios ya se aceptan; `localhost` y `*.localhost`, solo en Development | `[]` | No se mapea (ver Pendientes) |
 | `ForwardedHeaders:KnownNetworks` | CIDRs de los proxies en los que se confía para `X-Forwarded-For`; también marcan el tráfico interno del storefront, que no tiene techo global | `[]` | `TRUSTED_PROXY_CIDR_0..2` (default: los tres rangos privados) |
 | `RateLimiting:GlobalPermitLimit` | Pedidos por minuto por IP | `300` (dev: `5000`, en `appsettings.Development.json`) | No se mapea (usa 300) |
-| `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta (login/registro/contacto; pagos) | `10` / `15` | No se mapea |
+| `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta: formularios públicos (login, registro, contacto, cupón, reseñas, "avisame"); pagos de la tienda | `10` / `15` | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
 | `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 
@@ -103,9 +103,8 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `MercadoPago:RedirectUri` | Callback del OAuth | Vacío. Con `dev-up.ps1 -Tunnel`, `<túnel>/api/v1/payments/mercadopago/callback` | `https://api.<STACK_DOMAIN>/api/v1/payments/mercadopago/callback` |
 | `MercadoPago:PublicApiBaseUrl` | Base del `notification_url` de los pagos. Vacío = MP no avisa y la venta no se concilia sola | Vacío. Con `-Tunnel`, la URL del túnel | `https://api.<STACK_DOMAIN>` |
 | `MercadoPago:AdminReturnUrl` | Adónde vuelve el navegador tras conectar | `http://localhost:5173/configuracion/medios-de-pago` | `https://admin.<STACK_DOMAIN>/configuracion/medios-de-pago` |
-| `MercadoLibre:ClientId` / `:ClientSecret` | App de ML. Vacío = canal apagado | Vacío | `MELI_CLIENT_ID` / `MELI_CLIENT_SECRET` (el compose arma `RedirectUri` y `AdminReturnUrl`) |
-| `MercadoLibre:RedirectUri` | Callback del OAuth | Vacío | No se mapea |
-| `MercadoLibre:AdminReturnUrl` | Vuelta al panel | `http://localhost:5173/configuracion/mercadolibre` | No se mapea |
+| `MercadoLibre:ClientId` / `:ClientSecret` | App de ML. Vacío = canal apagado | Vacío | `MELI_CLIENT_ID` / `MELI_CLIENT_SECRET` |
+| `MercadoLibre:RedirectUri` / `:AdminReturnUrl` | OAuth y vuelta al panel | Vacío / `http://localhost:5173/configuracion/mercadolibre` | Derivadas de `STACK_DOMAIN` |
 | `Authentication:Google:ClientId` / `:ClientSecret` | Login de compradores con Google. Vacío = botón oculto | Vacío | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
 | `MetaAds:AppId` / `:AppSecret` | Meta Ads. Vacío = apagado | Vacío | `META_APP_ID` / `META_APP_SECRET` |
 | `MetaAds:RedirectUri` / `:AdminReturnUrl` | OAuth y vuelta | Vacío / `http://localhost:5173/estadisticas/rentabilidad` | Derivadas de `STACK_DOMAIN` |

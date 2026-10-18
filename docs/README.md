@@ -5,7 +5,7 @@
 [AGENTS.md](../AGENTS.md).
 
 Todo en español. Lo que describe el sistema está al día con el código al
-16-oct-2026. Lo de [historial/](./historial/) registra decisiones y análisis
+18-oct-2026. Lo de [historial/](./historial/) registra decisiones y análisis
 viejos, con un bloque de estado arriba.
 
 ## Para trabajar en el código

@@ -552,7 +552,7 @@ docker-compose.stack.yml --env-file .env.prod logs -f api`.
   servicio `backup-offsite` los sube cifrados a un bucket S3: un bucket nuevo de
   R2, o el mismo Backblaze B2 que usa cking por su API S3
   (`OFFSITE_PROVIDER=Other`, `OFFSITE_ENDPOINT=https://s3.<región>.backblazeb2.com`).
-  Pasos en `docs/despliegue.md` → "Copia fuera del servidor". Y el control semanal
+  Pasos en [despliegue.md → Copia fuera del servidor](./despliegue.md#copia-fuera-del-servidor). Y el control semanal
   de que se pueden restaurar: `infra/check-backup.sh` en el cron.
 - **Postgres 18**: producción salió el 13-oct con Postgres 16 y el compose
   pide la 18 desde el 15-oct. Si todavía no se migró, el próximo
@@ -560,6 +560,9 @@ docker-compose.stack.yml --env-file .env.prod logs -f api`.
   `./infra/pg-upgrade.sh prod` (ver [despliegue.md](./despliegue.md#cambiar-de-major-de-postgres-16--18)).
 - **Staging** (`stg.puenteoriente.com.ar`): cuando haga falta. Los puertos ya
   están separados en `.env.staging.example`.
-- Certificado de **ARCA** (facturación), **Sentry**, apps de **Meta / X /
-  Mercado Libre**, clave de **IA**: se completan en `.env.prod` cuando los
-  tengas, y `./infra/deploy.sh prod <tag>` los toma.
+- **Sentry**, apps de **Meta / X / Mercado Libre**, clave de **IA**: se
+  completan en `.env.prod` cuando los tengas, y `./infra/deploy.sh prod <tag>`
+  los toma.
+- Certificado de **ARCA** (facturación), Payway, WhatsApp y los carriers: no
+  van en `.env.prod`; cada tienda los carga desde su panel (Configuración) y
+  quedan cifrados en la base ([configuracion.md](./configuracion.md)).
