@@ -6,8 +6,7 @@ import { serverRuntimeConfig } from '@/lib/runtime';
 // (PUBLIC_SENTRY_DSN en el contenedor): antes se leía NEXT_PUBLIC_SENTRY_DSN,
 // que el compose no pasa, y el servidor nunca reportaba nada.
 export async function register() {
-  const { sentryDsn, envName } = serverRuntimeConfig();
-  const dsn = sentryDsn || process.env.SENTRY_DSN;
+  const { sentryDsn: dsn, envName } = serverRuntimeConfig();
   if (!dsn) return;
   const Sentry = await import('@sentry/nextjs');
   // Los mismos scrubbers que el browser: un error del SSR trae la URL del
