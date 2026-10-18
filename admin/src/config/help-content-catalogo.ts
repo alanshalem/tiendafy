@@ -9,14 +9,27 @@ export const CATALOGO = {
       {
         heading: 'Cargar un producto',
         steps: [
-          'En Productos, tocá “Agregar producto” y cargá nombre, descripción, precio y fotos (la primera es la portada y sale en los emails).',
-          'Si tiene talles o colores, marcá “Este producto tiene variantes” y cargá hasta tres opciones: cada combinación tiene su propio SKU, precio y stock.',
+          'En Productos, tocá “Agregar producto” y cargá nombre, descripción, marca (se usa como filtro en la tienda), precio y fotos. La primera foto es la portada y sale en los emails; con las flechas cambiás el orden.',
+          'Si tiene talles o colores, marcá “Este producto tiene variantes” y cargá hasta tres opciones: cada combinación tiene su propio SKU, precio, código de barras y stock.',
+          'Cargá el stock: sin variantes, en “Inventario” elegí “Limitado” y escribí la cantidad; con variantes, en la columna Stock de cada combinación.',
           'En “Envío”, cargá el peso y las medidas del paquete de una unidad: con eso cotizan los correos en el checkout.',
           'Asignale categorías para que aparezca en los filtros de tu tienda.',
           'Marcá “Mostrar en la tienda” y tocá “Guardar producto”. Sin esa marca queda en borrador: los borradores y los archivados no se ven en la tienda.',
         ],
         blocks: [
           { type: 'path', segments: ['Productos', 'Agregar producto'] },
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Sin stock cargado no se puede comprar',
+            text: '“Sin límite” no significa stock infinito: el producto se crea sin stock, se ve agotado y nadie lo puede comprar hasta que le cargues unidades (en el producto o en Productos → Inventario).',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Las combinaciones se arman al crear el producto',
+            text: 'En “Editar producto” cambiás el precio, el promocional, el stock, el código de barras y el paquete de cada variante, pero no se agregan ni se quitan combinaciones.',
+          },
           {
             type: 'callout',
             tone: 'tip',
@@ -34,8 +47,10 @@ export const CATALOGO = {
       {
         heading: 'La lista de productos',
         paragraphs: [
-          'La búsqueda no distingue tildes ni el orden de las palabras: “remera negra” encuentra “Remera Negra Oversize” y “negra remera” también. También busca por SKU. Los filtros, la búsqueda y la página se recuerdan mientras trabajás.',
-          'Arriba de la lista, los recuadros “Publicados”, “En borrador”, “Sin foto” y “Sin costo cargado” te dicen qué falta completar: tocá uno para filtrar por eso.',
+          'La búsqueda no distingue tildes ni el orden de las palabras: “remera negra” encuentra “Remera Negra Oversize” y “negra remera” también. También busca por SKU. Con “Filtrar” acotás por categoría, stock, promoción, estado o sin foto, y al lado elegís el orden. Los filtros, la búsqueda y la página se recuerdan mientras trabajás.',
+          'Arriba de la lista, los recuadros “Publicados”, “En borrador” y “Sin foto” te dicen qué falta completar: tocá uno para filtrar por eso. “Sin costo cargado” te lleva a Productos → Costos con las variantes que no tienen costo.',
+          'El precio y el promocional de cada variante se cambian ahí mismo, en la fila: se guardan al salir del campo. En el celular, desde el menú ⋮ del producto → “Cambiar precio”.',
+          'El menú ⋮ de cada producto también tiene “Publicar” o “Archivar”, “Eliminar” y “Duplicar”: crea “Copia de …” en borrador, con las mismas fotos, variantes, precios y categorías, sin stock ni códigos de barras.',
           'Tildá varios productos para Publicar, Archivar o Eliminar en lote. Al terminar te dice cuántos salieron bien y cuáles no, y por qué.',
         ],
         blocks: [
@@ -43,18 +58,20 @@ export const CATALOGO = {
             type: 'callout',
             tone: 'warning',
             title: 'Eliminar todo el catálogo',
-            text: 'Solo el dueño de la tienda ve, en el menú ⋮ de la lista, “Eliminar todos los productos”. Pide escribir ELIMINAR para confirmar y no se puede deshacer: antes, bajate una copia con “Exportar e importar”.',
+            text: 'Solo el dueño de la tienda ve, en el menú ⋮ de arriba de la lista (“Más acciones”), “Eliminar todos los productos”. Pide escribir ELIMINAR para confirmar y no se puede deshacer: antes, bajate una copia con “Exportar e importar”.',
           },
         ],
       },
       {
         heading: 'Inventario y reservas',
         paragraphs: [
-          'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano. Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés.',
-          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo y cuántas variantes están sin stock o por agotarse.',
+          'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano (escribís el número y tocás “Guardar”; hace falta el permiso “Ajustar el stock”). Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés. Si eligió transferencia o efectivo, la reserva dura lo que configuraste para esos pagos (48 horas de fábrica).',
+          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo, cuántas variantes están sin stock y cuántas quedan con 5 o menos: tocá uno de esos dos para ver solo esos productos.',
+          'El stock es uno solo para todos los canales: si sincronizás el stock con Mercado Libre, una venta de ML también lo descuenta (y si se cancela, vuelve). Lo explica el artículo «Integración con Mercado Libre».',
           'Para saber por qué una variante tiene el stock que tiene, tocá el reloj al final de su fila: se abre su historial, del cambio más nuevo al más viejo. Cada renglón dice qué pasó (alta, ajuste, apartado por una compra, venta cobrada, o stock que volvió porque la compra se canceló o no se pagó a tiempo), cuánto entró o salió, el motivo, y —si fue una venta— un link a esa venta. Muestra los últimos 50 movimientos.',
         ],
         blocks: [
+          { type: 'path', segments: ['Productos', 'Inventario'] },
           {
             type: 'callout',
             tone: 'info',
@@ -68,6 +85,22 @@ export const CATALOGO = {
             text: 'En Inventario, en el producto y en el Escáner, si entra una venta o una compra mientras tenés el stock abierto, al guardar no se pisa: te avisa “El stock cambió mientras editabas: ahora hay N.” Revisá el número nuevo y guardá de nuevo.',
           },
         ],
+      },
+      {
+        heading: 'Categorías',
+        paragraphs: [
+          'En Productos → Categorías armás cómo se organiza el catálogo: “Crear categoría” y, para una subcategoría, elegí la “Categoría padre” (hasta 3 niveles) o usá “Agregar subcategoría” en el menú ⋮ de la categoría.',
+          'Ese mismo menú tiene “Editar nombre” (la dirección de la categoría no cambia al renombrarla), “Ver en la tienda” y “Eliminar”: los productos no se borran, solo pierden esa categoría. El ícono de copiar (“Duplicar”) crea otra igual con sus subcategorías, sin productos.',
+          'Cada producto elige sus categorías en su edición, o con la columna «Categorías» de la planilla. Qué categorías aparecen en el menú de la tienda, y en qué orden, se arma en el editor de diseño: lo explica el artículo «Encabezado, menú, listado, ficha y carrito».',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Categorías'] }],
+      },
+      {
+        heading: 'Costos de cada variante',
+        paragraphs: [
+          'En Productos → Costos cargás cuánto te cuesta cada variante y ves su margen al precio actual. De ahí sale la ganancia de Estadísticas → Rentabilidad: lo explica el artículo «Rentabilidad real». Si cargás tus compras en Compras e importaciones, el costo se actualiza solo al recibir la mercadería.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Costos'] }],
       },
       {
         heading: 'Subir o bajar precios en masa',
@@ -87,9 +120,12 @@ export const CATALOGO = {
       {
         heading: 'Importación y exportación masiva',
         paragraphs: [
-          'En la lista de productos, “Exportar e importar” baja todo tu catálogo a CSV para editarlo en Excel/Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. La planilla incluye costo, código de barras, peso y medidas.',
-          'Las fotos entran de dos maneras: por URL en la columna «Imágenes» de la planilla (se descargan y quedan guardadas en tu tienda), o desde la solapa Imágenes, subiendo los archivos o un .zip. Ahí se asocian solas si el nombre del archivo es el identificador de URL del producto (remera-oversize.jpg, remera-oversize-2.jpg para la segunda).',
+          'En la lista de productos, “Exportar e importar” baja todo tu catálogo a una planilla (CSV) para editarlo en Excel o Google Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. La solapa Exportar trae todas las variantes con precio, promocional, costo, SKU, código de barras, peso, medidas y las direcciones de las fotos; las descripciones van si dejás marcado “Incluir descripciones”. El stock no viaja en la exportación: esa columna sale vacía.',
+          'En la solapa Importar podés bajar una “Plantilla vacía” o una “Plantilla con ejemplos”, completarla y subirla (hasta 20.000 líneas por archivo). Cada producto se reconoce por su «Identificador de URL»: si ya existe y está marcado “Modificar productos ya existentes”, se actualizan su nombre, descripción y categorías, y de cada variante que coincide por SKU el precio, el promocional, el costo, el código de barras, el peso y las medidas. A un producto que ya existe no se le suman variantes ni fotos, ni cambia si se muestra en la tienda. Con “Actualizar stock”, el número de la columna Stock pisa el que hay.',
+          'En «Categorías», la jerarquía va con > y varias categorías se separan con punto y coma: “Indumentaria > Remeras; Ofertas”. Las que no existen se crean solas.',
+          'Las fotos entran de dos maneras: por URL en la columna «Imágenes» de la planilla (se descargan y quedan guardadas en tu tienda), o desde la solapa Imágenes, subiendo los archivos o un .zip. Ahí se asocian solas si el nombre del archivo es el identificador de URL del producto (remera-oversize.jpg, remera-oversize-2.jpg para la segunda); si no lo encuentra, prueba con el SKU. Para un catálogo grande, sumá un CSV de mapeo con las columnas «Identificador de URL» y «Archivos» y la asociación es exacta.',
         ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Exportar e importar'] }],
       },
     ],
   },
@@ -104,12 +140,13 @@ export const CATALOGO = {
         heading: 'Cómo funciona',
         paragraphs: [
           'El kit es un producto normal del catálogo, con su precio y su propio stock (los combos pre-armados que tenés en el depósito). En Productos → Kits y combos le definís los componentes: qué variantes lo integran y cuántas unidades de cada una.',
-          'Cuando un cliente compra el kit, además del stock del kit se descuenta el de cada componente. Así el kit y las piezas sueltas dejan de venderse por separado sin enterarse el uno del otro. Si la venta se devuelve con reingreso de stock, vuelven también las piezas.',
+          'Cuando un cliente compra el kit, además del stock del kit se descuenta el de cada componente. Así el kit y las piezas sueltas dejan de venderse por separado sin enterarse el uno del otro. Si la venta se devuelve con reingreso de stock, vuelven también las piezas. Lo mismo pasa con las ventas de Mercado Libre si sincronizás el stock.',
         ],
         steps: [
-          'En Productos → Kits y combos, tocá “Convertir un producto en kit” y buscá la variante que se vende como kit.',
-          'Agregá sus componentes con la cantidad de cada uno.',
-          'La tabla te muestra cada kit con sus piezas y el costo de los componentes: una buena base para el costo del kit.',
+          'En Productos → Kits y combos, en “Convertir un producto en kit”, buscá la variante que se vende como kit.',
+          'Agregá sus componentes con la cantidad de cada uno y tocá “Guardar kit”.',
+          'La tabla te muestra cada kit con sus piezas y, si podés ver costos, el costo de los componentes: una buena base para el costo del kit.',
+          'Para cambiarlo, “Editar”. Si le quitás todos los componentes y guardás, deja de ser un kit.',
         ],
         blocks: [{ type: 'path', segments: ['Productos', 'Kits y combos'] }],
       },
@@ -132,36 +169,44 @@ export const CATALOGO = {
         heading: 'Códigos de barras y etiquetas',
         paragraphs: [
           'Cada variante puede tener su código de barras: el EAN que ya trae el paquete del proveedor (columna «Código de barras» del CSV, o asignándolo desde el propio escáner) o una etiqueta QR generada por el sistema.',
-          'Desde Inventario, “Etiquetas QR de esta página” baja una plancha A4 de etiquetas QR con nombre, SKU y precio para los productos que no traen código.',
+          'Desde Inventario, “Etiquetas QR de esta página” baja una plancha A4 con una etiqueta por cada variante de la página que estás viendo: nombre, SKU, precio y un QR con su código de barras (o su SKU, si no tiene). Sirve para los productos que no traen código.',
         ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Escáner'] }],
       },
       {
         heading: 'Buscar y ajustar',
         paragraphs: [
-          'Escaneá (o tipeá) un código y ves el producto con su stock y su ubicación en el depósito. Ajustás el stock o la ubicación ahí mismo. Si el código no existe, el escáner te ofrece asignárselo a un SKU — así se etiqueta el catálogo la primera vez, paquete en mano.',
+          'Escaneá (o tipeá) un código de barras o un SKU y ves el producto con su stock y su ubicación en el depósito (“Ubicación (ej. B3)”). Ajustás el stock o la ubicación ahí mismo. Si el código no existe, el escáner te ofrece asignárselo a una variante buscándola por su SKU (“Asignar código”) — así se etiqueta el catálogo la primera vez, paquete en mano.',
         ],
       },
       {
         heading: 'Preparar pedido (anti errores de despacho)',
         steps: [
-          'En la solapa “Preparar pedido”, elegí un pedido pagado sin despachar: aparece con su número de pedido (#1042) y el email del comprador.',
+          'En la solapa “Preparar pedido”, elegí un pedido pagado sin despachar: aparece con su número de pedido (#1042) y el email del comprador. La lista trae los 100 más recientes; para uno más viejo, buscalo por número o email.',
           'Escaneá cada producto al meterlo en la caja (o tipeá el código): la lista marca en verde lo juntado.',
           'Si escaneás algo que NO va en ese pedido, la alerta salta antes de despachar — se acabó mandar el disco de 15 kg en vez del de 25.',
-          'Con todo verificado aparece “Pedido completo y verificado.”: cargá el número de seguimiento si lo tenés y tocá “Marcar enviada”. El comprador recibe el aviso en el momento, sin pasar por la computadora.',
+          'Con todo verificado aparece “Pedido completo y verificado.”: cargá el número de seguimiento si lo tenés y tocá “Marcar enviada”. Si el comprador retira en el local, el botón es “Lista para retirar” y no pide seguimiento. El comprador recibe el aviso en el momento, sin pasar por la computadora.',
           'Para muchos pedidos juntos (picking de varios, etiquetas y remitos en lote) está Ventas › Despacho.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
-            text: 'Marcar enviada desde el escáner pide el permiso de despachar ventas. Sin él, el escáner te deja preparar el pedido y te pide que lo marque como enviado alguien que pueda despachar.',
+            text: 'Marcar enviada (o lista para retirar) desde el escáner pide el permiso “Despachar pedidos”. Sin él, el escáner te deja preparar el pedido y te pide que lo marque alguien que pueda despachar.',
           },
         ],
       },
       {
         heading: 'Conteo',
         paragraphs: [
-          'Recorré una estantería escaneando unidad por unidad (o cargando cantidades). Al final ves las diferencias contra el sistema y “Aplicar ajustes” los guarda, con su movimiento auditado. Si mientras contabas se vendió algo de lo contado, ese producto no se pisa: te avisa para que lo revises.',
+          'Recorré una estantería escaneando unidad por unidad (o cargando cantidades). Al final ves las diferencias contra el sistema y “Aplicar ajustes” los guarda, con su movimiento en el historial de stock. Si mientras contabas se vendió algo de lo contado, ese producto no se pisa: te avisa para que lo revises.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'La columna “Sistema” es el stock disponible: no incluye lo apartado por compras en curso ni lo vendido que todavía no despachaste, aunque siga en el estante. Contá cuando esos pedidos ya salieron (o no cuentes esas unidades), o el ajuste va a sumar de más.',
+          },
         ],
       },
       {
@@ -182,9 +227,11 @@ export const CATALOGO = {
       {
         heading: 'El ciclo de una compra',
         paragraphs: [
-          'En Compras e importaciones tocá “Nueva compra”. La orden arranca como borrador: proveedor, moneda (típicamente USD), tipo de cambio estimado, lead time y los productos con su costo unitario FOB. Mientras es borrador podés editar todo.',
-          'Cuando el proveedor la acepta, tocá “Confirmada”. Después la vas moviendo con los botones de estado por los pasos reales de una importación: En producción → En tránsito → En aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles. “Cancelar OC” la anula sin tocar stock ni costos.',
+          'En Compras e importaciones tocá “Nueva compra”. La orden arranca como borrador: proveedor (ver el artículo «Proveedores»), referencia (proforma o contenedor), lead time, moneda (USD, ARS, EUR o CNY), tipo de cambio estimado y los productos con su costo unitario FOB. Mientras es borrador podés editar todo; acordate de tocar “Guardar”.',
+          'Cuando el proveedor la acepta, tocá “Confirmada” (si había cambios sin guardar, se guardan antes). Después la vas moviendo con los botones de estado por los pasos reales de una importación: En producción (opcional) → En tránsito → En aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles. “Recibir” está disponible desde que la orden está confirmada. “Cancelar OC” la anula sin tocar stock ni costos.',
+          'Arriba de la lista, “Órdenes abiertas”, “En camino” y “Recibidas sin factura” filtran las órdenes al tocarlas; “Plata comprometida” suma el FOB de lo que todavía no llegó.',
         ],
+        blocks: [{ type: 'path', segments: ['Compras e importaciones', 'Órdenes de compra'] }],
       },
       {
         heading: 'Landed cost: lo que de verdad cuesta cada unidad',
@@ -203,9 +250,9 @@ export const CATALOGO = {
       {
         heading: 'Recibir la mercadería',
         steps: [
-          'Tocá «Recibir» cuando llega el contenedor y confirmá cuántas unidades entraron de cada ítem (podés recibir menos de lo pedido). También podés escanear las cajas: cada código suma una unidad.',
+          'Tocá “Recibir” cuando llega el contenedor y, en “Recibir mercadería”, confirmá cuántas unidades entraron de cada ítem (podés recibir menos de lo pedido). También podés escanear lo que baja con la cámara: cada código suma una unidad a su ítem. Revisá los números antes de confirmar.',
           'Poné el tipo de cambio definitivo del despacho.',
-          'Al confirmar: el stock sube solo y el costo de cada variante queda fijado al landed cost — Estadísticas → Rentabilidad pasa a calcular la ganancia con el costo real importado.',
+          'Tocá “Confirmar recepción”: el stock sube solo y el costo de cada variante queda fijado al landed cost — Estadísticas → Rentabilidad pasa a calcular la ganancia con el costo real importado.',
         ],
         blocks: [
           {
@@ -226,8 +273,8 @@ export const CATALOGO = {
       {
         heading: 'Reposición con lead time',
         paragraphs: [
-          'Para un importador, la alerta de «stock bajo» llega tarde: si el reabastecimiento tarda 90 días, hay que pedir meses antes. La pestaña «Reposición sugerida» cruza lo vendido por día (últimos 60 días) con tu stock y tu lead time, y te dice qué se agota antes de que llegue el próximo embarque y cuánto pedir.',
-          'Lo vendido incluye Mercado Libre (por las publicaciones vinculadas) y las piezas que se van dentro de kits. Podés ajustar los días de lead time, y “Armar orden de compra” crea el borrador con todo lo sugerido, listo para completar los costos.',
+          'Para un importador, un «quedan 5» fijo avisa tarde: si el reabastecimiento tarda 90 días, hay que pedir meses antes. La pestaña «Reposición sugerida» cruza lo vendido por día (últimos 60 días) con tu stock y tu lead time más un colchón de 30 días, y te dice qué no llega a cubrir ese plazo y cuánto pedir para cubrirlo.',
+          'Lo vendido incluye Mercado Libre (por las publicaciones vinculadas) y las piezas que se van dentro de kits. El lead time es el de tu última compra recibida (60 días si no hay ninguna); podés probar otro en “Ajustar días”. “Armar orden de compra” crea el borrador con todo lo sugerido, listo para completar los costos.',
         ],
         blocks: [
           {
@@ -289,6 +336,11 @@ export const CATALOGO = {
             tone: 'tip',
             text: 'Un campo sin ninguna categoría marcada aplica a todo el catálogo. Es lo razonable para algo como «Material» o «Garantía».',
           },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Se compara contra las categorías exactas del producto: un campo marcado en «Pesas» no aparece en un producto que solo está en «Pesas › Discos». Marcá también las subcategorías donde aplica.',
+          },
         ],
       },
       {
@@ -319,6 +371,7 @@ export const CATALOGO = {
         paragraphs: [
           'Los valores se completan en el editor de cada producto, en la sección Ficha técnica. Solo aparecen los campos de la categoría de ese producto, así que cargar es rápido.',
           'Un campo que dejás vacío no se guarda ni se muestra: la ficha de la tienda no se llena de renglones en blanco.',
+          'Eliminar un campo en Configuración → Ficha técnica borra también los valores que ya tenían cargados los productos, y no se puede deshacer.',
         ],
       },
     ],
@@ -344,7 +397,8 @@ export const CATALOGO = {
           'Ponele nombre ("Mayorista", "Revendedores", "Showroom").',
           'Elegí sobre qué se calcula: el precio del producto, o alguna de las otras listas.',
           'Escribí el ajuste: negativo para descuento (−30), positivo para recargo (15).',
-          'Si querés precios redondos, elegí un redondeo: a los $100, a los $1.000 o terminación $990.',
+          'Si querés precios redondos, elegí un redondeo: a los $100, a los $1.000 o terminación $990. Abajo te muestra cómo queda un producto de $100.000.',
+          'Elegí la moneda (pesos o dólares), sumá una nota para saber para quién es, y tocá “Guardar”.',
         ],
         blocks: [
           {
@@ -382,7 +436,7 @@ export const CATALOGO = {
             type: 'callout',
             tone: 'tip',
             title: 'Apagar una lista la saca de circulación de una vez',
-            text: 'Una lista inactiva deja de aplicarse a todos los clientes que la tenían asignada, sin desasignarla uno por uno. Sirve para congelar una lista de temporada sin perderla.',
+            text: 'Destildar “Lista activa” deja de aplicarla a todos los clientes que la tenían asignada, sin desasignarla uno por uno. Sirve para congelar una lista de temporada sin perderla. Borrarla, en cambio, borra también sus precios a mano.',
           },
         ],
       },
@@ -400,7 +454,8 @@ export const CATALOGO = {
         paragraphs: [
           'Si el proveedor es un nombre escrito a mano en cada compra, "Importadora del Sur", "Import. del Sur" e "importadora sur" terminan siendo tres proveedores distintos. Sin ficha no hay historial, no hay saldo y no hay forma de comparar precios entre compras.',
           'Con la ficha, cada orden de compra elige el proveedor de una lista, y la pantalla del proveedor junta lo que le compraste con lo que le debés. Para un proveedor nuevo, dalo de alta primero con “Nuevo proveedor”.',
-          'Toda compra queda atada a una ficha: si el nombre se escribió a mano, a la que ya existe con ese nombre (sin importar mayúsculas) o a una nueva. Para las compras que cargaste antes de tener fichas, tocá “Traer de mis compras” en Proveedores: crea las fichas que falten, las ata y les pasa el CUIT de la factura. Las facturas viejas no se asientan solas en la cuenta corriente, para no mostrar deudas que ya pagaste.',
+          'Toda compra queda atada a una ficha: si el nombre se escribió a mano, a la que ya existe con ese nombre (sin importar mayúsculas) o a una nueva. Para las compras que cargaste antes de tener fichas, tocá “Traer de mis compras” en Proveedores: crea las fichas que falten, las ata y les pasa el CUIT de la factura.',
+          'La ficha de cada proveedor muestra su saldo, sus datos y todas sus órdenes de compra (cada una abre la compra). Con “Editar” cambiás los datos o destildás “Proveedor activo”; los inactivos se ven tildando “Mostrar inactivos”.',
         ],
         blocks: [{ type: 'path', segments: ['Compras e importaciones', 'Proveedores'] }],
       },
@@ -408,7 +463,7 @@ export const CATALOGO = {
         heading: 'Cómo se arma el saldo',
         paragraphs: [
           'La deuda con un proveedor nace cuando cargás SU factura en la orden de compra, no cuando armás la orden: antes hay un pedido, no una obligación de pago.',
-          'Los pagos se registran desde Cuentas corrientes, en la solapa de proveedores, y ahí mismo se imputan a las facturas que estás cancelando.',
+          'Los pagos se registran desde Cuentas corrientes, en la solapa de proveedores, y ahí mismo se imputan a las facturas que estás cancelando. Desde la ficha, “Ver cuenta corriente” te lleva directo a la de ese proveedor.',
         ],
         blocks: [
           {
@@ -511,16 +566,16 @@ export const CATALOGO = {
       {
         heading: 'La pantalla Stock bajo',
         paragraphs: [
-          'Lista lo que está bajo ahora, lo que se agota primero arriba, con cuánto pedir. “Armar orden de compra” abre Compras con esos productos y cantidades cargados (o solo los que tildes): revisás, ponés el proveedor y la guardás.',
-          'Desde ahí también cambiás el mínimo de un producto o lo silenciás (lo que se discontinúa no tiene que avisar nunca). El número al lado de “Stock bajo” en el menú es cuántos hay.',
+          'Lista lo que está bajo ahora, lo que se agota primero arriba, con cuánto pedir (para un producto bajo su mínimo, lo que falta para llegar al doble del mínimo). “Armar orden de compra” abre Compras con esos productos y cantidades cargados (o solo los que tildes): revisás, ponés el proveedor y la guardás. Ese botón lo ve quien tiene el permiso “Compras e importaciones”.',
+          'Desde ahí también cambiás el mínimo de un producto (“Mínimo”) o lo silenciás (“Silenciar”: lo que se discontinúa no tiene que avisar nunca); eso pide el permiso “Ajustar el stock”. El número al lado de “Stock bajo” en el menú es cuántos hay.',
         ],
       },
       {
         heading: 'Los avisos por email',
         paragraphs: [
-          'En Configuración › Alertas de stock elegís: sin avisos (lo de fábrica), al toque cuando un producto cruza, o un resumen por día a la hora que quieras.',
+          'En Configuración › Alertas de stock elegís: “Sin avisos por email” (lo de fábrica), “Al toque, apenas cruza” (se revisa cada 5 minutos) o “Un resumen por día”, a la hora que elijas. Esa pantalla pide el permiso “Ajustar el stock”.',
           'Se avisa una vez por cruce: mientras siga bajo, no se repite. Cuando se repone y vuelve a bajar, es otro aviso.',
-          'Lo reciben quienes tienen el permiso “Compras e importaciones”. Cada persona puede darse de baja desde la pantalla Stock bajo, y los emails en la lista de bajas de la tienda no reciben nada.',
+          'Lo reciben quienes tienen el permiso “Compras e importaciones”: la pantalla muestra quiénes son. Cada persona puede darse de baja desde la pantalla Stock bajo (“Recibir estos avisos por email”), y los emails en la lista de bajas de la tienda no reciben nada.',
         ],
         blocks: [
           { type: 'path', segments: ['Configuración', 'Alertas de stock'] },
