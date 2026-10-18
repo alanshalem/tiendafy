@@ -412,7 +412,7 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'warning',
-            text: 'El número que conectes a la API deja de funcionar en la app de WhatsApp del teléfono. Usá un número dedicado a la tienda, nunca tu personal.',
+            text: 'El número que conectes acá deja de funcionar en la app de WhatsApp del teléfono. Usá un número dedicado a la tienda, nunca tu personal.',
           },
         ],
       },
@@ -632,7 +632,7 @@ export const CLIENTES = {
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Instagram tiene que ser una cuenta Business (o Creator) vinculada a una página de Facebook — las cuentas personales no permiten publicar por API.',
+            text: 'Instagram tiene que ser una cuenta Business (o Creator) vinculada a una página de Facebook — las cuentas personales no permiten publicar desde otra aplicación.',
           },
         ],
       },
