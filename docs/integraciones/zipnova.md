@@ -5,18 +5,23 @@ Agregador logístico: con una sola cuenta cotiza y despacha con varios correos
 checkout y crea envíos con etiqueta y seguimiento desde el panel. Usa la API
 v2 de Zipnova.
 
-Documentación oficial: <https://docs.zipnova.com/>.
+Documentación oficial: <https://docs.zipnova.com/envios/> (hosts y
+autenticación en
+[URLs y autenticación](https://docs.zipnova.com/envios/principios/urls-y-autenticacion.md),
+revisado el 18-oct-2026).
 
 ## Qué hace en Tiendafy
 
 - **Cotiza en el checkout** a domicilio con los correos que tenga habilitados
   la cuenta: muestra las 4 opciones más baratas, con plazo estimado cuando
-  Zipnova lo da.
+  Zipnova lo da. En "Calcular envío" de la ficha del producto no cotiza:
+  Zipnova necesita ciudad y provincia, que se piden recién en el checkout.
 - **Crea el envío desde una venta** (panel → detalle de la venta → Zipnova).
 - **Baja la etiqueta PDF** (proxied: las credenciales nunca llegan al
   navegador), suelta o en lote junto con las de Andreani.
-- **Consulta el seguimiento** desde el panel y le muestra al comprador el
-  correo, el número y la URL de seguimiento que devuelve Zipnova.
+- **Actualiza el estado** del envío desde la venta ("Actualizar estado") y le
+  muestra al comprador el correo, el número y la URL de seguimiento que
+  devuelve Zipnova.
 
 Todo es **por tienda**. No hay env vars de plataforma para Zipnova.
 
@@ -32,12 +37,15 @@ Todo es **por tienda**. No hay env vars de plataforma para Zipnova.
 | Seguimiento para el comprador | `backend/src/Api/Shipping/CarrierTrackingLink.cs`, `backend/src/Api/Orders/OrderTrackingView.cs` |
 | Persistencia | `backend/src/Modules/Checkout/Checkout.Infrastructure/Persistence/ZipnovaRepository.cs`, migración `20260729154823_AddZipnova` |
 | Panel: configuración | `admin/src/pages/Settings/Zipnova.tsx` |
-| Panel: crear envío | `admin/src/components/ZipnovaShipment.tsx` |
+| Panel: crear envío, etiqueta, "Actualizar estado" | `admin/src/components/ZipnovaShipment.tsx` (aviso de envío a revisar: `ShipmentReview.tsx`) |
 | Tienda: cotización | `storefront/src/components/store/checkout-carriers.ts` |
 | Tests | `backend/tests/UnitTests/Checkout/ZipnovaTests.cs`, `backend/tests/IntegrationTests/ZipnovaFlowTests.cs` |
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 20 s y **sin
-reintentos** (la creación no es idempotente).
+reintentos** (la creación no es idempotente). La cotización corta antes, a los
+**8 s** (`ZipnovaClient.QuoteTimeout`, desde el 16-oct): el checkout deja de
+esperarla a los 10 s. Crear envíos y bajar etiquetas, desde el panel, siguen
+con los 20 s.
 
 ### Endpoints (bajo `/api/v1`)
 
@@ -90,12 +98,13 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
    `Tiendafy.Shipping.ZipnovaQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). Al confirmar, el precio sale del token; si el carrito
    cambió, se pide recotizar.
-5. Si Zipnova contesta con error, la cotización vuelve sin opciones y con un
-   mensaje: el checkout sigue con los demás medios. Si no contesta (timeout de
-   20 s o red caída), la API responde 500 (queda como error no manejado en el
-   log) y la tienda lo toma como que Zipnova no cotizó: el checkout también
-   sigue, pero el comprador espera hasta que la tienda corta (10 s en el
-   checkout, 12 s en la ficha del producto).
+5. Si Zipnova contesta con error, no contesta en 8 s, la red está caída o la
+   respuesta no se puede leer, la cotización vuelve sin opciones y con un
+   mensaje: el checkout sigue con los demás medios. Lo que no es un error de
+   su API queda como warning en el log (no como un 500 nuestro en Sentry). La
+   prueba de conexión, la etiqueta y el seguimiento hacen lo mismo ("Zipnova
+   no respondió a tiempo"). Si el que cortó fue el navegador, no cuenta como
+   falla de Zipnova.
 
 ### Envío desde una venta
 
@@ -124,11 +133,14 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
   que la etiqueta todavía no está lista: se le pide al operador que pruebe en
   unos minutos.
 - `GET /shipments/{id}/tracking`, a pedido desde el panel con "Actualizar
-  estado" en la venta (`admin/src/components/ZipnovaShipment.tsx`; no hay
-  polling ni webhook). La especificación no dice en qué orden vienen los eventos: se
-  ordenan por fecha (`TrackingEvents.NewestFirst`), y se guarda el estado del
-  más nuevo; si es `delivered`, la vista de seguimiento del comprador marca el
-  pedido como entregado.
+  estado" en la venta (lo ve quien ve la venta, `orders.read`; no hay polling
+  ni webhook). Muestra el último estado al lado del número y avisa si no hay
+  movimientos. Hasta el 16-oct el endpoint existía pero el panel no lo
+  llamaba, así que el estado guardado nunca cambiaba. La especificación no
+  dice en qué orden vienen los eventos: se ordenan por fecha
+  (`TrackingEvents.NewestFirst`) y se guarda el estado del más nuevo; si es
+  `delivered`, "Seguí tu pedido" marca el pedido como entregado. El link
+  "Seguimiento" abre la página del transporte.
 
 ## Lo que aprendimos de la API real
 
@@ -157,6 +169,16 @@ De la especificación, y manejado a la defensiva:
 - La especificación no documenta valores por defecto en la cotización: por eso
   se mandan `sort_by` y el destino explícitos.
 
+Contra la documentación y la API real, el 18-oct-2026:
+
+- Hosts `api.zipnova.com.ar/v2`, `api.zipnova.cl/v2` y `api.zipnova.com.mx/v2`,
+  Basic con API Token y API Secret, `Accept: application/json` siempre y
+  `Content-Type: application/json` con cuerpo: coincide con el cliente. Los
+  dominios viejos de Zippin (`api.zippin.*`) dejaron de valer el 1-abr-2026.
+- Sin credenciales, `POST /shipments/quote`, `POST /shipments`,
+  `GET /shipments/{id}/label.pdf` y `GET /shipments/{id}/tracking` responden
+  403 "Unauthenticated" (una ruta inventada da 404): las cuatro existen.
+
 ## Cómo probar
 
 1. Registrá una cuenta en Zipnova y pedile al soporte la modalidad "testing".
@@ -165,8 +187,9 @@ De la especificación, y manejado a la defensiva:
 3. En la tienda, cotizá con CP, ciudad y provincia.
 4. Con testing activo, creá un envío desde una venta y bajá la etiqueta.
 5. Tests: `backend/tests/UnitTests/Checkout/ZipnovaTests.cs` y
-   `backend/tests/IntegrationTests/ZipnovaFlowTests.cs` (incluye dos pedidos
-   simultáneos y el orden del tracking).
+   `backend/tests/IntegrationTests/ZipnovaFlowTests.cs` (incluye Zipnova caído
+   o sin responder, dos pedidos simultáneos, el envío a revisar y el orden del
+   tracking).
 
 ## Pendiente
 
@@ -176,7 +199,8 @@ De la especificación, y manejado a la defensiva:
   actualiza solo cuando alguien toca "Actualizar estado" en la venta.
 - Confirmar en producción el formato de `created_at` del tracking: se ordena
   por esa fecha; un evento sin fecha legible queda al final.
-- La cotización no atrapa el timeout ni la red caída (ver "Cotización en el
-  checkout", paso 5) y espera hasta 20 s, cuando Andreani corta a los 6 s.
+- Confirmar que la creación acepte `origin_id: "auto"`: la cotización omite el
+  campo con "auto" y lo manda numérico; la creación lo manda tal cual está en
+  la config (texto, también "auto").
 - Zipnova ofrece webhooks de cambio de estado (se configuran en el mismo
   lugar que las credenciales); hoy no se usan.
