@@ -9,11 +9,26 @@ export const EQUIPO = {
       {
         heading: 'Agregar a alguien',
         steps: [
-          'En Configuración → Usuarios, tocá “Agregar usuario”, poné su email (y su nombre, si querés), elegí el rol y tocá “Agregar”.',
-          'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña. Si ya tenía (por ejemplo, porque trabaja en otra tienda del grupo), entra con la contraseña de siempre.',
+          'En Configuración → Usuarios, tocá “Agregar usuario”, poné su email (y su nombre, si querés), elegí el rol y tocá “Agregar”. La lista de roles muestra solo los que vos podés asignar.',
+          'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña. Si ya tenía (por ejemplo, porque trabaja en otra tienda del grupo), no le llega nada: entra con la contraseña de siempre y ya ve esta tienda. El aviso al agregarla te dice cuál de los dos casos fue.',
           'Listo: al entrar al panel ve solo las secciones y acciones que tiene habilitadas.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Usuarios'] }],
+      },
+      {
+        heading: 'Qué muestra la pantalla de Usuarios',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Arriba, cuántas personas tienen acceso, cuántos dueños hay, cuántos pueden devolver plata y cuántos pueden invitar gente.',
+              'Si hay un solo dueño, un aviso te sugiere sumar un segundo dueño de confianza.',
+              'La lista con el rol de cada persona (lo cambiás desde ahí mismo), sus “Accesos sensibles” y desde cuándo está. En el teléfono, cada persona es una tarjeta con su rol y sus botones.',
+              'Abajo, “Los roles, en resumen”, con el link a Roles y permisos, y la “Actividad del equipo”.',
+              'Para sacar a alguien de la tienda, el tacho de su fila. Sigue teniendo su cuenta, pero ya no entra a esta tienda.',
+            ],
+          },
+        ],
       },
       {
         heading: 'Una cuenta, un rol por tienda',
@@ -31,31 +46,31 @@ export const EQUIPO = {
             type: 'table',
             headers: ['Rol', 'Qué puede', 'Qué NO puede'],
             rows: [
-              ['Dueño', 'Todo, siempre: dominios, equipo y borrar la tienda', '—'],
+              ['Dueño', 'Todo, siempre: dominios, equipo y editar o borrar la tienda', '—'],
               [
                 'Administrador',
-                'Todo lo operativo y la configuración',
+                'Todo lo operativo, el equipo y la configuración',
                 'Dominios, editar ni borrar la tienda',
               ],
               [
                 'Vendedor',
-                'Ventas (ver, registrar y despachar), presupuestos, Mercado Libre, clientes, chat, mensajes, reseñas y estadísticas',
-                'Devolver plata, ver costos ni configurar',
+                'Ventas (ver, registrar y despachar), presupuestos, atender Mercado Libre (ventas, preguntas y mensajes), ver clientes, chat posventa, mensajes, reseñas, estadísticas, y ver el stock y los cupones',
+                'Devolver plata, ver costos, editar productos ni configurar',
               ],
               [
                 'Catálogo',
-                'Productos, precios, stock, costos y publicaciones de Mercado Libre',
+                'Productos, precios y listas de precios, stock, costos y publicaciones de Mercado Libre',
                 'Ver ventas ni clientes',
               ],
               [
                 'Finanzas',
-                'Ventas y estadísticas, devoluciones, facturación, tesorería y compras',
+                'Ver ventas, devolver plata, facturación, tesorería y cuentas corrientes, compras, costos y estadísticas; además ver clientes, cupones, stock y cómo están conectados los cobros',
                 'Despachar, editar productos ni conectar cobros',
               ],
               [
                 'Soporte',
-                'Chat posventa, mensajes, reseñas, preguntas de Mercado Libre y ver las ventas y los clientes',
-                'Modificar ventas o configuración',
+                'Chat posventa, mensajes, reseñas, atender Mercado Libre y ver las ventas y los clientes',
+                'Modificar ventas, ver estadísticas ni configurar',
               ],
             ],
           },
@@ -73,7 +88,8 @@ export const EQUIPO = {
           'Tildá o destildá: vale desde el próximo clic de esa gente, sin que tengan que volver a entrar.',
           'Lo que cambiaste respecto de fábrica queda marcado con un punto; “Restaurar”, arriba de la columna, vuelve el rol a como venía (las excepciones de cada persona se mantienen).',
           'Lo que mueve plata, toca la facturación o da más accesos lleva la marca “sensible”: pensalo dos veces antes de dárselo a un rol.',
-          'Algunas cosas necesitan otra para servir (devolver plata necesita ver las ventas): se tildan juntas.',
+          'Algunas cosas necesitan otra para servir (devolver plata necesita ver las ventas): se tildan juntas, y al destildar la de base se van las que dependen de ella.',
+          'Cada uno edita solo los roles por debajo del suyo, y la columna del dueño no se edita. Si tu rol no puede cambiar la matriz, la ves en “Solo lectura”.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Roles y permisos'] }],
       },
@@ -91,7 +107,7 @@ export const EQUIPO = {
         heading: 'Varias tiendas: Mis tiendas',
         paragraphs: [
           'En Plataforma → Mis tiendas ves todas las tiendas del grupo con lo que vendió cada una en los últimos 30 días, y entrás a cualquiera. Para cambiar de tienda sin salir de lo que estás haciendo, usá el selector de tienda de arriba.',
-          'Crear una tienda nueva (“Crear tienda”: nombre y dirección) es de dueños. Editar, archivar o eliminar una, solo de su dueño. Eliminar pide escribir el nombre de la tienda para confirmar; los datos no se borran, pero la tienda deja de estar accesible y solo se recupera pidiéndolo a soporte.',
+          'Crear una tienda nueva (“Crear tienda”: nombre y URL de la tienda) es de quien ya es dueño de alguna, y queda como dueño de la nueva. Editar, archivar o eliminar una, solo de su dueño, desde el menú de su fila. Archivar la saca de las tiendas activas y se vuelve atrás con “Activar”. Eliminar pide escribir el nombre de la tienda para confirmar; los datos no se borran, pero la tienda deja de estar accesible y solo se recupera pidiéndolo a soporte.',
         ],
         blocks: [{ type: 'path', segments: ['Plataforma', 'Mis tiendas'] }],
       },
@@ -105,7 +121,7 @@ export const EQUIPO = {
               'Nadie da ni quita algo que él mismo no puede hacer.',
               'Nadie asigna un rol por encima del propio ni toca a alguien de su mismo rango.',
               'Solo un dueño puede nombrar o modificar dueños, y la tienda nunca queda sin dueño.',
-              'Crear tiendas nuevas es de dueños; editar, archivar o borrar una tienda, solo de su dueño.',
+              'Crear tiendas nuevas es de dueños; editar, archivar o borrar una tienda, solo de su dueño. Los dominios de la tienda también son solo del dueño: no se pueden delegar.',
               'Nadie se da excepciones a sí mismo. Bajarte el rol sí podés, y el panel te pide confirmar porque podrías quedarte sin acceso a esta pantalla.',
               'Cada cambio queda en “Actividad del equipo”, al pie de Configuración → Usuarios: quién, qué y cuándo.',
             ],
