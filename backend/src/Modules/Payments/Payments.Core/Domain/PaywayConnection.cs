@@ -122,12 +122,6 @@ public sealed class PaywayConnection
         return Result.Success();
     }
 
-    public void SetActive(bool active)
-    {
-        IsActive = active;
-        UpdatedAtUtc = DateTime.UtcNow;
-    }
-
     /// <summary>Host efectivo de la API para esta conexión.</summary>
     public string BaseUrl =>
         string.IsNullOrWhiteSpace(BaseUrlOverride)

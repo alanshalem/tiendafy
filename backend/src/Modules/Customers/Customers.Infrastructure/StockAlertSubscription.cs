@@ -31,8 +31,6 @@ public sealed class StockAlertSubscription
     /// <summary>Se dio de baja desde el link del email (o el email está en la lista de bajas).</summary>
     public DateTime? CancelledAtUtc { get; private set; }
 
-    public bool IsPending => NotifiedAtUtc is null && CancelledAtUtc is null;
-
     private StockAlertSubscription() { } // EF Core
 
     public static StockAlertSubscription Create(Guid tenantId, Guid productId, Guid variantId, string email) => new()
