@@ -1,6 +1,6 @@
 # Prompts para Gemini
 
-El master del logo son los SVG de esta guía. Gemini genera imágenes rasterizadas: sirve para explorar variantes y para mockups, pero cualquier logo que salga de ahí hay que redibujarlo o vectorizarlo antes de usarlo. Los prompts van en inglés porque los modelos de imagen responden con más precisión.
+El master del logo son los SVG de [la guía de marca](./guia-de-marca.md). Gemini genera imágenes rasterizadas: sirve para explorar variantes y para mockups, pero cualquier logo que salga de ahí hay que redibujarlo o vectorizarlo antes de usarlo. Los prompts van en inglés porque los modelos de imagen responden con más precisión.
 
 ## 1. Isotipo (exploración de variantes)
 
