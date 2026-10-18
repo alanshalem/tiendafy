@@ -20,9 +20,7 @@ obj/
 *.user
 *.suo
 .vs/
-.vs
 appsettings.local.json
-.env.local
 
 # Node
 node_modules/
@@ -79,9 +77,8 @@ infra/docker/backups/
 e2e/test-results/
 e2e/playwright-report/
 
-# Resultados de tests y cobertura
+# Resultados de tests (la cobertura ya está arriba, en Testing)
 **/TestResults/
-**/coverage/
 
 # Sesión del admin del seed que guarda el setup del e2e
 e2e/tests/.auth/
