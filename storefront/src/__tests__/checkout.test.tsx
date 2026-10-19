@@ -955,6 +955,100 @@ describe('checkout: envío cotizado', () => {
     expect(screen.getByRole('button', { name: /Ver resumen.*3\.070/ })).toBeInTheDocument();
   });
 
+  describe('el envío a domicilio vale para el código postal cotizado', () => {
+    /** Andreani a domicilio cotizado a 5000, con los datos del comprador completos. */
+    async function quotedHome() {
+      store({ methods: { items: [], andreani: { enabled: true } } });
+      api.on('POST', '/api/v1/shipping/andreani/quote', {
+        options: [{ token: 'a-dom', name: 'Andreani a domicilio', price: money(7_000), toBranch: false }],
+      });
+      api.on('POST', `/api/v1/checkout/${SESSION}/pay`, { initPoint: 'https://mp.example.com/pay/1' });
+      const user = await open();
+      await user.type(screen.getByLabelText('Código postal para cotizar'), '5000{Enter}');
+      await settle(2);
+      await user.click(screen.getByRole('radio', { name: /Andreani a domicilio/ }));
+      await user.type(field('E-mail'), 'ana@example.com');
+      await user.type(field('Nombre'), 'Ana');
+      await user.type(field('Apellido'), 'García');
+      await user.type(field(/^Teléfono/), '1155554444');
+      await user.type(field('Calle'), 'Colón');
+      await user.type(field('Número'), '100');
+      await user.type(field('Ciudad'), 'Córdoba');
+      return user;
+    }
+
+    it('el CP viaja aparte y el CPA de la dirección cuenta como sus 4 dígitos', async () => {
+      const user = await quotedHome();
+      await user.clear(field('Código Postal'));
+      await user.type(field('Código Postal'), 'X5000ABC');
+      await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+      await user.click(screen.getByRole('button', { name: 'Pagar con Mercado Pago' }));
+      await settle(3);
+      expect(posted('/submit')[0]).toMatchObject({
+        shippingQuoteToken: 'a-dom',
+        address: 'Colón 100, Córdoba, CP X5000ABC',
+        postalCode: 'X5000ABC',
+      });
+    });
+
+    it('si la dirección va a otro CP, pide volver a cotizar antes de pagar', async () => {
+      const user = await quotedHome();
+      await user.clear(field('Código Postal'));
+      await user.type(field('Código Postal'), '1043');
+      await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+
+      expect(
+        screen.getByText(
+          'No es el código postal con el que cotizaste el envío (5000): volvé a cotizarlo con este.',
+        ),
+      ).toBeInTheDocument();
+      expect(field('Código Postal')).toHaveFocus();
+      expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).not.toBeInTheDocument();
+    });
+
+    it('cambiar el CP de la cotización borra las opciones cotizadas para el anterior', async () => {
+      const user = await quotedHome();
+      const cp = screen.getByLabelText('Código postal para cotizar');
+      await user.clear(cp);
+      await user.type(cp, '1043');
+
+      expect(screen.queryByRole('radio', { name: /Andreani a domicilio/ })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+      expect(
+        screen.getByText('Ingresá tu código postal y tocá «Calcular» para elegir el envío.'),
+      ).toBeInTheDocument();
+
+      // Recotizado al nuevo, se puede seguir.
+      await user.click(screen.getByRole('button', { name: /Calcular/ }));
+      await settle(2);
+      expect(posted('/andreani/quote').at(-1)).toMatchObject({ postalCode: '1043' });
+      expect(screen.getByRole('radio', { name: /Andreani a domicilio/ })).toBeInTheDocument();
+    });
+
+    it('si el servidor lo rechaza igual, vuelve al envío con el aviso y sin las opciones viejas', async () => {
+      const user = await quotedHome();
+      api.on(
+        'POST',
+        `/api/v1/checkout/${SESSION}/submit`,
+        {
+          title: 'Checkout.PostalCodeChanged',
+          detail: 'Cambiaste el código postal: volvé a cotizar el envío para esa dirección.',
+        },
+        400,
+      );
+      await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+      await user.click(screen.getByRole('button', { name: 'Pagar con Mercado Pago' }));
+      await settle(3);
+
+      expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeInTheDocument();
+      expect(
+        screen.getByText('Cambiaste el código postal: volvé a cotizar el envío para esa dirección.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('radio', { name: /Andreani a domicilio/ })).not.toBeInTheDocument();
+      expect(browser.goTo).not.toHaveBeenCalled();
+    });
+  });
+
   it('sin tarifas o con error, cada carrier lo dice por su cuenta', async () => {
     store({ methods: ALL_CARRIERS });
     api.on('POST', '/api/v1/shipping/correo/quote', { options: [] });

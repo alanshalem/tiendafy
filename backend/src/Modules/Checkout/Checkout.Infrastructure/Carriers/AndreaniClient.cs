@@ -33,9 +33,10 @@ public sealed record AndreaniTraceEvent(
 ///
 /// Cuatro cosas que se verificaron contra la API real y que condicionan todo:
 ///
-/// 1. <b>El path de cotización es <c>/v1/tarifas</c>, no <c>/tarifas</c>.</b> La
-///    documentación oficial escribe el segundo; el primero responde 200 y el
-///    segundo 403.
+/// 1. <b>Todas las rutas llevan versión</b> (<see cref="Routes"/>): sin ella,
+///    la API real responde 404 (producción) o 403 (QA). Cotizar es
+///    <c>/v1/tarifas</c>; crear la orden, <c>/v2/ordenes-de-envio</c>; las
+///    trazas, <c>/v2/envios/{n}/trazas</c>.
 /// 2. <b>Cotizar no requiere token.</b> Se puede cotizar antes de tener
 ///    credenciales; el resto de la API sí las pide.
 /// 3. <b>Los importes vienen como string</b> con punto decimal. Parsearlos con
@@ -45,7 +46,30 @@ public sealed record AndreaniTraceEvent(
 /// </summary>
 public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logger)
 {
-    /// <summary>Cotizar es parte del checkout: si tarda, se prefiere no ofrecer la opción a trabar la compra.</summary>
+    /// <summary>
+    /// Las rutas, según la documentación oficial (developers.andreani.com, las
+    /// planillas de cada API) y un sondeo sin credenciales del 19-oct-2026: la
+    /// ruta sin versión da 404 en producción; con versión, 401 (existe y pide
+    /// token). De las trazas hay una v3 con otros campos (sin <c>EstadoId</c>);
+    /// la v2 es la que lee <see cref="GetTracesAsync"/>, y Andreani la marca
+    /// "a deprecar".
+    /// </summary>
+    public static class Routes
+    {
+        public const string Login = "/login";
+        public const string Rates = "/v1/tarifas";
+        public const string ShippingOrders = "/v2/ordenes-de-envio";
+
+        public static string Traces(string trackingNumber) =>
+            $"/v2/envios/{Uri.EscapeDataString(trackingNumber)}/trazas";
+    }
+
+    /// <summary>
+    /// Cotizar es parte del checkout: si tarda, se prefiere no ofrecer la opción
+    /// a trabar la compra. Es por llamada; las de domicilio y sucursal van en
+    /// paralelo (AndreaniEndpoints), así que el checkout espera una sola vez
+    /// este tope, por debajo de sus 10 s.
+    /// </summary>
     private static readonly TimeSpan QuoteTimeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
 
@@ -92,7 +116,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         try
         {
             // Sin token a propósito: este endpoint no lo pide.
-            using var response = await http.GetAsync($"{config.BaseUrl}/v1/tarifas{query}", timeout.Token);
+            using var response = await http.GetAsync($"{config.BaseUrl}{Routes.Rates}{query}", timeout.Token);
             var body = await response.Content.ReadAsStringAsync(ct);
 
             if (!response.IsSuccessStatusCode)
@@ -121,15 +145,18 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
     }
 
     /// <summary>
-    /// <c>POST /login</c>. El token vuelve en un header de respuesta, no en el
-    /// cuerpo, y se reenvía en <c>x-authorization-token</c> — no como Bearer.
+    /// <c>GET /login</c> con Basic, como dice la documentación oficial. El
+    /// <c>POST</c> existe pero espera usuario y contraseña en el cuerpo (sin él
+    /// responde "parámetros incorrectos en el cuerpo"). El token vuelve en el
+    /// header <c>x-authorization-token</c> y se reenvía en ese mismo header, no
+    /// como Bearer.
     /// </summary>
     public async Task<string> LoginAsync(AndreaniConfig config, string password, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(DefaultTimeout);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{config.BaseUrl}/login");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{config.BaseUrl}{Routes.Login}");
         var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{config.Username}:{password}"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
 
@@ -146,14 +173,21 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
             }, response.StatusCode);
         }
 
-        if (!response.Headers.TryGetValues("x-authorization-token", out var values))
-            throw new AndreaniException("Andreani no devolvió el token de acceso.");
+        if (response.Headers.TryGetValues("x-authorization-token", out var values)
+            && values.FirstOrDefault() is { Length: > 0 } fromHeader)
+        {
+            return fromHeader;
+        }
 
-        return values.FirstOrDefault() ?? throw new AndreaniException("Andreani devolvió un token vacío.");
+        // Algunas versiones lo devuelven también en el cuerpo, como {"token": "..."}.
+        var body = await response.Content.ReadAsStringAsync(ct);
+        return ExternalErrorBody.Message(body, "token") is { Length: > 0 } fromBody
+            ? fromBody
+            : throw new AndreaniException("Andreani no devolvió el token de acceso.");
     }
 
     /// <summary>
-    /// <c>POST /ordenes-de-envio</c>. <b>Sin reintentos.</b> Andreani no tiene
+    /// <c>POST /v2/ordenes-de-envio</c>. <b>Sin reintentos.</b> Andreani no tiene
     /// idempotencia ni endpoint de cancelación: reintentar un timeout puede
     /// generar un segundo envío que no se puede anular y que se factura igual.
     /// </summary>
@@ -163,7 +197,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(DefaultTimeout);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{config.BaseUrl}/ordenes-de-envio")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{config.BaseUrl}{Routes.ShippingOrders}")
         {
             Content = new StringContent(JsonSerializer.Serialize(payload, JsonDefaults.Web), Encoding.UTF8, "application/json"),
         };
@@ -234,7 +268,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
     }
 
     /// <summary>
-    /// <c>GET /envios/{n}/trazas</c>. Ojo: los campos de esta respuesta
+    /// <c>GET /v2/envios/{n}/trazas</c>. Ojo: los campos de esta respuesta
     /// arrancan en MAYÚSCULA (<c>Fecha</c>, <c>EstadoId</c>), al revés que el
     /// resto de la API, y la fecha viene sin zona horaria — es hora de
     /// Argentina.
@@ -245,8 +279,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(DefaultTimeout);
 
-        using var request = new HttpRequestMessage(HttpMethod.Get,
-            $"{config.BaseUrl}/envios/{Uri.EscapeDataString(trackingNumber)}/trazas");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{config.BaseUrl}{Routes.Traces(trackingNumber)}");
         request.Headers.TryAddWithoutValidation("x-authorization-token", token);
 
         using var response = await http.SendAsync(request, timeout.Token);

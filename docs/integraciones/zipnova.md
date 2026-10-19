@@ -97,7 +97,12 @@ Se carga en **Configuración → Medios de envío → Zipnova**:
 4. Cada opción vuelve con un token firmado (purpose
    `Tiendafy.Shipping.ZipnovaQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). Al confirmar, el precio sale del token; si el carrito
-   cambió, se pide recotizar.
+   cambió, se pide recotizar. Lo mismo si la entrega es a domicilio y el código postal de la dirección
+   (el campo `postalCode` del submit y el "CP …" de la dirección) no es el
+   cotizado: se comparan los 4 dígitos, así que un CPA como `C1425ABC` vale
+   como `1425` (`Api/Shipping/ShippingPostalCode.cs`). El rechazo es
+   `Checkout.PostalCodeChanged` y la tienda vuelve al paso de envío con las
+   opciones borradas; cambiar el CP de la cotización también las borra.
 5. Si Zipnova contesta con error, no contesta en 8 s, la red está caída o la
    respuesta no se puede leer, la cotización vuelve sin opciones y con un
    mensaje: el checkout sigue con los demás medios. Lo que no es un error de

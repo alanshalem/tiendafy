@@ -128,6 +128,15 @@ const EMPTY_BUYER: Buyer = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * El CP como lo comparan los correos: sus 4 dígitos ("C1425ABC" es "1425").
+ * El servidor hace la misma cuenta al confirmar (ShippingPostalCode).
+ */
+const cpDigits = (raw: string): string | null => {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(0, 4) : null;
+};
+
 /** Los campos que, al dejarlos, se guardan como datos de contacto (ver rememberContact). */
 const CONTACT_FIELDS: ReadonlySet<string> = new Set<BuyerField>(['email', 'name', 'lastName', 'phone']);
 
@@ -194,6 +203,8 @@ export function CheckoutClient({
   const [quoteCity, setQuoteCity] = useState('');
   const [quoteProvince, setQuoteProvince] = useState('');
   const [quotes, setQuotes] = useState<Partial<Record<CarrierKey, QuotedOption[]>>>({});
+  // El CP con el que se cotizaron las opciones de arriba: el precio vale para ese destino.
+  const [quotedCp, setQuotedCp] = useState<string | null>(null);
   const [quoteErrors, setQuoteErrors] = useState<Partial<Record<CarrierKey | 'cp', string>>>({});
   const [quoting, setQuoting] = useState(false);
   // Sucursal de retiro (Correo Argentino a sucursal).
@@ -427,6 +438,7 @@ export function CheckoutClient({
 
     setQuoting(true);
     setQuotes({});
+    setQuotedCp(cp);
     if (selectedQuote) setShippingId(null);
     setAgencyCode(null);
     // El detalle del carrito: cada correo cotiza con el peso y las medidas de
@@ -464,6 +476,20 @@ export function CheckoutClient({
     if (!buyerRef.current.zip.trim()) setField('zip', cp);
     if (quoteCity.trim() && !buyerRef.current.city.trim()) setField('city', quoteCity.trim());
     setQuoting(false);
+  };
+
+  /** Las opciones cotizadas dejan de valer: hay que volver a tocar «Calcular». */
+  const dropQuotes = () => {
+    setQuotes({});
+    setQuotedCp(null);
+    setAgencyCode(null);
+    if (selectedQuote) setShippingId(null);
+  };
+
+  // Otro CP es otro destino y otro precio: lo cotizado para el anterior se cae.
+  const changeQuoteCp = (cp: string) => {
+    setQuoteCp(cp);
+    if (quotedCp !== null && cp.trim() !== quotedCp) dropQuotes();
   };
 
   const loadAgencies = async (prov: string) => {
@@ -543,6 +569,10 @@ export function CheckoutClient({
       if (!streetNumber.trim()) errors.streetNumber = 'Completá el número.';
       if (!city.trim()) errors.city = 'Completá la ciudad.';
       if (!zip.trim()) errors.zip = 'Completá el código postal.';
+      // El envío cotizado vale para el CP de la cotización: la dirección a otro
+      // CP lo rechazaría el servidor al confirmar.
+      else if (selectedQuote && quotedCp && cpDigits(zip) !== quotedCp)
+        errors.zip = `No es el código postal con el que cotizaste el envío (${quotedCp}): volvé a cotizarlo con este.`;
     }
     return errors;
   };
@@ -573,6 +603,8 @@ export function CheckoutClient({
       return;
     }
     setFormError(null);
+    // Lo que falló en un intento de pago anterior ya no corresponde.
+    setError(null);
     rememberContact();
     setStep('pago');
     window.scrollTo({ top: 0 });
@@ -656,11 +688,20 @@ export function CheckoutClient({
         address: formattedAddress(),
         shippingQuoteToken: selectedQuote?.token ?? null,
         correoAgency: selectedQuote?.needsAgency ? agencyCode : null,
+        // Aparte de la dirección: el servidor lo compara con el CP cotizado.
+        postalCode: needsAddress ? zip.trim() || null : null,
         acceptsWhatsApp,
       }),
     });
     if (!submitRes.ok) {
-      const p = await submitRes.json().catch(() => null);
+      const p = (await submitRes.json().catch(() => null)) as { title?: string; detail?: string } | null;
+      if (p?.title === 'Checkout.PostalCodeChanged') {
+        // Se vuelve al envío, con las opciones cotizadas borradas y el aviso
+        // donde hay que corregir.
+        dropQuotes();
+        setStep('entrega');
+        setFormError(p.detail ?? null);
+      }
       throw new Error(p?.detail ?? 'No hay stock suficiente para algún producto.');
     }
     // Enviada, esa compra ya no se toca: un segundo intento arma otra.
@@ -1046,7 +1087,7 @@ export function CheckoutClient({
                     carriers={carriers}
                     inputCls={inputCls}
                     quoteCp={quoteCp}
-                    setQuoteCp={setQuoteCp}
+                    setQuoteCp={changeQuoteCp}
                     quoteCity={quoteCity}
                     setQuoteCity={setQuoteCity}
                     quoteProvince={quoteProvince}

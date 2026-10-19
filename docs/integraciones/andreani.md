@@ -5,8 +5,11 @@ reemplaza al relevamiento previo (16 archivos escritos antes de implementar,
 borrados en el commit `efb5fecd`): lo que sigue es lo que hay en el código y lo
 que se verificó contra la API real. El relevamiento queda en la historia de git.
 
-Documentación oficial: <https://developers.andreani.com/documentacion> (es una
-aplicación web: hay que abrirla en el navegador, no se lee con un fetch).
+Documentación oficial: <https://developers.andreani.com/document> (es una
+aplicación web: hay que abrirla en el navegador, no se lee con un fetch). Cada
+API trae una planilla `.xlsx` descargable con las URL de QA y producción, el
+método y ejemplos de pedido y respuesta: ahí están las rutas que usa el
+cliente (ver "Lo que aprendimos", punto 17).
 
 ## Qué hace en Tiendafy
 
@@ -46,9 +49,10 @@ vars de plataforma para Andreani.
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 40 s; el cliente
 además corta cada cotización a los **6 s** y el resto de las llamadas a los
-20 s. Con los dos contratos cargados, las dos cotizaciones van una después de
-la otra: en el peor caso son 12 s, y el checkout deja de esperar a los 10 s
-(`FETCH_TIMEOUT_MS` de `CheckoutClient.tsx`; la ficha, a los 12 s).
+20 s. Con los dos contratos cargados, las dos cotizaciones van en paralelo:
+en el peor caso son 6 s, por debajo de los 10 s que espera el checkout
+(`FETCH_TIMEOUT_MS` de `CheckoutClient.tsx`; la ficha, 12 s). Hasta el 19-oct
+iban una después de la otra y podían sumar 12 s.
 
 ### Endpoints (bajo `/api/v1`)
 
@@ -101,13 +105,19 @@ pide (todo sale del alta comercial con Andreani; no hay registro autogestionado)
    evita cotizar a un CP inexistente.
 3. Arma un bulto por unidad (hasta 200; más, se pide coordinar con la tienda) y
    reparte el valor declarado entre los bultos.
-4. Llama `GET /v1/tarifas` una vez por contrato. Sin tarifa o con error, esa
-   opción no se ofrece y el checkout sigue con los demás medios.
+4. Llama `GET /v1/tarifas` una vez por contrato, las dos a la vez. Sin tarifa
+   o con error, esa opción no se ofrece y el checkout sigue con los demás
+   medios.
 5. Cada opción vuelve con un token firmado (purpose
    `Tiendafy.Shipping.AndreaniQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). En el submit, `CheckoutEndpoints` desprotege el token y
    el precio sale de ahí, nunca del navegador. Si el carrito cambió, el submit
-   pide recotizar.
+   pide recotizar. Lo mismo si la entrega es a domicilio y el código postal de la dirección
+   (el campo `postalCode` del submit y el "CP …" de la dirección) no es el
+   cotizado: se comparan los 4 dígitos, así que un CPA como `C1425ABC` vale
+   como `1425` (`Api/Shipping/ShippingPostalCode.cs`). El rechazo es
+   `Checkout.PostalCodeChanged` y la tienda vuelve al paso de envío con las
+   opciones borradas; cambiar el CP de la cotización también las borra.
 
 Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
 
@@ -127,9 +137,11 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
    Andreani. Ver `backend/src/Api/Shipping/ShipmentWriteAhead.cs`:
    - Andreani rechaza (error con respuesta): la reserva se suelta y se puede
      reintentar.
-   - Andreani no responde (timeout, red): 502 avisando que el envío pudo
-     haberse creado y que hay que mirarlo en su panel antes de reintentar; la
-     reserva se suelta.
+   - Andreani no responde a la orden (timeout, red): 502 avisando que el envío
+     pudo haberse creado y que hay que mirarlo en su panel antes de reintentar;
+     la reserva se suelta. Si el que no responde es el login, la orden ni se
+     mandó: 400 "Andreani no respondió a tiempo. Probá de nuevo en unos
+     minutos." y se puede reintentar.
    - Andreani lo creó pero no se pudo guardar: la reserva queda `needs_review`
      (log crítico con el número) y la venta no deja crear otro. La venta lo
      avisa en lugar de "Crear envío", con dos salidas (permiso de despacho,
@@ -138,11 +150,11 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
      anda) o **"Ya lo revisé: no se creó"** (suelta la reserva y se puede
      crear de nuevo). Lógica en `Api/Shipping/ShipmentReview.cs`.
    - El proceso murió a mitad de camino: la reserva vence a los 5 minutos.
-3. Login (`POST /login`, Basic) → token en el header de respuesta
-   `x-authorization-token`, que se reenvía en ese mismo header (no Bearer).
-4. `POST /ordenes-de-envio`, **sin reintentos**. Un bulto por unidad vendida;
-   si se carga a mano la cantidad de bultos, manda eso. **Ojo:** esa ruta sin
-   versión da 404 en la API real; ver "Lo que aprendimos", punto 17.
+3. Login (`GET /login`, Basic) → token en el header de respuesta
+   `x-authorization-token` (si no viene, se lee `token` del cuerpo), que se
+   reenvía en ese mismo header (no Bearer).
+4. `POST /v2/ordenes-de-envio`, **sin reintentos**. Un bulto por unidad
+   vendida; si se carga a mano la cantidad de bultos, manda eso.
 5. Se guarda el número de seguimiento del primer bulto (el que ve el
    comprador), todos los números y la URL de la etiqueta tal cual vino.
 
@@ -152,11 +164,15 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
   path cambió entre versiones de la API; armarlo a mano da 404). En lote, se
   hace un login por lote y los PDF se unen en uno (`CarrierLabels.Merge`).
 - El seguimiento es **a pedido** desde el botón "Seguimiento" de la venta
-  (`GET /envios/{n}/trazas`, que también da 404 sin versión: ver punto 17); no
-  hay polling ni webhook. Con el estado `DELIVERED`, "Seguí tu pedido" marca
+  (`GET /v2/envios/{n}/trazas`); no hay polling ni webhook. Con el estado `DELIVERED`, "Seguí tu pedido" marca
   el pedido como entregado. El último evento se traduce con `AndreaniStatusMap` y
   se guarda junto con el estado crudo. Lo que no se reconoce queda como
   `UNKNOWN` y se loguea ("Estado de Andreani sin mapear") para poder sumarlo.
+- Si Andreani no contesta (timeout, red caída o respuesta ilegible), la prueba
+  de conexión, la etiqueta y el seguimiento dicen "Andreani no respondió a
+  tiempo. Probá de nuevo en unos minutos." en vez de un 500, y queda un
+  warning en el log. En la impresión en lote, esa venta sale con ese motivo y
+  las demás etiquetas siguen (`CarrierNoAnswer`, común a los carriers).
 
 ## Lo que aprendimos de la API real
 
@@ -203,17 +219,22 @@ el contrato de ejemplo de la documentación pública:
     (pendiente de ingreso), 5 (ingreso al circuito), 6 (en distribución) y 11
     (visita); el resto se interpreta por el nombre, de forma conservadora.
 17. **Crear envíos y trazas también llevan versión.** Sondeo sin credenciales
-    del 18-oct-2026 (producción / QA): `POST /ordenes-de-envio` da 404 / 403 y
-    `POST /v2/ordenes-de-envio`, 401; `GET /envios/{n}/trazas` da 404 / 403 y
-    `GET /v1/envios/{n}/trazas` (y `/v2/...`), 401. Un 401 quiere decir que la
+    del 18 y el 19-oct-2026 (producción / QA): `POST /ordenes-de-envio` da
+    404 / 403 y `POST /v2/ordenes-de-envio`, 401; `GET /envios/{n}/trazas` da
+    404 / 403 y `GET /v2/envios/{n}/trazas`, 401. Un 401 quiere decir que la
     ruta existe y pide token; el 404 o el 403 sin versión es el mismo síntoma
-    que tenía `/tarifas`. Los dos clientes de terceros que revisamos
-    (`lpetrora/node-andreani-api` y `alejoasotelo/andreani-sdk-rest`) usan
-    `/v2/ordenes-de-envio`, `/v1/envios/{n}/trazas` y `GET /login`. **El
-    cliente de Tiendafy todavía usa las rutas sin versión** (`AndreaniClient.cs`):
-    hay que corregirlo antes de la primera prueba con credenciales. `/login`
-    contesta lo mismo a GET y a POST sin credenciales (422), así que el método
-    queda por confirmar.
+    que tenía `/tarifas`. Las planillas oficiales dicen lo mismo: la orden es
+    `POST /v2/ordenes-de-envio` (y `GET /v2/ordenes-de-envio/{numero}` para
+    consultarla), la etiqueta `GET /v2/ordenes-de-envio/{numero}/etiquetas`
+    (el cliente usa la URL que viene en la respuesta de la orden, que es esa)
+    y las trazas `GET /v2/envios/{n}/trazas`. Esa versión de las trazas está
+    marcada "a deprecar": hay una `GET /v3/envios/{n}/trazas` (también da 401)
+    cuyos eventos traen `Evento`, `Motivo` y `Estado` pero **no `EstadoId`**;
+    pasarse obliga a mapear por nombre (ver Pendiente). `/v1/envios/{n}/trazas`
+    también contesta 401, pero no figura en la documentación. El login es
+    `GET /login` con Basic según la documentación: el `POST` existe pero
+    valida un cuerpo con `userName` y contraseña ("parámetros incorrectos en
+    el cuerpo").
 
 Sin credenciales reales quedó sin verificar: el TTL del token de login, el
 esquema vigente del cuerpo de `POST /v2/ordenes-de-envio`, si hay etiqueta ZPL
@@ -244,23 +265,17 @@ de QA y después las de producción.
 
 ## Pendiente
 
-- **Pasar el cliente a las rutas con versión** (`/v2/ordenes-de-envio`,
-  `/v1/envios/{n}/trazas`; ver punto 17) y ajustar el Andreani simulado de los
-  tests, que hoy acepta las rutas sin versión.
+- Pasar las trazas a `/v3/envios/{n}/trazas` antes de que Andreani apague la
+  v2 (punto 17): la v3 no trae `EstadoId` y `AndreaniStatusMap` tendría que
+  mapear por `Evento`/`Estado`.
 - Conseguir credenciales reales (alta comercial) y probar de punta a punta:
   login, orden de envío, etiqueta y trazas.
 - Confirmar con Andreani el cuerpo vigente de `POST /v2/ordenes-de-envio`, el
-  método de `/login`, el TTL del token, la restricción por IP y el catálogo de
+  TTL del token (la documentación dice 24 h), la restricción por IP y el catálogo de
   estados.
 - El comprador no elige la sucursal en el checkout: si cotizó retiro en
   sucursal, el operador carga el id de sucursal al despachar. `GET
   /v2/sucursales` responde sin token y alcanzaría para un selector.
-- Las dos cotizaciones (domicilio y sucursal) van en serie, 6 s cada una: si
-  Andreani está lento, la segunda puede llegar después de que el checkout dejó
-  de esperar (10 s). Hacerlas en paralelo o bajar el tope.
-- La prueba de conexión, la etiqueta y el seguimiento solo atrapan los errores
-  con respuesta de Andreani: un timeout o la red caída salen como 500 (Zipnova
-  ya los trata como falla del proveedor).
 - No hay seguimiento automático ni avisos al comprador por cambio de estado
   (el seguimiento se consulta a pedido desde el panel).
 - Si el proceso muere justo después de que Andreani creó el envío, la reserva

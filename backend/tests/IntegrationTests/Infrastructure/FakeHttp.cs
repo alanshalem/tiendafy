@@ -81,6 +81,9 @@ public sealed class FakeHttp
 
     private async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken ct)
     {
+        // Como la red de verdad, el pedido no se resuelve en el mismo hilo de
+        // quien lo hace: sin esto, dos llamadas "en paralelo" corrían de a una.
+        await Task.Yield();
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
         var headers = request.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
         _requests.Enqueue(new Recorded(request.Method, request.RequestUri!, body, headers));

@@ -227,12 +227,16 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
         }
     }
 
-    /// <summary>GET /shipping/tracking — eventos de seguimiento de un envío.</summary>
+    /// <summary>
+    /// GET /shipping/tracking — eventos de seguimiento de un envío. El
+    /// <c>shippingId</c> va en un cuerpo JSON aunque sea un GET: con el id en
+    /// la query, MiCorreo responde 415 (sondeo sin credenciales del 18 y el
+    /// 19-oct-2026; con el cuerpo pasa a pedir el token).
+    /// </summary>
     public async Task<IReadOnlyList<MiCorreoTracking>> GetTrackingAsync(
         MiCorreoCredentials creds, string shippingId, CancellationToken ct)
     {
-        var body = await SendAsync(creds, HttpMethod.Get,
-            $"/shipping/tracking?shippingId={Uri.EscapeDataString(shippingId)}", payload: null, ct);
+        var body = await SendAsync(creds, HttpMethod.Get, "/shipping/tracking", new { shippingId }, ct);
 
         // El server responde array (con eventos), objeto suelto (sin eventos) o
         // un objeto de error {date, error, code} — normalizamos los tres.

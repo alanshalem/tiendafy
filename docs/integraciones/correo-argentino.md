@@ -99,7 +99,12 @@ Se carga en **Configuración → Medios de envío → Correo Argentino**:
 5. Cada opción vuelve con un token firmado (purpose
    `Tiendafy.Shipping.CorreoQuote.v1`, 30 minutos, atado al tenant, la cantidad
    de unidades y la huella del carrito). El precio sale del token al confirmar;
-   si el carrito cambió, se pide recotizar.
+   si el carrito cambió, se pide recotizar. Lo mismo si la entrega es a domicilio y el código postal de la dirección
+   (el campo `postalCode` del submit y el "CP …" de la dirección) no es el
+   cotizado: se comparan los 4 dígitos, así que un CPA como `C1425ABC` vale
+   como `1425` (`Api/Shipping/ShippingPostalCode.cs`). El rechazo es
+   `Checkout.PostalCodeChanged` y la tienda vuelve al paso de envío con las
+   opciones borradas; cambiar el CP de la cotización también las borra.
 6. Si MiCorreo falla (error, timeout de 8 s, red caída o respuesta ilegible),
    la cotización devuelve sin opciones y con un mensaje: el checkout sigue con
    los medios manuales. El timeout y la red caída quedan logueados como
@@ -145,6 +150,13 @@ muestra el último evento. Sin número, dice que hay que cargarlo en la venta.
 Las altas hechas antes de que se registraran (o directo en la web de MiCorreo)
 no muestran el seguimiento desde el panel.
 
+Si MiCorreo no contesta (timeout, red caída o respuesta ilegible), el
+seguimiento, la prueba de conexión y obtener el `customerId` con el email de
+MiCorreo dicen "Correo Argentino no respondió a tiempo. Probá de nuevo en unos
+minutos." en vez de un 500. Al confirmar una compra a sucursal, si no se puede
+leer la dirección de la sucursal, el pedido sale igual con el código
+("Sucursal Correo Argentino B0107").
+
 ### Autenticación
 
 `POST /token` con Basic (`userToken:passwordToken`) devuelve un JWT que dura
@@ -173,9 +185,9 @@ un sondeo sin credenciales del 18-oct-2026 (ver el último punto).
   inventada da 404). `GET /shipping/tracking?shippingId=…` sin cuerpo da
   **415**, y con `Content-Type: application/json` pero sin cuerpo, 500; con
   el cuerpo `{"shippingId": "…"}` pasa a validar el token (401 con uno
-  falso). `MiCorreoClient.GetTrackingAsync` manda la query sin cuerpo: con
-  credenciales reales, el botón Seguimiento fallaría. Hay que pasarlo al
-  cuerpo antes de probar.
+  falso). Desde el 19-oct, `MiCorreoClient.GetTrackingAsync` lo manda así: un
+  GET con el cuerpo `{"shippingId": "…"}` y sin query. El MiCorreo simulado de
+  los tests responde 415 si llega sin cuerpo, como el real.
 
 ## Cómo probar
 
@@ -192,16 +204,11 @@ un sondeo sin credenciales del 18-oct-2026 (ver el último punto).
 
 ## Pendiente
 
-- **Mandar el `shippingId` del seguimiento en el cuerpo** (ver "Lo que
-  aprendimos") y ajustar el MiCorreo simulado de los tests.
 - **Probar con credenciales reales** (TEST y después PROD): auth, rates,
   agencies, import y tracking.
 - Confirmar el rechazo de un `extOrderId` repetido (hoy no importa: el guard
   es nuestro) y el formato real de la fecha de los eventos de tracking (se
   lee `dd-mm-aaaa hh:mm`, ISO o `aaaa-mm-dd`).
-- La prueba de conexión y el seguimiento del panel solo atrapan los errores
-  con respuesta de MiCorreo: un timeout o la red caída salen como 500 (Zipnova
-  ya los trata como falla del proveedor).
 - Despacho y la impresión en lote reconocen las ventas de Correo por el
   nombre del medio de envío, no por el alta registrada: no muestran si ya se
   dio de alta en MiCorreo (y la etiqueta no existe por API).

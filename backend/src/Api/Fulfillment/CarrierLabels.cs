@@ -112,6 +112,14 @@ public sealed class CarrierLabels(
                 logger.LogWarning("Etiqueta de {Carrier} falló para la venta {OrderId}: {Message}", shipment.Carrier, id, ex.Message);
                 results.Add(new LabelOutcome(id, number, shipment.Carrier, "error", ex.Message));
             }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                // Sin respuesta es lo mismo que un error del carrier: esa
+                // etiqueta queda afuera y el lote sigue.
+                logger.LogWarning(ex, "{Carrier} no respondió al pedir la etiqueta de la venta {OrderId}.", shipment.Carrier, id);
+                results.Add(new LabelOutcome(id, number, shipment.Carrier, "error",
+                    CarrierNoAnswer.Message(shipment.Carrier == Carrier.Andreani ? "Andreani" : "Zipnova")));
+            }
         }
 
         return new LabelBatch(results, pdfs.Count == 0 ? null : Merge(pdfs));

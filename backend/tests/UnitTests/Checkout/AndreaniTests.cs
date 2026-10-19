@@ -1,5 +1,7 @@
+using System.Net;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Carriers;
+using Microsoft.Extensions.Logging.Abstractions;
 using SharedKernel.Common;
 
 namespace UnitTests.Checkout;
@@ -181,5 +183,92 @@ public class AndreaniShipmentTests
         // perder la información.
         Assert.Equal("Un estado nuevo", shipment.RawStatus);
         Assert.Equal(77, shipment.RawStatusId);
+    }
+}
+
+/// <summary>
+/// Las rutas que usa el cliente contra la API real. Sin versión, producción
+/// responde 404: crear envíos y consultar trazas no habrían andado nunca.
+/// </summary>
+public class AndreaniClientRoutesTests
+{
+    private sealed class Recorder(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> Sent { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Sent.Add(request);
+            return Task.FromResult(respond(request));
+        }
+    }
+
+    private static AndreaniConfig Config()
+    {
+        var config = AndreaniConfig.Create(Guid.NewGuid(), "cifrada").Value;
+        config.Update("usuario", null, null, "300006611", null, null, useQa: false, null,
+            "Tienda SRL", "ventas@tienda.com", "CUIT", "30712345678", null,
+            "Av. Santa Fe", "3253", "C.A.B.A.", "1425", 1000, 30, 20, 15, active: true);
+        return config;
+    }
+
+    private static HttpResponseMessage Json(string body) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+
+    [Fact]
+    public async Task ElLoginEsUnGetConBasicYElTokenVuelveEnElHeader()
+    {
+        var handler = new Recorder(_ =>
+        {
+            var res = new HttpResponseMessage(HttpStatusCode.OK);
+            res.Headers.Add("x-authorization-token", "tok-1");
+            return res;
+        });
+        var client = new AndreaniClient(new HttpClient(handler), NullLogger<AndreaniClient>.Instance);
+
+        Assert.Equal("tok-1", await client.LoginAsync(Config(), "clave", CancellationToken.None));
+
+        var sent = Assert.Single(handler.Sent);
+        Assert.Equal(HttpMethod.Get, sent.Method);
+        Assert.Equal("https://apis.andreani.com/login", sent.RequestUri!.ToString());
+        Assert.Equal("Basic", sent.Headers.Authorization?.Scheme);
+    }
+
+    [Fact]
+    public async Task SinElHeaderElTokenSeLeeDelCuerpo()
+    {
+        var client = new AndreaniClient(new HttpClient(new Recorder(_ => Json("""{"token":"tok-2"}"""))),
+            NullLogger<AndreaniClient>.Instance);
+        Assert.Equal("tok-2", await client.LoginAsync(Config(), "clave", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task LaOrdenDeEnvioVaAV2()
+    {
+        var handler = new Recorder(_ => Json("""{"bultos":[{"numeroDeEnvio":"360000000036820"}]}"""));
+        var client = new AndreaniClient(new HttpClient(handler), NullLogger<AndreaniClient>.Instance);
+
+        var created = await client.CreateShipmentAsync(Config(), "tok", new { contrato = "300006611" }, CancellationToken.None);
+
+        Assert.Equal("360000000036820", created.TrackingNumber);
+        var sent = Assert.Single(handler.Sent);
+        Assert.Equal(HttpMethod.Post, sent.Method);
+        Assert.Equal("https://apis.andreani.com/v2/ordenes-de-envio", sent.RequestUri!.ToString());
+        Assert.Equal("tok", sent.Headers.GetValues("x-authorization-token").Single());
+    }
+
+    [Fact]
+    public async Task LasTrazasVanAV2ConElNumeroDeEnvio()
+    {
+        var handler = new Recorder(_ => Json(
+            """{"eventos":[{"Fecha":"2026-10-01T10:00:00","EstadoId":6,"Estado":"En distribución"}]}"""));
+        var client = new AndreaniClient(new HttpClient(handler), NullLogger<AndreaniClient>.Instance);
+
+        var events = await client.GetTracesAsync(Config(), "tok", "360000000036820", CancellationToken.None);
+
+        Assert.Equal(6, Assert.Single(events).StateId);
+        var sent = Assert.Single(handler.Sent);
+        Assert.Equal(HttpMethod.Get, sent.Method);
+        Assert.Equal("https://apis.andreani.com/v2/envios/360000000036820/trazas", sent.RequestUri!.ToString());
     }
 }
