@@ -23,6 +23,12 @@ public sealed record SettleResult(
 /// <summary>
 /// Aplica el resultado de un pago a la orden. Idempotente: si la orden ya está
 /// en estado final no reprocesa (no doble-confirma stock ni reenvía emails).
+///
+/// Un pago aprobado nunca se ignora en silencio: sobre una venta que figuraba
+/// rechazada o cancelada sin cobrar, la deja pagada (con todos los efectos de
+/// una venta pagada); sobre una ya cobrada con otro pago, la deja "para
+/// revisar" porque el comprador pagó dos veces. Ninguno de los dos casos mueve
+/// plata solo: devolver lo decide el comercio.
 /// </summary>
 public sealed class SettlePaymentHandler(
     IOrderRepository repository,
@@ -42,8 +48,31 @@ public sealed class SettlePaymentHandler(
 
         if (status == "approved")
         {
+            // Un pago aprobado sobre una venta que ya no lo esperaba: en Checkout
+            // Pro, otra tarjeta después de un rechazo (cada intento es un pago con
+            // el mismo external_reference); o un pago en efectivo que se acredita
+            // después de que la venta venció. El comprador pagó: queda pagada.
+            if (order.Status is OrderStatus.Failed or OrderStatus.Cancelled && order.PaidAtUtc is null)
+                return await ReviveAsync(order, paymentId, mpFee, ct);
+
             if (!order.IsPending)
             {
+                // Otro pago aprobado sobre una venta ya cobrada: el comprador
+                // pagó dos veces (o pagó un link de una venta que ya se cobró
+                // por otro lado). Nadie se enteraba; ahora queda para revisar.
+                if (IsAnotherPayment(order, paymentId))
+                {
+                    if (OrderStatuses.IsEarning(order.Status) && order.ReviewNote?.Contains(paymentId!, StringComparison.Ordinal) != true)
+                    {
+                        order.AddReviewNote(
+                            $"Entró otro pago aprobado (#{paymentId}) para esta venta, que ya estaba cobrada: el comprador pagó dos veces. Devolvé uno de los dos pagos desde la cuenta de la pasarela.");
+                        await repository.SaveChangesAsync(ct);
+                    }
+                    logger.LogWarning("Order {OrderId} ya {Status} con el pago {OrderPaymentId}: llegó otro pago aprobado {PaymentId}.",
+                        orderId, order.Status, order.PaymentId, paymentId);
+                    return new SettleResult(SettleOutcome.NoChange, order);
+                }
+
                 // La comisión de un pago que se aplicó sin ella: el cobro con
                 // tarjeta en la tienda (Brick) marca la orden pagada en el momento
                 // y MP no informa el neto en esa respuesta. Cuando llega el
@@ -112,6 +141,15 @@ public sealed class SettlePaymentHandler(
             return new SettleResult(SettleOutcome.NoChange, order);
         }
 
+        // Un reembolso o un contracargo de OTRO pago (el duplicado que el
+        // comercio devolvió desde la pasarela) no es de la venta: no la toca.
+        if (status is "refunded" or "charged_back" or "in_mediation" && IsAnotherPayment(order, paymentId))
+        {
+            logger.LogWarning("Order {OrderId}: '{Status}' del pago {PaymentId}, que no es el que la cobró ({OrderPaymentId}); sin cambios.",
+                orderId, status, paymentId, order.PaymentId);
+            return new SettleResult(SettleOutcome.NoChange, order);
+        }
+
         if (status == "refunded")
         {
             var before = order.RefundedAmount.AmountInMinorUnits;
@@ -139,6 +177,37 @@ public sealed class SettlePaymentHandler(
         logger.LogInformation("Order {OrderId}: pago '{Status}', sin cambios.", orderId, status);
         return new SettleResult(SettleOutcome.NoChange, order);
     }
+
+    /// <summary>
+    /// Pago aprobado sobre una venta rechazada o cancelada que nunca se cobró
+    /// (ver <see cref="Order.MarkPaidLate"/>): queda pagada y para revisar, el
+    /// stock se descuenta como en cualquier pago tardío y el caller corre los
+    /// efectos de una venta pagada (es <see cref="SettleOutcome.JustPaid"/>).
+    /// Guardar primero reclama el pago (xmin), como en el camino normal: el
+    /// worker de abandonadas o el comercio cancelando en el mismo instante no
+    /// la procesan dos veces.
+    /// </summary>
+    private async Task<Result<SettleResult>> ReviveAsync(Order order, string? paymentId, decimal? mpFee, CancellationToken ct)
+    {
+        var was = order.Status;
+        var revived = order.MarkPaidLate(paymentId ?? string.Empty);
+        if (revived.IsFailure) return Result.Failure<SettleResult>(revived.Error);
+        if (mpFee is > 0m)
+            order.RecordMpFee(Money.FromDecimal(mpFee.Value, order.Currency));
+        await repository.SaveChangesAsync(ct);
+
+        await SettleStockAsync(order, ct);
+
+        logger.LogWarning("Order {OrderId} estaba {Status} y entró el pago aprobado {PaymentId}: queda PAGADA y para revisar.",
+            order.Id, was, paymentId);
+        return new SettleResult(SettleOutcome.JustPaid, order);
+    }
+
+    /// <summary>Un pago que no es el que cobró la venta (la venta se cobró y con otro).</summary>
+    private static bool IsAnotherPayment(Order order, string? paymentId) =>
+        !string.IsNullOrEmpty(paymentId) && !string.IsNullOrEmpty(order.PaymentId)
+        && order.PaidAtUtc is not null
+        && !string.Equals(order.PaymentId, paymentId, StringComparison.Ordinal);
 
     /// <summary>
     /// El stock de la venta recién pagada (ver <see cref="PaidOrderStock"/>).

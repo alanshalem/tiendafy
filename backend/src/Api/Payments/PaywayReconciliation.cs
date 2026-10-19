@@ -109,13 +109,15 @@ public sealed class PaywayReconciliationService(
                 var paid = await settle.HandleAsync(attempt.OrderId, "approved", paymentId, ct: ct);
                 await paidEffects.RunIfJustPaidAsync(paid, ct);
 
-                // Payway cobró, pero la orden ya no esperaba ese pago (se canceló
-                // o se cobró por otro lado): hay plata que devolver a mano.
+                // Payway cobró, pero la orden ya se había cobrado por otro lado:
+                // el comprador pagó dos veces y la venta quedó para revisar. (Una
+                // rechazada o cancelada sin cobrar ya no cae acá: el settle la
+                // deja pagada, JustPaid.)
                 if (paid.IsSuccess && paid.Value.Outcome != SettleOutcome.JustPaid
                     && paid.Value.Order is { } order && order.PaymentId != paymentId)
                 {
                     logger.LogError(
-                        "Payway aprobó el pago {PaymentId} de la orden {OrderId}, que ya estaba {Status}. Revisar y devolver.",
+                        "Payway aprobó el pago {PaymentId} de la orden {OrderId}, que ya estaba {Status} con otro pago. Quedó para revisar.",
                         paymentId, attempt.OrderId, order.Status);
                 }
                 else

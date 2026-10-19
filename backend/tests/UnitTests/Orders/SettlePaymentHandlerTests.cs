@@ -165,7 +165,7 @@ public class SettlePaymentHandlerTests
         await handler.HandleAsync(order.Id, "approved", "pay-otro", mpFee: 50m);
 
         Assert.Null(order.MpFeeAmount);
-        Assert.Equal(0, repo.Saves);
+        Assert.Equal(1, repo.Saves); // solo la nota "pagó dos veces" (ver el test de abajo)
     }
 
     [Fact]
@@ -180,6 +180,87 @@ public class SettlePaymentHandlerTests
         Assert.Equal(SettleOutcome.Failed, result.Value.Outcome);
         Assert.Equal(OrderStatus.Failed, order.Status);
         Assert.Equal([reserva], inv.Released); // el stock vuelve
+    }
+
+    [Fact]
+    public async Task Approved_despues_de_un_rechazo_deja_la_venta_pagada_y_para_revisar()
+    {
+        // Checkout Pro: la primera tarjeta se rechaza (la venta queda fallida y
+        // su reserva se libera) y el comprador paga con otra en el mismo link.
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out _, out var inv);
+        await handler.HandleAsync(order.Id, "rejected", "pay-rechazado");
+        inv.ConfirmFails = true; // la reserva ya se liberó
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-ok", mpFee: 10m);
+
+        Assert.Equal(SettleOutcome.JustPaid, result.Value.Outcome); // corren email, factura, cupón…
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal("pay-ok", order.PaymentId);
+        Assert.NotNull(order.PaidAtUtc);
+        Assert.Equal(1_000, order.MpFeeAmount?.AmountInMinorUnits);
+        Assert.Contains("con el pago rechazado", order.ReviewNote);
+        Assert.Single(inv.Deducted); // el stock se descuenta de nuevo
+
+        // El aviso repetido del mismo pago no la vuelve a procesar.
+        var again = await handler.HandleAsync(order.Id, "approved", "pay-ok");
+        Assert.Equal(SettleOutcome.NoChange, again.Value.Outcome);
+        Assert.Single(inv.Deducted);
+    }
+
+    [Fact]
+    public async Task Approved_sobre_una_cancelada_sin_cobrar_la_deja_pagada_con_el_motivo()
+    {
+        var order = Orden();
+        order.Cancel("sistema", "No se completó el pago");
+        var handler = Handler(order, out _, out _);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-efectivo");
+
+        Assert.Equal(SettleOutcome.JustPaid, result.Value.Outcome);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Null(order.CancelledAtUtc);
+        Assert.Contains("Figuraba cancelada (No se completó el pago)", order.ReviewNote);
+    }
+
+    [Fact]
+    public async Task Otro_pago_aprobado_sobre_una_venta_cobrada_queda_para_revisar_una_vez()
+    {
+        var order = Orden();
+        order.MarkPaid("pay-1");
+        var handler = Handler(order, out var repo, out var inv);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-2", amountRefunded: 0m, mpFee: 5m);
+
+        Assert.Equal(SettleOutcome.NoChange, result.Value.Outcome);
+        Assert.Equal("pay-1", order.PaymentId);
+        Assert.Contains("pagó dos veces", order.ReviewNote);
+        Assert.Contains("#pay-2", order.ReviewNote);
+        Assert.Null(order.MpFeeAmount); // la comisión de otro pago no es de esta venta
+        Assert.Empty(inv.Confirmed);
+
+        await handler.HandleAsync(order.Id, "approved", "pay-2");
+        Assert.Single(order.ReviewNote!.Split('\n'));
+        Assert.Equal(1, repo.Saves);
+
+        // Y si el comercio devuelve el duplicado desde Mercado Pago, la venta no se toca.
+        var refunded = await handler.HandleAsync(order.Id, "refunded", "pay-2");
+        Assert.Equal(SettleOutcome.NoChange, refunded.Value.Outcome);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+    }
+
+    [Fact]
+    public async Task Una_venta_devuelta_no_se_revive()
+    {
+        var order = Orden();
+        order.MarkPaid("pay-1");
+        order.MarkRefunded();
+        var handler = Handler(order, out _, out _);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-1");
+
+        Assert.Equal(SettleOutcome.NoChange, result.Value.Outcome);
+        Assert.Equal(OrderStatus.Refunded, order.Status);
     }
 
     [Fact]

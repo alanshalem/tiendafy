@@ -434,7 +434,7 @@ export const VENTAS = {
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Si te avisamos que no pudimos anular el link en Mercado Pago, la venta queda cancelada igual: si el cliente paga de todos modos, vas a tener que devolverle la plata desde Mercado Pago.',
+            text: 'Si te avisamos que no pudimos anular el link en Mercado Pago, la venta queda cancelada igual. Si el cliente paga de todos modos, la venta pasa a pagada y queda para revisar: entregala o devolvele la plata.',
           },
         ],
       },
@@ -443,6 +443,8 @@ export const VENTAS = {
         paragraphs: [
           'A veces la plata entra cuando la venta ya no lo esperaba: el comprador tardó en pagar y el stock que le guardábamos volvió a la venta. La venta queda pagada igual (con su email, su factura y todo lo de siempre) y el stock se descuenta en ese momento.',
           'Si para entonces ya no había stock de algún producto, la venta queda “para revisar”: en Inicio, “Para hacer hoy” te avisa y te lleva a Ventas ya filtrado, y arriba del detalle de la venta dice qué falta. Reponé el stock o devolvé el pago, y tocá “Ya lo revisé” para sacarla de la lista.',
+          'También queda para revisar una venta que figuraba cancelada o con el pago rechazado y después se pagó (por ejemplo, en Mercado Pago le rechazaron una tarjeta y pagó con otra, o pagó en efectivo un cupón que había sacado antes de que la venta se cancelara): pasa a pagada con todo lo de siempre, y vos decidís si la entregás o devolvés la plata. Y si entra un segundo pago para una venta ya cobrada (el cliente pagó dos veces), te lo avisamos ahí mismo para que devuelvas uno.',
+          'Nunca devolvemos plata solos: eso lo decidís vos.',
         ],
       },
       {

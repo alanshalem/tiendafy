@@ -81,6 +81,63 @@ public sealed class LatePaymentTests(ApiFactory factory)
             o => o.GetProperty("id").GetGuid() == orderId);
     }
 
+    /// <summary>
+    /// Checkout Pro deja reintentar en el mismo link: cada intento es un pago
+    /// con el mismo external_reference. El rechazo de la primera tarjeta deja
+    /// la venta fallida (y el stock vuelve a la venta); el aprobado de la
+    /// segunda antes se ignoraba "por idempotente" y el comprador quedaba
+    /// cobrado con la venta fallida.
+    /// </summary>
+    [Fact]
+    public async Task Un_rechazo_y_despues_un_aprobado_en_la_misma_venta_la_dejan_pagada()
+    {
+        var (merchant, mpUserId, shopper) = await StoreAsync("tarr");
+        var (_, variantId) = await merchant.CreateProductAsync("Linterna", priceMinor: 8_000_00, stock: 2);
+        var buyer = $"reintento-{merchant.Subdomain}@test.local";
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId, email: buyer);
+
+        await NotifyAsync(mpUserId, orderId, NewPaymentId(), "rejected");
+        Assert.Equal("FAILED", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+        await AssertStockAsync(merchant, variantId, available: 2, reserved: 0);
+
+        var approved = NewPaymentId();
+        await ApproveAsync(mpUserId, orderId, approved);
+
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("PAID", order.GetProperty("status").GetString());
+        Assert.Equal(approved, order.GetProperty("paymentId").GetString());
+        Assert.Contains("con el pago rechazado", order.GetProperty("reviewNote").GetString());
+        await AssertStockAsync(merchant, variantId, available: 1, reserved: 0);
+        // Con todo lo de una venta pagada: el comprador recibe la confirmación.
+        Assert.Contains(factory.ExternalHttp.SentTo(ApiFactory.ResendEmails),
+            r => r.Body!.Contains(buyer) && r.Body.Contains("Confirmamos tu pago"));
+
+        // El aviso repetido del mismo pago no descuenta dos veces.
+        await MercadoPagoWebhooks.SendAsync(factory, approved, mpUserId);
+        await MercadoPagoWebhooks.DrainAsync(factory);
+        await AssertStockAsync(merchant, variantId, available: 1, reserved: 0);
+    }
+
+    [Fact]
+    public async Task Un_pago_aprobado_sobre_una_venta_cancelada_a_mano_la_deja_pagada_y_para_revisar()
+    {
+        var (merchant, mpUserId, shopper) = await StoreAsync("tarc");
+        var (_, variantId) = await merchant.CreateProductAsync("Reposera", priceMinor: 30_000_00, stock: 1);
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId);
+
+        // El comercio la cancela (y el link no se pudo anular en MP).
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/cancel", new { reason = "El cliente no contestó" });
+        await AssertStockAsync(merchant, variantId, available: 1, reserved: 0);
+
+        await ApproveAsync(mpUserId, orderId, NewPaymentId());
+
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("PAID", order.GetProperty("status").GetString());
+        Assert.Contains("Figuraba cancelada (El cliente no contestó)", order.GetProperty("reviewNote").GetString());
+        Assert.Equal(JsonValueKind.Null, order.GetProperty("cancelledAtUtc").ValueKind);
+        await AssertStockAsync(merchant, variantId, available: 0, reserved: 0);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private async Task<(Merchant Merchant, long MpUserId, Shopper Shopper)> StoreAsync(string tag)
@@ -94,9 +151,10 @@ public sealed class LatePaymentTests(ApiFactory factory)
     private static string NewPaymentId() => Random.Shared.NextInt64(100_000_000, 999_999_999).ToString();
 
     /// <summary>El comprador va a pagar con Checkout Pro: la venta queda pendiente con su link.</summary>
-    private async Task<Guid> PayWithCheckoutProAsync(Shopper shopper, Guid variantId, int quantity = 1)
+    private async Task<Guid> PayWithCheckoutProAsync(Shopper shopper, Guid variantId, int quantity = 1,
+        string email = "comprador@test.local")
     {
-        var checkoutId = await shopper.CheckoutAsync(variantId, quantity);
+        var checkoutId = await shopper.CheckoutAsync(variantId, quantity, email: email);
         var preferenceId = $"pref-{Guid.NewGuid():N}";
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/checkout/preferences",
             new { id = preferenceId, init_point = $"https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id={preferenceId}" });

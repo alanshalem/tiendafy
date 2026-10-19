@@ -117,8 +117,11 @@ pagando por transferencia o en efectivo, `Checkout.OtherMethod`.
 
 Esto cubre el mismo pedido repetido. Cada vez que el comprador aprieta pagar,
 la tienda envía la compra de nuevo (`reserve` en `CheckoutClient.tsx`) y eso
-arma otra sesión: una tarjeta rechazada deja la orden `Failed` y el reintento
-con otra tarjeta es otra orden.
+arma otra sesión: con el Brick, una tarjeta rechazada deja la orden `Failed` y
+el reintento con otra tarjeta es otra orden. En Checkout Pro el reintento pasa
+dentro de Mercado Pago, sobre la misma preference y la misma orden: el
+aprobado que llega después del rechazo la deja pagada (ver la tabla del
+webhook).
 
 **Checkout integrado.** El Brick tokeniza con la `publicKey` del vendedor
 (`GET /payments/mercadopago/public-config`), y `POST /checkout/{id}/pay-onsite`
@@ -173,6 +176,8 @@ el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 | `status` de MP | Qué pasa |
 |---|---|
 | `approved` | Orden pendiente → `Paid`, confirma las reservas (la que ya no está activa —se pagó después de que venciera— se suelta si hacía falta y se descuenta directo del stock; si no alcanza, la venta queda pagada igual y "para revisar", ver abajo), guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció (un parcial hecho en la cuenta de Mercado Pago), aplica la diferencia como reembolso, avisa al comprador y emite la nota de crédito de ese tramo |
+| `approved` sobre una orden `Failed` o `Cancelled` que nunca se cobró | → `Paid` (`Order.MarkPaidLate`) con todo lo de una venta pagada (avisos, factura, cupón) y el stock como un pago tardío; queda "para revisar" diciendo cómo figuraba. Pasa en Checkout Pro cuando la primera tarjeta se rechaza y el comprador paga con otra en el mismo link (cada intento es un pago con el mismo `external_reference`), o con un pago en efectivo que se acredita después de que la venta venció. No se devuelve nada solo |
+| `approved` de otro pago sobre una orden ya cobrada | Sin cambios de estado; queda "para revisar" (el comprador pagó dos veces). Un `refunded` o un contracargo de ese otro pago tampoco toca la orden |
 | `rejected`, `cancelled` | Orden pendiente → `Failed`, libera reservas |
 | `refunded` | → `Refunded`, con el aviso de reembolso y la nota de crédito del tramo que faltaba |
 | `charged_back`, `in_mediation` | → `ChargedBack` |
@@ -221,7 +226,8 @@ Después de la plata, por cada reembolso (total o parcial):
 **Ventas para revisar.** Lo que el sistema no puede resolver solo queda en
 `orders.review_note` (`Order.AddReviewNote`): una venta que se pagó sin stock
 para entregarla (`PaidOrderStock`, el mismo criterio para la pasarela y la
-transferencia registrada a mano). El panel la muestra arriba del detalle, la
+transferencia registrada a mano), una que se pagó figurando rechazada o
+cancelada, o un segundo pago aprobado de una venta ya cobrada. El panel la muestra arriba del detalle, la
 cuenta en "Para hacer hoy" (`toReview` de `GET /home/todo`, filtro
 `review=true` del listado) y el comercio la saca con
 `POST /orders/{id}/review/resolve`. El comprador nunca ve la nota.

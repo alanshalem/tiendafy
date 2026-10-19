@@ -251,6 +251,35 @@ public sealed class Order : AggregateRoot
         return Result.Success();
     }
 
+    /// <summary>
+    /// Un pago aprobado que llegó cuando la venta ya figuraba rechazada o
+    /// cancelada sin cobrar: el comprador pagó igual (en Checkout Pro, con otra
+    /// tarjeta después de un rechazo, o un pago en efectivo generado antes de
+    /// que la venta venciera), así que la venta pasa a pagada. Solo desde una
+    /// que nunca se cobró; una devuelta o con contracargo no se revive. La
+    /// cancelación queda contada en la nota para revisar (ver
+    /// <see cref="AddReviewNote"/>), no en los campos de cancelación: la venta
+    /// ya no está cancelada.
+    /// </summary>
+    public Result MarkPaidLate(string paymentId)
+    {
+        if (Status is not (OrderStatus.Failed or OrderStatus.Cancelled) || PaidAtUtc is not null)
+            return Result.Failure(Error.Conflict("Order.NotRevivable",
+                "Solo se puede dar por pagada una venta rechazada o cancelada que nunca se cobró."));
+
+        var was = Status == OrderStatus.Cancelled
+            ? CancelReason is { Length: > 0 } reason ? $"cancelada ({reason})" : "cancelada"
+            : "con el pago rechazado";
+        Status = OrderStatus.Paid;
+        PaymentId = paymentId;
+        PaidAtUtc = DateTime.UtcNow;
+        CancelledAtUtc = null;
+        CancelledBy = null;
+        CancelReason = null;
+        AddReviewNote($"Figuraba {was} y después entró un pago aprobado: quedó como pagada. Si ya no la podés entregar, devolvé el pago.");
+        return Result.Success();
+    }
+
     // ------------------------------------------------- Para revisar
 
     /// <summary>

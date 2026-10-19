@@ -86,6 +86,8 @@ Una tienda solo puede ver o revivir eventos de su propio `user_id`.
 | `status` | Efecto |
 |---|---|
 | `approved` | Pendiente → `Paid`, confirma reservas (sin reserva activa, descuenta directo; sin stock, queda "para revisar"), guarda la comisión. Si ya estaba pagada con ese pago y sin comisión, solo la guarda. Si `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
+| `approved` sobre `Failed`/`Cancelled` sin cobrar | → `Paid` con todos los efectos y "para revisar" (Checkout Pro: otra tarjeta después de un rechazo, en el mismo link) |
+| `approved` de otro pago sobre una ya cobrada | Sin cambios; "para revisar" (pagó dos veces). `refunded`/contracargo de ese otro pago no toca la orden |
 | `rejected`, `cancelled` | Pendiente → `Failed`, libera reservas |
 | `refunded` | → `Refunded` |
 | `charged_back`, `in_mediation` | → `ChargedBack` |

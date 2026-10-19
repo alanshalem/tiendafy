@@ -126,8 +126,10 @@ la tokenización no depende de él.
    `SettlePaymentHandler` + `PaidOrderSideEffects` (avisos, factura, cupón);
    `rejected` → orden `Failed` y stock liberado; anulado (no quedó plata
    cobrada) → lo mismo que un rechazo. Un
-   aprobado sobre una orden que ya no estaba pendiente se loguea como error
-   (hay plata que devolver a mano).
+   aprobado sobre una orden rechazada o cancelada sin cobrar la deja pagada
+   y "para revisar" (como en Mercado Pago, ver
+   [mercadopago.md](mercadopago.md)); sobre una ya cobrada con otro pago, la
+   deja para revisar (el comprador pagó dos veces) y se loguea como error.
 
 **Devoluciones.** `POST /api/v1/orders/{id}/refund` (el mismo del panel que
 usa Mercado Pago). La orden no guarda con qué pasarela se cobró (las de Payway
