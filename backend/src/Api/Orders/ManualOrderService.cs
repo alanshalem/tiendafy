@@ -114,7 +114,8 @@ public sealed class ManualOrderService(
 
     /// <summary>
     /// Reservas REALES (anti-oversell). Si una línea no tiene stock se liberan
-    /// las anteriores: la venta no se crea a medias.
+    /// las anteriores: la venta no se crea a medias. Lo que tiene stock sin
+    /// límite no se reserva (y no queda en la lista).
     /// </summary>
     private async Task<Result<List<(Guid VariantId, Guid ReservationId)>>> ReserveAllAsync(
         TenantId tenantId, IReadOnlyList<ManualOrderItemRequest> items,
@@ -131,7 +132,7 @@ public sealed class ManualOrderService(
                 return Result.Failure<List<(Guid, Guid)>>(
                     Error.Conflict("Order.NoStock", $"Sin stock suficiente de {name}."));
             }
-            reserved.Add((item.VariantId, reservation.Value.Id));
+            if (reservation.Value is { } r) reserved.Add((item.VariantId, r.Id));
         }
         return reserved;
     }
@@ -159,7 +160,8 @@ public sealed class ManualOrderService(
                 : new Money(resolver.Resolve(priceListId, i.VariantId, v.Price.Amount), v.Price.Currency);
             var unitCost = v.Cost is { } c ? new Money(c.Amount, c.Currency) : (Money?)null;
             return (i.VariantId, v.ProductName, v.VariantDescription, v.Sku,
-                unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], unitCost);
+                unitPrice, i.Quantity,
+                reservationByVariant.TryGetValue(i.VariantId, out var rid) ? rid : (Guid?)null, unitCost);
         }).ToList();
 
         // Sin email del comprador va un placeholder: la orden necesita uno y

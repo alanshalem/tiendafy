@@ -230,8 +230,14 @@ publicaciones con variaciones, stock y precio van dentro de `variations[]`
 (ML rechaza precio a nivel ítem en ese caso). Si el PUT falla, no se marca y se
 reintenta en la próxima pasada.
 
+**Stock sin límite.** ML exige una cantidad, así que una variante con stock sin
+límite se publica y se empuja con `MeliListingPayload.UnlimitedQuantity` (50),
+sin colchón. Una venta de ML no le descuenta nada acá; en cambio, olvida lo
+último empujado de sus vínculos para que la próxima pasada del worker vuelva a
+completar la publicación (ML bajó su cantidad con la venta).
+
 **Publicar.** Exige categoría (sugerida por
-`/sites/{site}/domain_discovery/search`) y stock disponible > 0, y que el
+`/sites/{site}/domain_discovery/search`) y stock disponible > 0 (o sin límite), y que el
 colchón anti-sobreventa no se coma todo el stock: si disponible − buffer < 1
 responde 400 (`Meli.BufferExceedsStock`) en vez de publicar 1 unidad igual.
 Arma el payload: título hasta 60 caracteres, precio con recargo solo si la

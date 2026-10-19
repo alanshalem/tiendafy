@@ -25,6 +25,8 @@ interface CodeHit {
   priceAmount: number;
   available: number;
   reserved: number;
+  /** Stock sin límite: guardar un número lo pasa a limitado. */
+  unlimited?: boolean;
   location: string | null;
 }
 
@@ -193,7 +195,7 @@ function BuscarTab() {
         const found = await api.get<CodeHit>(`/api/v1/products/by-code/${encodeURIComponent(code)}`);
         setHit(found);
         setNotFoundCode(null);
-        setStockDraft(String(found.available));
+        setStockDraft(found.unlimited ? '' : String(found.available));
         setLocationDraft(found.location ?? '');
       } catch {
         setHit(null);
@@ -211,12 +213,13 @@ function BuscarTab() {
       api.put(`/api/v1/inventory/${seen.variantId}`, {
         available: Number(stockDraft),
         reason: 'Ajuste desde el escáner',
-        expectedAvailable: seen.available,
+        // Sin límite no tiene un número que comparar: el ajuste es absoluto.
+        expectedAvailable: seen.unlimited ? undefined : seen.available,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.inventory(store?.id) });
       toast('Stock actualizado', { variant: 'success' });
-      if (hit) setHit({ ...hit, available: Number(stockDraft) });
+      if (hit) setHit({ ...hit, available: Number(stockDraft), unlimited: false });
     },
     onError: async (e, seen) => {
       toast(errMsg(e, 'Error guardando stock'), { variant: 'error' });
@@ -325,6 +328,7 @@ function BuscarTab() {
                 {formatMoney(hit.priceAmount)}
               </div>
               {hit.reserved > 0 && <Badge variant="warning">{hit.reserved} reservadas</Badge>}
+              {hit.unlimited && <Badge variant="neutral">Stock sin límite</Badge>}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div>
@@ -340,13 +344,17 @@ function BuscarTab() {
                     min={0}
                     className="text-right"
                     value={stockDraft}
+                    placeholder={hit.unlimited ? 'Sin límite' : undefined}
                     onChange={(e) => setStockDraft(e.target.value)}
                   />
                 </div>
               </div>
               <Button
                 variant="secondary"
-                disabled={saveStock.isPending || Number(stockDraft) === hit.available}
+                disabled={
+                  saveStock.isPending ||
+                  (hit.unlimited ? stockDraft === '' : Number(stockDraft) === hit.available)
+                }
                 onClick={() => saveStock.mutate(hit)}
               >
                 Guardar stock

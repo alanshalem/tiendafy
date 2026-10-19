@@ -185,7 +185,9 @@ export function ProductRows({
               </>
             ) : null}
             <td className="px-3 py-2 text-center tabular-nums">
-              {stockItem ? (
+              {stockItem?.unlimited ? (
+                <span className="text-fg-muted">Sin límite</span>
+              ) : stockItem ? (
                 <span className={stockItem.available === 0 ? 'text-danger' : 'text-fg'}>
                   {stockItem.available}
                 </span>
@@ -256,10 +258,14 @@ export function ProductCard({
   const max = Math.max(...prices);
   const currency = product.variants[0]?.price.currency;
   const onSale = product.variants.some((v) => v.compareAtPrice != null);
-  const stock = product.variants.reduce<number | null>((sum, v) => {
-    const item = stockMap.get(v.id);
-    return item ? (sum ?? 0) + item.available : sum;
-  }, null);
+  // Con alguna variante sin límite, el producto no tiene un número de stock.
+  const unlimited = product.variants.some((v) => stockMap.get(v.id)?.unlimited);
+  const stock = unlimited
+    ? null
+    : product.variants.reduce<number | null>((sum, v) => {
+        const item = stockMap.get(v.id);
+        return item ? (sum ?? 0) + item.available : sum;
+      }, null);
 
   return (
     <>
@@ -296,7 +302,9 @@ export function ProductCard({
           </>
         }
         meta={
-          stock == null ? undefined : (
+          unlimited ? (
+            'Stock sin límite'
+          ) : stock == null ? undefined : (
             <span className={stock === 0 ? 'text-danger' : undefined}>
               {stock === 0 ? 'Sin stock' : `Stock ${stock}`}
             </span>

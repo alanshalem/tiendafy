@@ -92,8 +92,12 @@ public sealed class StockAlertService(
         if (minimums.Count > 0)
         {
             var ids = minimums.Select(r => r.VariantId).ToList();
-            var available = (await stock.GetByVariantsAsync(tenantId, ids, ct)).ToDictionary(s => s.VariantId, s => s.Available);
-            var below = minimums.Where(r => available.GetValueOrDefault(r.VariantId) <= r.MinUnits!.Value && !low.ContainsKey(r.VariantId)).ToList();
+            var rows = await stock.GetByVariantsAsync(tenantId, ids, ct);
+            var available = rows.ToDictionary(s => s.VariantId, s => s.Available);
+            // Sin límite nunca está bajo: no se avisa aunque tenga un mínimo de antes.
+            var unlimited = rows.Where(s => s.Unlimited).Select(s => s.VariantId).ToHashSet();
+            var below = minimums.Where(r => !unlimited.Contains(r.VariantId)
+                && available.GetValueOrDefault(r.VariantId) <= r.MinUnits!.Value && !low.ContainsKey(r.VariantId)).ToList();
             var names = below.Count == 0
                 ? []
                 : (await catalog.GetVariantsAsync(tid, [.. below.Select(r => r.VariantId)], ct)).ToDictionary(v => v.VariantId);

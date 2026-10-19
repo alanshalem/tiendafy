@@ -75,15 +75,15 @@ public static partial class ProductEndpoints
         global::Reviews.Infrastructure.ReviewsDbContext reviewsDb, TenantId tenantId, CancellationToken ct)
     {
         var variantIds = items.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
-        var stockByVariant = variantIds.Count > 0
-            ? (await stockRepository.GetByVariantsAsync(tenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
-            : new Dictionary<Guid, int>();
+        var stockByVariant = Inventory.Core.Domain.StockItem.SellableByVariant(variantIds, variantIds.Count > 0
+            ? await stockRepository.GetByVariantsAsync(tenantId, variantIds, ct)
+            : []);
         var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenantId.Value, items.Select(p => p.Id).ToList(), ct);
         return
         [
             .. items.Select(p => p.ToDto() with
             {
-                Stock = p.Variants.Sum(v => stockByVariant.GetValueOrDefault(v.Id)),
+                Stock = Inventory.Core.Domain.StockItem.Total(p.Variants.Select(v => stockByVariant[v.Id])),
                 Rating = ratings.GetValueOrDefault(p.Id),
             }),
         ];

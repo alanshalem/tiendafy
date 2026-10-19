@@ -22,7 +22,19 @@ public static class MeliListingPayload
     /// </summary>
     public sealed record Listing(Dictionary<string, object?> Payload, long PriceMinor, int Quantity);
 
-    /// <param name="available">Disponible local de la variante (ya validado &gt; 0).</param>
+    /// <summary>
+    /// Lo que se publica en Mercado Libre de una variante con stock sin límite:
+    /// ML exige una cantidad. Sin colchón (no hay nada que sobrevender), y
+    /// después de cada venta de ML se vuelve a completar (ver MeliSyncService):
+    /// la publicación nunca se pausa por falta de stock.
+    /// </summary>
+    public const int UnlimitedQuantity = 50;
+
+    /// <summary>Cuánto publicar en ML: disponible − colchón, o la cantidad fija si es sin límite (null).</summary>
+    public static int QuantityFor(int? sellable, MeliConnection connection) =>
+        sellable is { } available ? available - connection.StockBufferUnits : UnlimitedQuantity;
+
+    /// <param name="available">Disponible local de la variante (ya validado &gt; 0); null = sin límite.</param>
     /// <param name="specAttributeIds">Definición de ficha técnica → atributo de ML, solo las mapeadas.</param>
     /// <returns>
     /// Falla si el colchón anti-sobreventa se come todo el stock: publicar 1
@@ -31,11 +43,11 @@ public static class MeliListingPayload
     /// </returns>
     public static Result<Listing> Build(
         Product product, Variant variant, MeliConnection connection,
-        string categoryId, string? listingTypeId, int available,
+        string categoryId, string? listingTypeId, int? available,
         IReadOnlyDictionary<Guid, string> specAttributeIds)
     {
         // Mismo cálculo que MeliStockSyncWorker: en ML se publica stock − colchón.
-        var quantity = available - connection.StockBufferUnits;
+        var quantity = QuantityFor(available, connection);
         if (quantity < 1)
             return Result.Failure<Listing>(Error.Validation("Meli.BufferExceedsStock",
                 $"La variante tiene {available} disponibles y el colchón anti-sobreventa es de " +

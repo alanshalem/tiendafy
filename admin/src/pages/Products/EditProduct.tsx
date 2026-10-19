@@ -101,6 +101,9 @@ export function EditProductPage() {
   // venta que entró mientras se editaba.
   const [stockSeen, setStockSeen] = useState<Record<string, string>>({});
   const [stockError, setStockError] = useState<Record<string, string>>({});
+  // Stock sin límite por variante (lo marcado y lo que estaba guardado).
+  const [unlimited, setUnlimited] = useState<Record<string, boolean>>({});
+  const [unlimitedSeen, setUnlimitedSeen] = useState<Record<string, boolean>>({});
   // Por variante: código de barras y el paquete de una unidad (peso y medidas).
   const [barcodes, setBarcodes] = useState<Record<string, string>>({});
   const [shipping, setShipping] = useState<Record<string, ShippingDraft>>({});
@@ -154,10 +157,20 @@ export function EditProductPage() {
   const [stockFor, setStockFor] = useState<string | null>(null);
   if (product && stockData && stockFor !== product.id) {
     setStockFor(product.id);
-    const map = new Map(stockData.items.map((s) => [s.variantId, s.available]));
-    const loaded = Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')]));
+    const byVariant = new Map(stockData.items.map((s) => [s.variantId, s]));
+    const loaded = Object.fromEntries(
+      product.variants.map((v) => {
+        const s = byVariant.get(v.id);
+        return [v.id, s && !s.unlimited ? String(s.available) : ''];
+      }),
+    );
     setStock(loaded);
     setStockSeen(loaded);
+    const loadedUnlimited = Object.fromEntries(
+      product.variants.map((v) => [v.id, byVariant.get(v.id)?.unlimited === true]),
+    );
+    setUnlimited(loadedUnlimited);
+    setUnlimitedSeen(loadedUnlimited);
   }
 
   // Las fotos nuevas, en cambio, se suben al instante (subir lleva su tiempo y
@@ -303,7 +316,25 @@ export function EditProductPage() {
         // ventas del medio y se vendía lo que ya no había.
         const sVal = stock[v.id];
         const seen = stockSeen[v.id] ?? '';
-        if (sVal !== undefined && sVal !== '' && sVal !== seen && !Number.isNaN(Number(sVal)))
+        const wantsUnlimited = unlimited[v.id] === true;
+        if (wantsUnlimited !== (unlimitedSeen[v.id] === true)) {
+          // Pasar a sin límite, o de sin límite a un número (vacío = 0): sin
+          // "esperado", porque sin límite no tiene un número que comparar.
+          const available = wantsUnlimited || !sVal ? 0 : parseInt(sVal, 10);
+          await api.put(`/api/v1/inventory/${v.id}`, {
+            available,
+            reason: 'Edición de producto',
+            ...(wantsUnlimited ? { unlimited: true } : {}),
+          });
+          setUnlimitedSeen((u) => ({ ...u, [v.id]: wantsUnlimited }));
+          setStockSeen((s) => ({ ...s, [v.id]: wantsUnlimited ? '' : String(available) }));
+        } else if (
+          !wantsUnlimited &&
+          sVal !== undefined &&
+          sVal !== '' &&
+          sVal !== seen &&
+          !Number.isNaN(Number(sVal))
+        )
           await saveStock(v.id, parseInt(sVal, 10), seen === '' ? 0 : parseInt(seen, 10));
 
         const barcode = (barcodes[v.id] ?? '').trim();
@@ -517,17 +548,31 @@ export function EditProductPage() {
                           placeholder="—"
                         />
                       </FormField>
-                      <FormField label="Stock" error={stockError[v.id]}>
-                        <Input
-                          inputMode="numeric"
-                          value={stock[v.id] ?? ''}
+                      <div className="space-y-1.5">
+                        <FormField label="Stock" error={stockError[v.id]}>
+                          <Input
+                            inputMode="numeric"
+                            value={unlimited[v.id] ? '' : (stock[v.id] ?? '')}
+                            disabled={unlimited[v.id]}
+                            onChange={(e) => {
+                              setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }));
+                              setStockError((s) => ({ ...s, [v.id]: '' }));
+                            }}
+                            placeholder={unlimited[v.id] ? 'Sin límite' : '—'}
+                          />
+                        </FormField>
+                        {/* Sin límite: se vende siempre, sin reservar ni descontar. */}
+                        <Checkbox
+                          label="Sin límite"
+                          aria-label={multi ? `Stock sin límite de ${label}` : 'Stock sin límite'}
+                          checked={unlimited[v.id] === true}
                           onChange={(e) => {
-                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }));
+                            const checked = e.target.checked;
+                            setUnlimited((u) => ({ ...u, [v.id]: checked }));
                             setStockError((s) => ({ ...s, [v.id]: '' }));
                           }}
-                          placeholder="—"
                         />
-                      </FormField>
+                      </div>
                       <FormField label="Código de barras" hint="EAN, UPC…">
                         <Input
                           value={barcodes[v.id] ?? ''}

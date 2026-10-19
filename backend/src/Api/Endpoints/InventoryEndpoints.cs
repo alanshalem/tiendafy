@@ -32,7 +32,7 @@ public static class InventoryEndpoints
             var items = await repository.GetByVariantsAsync(tenant.TenantId, ids, ct);
             return Results.Ok(new
             {
-                items = items.Select(s => new { s.VariantId, s.Available, s.Reserved, s.Location }),
+                items = items.Select(s => new { s.VariantId, s.Available, s.Reserved, s.Location, s.Unlimited }),
             });
         });
 
@@ -55,20 +55,29 @@ public static class InventoryEndpoints
                 .ToListAsync(ct);
 
             var stock = await inventoryDb.StockItems.AsNoTracking()
-                .Select(s => new { s.VariantId, s.Available, s.Reserved })
+                .Select(s => new { s.VariantId, s.Available, s.Reserved, s.Unlimited })
                 .ToListAsync(ct);
             var available = stock
                 .GroupBy(s => s.VariantId)
                 .ToDictionary(g => g.Key, g => g.Sum(s => s.Available));
+            var unlimitedIds = stock.Where(s => s.Unlimited).Select(s => s.VariantId).ToHashSet();
 
             var units = 0;
             var outOfStock = 0;
             var lowStock = 0;
+            var unlimited = 0;
             long stockValue = 0;
             var currency = SharedKernel.Common.Money.DefaultCurrency;
 
             foreach (var v in variants)
             {
+                // Sin límite no son unidades en depósito ni puede agotarse.
+                if (unlimitedIds.Contains(v.Id))
+                {
+                    unlimited++;
+                    continue;
+                }
+
                 var qty = available.GetValueOrDefault(v.Id, 0);
                 units += qty;
                 if (qty <= 0) outOfStock++;
@@ -89,6 +98,7 @@ public static class InventoryEndpoints
                 units,
                 outOfStock,
                 lowStock,
+                unlimited,
                 reserved = stock.Sum(s => s.Reserved),
                 stockValueMinor = stockValue,
                 currency,
@@ -108,7 +118,8 @@ public static class InventoryEndpoints
             return Results.NoContent();
         });
 
-        // Ajuste manual del merchant (alta inicial o corrección).
+        // Ajuste manual del merchant (alta inicial o corrección). Con
+        // `unlimited: true`, la variante pasa a stock sin límite (el número se ignora).
         inventory.MapPut("/{variantId:guid}", async (
             Guid variantId,
             SetStockRequest request,
@@ -116,8 +127,15 @@ public static class InventoryEndpoints
             IStockRepository repository,
             CancellationToken ct) =>
         {
+            if (request.Unlimited == true)
+            {
+                var unlimited = await repository.SetUnlimitedAsync(tenant.TenantId, variantId, request.Reason, ct);
+                return Results.Ok(new { unlimited.VariantId, unlimited.Available, unlimited.Reserved, unlimited.Unlimited });
+            }
+
             if (request.Available < 0)
-                return Results.Problem(title: "Stock.Negative", detail: "Available cannot be negative.", statusCode: 400);
+                return SharedKernel.Common.Error.Validation(
+                    "Stock.Negative", "El stock no puede ser negativo.").ToProblem();
 
             // Con ExpectedAvailable (lo que la pantalla mostraba al cargar), el
             // ajuste no pisa una venta o una recepción que entró mientras se
@@ -128,13 +146,13 @@ public static class InventoryEndpoints
                 var result = await repository.SetAvailableIfUnchangedAsync(
                     tenant.TenantId, variantId, expected, request.Available, request.Reason, ct);
                 return result.IsSuccess
-                    ? Results.Ok(new { result.Value.VariantId, result.Value.Available, result.Value.Reserved })
+                    ? Results.Ok(new { result.Value.VariantId, result.Value.Available, result.Value.Reserved, result.Value.Unlimited })
                     : result.Error.ToProblem();
             }
 
             var item = await repository.SetAvailableAsync(
                 tenant.TenantId, variantId, request.Available, request.Reason, ct);
-            return Results.Ok(new { item.VariantId, item.Available, item.Reserved });
+            return Results.Ok(new { item.VariantId, item.Available, item.Reserved, item.Unlimited });
         });
 
         // Ledger de movimientos por variante (auditoría del merchant): el
@@ -192,6 +210,6 @@ public static class InventoryEndpoints
     private sealed record LedgerOrder(Guid? ReservationId, Guid OrderId, int Number);
 }
 
-public sealed record SetStockRequest(int Available, string? Reason, int? ExpectedAvailable = null);
+public sealed record SetStockRequest(int Available, string? Reason, int? ExpectedAvailable = null, bool? Unlimited = null);
 
 public sealed record SetLocationRequest(string? Location);

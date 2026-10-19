@@ -64,8 +64,9 @@ public sealed class MeliStockSyncWorker(
 
         var tenant = TenantId.From(connection.TenantId);
         var stock = sp.GetRequiredService<IStockRepository>();
-        var items = await stock.GetByVariantsAsync(tenant, links.Select(l => l.VariantId).ToList(), ct);
-        var availableByVariant = items.ToDictionary(s => s.VariantId, s => s.Available);
+        var variantIds = links.Select(l => l.VariantId).ToList();
+        var sellableByVariant = StockItem.SellableByVariant(
+            variantIds, await stock.GetByVariantsAsync(tenant, variantIds, ct));
         var priceByVariant = await LocalPricesAsync(sp, connection, links, ct);
 
         var tokens = sp.GetRequiredService<MeliTokenService>();
@@ -75,8 +76,9 @@ public sealed class MeliStockSyncWorker(
         {
             // Colchón anti-oversell entre canales: ML se entera DESPUÉS de cada
             // venta, así que se publica stock − buffer para absorber la ventana.
+            // Sin límite: una cantidad fija (ML exige un número).
             var available = Math.Max(
-                0, availableByVariant.GetValueOrDefault(link.VariantId, 0) - connection.StockBufferUnits);
+                0, MeliListingPayload.QuantityFor(sellableByVariant[link.VariantId], connection));
             var pushStock = connection.SyncsStockOf(link) && link.LastPushedQty != available;
 
             long? priceMinor = null;

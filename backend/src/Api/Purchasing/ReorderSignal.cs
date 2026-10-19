@@ -64,8 +64,10 @@ public sealed class ReorderSignal(
         var sold = await DemandAsync(tenantId, DateTime.UtcNow.AddDays(-WindowDays), ct);
         if (sold.Count == 0) return new ReorderResult(lead, WindowDays, BufferDays, []);
 
-        var stockByVariant = (await stock.GetByVariantsAsync(tenantId, sold.Keys.ToList(), ct))
-            .ToDictionary(s => s.VariantId, s => s.Available);
+        var stockRows = await stock.GetByVariantsAsync(tenantId, sold.Keys.ToList(), ct);
+        var stockByVariant = stockRows.ToDictionary(s => s.VariantId, s => s.Available);
+        // Lo que es sin límite no se repone: no entra en la señal.
+        foreach (var s in stockRows.Where(s => s.Unlimited)) sold.Remove(s.VariantId);
         var variants = (await catalog.GetVariantsAsync(tenantId.Value, sold.Keys.ToList(), ct))
             .ToDictionary(v => v.VariantId);
 

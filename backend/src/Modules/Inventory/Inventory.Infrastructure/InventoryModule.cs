@@ -26,14 +26,15 @@ public static class InventoryModule
 
 public sealed class InventoryService(IStockRepository repository) : IInventoryService
 {
-    public async Task<Result<ReservationDto>> ReserveAsync(
+    public async Task<Result<ReservationDto?>> ReserveAsync(
         Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default)
     {
         var result = await repository.TryReserveAsync(TenantId.From(tenantId), variantId, quantity, ct);
         if (result.IsFailure)
-            return Result.Failure<ReservationDto>(result.Error);
+            return Result.Failure<ReservationDto?>(result.Error);
 
-        var r = result.Value;
+        // Sin límite: no hay reserva que devolver.
+        if (result.Value is not { } r) return Result.Success<ReservationDto?>(null);
         return new ReservationDto(r.Id, r.VariantId, r.Quantity, r.Status.ToString().ToUpperInvariant(), r.ExpiresAtUtc);
     }
 

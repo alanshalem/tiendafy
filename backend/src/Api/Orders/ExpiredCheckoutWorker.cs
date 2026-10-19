@@ -19,7 +19,9 @@ namespace Api.Orders;
 /// <list type="bullet">
 /// <item>Abierta (nunca reservó): vencida.</item>
 /// <item>Enviada con alguna reserva todavía activa (una transferencia con
-/// horas para pagar): se deja; vuelve a mirarse en la próxima pasada.</item>
+/// horas para pagar), o con una venta por transferencia o efectivo todavía
+/// en plazo (si todo era de stock sin límite, no hay reserva que la sostenga):
+/// se deja; vuelve a mirarse en la próxima pasada.</item>
 /// <item>Enviada que terminó en una venta cobrada: completada.</item>
 /// <item>Enviada sin reservas activas ni venta cobrada: vencida.</item>
 /// </list>
@@ -85,10 +87,21 @@ public sealed class ExpiredCheckoutWorker(
                     .Where(o => sessionIds.Contains(o.CheckoutSessionId) && o.PaidAtUtc != null)
                     .Select(o => o.CheckoutSessionId)
                     .ToListAsync(ct)).ToHashSet();
+            // Ventas por transferencia o efectivo esperando el pago: las cancela
+            // OfflinePayments al vencer su plazo, y ahí la sesión se cierra.
+            var awaitingOffline = sessionIds.Count == 0
+                ? []
+                : (await ordersDb.Orders.AsNoTracking()
+                    .Where(o => sessionIds.Contains(o.CheckoutSessionId)
+                        && o.Status == global::Orders.Core.Domain.OrderStatus.PendingPayment
+                        && o.PaymentDueAtUtc != null)
+                    .Select(o => o.CheckoutSessionId)
+                    .ToListAsync(ct)).ToHashSet();
 
             foreach (var session in sessions)
             {
-                if (session.Items.Any(i => i.ReservationId is { } id && active.Contains(id)))
+                if (session.Items.Any(i => i.ReservationId is { } id && active.Contains(id))
+                    || awaitingOffline.Contains(session.Id))
                 {
                     kept++;
                     continue;

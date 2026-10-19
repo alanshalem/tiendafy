@@ -120,6 +120,39 @@ public sealed class CheckoutExpiryTests(ApiFactory factory)
         Assert.Equal("COMPLETED", await StatusAsync(shopper, checkoutId));
     }
 
+    [Fact]
+    public async Task Una_transferencia_de_stock_sin_limite_espera_aunque_no_haya_reserva()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "cxu");
+        await merchant.PutAsync("/api/v1/admin/payments/options", new
+        {
+            transferEnabled = true,
+            discountPercent = 0,
+            bankName = "Banco Nación",
+            accountHolder = "Tienda de Test SRL",
+            holderTaxId = "30-71234567-8",
+            cbu = "0110599520000012345678",
+            alias = "TIENDA.TEST.PAGOS",
+            holdHours = 48,
+        });
+        var (_, variantId) = await merchant.CreateProductAsync("Cuadro a pedido", priceMinor: 8_000_00, stock: 0);
+        await merchant.PutAsync($"/api/v1/inventory/{variantId}", new { available = 0, unlimited = true, reason = "Alta" });
+        var shopper = new Shopper(merchant);
+
+        var checkoutId = await shopper.CheckoutAsync(variantId, email: $"transfer-{merchant.Subdomain}@test.local");
+        var orderId = (await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-offline",
+            new { method = "transfer" })).GetProperty("orderId").GetGuid();
+
+        // Sin reserva que se estire, la venta en plazo es lo que la sostiene.
+        await DueAsync(checkoutId);
+        await Workers.RunOnceAsync<ExpiredCheckoutWorker>(factory);
+        Assert.Equal("SUBMITTED", await StatusAsync(shopper, checkoutId));
+
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/mark-paid", new { });
+        await SweepUntilAsync(checkoutId, "Completed");
+        Assert.Equal("COMPLETED", await StatusAsync(shopper, checkoutId));
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static async Task<string?> StatusAsync(Shopper shopper, Guid checkoutId) =>

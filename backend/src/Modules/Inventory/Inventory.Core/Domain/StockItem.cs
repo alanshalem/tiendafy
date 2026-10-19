@@ -8,6 +8,10 @@ namespace Inventory.Core.Domain;
 /// Las MUTACIONES de available/reserved van por SQL atómico en el
 /// repositorio (UPDATE ... WHERE available >= qty) — nunca read-modify-write
 /// desde acá: esa race es exactamente el oversell que este módulo previene.
+///
+/// Sin fila, la variante tiene 0 (no se cargó stock). Con
+/// <see cref="Unlimited"/>, el stock es "sin límite": siempre se puede vender,
+/// no se reserva ni se descuenta, y Available/Reserved no significan nada.
 /// </summary>
 public sealed class StockItem : Entity
 {
@@ -15,6 +19,12 @@ public sealed class StockItem : Entity
     public Guid VariantId { get; private set; }
     public int Available { get; private set; }
     public int Reserved { get; private set; }
+
+    /// <summary>"Sin límite": se vende siempre, sin reservar ni descontar.</summary>
+    public bool Unlimited { get; private set; }
+
+    /// <summary>Lo que se puede vender: null = sin límite.</summary>
+    public int? Sellable => Unlimited ? null : Available;
 
     /// <summary>Ubicación física en el depósito ("Estantería B3"). Solo informativa.</summary>
     public string? Location { get; private set; }
@@ -24,13 +34,38 @@ public sealed class StockItem : Entity
 
     private StockItem() { } // EF Core
 
-    public StockItem(TenantId tenantId, Guid variantId, int initialAvailable)
+    public StockItem(TenantId tenantId, Guid variantId, int initialAvailable, bool unlimited = false)
         : base(Guid.NewGuid())
     {
         TenantId = tenantId;
         VariantId = variantId;
         Available = initialAvailable;
         Reserved = 0;
+        Unlimited = unlimited;
+    }
+
+    /// <summary>
+    /// Lo vendible de cada variante pedida: null = sin límite; sin fila, 0
+    /// (igual que la reserva del checkout).
+    /// </summary>
+    public static Dictionary<Guid, int?> SellableByVariant(
+        IEnumerable<Guid> variantIds, IEnumerable<StockItem> items)
+    {
+        var byVariant = items.ToDictionary(s => s.VariantId);
+        return variantIds.Distinct().ToDictionary(
+            id => id, id => byVariant.TryGetValue(id, out var s) ? s.Sellable : 0);
+    }
+
+    /// <summary>Suma de lo vendible (un producto): null si alguna variante es sin límite.</summary>
+    public static int? Total(IEnumerable<int?> sellable)
+    {
+        var total = 0;
+        foreach (var s in sellable)
+        {
+            if (s is not { } n) return null;
+            total += n;
+        }
+        return total;
     }
 }
 

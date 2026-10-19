@@ -58,7 +58,7 @@ public class CheckoutSessionTests
     public void MarkSubmitted_AttachesReservationsPerItem()
     {
         var session = CreateSession();
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
 
         var result = session.MarkSubmitted("ana@mail.com", reservations, DateTime.UtcNow);
 
@@ -71,7 +71,7 @@ public class CheckoutSessionTests
     public void MarkSubmitted_Expired_Fails()
     {
         var session = CreateSession();
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
 
         var result = session.MarkSubmitted("ana@mail.com", reservations, DateTime.UtcNow.AddHours(1));
 
@@ -82,7 +82,7 @@ public class CheckoutSessionTests
     public void MarkSubmitted_InvalidEmail_Fails()
     {
         var session = CreateSession();
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
 
         var result = session.MarkSubmitted("nope", reservations, DateTime.UtcNow);
 
@@ -92,7 +92,7 @@ public class CheckoutSessionTests
     private static CheckoutSession Submitted(DateTime nowUtc)
     {
         var session = CreateSession();
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
         Assert.True(session.MarkSubmitted("ana@mail.com", reservations, nowUtc).IsSuccess);
         return session;
     }
@@ -106,7 +106,7 @@ public class CheckoutSessionTests
     {
         var session = CreateSession();
         var later = session.CreatedAtUtc.AddMinutes(20);
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
 
         session.MarkSubmitted("ana@mail.com", reservations, later);
 
@@ -175,7 +175,7 @@ public class CheckoutSessionTests
     {
         var session = CreateSession();
         session.Expire(session.ExpiresAtUtc);
-        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid());
+        var reservations = session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid());
 
         var result = session.MarkSubmitted("ana@mail.com", reservations, session.CreatedAtUtc);
 
@@ -240,7 +240,7 @@ public class CheckoutSessionTests
 
         var submitted = CreateSession();
         submitted.MarkSubmitted("ana@mail.com",
-            submitted.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid()), submitted.CreatedAtUtc);
+            submitted.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid()), submitted.CreatedAtUtc);
         Assert.Equal("Checkout.NotOpen",
             submitted.SetContact("otra@mail.com", null, null, null, false, submitted.CreatedAtUtc).Error.Code);
         Assert.Equal("ana@mail.com", submitted.Email);
@@ -252,7 +252,7 @@ public class CheckoutSessionTests
         var session = CreateSession();
         var now = session.CreatedAtUtc.AddMinutes(5);
 
-        session.MarkSubmitted("ana@mail.com", session.Items.ToDictionary(i => i.VariantId, _ => Guid.NewGuid()), now);
+        session.MarkSubmitted("ana@mail.com", session.Items.ToDictionary(i => i.VariantId, _ => (Guid?)Guid.NewGuid()), now);
 
         Assert.Equal(now, session.LastActivityAtUtc);
     }

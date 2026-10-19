@@ -20,9 +20,9 @@ export const CATALOGO = {
           { type: 'path', segments: ['Productos', 'Agregar producto'] },
           {
             type: 'callout',
-            tone: 'warning',
-            title: 'Sin stock cargado no se puede comprar',
-            text: '“Sin límite” no significa stock infinito: el producto se crea sin stock, se ve agotado y nadie lo puede comprar hasta que le cargues unidades (en el producto o en Productos → Inventario).',
+            tone: 'info',
+            title: 'Stock “Sin límite” o “Limitado”',
+            text: 'Con “Sin límite” el producto se puede comprar siempre: no se agota, no se aparta al pagar y las ventas no le descuentan nada (sirve para lo que se hace a pedido o no se cuenta). Con “Limitado” cargás cuántas unidades hay. Lo cambiás cuando quieras al editar el producto (la casilla “Sin límite” debajo del stock), y en Inventario o en el Escáner, escribiendo un número, pasa a limitado.',
           },
           {
             type: 'callout',
@@ -66,7 +66,7 @@ export const CATALOGO = {
         heading: 'Inventario y reservas',
         paragraphs: [
           'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano (escribís el número y tocás “Guardar”; hace falta el permiso “Ajustar el stock”). Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés. Si eligió transferencia o efectivo, la reserva dura lo que configuraste para esos pagos (48 horas de fábrica).',
-          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo, cuántas variantes están sin stock y cuántas quedan con 5 o menos: tocá uno de esos dos para ver solo esos productos.',
+          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo, cuántas variantes están sin stock y cuántas quedan con 5 o menos: tocá uno de esos dos para ver solo esos productos. Las variantes con stock sin límite dicen “Sin límite” y no entran en esas cuentas: nunca se agotan.',
           'El stock es uno solo para todos los canales: si sincronizás el stock con Mercado Libre, una venta de ML también lo descuenta (y si se cancela, vuelve). Lo explica el artículo «Integración con Mercado Libre».',
           'Para saber por qué una variante tiene el stock que tiene, tocá el reloj al final de su fila: se abre su historial, del cambio más nuevo al más viejo. Cada renglón dice qué pasó (alta, ajuste, apartado por una compra, venta cobrada, o stock que volvió porque la compra se canceló o no se pagó a tiempo), cuánto entró o salió, el motivo, y —si fue una venta— un link a esa venta. Muestra los últimos 50 movimientos.',
         ],

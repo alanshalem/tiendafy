@@ -22,18 +22,22 @@ public class SubmitCheckoutSagaTests
     {
         /// <summary>VariantIds que fallan con Stock.Insufficient.</summary>
         public HashSet<Guid> OutOfStock { get; } = [];
+        /// <summary>VariantIds con stock sin límite: no se reservan.</summary>
+        public HashSet<Guid> Unlimited { get; } = [];
         public List<Guid> Reserved { get; } = [];
         public List<Guid> Released { get; } = [];
 
-        public Task<Result<ReservationDto>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default)
+        public Task<Result<ReservationDto?>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default)
         {
             if (OutOfStock.Contains(variantId))
-                return Task.FromResult(Result.Failure<ReservationDto>(
+                return Task.FromResult(Result.Failure<ReservationDto?>(
                     Error.Conflict("Stock.Insufficient", "No stock.")));
+            if (Unlimited.Contains(variantId))
+                return Task.FromResult(Result.Success<ReservationDto?>(null));
 
             var id = Guid.NewGuid();
             Reserved.Add(id);
-            return Task.FromResult(Result.Success(
+            return Task.FromResult(Result.Success<ReservationDto?>(
                 new ReservationDto(id, variantId, quantity, "ACTIVE", DateTime.UtcNow.AddMinutes(30))));
         }
 
@@ -104,10 +108,29 @@ public class SubmitCheckoutSagaTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Checkout.OutOfStock", result.Error.Code);
+        // Lo lee el comprador: en castellano y con el producto que falta.
+        Assert.Equal("Ya no queda stock suficiente de «Taza» (Única). Bajá la cantidad o quitalo del carrito para seguir.",
+            result.Error.Message);
         Assert.Equal(CheckoutStatus.Open, session.Status); // sin transición
         Assert.Single(inventory.Reserved);                 // la primera se reservó...
         Assert.Equal(inventory.Reserved, inventory.Released); // ...y se compensó exactamente
         Assert.Equal(0, repository.Saves);
+    }
+
+    [Fact]
+    public async Task Submit_con_stock_sin_limite_no_reserva_esa_linea()
+    {
+        var session = TwoItemSession(out var variantA, out var variantB);
+        var inventory = new FakeInventory();
+        inventory.Unlimited.Add(variantA);
+        var handler = new SubmitCheckoutHandler(new FakeCheckoutRepository(session), new FakeShippingMethods(), inventory);
+
+        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(CheckoutStatus.Submitted, session.Status);
+        Assert.Null(session.Items.Single(i => i.VariantId == variantA).ReservationId);
+        Assert.Equal(inventory.Reserved.Single(), session.Items.Single(i => i.VariantId == variantB).ReservationId);
     }
 
     [Fact]

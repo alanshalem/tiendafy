@@ -14,7 +14,8 @@ import { apiUrl, tenantHeaders } from './api-client';
 export interface VariantSnapshot {
   variantId: string;
   price: MoneyDto;
-  available: number;
+  /** Unidades a la venta; null = stock sin límite (siempre se puede comprar). */
+  available: number | null;
 }
 
 export interface PriceChange {
@@ -27,8 +28,9 @@ export interface PriceChange {
 }
 
 /**
- * Disponibilidad por variante, después de consultar: número = unidades,
- * null = ya no se vende (no existe o se despublicó).
+ * Disponibilidad por variante, después de consultar: número = unidades
+ * (Infinity si el stock es sin límite), null = ya no se vende (no existe o se
+ * despublicó).
  */
 export type Availability = Record<string, number | null>;
 
@@ -69,7 +71,7 @@ export function reprice(
   const availability: Availability = {};
   const next = lines.map((l) => {
     const snap = snapshots.get(l.variantId);
-    availability[l.variantId] = snap ? snap.available : null;
+    availability[l.variantId] = snap ? (snap.available ?? Infinity) : null;
     if (!snap || (snap.price.amount === l.priceAmount && snap.price.currency === l.currency)) return l;
     changes.push({
       variantId: l.variantId,

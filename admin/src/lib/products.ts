@@ -4,6 +4,8 @@ export interface StockItem {
   variantId: string;
   available: number;
   reserved: number;
+  /** Stock sin límite: se vende siempre y no se descuenta (`available` no cuenta). */
+  unlimited?: boolean;
 }
 
 /** Shape mínimo del catálogo que comparten los typeaheads de variantes. */
