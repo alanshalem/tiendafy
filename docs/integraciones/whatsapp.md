@@ -86,4 +86,3 @@ Revisado contra la documentación de Meta el 18-oct-2026: el envío (`POST /{pho
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
 - La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos; al 18-oct-2026 v26.0 no tiene fecha de baja). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog/versions).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.
-- La descripción de "Carritos abandonados" en el panel (`WhatsAppTemplateCatalog`) todavía dice "solo con clientes que aceptaron recibir novedades": la casilla que vale hoy es la del aviso por WhatsApp junto al teléfono.
