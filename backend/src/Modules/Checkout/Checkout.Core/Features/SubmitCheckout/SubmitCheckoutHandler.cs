@@ -34,7 +34,8 @@ public sealed record QuotedShipping(
 /// <summary>
 /// La saga orquestada simple del checkout (sin framework, con disciplina):
 /// reservar stock item por item; si CUALQUIERA falla, liberar todas las
-/// reservas previas y devolver el error. Todo o nada.
+/// reservas previas y devolver el error. Todo o nada. Lo que tiene stock sin
+/// límite no se reserva: la línea queda sin reserva.
 /// </summary>
 public sealed class SubmitCheckoutHandler(
     ICheckoutRepository repository,
@@ -100,7 +101,7 @@ public sealed class SubmitCheckoutHandler(
         session.SetWhatsAppConsent(command.AcceptsWhatsApp);
 
         // Fase de reservas, con compensación ante el primer fallo.
-        var reserved = new Dictionary<Guid, Guid>(); // variantId → reservationId
+        var reserved = new Dictionary<Guid, Guid?>(); // variantId → reservationId (null = sin límite)
         foreach (var item in session.Items)
         {
             var result = await inventory.ReserveAsync(
@@ -110,12 +111,11 @@ public sealed class SubmitCheckoutHandler(
             {
                 await CompensateAsync(command.TenantId.Value, reserved.Values, ct);
                 return Result.Failure<CheckoutSession>(result.Error.Code == "Stock.Insufficient"
-                    ? Error.Conflict("Checkout.OutOfStock",
-                        $"'{item.ProductName}' ({item.VariantDescription}) no longer has enough stock.")
+                    ? OutOfStock(item)
                     : result.Error);
             }
 
-            reserved[item.VariantId] = result.Value.Id;
+            reserved[item.VariantId] = result.Value?.Id;
         }
 
         var submit = session.MarkSubmitted(command.Email, reserved, DateTime.UtcNow);
@@ -129,9 +129,19 @@ public sealed class SubmitCheckoutHandler(
         return session;
     }
 
-    private async Task CompensateAsync(Guid tenantId, IEnumerable<Guid> reservationIds, CancellationToken ct)
+    /// <summary>Lo lee el comprador: qué producto se quedó sin stock, en sus palabras.</summary>
+    internal static Error OutOfStock(CheckoutItem item)
     {
-        foreach (var reservationId in reservationIds)
+        var name = string.IsNullOrWhiteSpace(item.VariantDescription)
+            ? $"«{item.ProductName}»"
+            : $"«{item.ProductName}» ({item.VariantDescription})";
+        return Error.Conflict("Checkout.OutOfStock",
+            $"Ya no queda stock suficiente de {name}. Bajá la cantidad o quitalo del carrito para seguir.");
+    }
+
+    private async Task CompensateAsync(Guid tenantId, IEnumerable<Guid?> reservationIds, CancellationToken ct)
+    {
+        foreach (var reservationId in reservationIds.OfType<Guid>())
         {
             // Best effort: si una liberación falla, el job de expiración la
             // levanta en ≤30min — el stock nunca queda colgado para siempre.

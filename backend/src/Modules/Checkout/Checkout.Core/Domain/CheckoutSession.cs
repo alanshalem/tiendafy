@@ -115,7 +115,8 @@ public sealed class CheckoutSession : AggregateRoot
         || (Status is CheckoutStatus.Open or CheckoutStatus.Submitted && nowUtc >= ExpiresAtUtc);
 
     /// <summary>Submit exitoso: cada item quedó con su reserva de stock.</summary>
-    public Result MarkSubmitted(string email, IReadOnlyDictionary<Guid, Guid> reservationByVariant, DateTime nowUtc)
+    /// <param name="reservationByVariant">La reserva de cada variante; null = stock sin límite, sin reserva.</param>
+    public Result MarkSubmitted(string email, IReadOnlyDictionary<Guid, Guid?> reservationByVariant, DateTime nowUtc)
     {
         if (Status != CheckoutStatus.Open)
             return Result.Failure(Error.Conflict("Checkout.NotOpen", "Esta compra ya no se puede modificar."));
@@ -285,5 +286,5 @@ public sealed class CheckoutItem
 
     public Money LineTotal => UnitPrice * Quantity;
 
-    internal void AttachReservation(Guid reservationId) => ReservationId = reservationId;
+    internal void AttachReservation(Guid? reservationId) => ReservationId = reservationId;
 }

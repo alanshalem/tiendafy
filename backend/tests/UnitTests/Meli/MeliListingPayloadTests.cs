@@ -85,6 +85,19 @@ public class MeliListingPayloadTests
         Assert.Equal("gold_pro", justOne.Payload["listing_type_id"]);
     }
 
+    [Fact]
+    public void Stock_sin_limite_publica_la_cantidad_fija_sin_colchon()
+    {
+        var (product, variant) = Remera(1_000_00);
+
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m, buffer: 10), "MLA1", null, null, new Dictionary<Guid, string>()).Value;
+
+        Assert.Equal(MeliListingPayload.UnlimitedQuantity, listing.Payload["available_quantity"]);
+        Assert.Equal(MeliListingPayload.UnlimitedQuantity, listing.Quantity);
+        Assert.Equal(MeliListingPayload.UnlimitedQuantity, MeliListingPayload.QuantityFor(null, Connection(0m, buffer: 3)));
+        Assert.Equal(7, MeliListingPayload.QuantityFor(10, Connection(0m, buffer: 3)));
+    }
+
     [Theory]
     [InlineData(5)]
     [InlineData(10)]

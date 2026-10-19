@@ -85,10 +85,9 @@ public static partial class ProductEndpoints
             // Stock por producto (suma de variantes), como la búsqueda: la card
             // muestra "Sin stock" o "¡Últimas N!" y no deja agregar lo agotado.
             var variantIds = items.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
-            var stockByVariant = variantIds.Count > 0
-                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct))
-                    .ToDictionary(s => s.VariantId, s => s.Available)
-                : new Dictionary<Guid, int>();
+            var stockByVariant = Inventory.Core.Domain.StockItem.SellableByVariant(variantIds, variantIds.Count > 0
+                ? await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)
+                : []);
 
             var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, items.Select(p => p.Id).ToList(), ct);
 
@@ -96,7 +95,7 @@ public static partial class ProductEndpoints
             {
                 items = items.Select(p => p.ToDto() with
                 {
-                    Stock = p.Variants.Sum(v => stockByVariant.GetValueOrDefault(v.Id)),
+                    Stock = Inventory.Core.Domain.StockItem.Total(p.Variants.Select(v => stockByVariant[v.Id])),
                     Rating = ratings.GetValueOrDefault(p.Id),
                 }),
             });

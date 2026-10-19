@@ -137,6 +137,7 @@ public static partial class ProductEndpoints
                 priceAmount = variant.Price.AmountInMinorUnits,
                 available = stockItem?.Available ?? 0,
                 reserved = stockItem?.Reserved ?? 0,
+                unlimited = stockItem?.Unlimited ?? false,
                 location = stockItem?.Location,
             });
         }).RequirePermission(Permission.InventoryRead);

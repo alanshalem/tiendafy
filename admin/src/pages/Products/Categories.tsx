@@ -49,7 +49,8 @@ function buildTree(items: Category[], order: Record<string, string[]>): TreeNode
     if (node.parentId && byId.has(node.parentId)) byId.get(node.parentId)!.children.push(node);
     else roots.push(node);
   }
-  // Aplicar orden guardado por scope (parentId o 'root').
+  // Aplicar el orden sin guardar por scope (parentId o 'root'); sin cambios,
+  // queda el de la API, que ya viene en el orden guardado.
   const sortScope = (nodes: TreeNode[], scope: string) => {
     const saved = order[scope];
     if (saved) {
@@ -65,13 +66,31 @@ function buildTree(items: Category[], order: Record<string, string[]>): TreeNode
   return roots;
 }
 
-/** El orden de categorías que se guardó en este navegador (vacío si no hay o está roto). */
-function readSavedOrder(key: string): Record<string, string[]> {
+/** Los ids del árbol en el orden en que se ven (cada padre antes que sus hijas). */
+function flatten(nodes: TreeNode[]): string[] {
+  return nodes.flatMap((n) => [n.id, ...flatten(n.children)]);
+}
+
+/**
+ * El orden que, antes de guardarse en la tienda, quedaba solo en este
+ * navegador (vacío si no hay o está roto). Si hay uno, se ofrece como cambio
+ * sin guardar para no perderlo; al guardar o descartar se borra.
+ */
+function readLegacyOrder(key: string): Record<string, string[]> {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
+  }
+}
+
+function forgetLegacyOrder(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Sin acceso al almacenamiento no hay nada que olvidar.
   }
 }
 
@@ -85,28 +104,33 @@ export function CategoriesPage() {
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<Category | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [dirty, setDirty] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
 
-  // El orden guardado en el navegador, por tienda. Al cambiar de tienda se
-  // lee el suyo en el mismo render (antes, un efecto pintaba primero el de la
-  // tienda anterior).
+  // El orden se guarda en la tienda (la API devuelve las categorías en ese
+  // orden); acá solo viven los cambios sin guardar, por scope. Al cambiar de
+  // tienda se arranca de cero en el mismo render. El orden que una versión
+  // vieja dejaba en el navegador se levanta como cambio pendiente.
   const storageKey = `tiendafy.catOrder.${store?.id ?? ''}`;
-  const [order, setOrder] = useState<Record<string, string[]>>(() => readSavedOrder(storageKey));
+  const [order, setOrder] = useState<Record<string, string[]>>(() => readLegacyOrder(storageKey));
   const [orderFor, setOrderFor] = useState(storageKey);
   if (orderFor !== storageKey) {
     setOrderFor(storageKey);
-    setOrder(readSavedOrder(storageKey));
+    setOrder(readLegacyOrder(storageKey));
   }
 
   const { data, isLoading, isError, error, refetch, isFetching } = useCategories({ meta: ERROR_SHOWN });
   const categories = useMemo(() => data?.items ?? [], [data]);
 
+  const tree = useMemo(() => buildTree(categories, order), [categories, order]);
+  // Hay algo para guardar si lo que se ve no es lo que está guardado (un
+  // arrastre que vuelve al lugar, o un orden viejo igual al de la tienda, no cuenta).
+  const dirty = useMemo(
+    () => Object.keys(order).length > 0 && flatten(tree).join() !== flatten(buildTree(categories, {})).join(),
+    [order, tree, categories],
+  );
   // Un orden sin guardar no se pierde: ni yéndose a otra pantalla del panel
   // ni cerrando la pestaña.
   useUnsavedChanges(dirty);
-
-  const tree = useMemo(() => buildTree(categories, order), [categories, order]);
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -135,15 +159,21 @@ export function CategoriesPage() {
     const siblings = (scope === 'root' ? tree : (findNode(tree, scope)?.children ?? [])).map((n) => n.id);
     const reordered = moveItem(siblings, siblings.indexOf(dragId), siblings.indexOf(target.id));
     setOrder((prev) => ({ ...prev, [scope]: reordered }));
-    setDirty(true);
     setDragId(null);
   };
 
-  const save = () => {
-    localStorage.setItem(storageKey, JSON.stringify(order));
-    setDirty(false);
-    toast('Orden de categorías guardado', { variant: 'success' });
-  };
+  const saveMut = useMutation({
+    mutationFn: (ids: string[]) => api.put<{ items: Category[] }>('/api/v1/categories/order', { ids }),
+    onSuccess: (saved) => {
+      // La respuesta ya trae el orden nuevo: se pinta sin esperar otra consulta.
+      queryClient.setQueryData(qk.categories(store?.id), saved);
+      forgetLegacyOrder(storageKey);
+      setOrder({});
+      toast('Orden de categorías guardado', { variant: 'success' });
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudo guardar el orden'), { variant: 'error' }),
+  });
+  const save = () => saveMut.mutate(flatten(tree));
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: qk.categories(store?.id) });
 
@@ -223,9 +253,8 @@ export function CategoriesPage() {
   };
 
   const discard = () => {
-    const raw = localStorage.getItem(storageKey);
-    setOrder(raw ? JSON.parse(raw) : {});
-    setDirty(false);
+    forgetLegacyOrder(storageKey);
+    setOrder({});
   };
 
   const listRef = useFlipList<HTMLDivElement>(JSON.stringify(order) + '|' + [...collapsed].sort().join(','));
@@ -320,7 +349,9 @@ export function CategoriesPage() {
               <Button variant="secondary" onClick={discard}>
                 Descartar
               </Button>
-              <Button onClick={save}>Guardar orden</Button>
+              <Button onClick={save} disabled={saveMut.isPending}>
+                Guardar orden
+              </Button>
             </div>
           </div>
         </div>

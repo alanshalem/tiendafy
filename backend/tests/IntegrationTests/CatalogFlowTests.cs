@@ -344,6 +344,101 @@ public sealed class CatalogFlowTests
     }
 
     [Fact]
+    public async Task El_orden_de_categorias_se_guarda_y_la_tienda_lo_sigue()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cor");
+        async Task<Guid> CreateAsync(string name, Guid? parentId = null) =>
+            (await merchant.PostAsync("/api/v1/categories", new { name, parentId })).GetProperty("id").GetGuid();
+
+        // Creadas en este orden: una nueva va al final de sus hermanas, no por nombre.
+        var zapatillas = await CreateAsync("Zapatillas");
+        var accesorios = await CreateAsync("Accesorios");
+        var medias = await CreateAsync("Medias", accesorios);
+        var gorras = await CreateAsync("Gorras", accesorios);
+
+        var shopper = new Shopper(merchant);
+        async Task<List<Guid>> StoreOrderAsync() =>
+            (await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/categories")).GetProperty("items")
+                .EnumerateArray().Select(c => c.GetProperty("id").GetGuid()).ToList();
+
+        Assert.Equal([zapatillas, accesorios, medias, gorras], await StoreOrderAsync());
+
+        // "Guardar orden" del panel: la lista como se ve, padres antes que hijas.
+        var saved = await merchant.PutAsync("/api/v1/categories/order", new { ids = new[] { accesorios, gorras, medias, zapatillas } });
+        Assert.Equal(4, saved.GetProperty("items").GetArrayLength());
+        Assert.Equal([accesorios, gorras, medias, zapatillas], await StoreOrderAsync());
+
+        // Una creada después va al final de su nivel; una que no vino en la lista
+        // (otra pestaña) queda después de las ordenadas.
+        var remeras = await CreateAsync("Remeras");
+        Assert.Equal([accesorios, gorras, medias, zapatillas, remeras], await StoreOrderAsync());
+        await merchant.PutAsync("/api/v1/categories/order", new { ids = new[] { remeras, accesorios } });
+        Assert.Equal([remeras, accesorios, gorras, medias, zapatillas], await StoreOrderAsync());
+
+        // Ordenar es editar el catálogo: sin sesión, no.
+        var anonymous = await shopper.SendAsync(HttpMethod.Put, "/api/v1/categories/order", new { ids = new[] { zapatillas } });
+        Assert.False(anonymous.IsSuccessStatusCode);
+    }
+
+    [Fact]
+    public async Task Importar_lo_recien_exportado_no_cambia_nada_y_lo_que_falta_no_se_toca()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "irt");
+        var tag = merchant.Subdomain;
+        static string Row(params string[] cells) => string.Join(";", cells);
+
+        var csv = string.Join("\n",
+            Row("Identificador de URL", "Nombre", "Categorías", "Precio", "Precio promocional", "SKU", "Mostrar en tienda",
+                "Descripción", "Título para SEO", "Descripción para SEO", "Marca"),
+            Row($"pava-{tag}", "Pava eléctrica", "\"Hogar > Cocina; Regalos\"", "10000", "8000", $"PAV-{tag}", "SI",
+                "\"Acero inoxidable.\nCorte automático.\"", "Pava eléctrica 1,7 L", "La pava que no se olvida", "Acme"));
+        Assert.Equal(1, (await ImportAsync(merchant, csv, updateExisting: true)).GetProperty("created").GetInt32());
+
+        async Task<string> SnapshotAsync()
+        {
+            var p = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+            var categories = p.GetProperty("categoryIds").EnumerateArray().Select(c => c.GetString()).Order();
+            var variants = p.GetProperty("variants").EnumerateArray().Select(v =>
+                $"{v.GetProperty("sku")}:{v.GetProperty("price").GetProperty("amount")}:{v.GetProperty("compareAtPrice")}");
+            return string.Join("|", p.GetProperty("name"), p.GetProperty("description"), p.GetProperty("brand"),
+                p.GetProperty("seoTitle"), p.GetProperty("seoDescription"),
+                string.Join(",", categories), string.Join(",", variants));
+        }
+
+        var before = await SnapshotAsync();
+        Assert.Contains("Acme", before);
+        Assert.Contains("Acero inoxidable.\nCorte automático.", before);
+        var pava = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+        Assert.Equal(2, pava.GetProperty("categoryIds").GetArrayLength());
+
+        // Ida y vuelta: las categorías salen separadas igual que entran, y
+        // marca, SEO y descripción (con su salto de línea) viajan enteras.
+        var exported = await (await merchant.ExpectOkAsync(HttpMethod.Get, "/api/v1/products/export")).Content.ReadAsStringAsync();
+        Assert.Contains("\"Hogar > Cocina; Regalos\"", exported);
+        Assert.Equal(1, (await ImportAsync(merchant, exported, updateExisting: true)).GetProperty("updated").GetInt32());
+        Assert.Equal(before, await SnapshotAsync());
+
+        // Sin descripciones en el export: la celda vacía no borra la cargada.
+        var noDescriptions = await (await merchant.ExpectOkAsync(
+            HttpMethod.Get, "/api/v1/products/export?includeDescriptions=false")).Content.ReadAsStringAsync();
+        await ImportAsync(merchant, noDescriptions, updateExisting: true);
+        Assert.Equal(before, await SnapshotAsync());
+
+        // Una planilla con solo SKU y precio: lo que no trae no se toca, y sin la
+        // columna "Precio promocional" la oferta sigue mientras quede por arriba.
+        await ImportAsync(merchant, Row("Identificador de URL", "SKU", "Precio") + "\n" + Row($"pava-{tag}", $"PAV-{tag}", "9000"),
+            updateExisting: true);
+        var after = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+        Assert.Equal("Acme", after.GetProperty("brand").GetString());
+        Assert.Equal("Pava eléctrica 1,7 L", after.GetProperty("seoTitle").GetString());
+        Assert.Equal("Acero inoxidable.\nCorte automático.", after.GetProperty("description").GetString());
+        Assert.Equal(2, after.GetProperty("categoryIds").GetArrayLength());
+        var variant = after.GetProperty("variants")[0];
+        Assert.Equal(900000, variant.GetProperty("price").GetProperty("amount").GetInt64());
+        Assert.Equal(1000000, variant.GetProperty("compareAtPrice").GetProperty("amount").GetInt64());
+    }
+
+    [Fact]
     public async Task Importar_con_filas_con_problemas_no_frena_el_resto()
     {
         var merchant = await Merchant.CreateAsync(_factory, "ime");

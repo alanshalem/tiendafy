@@ -15,7 +15,8 @@ public sealed record ReservationDto(
 /// </summary>
 public interface IInventoryService
 {
-    Task<Result<ReservationDto>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default);
+    /// <summary>Reserva para el checkout. Éxito con null: la variante es sin límite y no se reserva.</summary>
+    Task<Result<ReservationDto?>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default);
     Task<Result> ConfirmReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default);
     Task<Result> ReleaseReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default);
 

@@ -42,6 +42,12 @@ describe('reprice', () => {
     // c no volvió: ya no se vende.
     expect(r.availability).toEqual({ a: 2, b: 0, c: null });
   });
+
+  it('el stock sin límite (available null) se puede comprar en cualquier cantidad', () => {
+    const r = reprice([line('a', 100, 500)], new Map([['a', { ...snap('a', 100), available: null }]]));
+    expect(r.availability).toEqual({ a: Infinity });
+    expect(lineIssue(line('a', 100, 500), r.availability)).toBeNull();
+  });
 });
 
 describe('mergePriceChanges', () => {

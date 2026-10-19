@@ -144,6 +144,43 @@ describe('editar producto', () => {
     expect(sent(api, 'PUT', `/inventory/${variant.id}`)).toEqual([]);
   });
 
+  it('stock sin límite: se ve marcado, se puede pasar a un número y volver', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', {
+      items: [{ variantId: variant.id, available: 0, reserved: 0, unlimited: true }],
+    });
+    const user = await open(api);
+    const unlimited = screen.getAllByLabelText(/Stock sin límite/)[0]!;
+    expect(unlimited).toBeChecked();
+    const stock = screen.getAllByLabelText('Stock')[0]!;
+    expect(stock).toBeDisabled();
+    expect(stock).toHaveAttribute('placeholder', 'Sin límite');
+
+    // Desmarcar y cargar un número: un set absoluto (sin límite no tiene "esperado").
+    await user.click(unlimited);
+    await user.type(stock, '4');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/inventory/${variant.id}`)[0]).toEqual({
+      available: 4,
+      reason: 'Edición de producto',
+    });
+  });
+
+  it('marcar "Sin límite" lo guarda así', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });
+    const user = await open(api);
+    await user.click(screen.getAllByLabelText(/Stock sin límite/)[0]!);
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/inventory/${variant.id}`)[0]).toEqual({
+      available: 0,
+      reason: 'Edición de producto',
+      unlimited: true,
+    });
+  });
+
   it('si el stock cambió mientras se editaba, avisa con el actual y el segundo guardado entra', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });

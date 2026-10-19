@@ -8,7 +8,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
 {
     public async Task<List<Guid>> ListInStockVariantIdsAsync(TenantId tenantId, CancellationToken ct = default) =>
         await context.StockItems.AsNoTracking()
-            .Where(s => s.TenantId == tenantId && s.Available > 0)
+            .Where(s => s.TenantId == tenantId && (s.Available > 0 || s.Unlimited))
             .Select(s => s.VariantId)
             .ToListAsync(ct);
 
@@ -51,9 +51,12 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         {
             delta = available - item.Available;
             // Set absoluto vía SQL (la entidad no expone mutación — a propósito).
+            // Cargar un número es dejar de ser sin límite.
             await context.StockItems
                 .Where(s => s.Id == item.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Available, available), ct);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Available, available)
+                    .SetProperty(x => x.Unlimited, false), ct);
             context.Movements.Add(new StockMovement(tenantId, variantId, MovementType.Adjustment, delta, reason: reason));
         }
 
@@ -71,19 +74,24 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         // Comparar y setear en el mismo UPDATE: entre leer y escribir puede
         // entrar una reserva del checkout, y un "leo, comparo, escribo" la pisaría.
         var updated = await context.StockItems
-            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && s.Available == expectedAvailable)
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId
+                && s.Available == expectedAvailable && !s.Unlimited)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Available, available), ct);
 
         if (updated == 0)
         {
             var current = await context.StockItems.AsNoTracking()
                 .Where(s => s.TenantId == tenantId && s.VariantId == variantId)
-                .Select(s => (int?)s.Available)
+                .Select(s => new { s.Available, s.Unlimited })
                 .FirstOrDefaultAsync(ct);
+            if (current is { Unlimited: true })
+                return Result.Failure<StockItem>(Error.Conflict(
+                    "Stock.Changed",
+                    "El stock cambió mientras editabas: ahora es sin límite. Revisalo y guardá de nuevo."));
             if (current is not null || expectedAvailable != 0)
                 return Result.Failure<StockItem>(Error.Conflict(
                     "Stock.Changed",
-                    $"El stock cambió mientras editabas: ahora hay {current ?? 0}. Revisalo y guardá de nuevo."));
+                    $"El stock cambió mientras editabas: ahora hay {current?.Available ?? 0}. Revisalo y guardá de nuevo."));
 
             // Sin fila y se esperaba 0: es el alta inicial.
             context.StockItems.Add(new StockItem(tenantId, variantId, available));
@@ -101,7 +109,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return (await GetByVariantsAsync(tenantId, [variantId], ct))[0];
     }
 
-    public async Task<int> AdjustAvailableAsync(
+    public async Task<int?> AdjustAvailableAsync(
         TenantId tenantId, Guid variantId, int delta, string? reason, CancellationToken ct = default)
     {
         await using var tx = await context.Database.BeginTransactionAsync(ct);
@@ -109,9 +117,13 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         // Delta en el propio UPDATE (Math.Max → GREATEST): atómico contra las
         // reservas del checkout, que mutan available con el mismo patrón.
         var updated = await context.StockItems
-            .Where(s => s.TenantId == tenantId && s.VariantId == variantId)
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && !s.Unlimited)
             .ExecuteUpdateAsync(s => s.SetProperty(
                 x => x.Available, x => Math.Max(0, x.Available + delta)), ct);
+
+        // Sin límite: ni las ventas de otros canales ni lo que entra lo cambian.
+        if (updated == 0 && await IsUnlimitedAsync(tenantId, variantId, ct))
+            return null;
 
         if (updated == 0)
         {
@@ -131,24 +143,57 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return (await GetByVariantsAsync(tenantId, [variantId], ct))[0].Available;
     }
 
-    public async Task<Result<Reservation>> TryReserveAsync(
+    public async Task<StockItem> SetUnlimitedAsync(
+        TenantId tenantId, Guid variantId, string? reason, CancellationToken ct = default)
+    {
+        await using var tx = await context.Database.BeginTransactionAsync(ct);
+
+        var updated = await context.StockItems
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && !s.Unlimited)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Unlimited, true), ct);
+
+        if (updated == 0 && !await context.StockItems.AnyAsync(
+                s => s.TenantId == tenantId && s.VariantId == variantId, ct))
+        {
+            context.StockItems.Add(new StockItem(tenantId, variantId, 0, unlimited: true));
+            updated = 1;
+        }
+
+        // El historial lo cuenta (sin unidades: no entra ni sale nada).
+        if (updated == 1)
+            context.Movements.Add(new StockMovement(
+                tenantId, variantId, MovementType.Adjustment, 0, reason: reason ?? "Stock sin límite"));
+
+        await context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return (await GetByVariantsAsync(tenantId, [variantId], ct))[0];
+    }
+
+    private Task<bool> IsUnlimitedAsync(TenantId tenantId, Guid variantId, CancellationToken ct) =>
+        context.StockItems.AnyAsync(s => s.TenantId == tenantId && s.VariantId == variantId && s.Unlimited, ct);
+
+    public async Task<Result<Reservation?>> TryReserveAsync(
         TenantId tenantId, Guid variantId, int quantity, CancellationToken ct = default)
     {
         if (quantity <= 0)
-            return Result.Failure<Reservation>(Error.Validation("Reservation.InvalidQuantity", "La cantidad tiene que ser mayor a cero."));
+            return Result.Failure<Reservation?>(Error.Validation("Reservation.InvalidQuantity", "La cantidad tiene que ser mayor a cero."));
 
         await using var tx = await context.Database.BeginTransactionAsync(ct);
 
-        // EL statement anti-oversell: condicional y atómico. 0 filas = no hay stock.
+        // EL statement anti-oversell: condicional y atómico. 0 filas = no hay
+        // stock, salvo que la variante sea sin límite: esa no se reserva.
         var updated = await context.StockItems
-            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && s.Available >= quantity)
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && !s.Unlimited && s.Available >= quantity)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.Available, x => x.Available - quantity)
                 .SetProperty(x => x.Reserved, x => x.Reserved + quantity), ct);
 
         if (updated == 0)
-            return Result.Failure<Reservation>(Error.Conflict(
-                "Stock.Insufficient", "No hay stock suficiente de este producto."));
+            return await IsUnlimitedAsync(tenantId, variantId, ct)
+                ? Result.Success<Reservation?>(null)
+                : Result.Failure<Reservation?>(Error.Conflict(
+                    "Stock.Insufficient", "No hay stock suficiente de este producto."));
 
         var reservation = new Reservation(tenantId, variantId, quantity);
         context.Reservations.Add(reservation);

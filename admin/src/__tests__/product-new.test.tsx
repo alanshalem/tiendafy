@@ -108,6 +108,23 @@ describe('nuevo producto', () => {
     );
   });
 
+  it('"Sin límite" (lo que viene marcado) guarda el stock como sin límite', async () => {
+    const api = mockApi();
+    const user = await open(api);
+    await user.type(screen.getByPlaceholderText('Ej.: Remera oversize'), 'Taza');
+    await user.type(screen.getAllByPlaceholderText('Ej.: 28.900')[0]!, '9900');
+    expect(screen.getByLabelText('Sin límite')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Guardar producto' }));
+    await settle(4);
+
+    // Antes no se mandaba nada: el producto quedaba sin stock y nadie lo podía comprar.
+    expect(writes(api, 'PUT', `/api/v1/inventory/${created.variants[0]!.id}`)[0]!.body).toEqual({
+      available: 0,
+      unlimited: true,
+      reason: 'Alta de producto',
+    });
+  });
+
   it('una imagen agregada se puede quitar antes de guardar', async () => {
     const api = mockApi();
     const user = await open(api);

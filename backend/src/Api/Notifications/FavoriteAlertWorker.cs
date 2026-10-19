@@ -140,7 +140,7 @@ public sealed class FavoriteAlertWorker(
         var variantIds = products.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
         var stock = await sp.GetRequiredService<IStockRepository>()
             .GetByVariantsAsync(TenantId.From(tenantId), variantIds, ct);
-        var availableByVariant = stock.ToDictionary(s => s.VariantId, s => s.Available);
+        var sellable = StockItem.SellableByVariant(variantIds, stock);
 
         return products.ToDictionary(
             p => p.Id,
@@ -151,7 +151,8 @@ public sealed class FavoriteAlertWorker(
                 // el listado y el que el comprador tiene en la cabeza.
                 p.Variants.Min(v => v.Price.AmountInMinorUnits),
                 p.Variants[0].Price.Currency,
-                p.Variants.Sum(v => availableByVariant.GetValueOrDefault(v.Id, 0))));
+                // Sin límite cuenta como disponible: nunca está agotado.
+                StockItem.Total(p.Variants.Select(v => sellable[v.Id])) ?? int.MaxValue));
     }
 
     private sealed record ProductSnapshot(

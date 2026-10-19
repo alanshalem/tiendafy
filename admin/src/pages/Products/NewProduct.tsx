@@ -247,15 +247,18 @@ export function NewProductPage() {
             }
           }
         }
-      } else if (stockMode === 'limited' && stock) {
-        // Stock inicial si se cargó (flujo de variante única).
+      } else if (stockMode === 'infinite' || stock) {
+        // Variante única: "Sin límite" se guarda como tal (se vende siempre,
+        // sin descontar); "Limitado", con la cantidad cargada.
         const full = await api.get<{ variants: { id: string }[] }>(`/api/v1/products/${product.id}`);
         const vid = full.variants[0]?.id;
         if (vid) {
-          await api.put(`/api/v1/inventory/${vid}`, {
-            available: parseInt(stock, 10),
-            reason: 'Alta de producto',
-          });
+          await api.put(
+            `/api/v1/inventory/${vid}`,
+            stockMode === 'infinite'
+              ? { available: 0, unlimited: true, reason: 'Alta de producto' }
+              : { available: parseInt(stock, 10), reason: 'Alta de producto' },
+          );
         }
       }
 

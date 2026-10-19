@@ -19,7 +19,8 @@ public sealed class CreateCategoryHandler(ICategoryRepository repository, IUnitO
                 return Result.Failure<CategoryDto>(Error.NotFound("Category", command.ParentId.Value));
         }
 
-        var categoryResult = Category.Create(command.TenantId, command.Name, parent);
+        var position = await repository.NextPositionAsync(command.TenantId, parent?.Id, ct);
+        var categoryResult = Category.Create(command.TenantId, command.Name, parent, position);
         if (categoryResult.IsFailure)
             return Result.Failure<CategoryDto>(categoryResult.Error);
 

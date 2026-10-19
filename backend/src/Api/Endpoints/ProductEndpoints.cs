@@ -110,8 +110,9 @@ public static partial class ProductEndpoints
                     var low = Math.Clamp(lowStockThreshold ?? 5, 1, 100);
                     var mode = stock.Trim().ToLowerInvariant();
 
-                    var available = inventoryDb.StockItems.AsNoTracking().Where(s => s.Available > 0);
-                    if (mode == "low") available = available.Where(s => s.Available <= low);
+                    // Sin límite siempre hay, y nunca está por agotarse.
+                    var available = inventoryDb.StockItems.AsNoTracking().Where(s => s.Available > 0 || s.Unlimited);
+                    if (mode == "low") available = available.Where(s => !s.Unlimited && s.Available <= low);
 
                     matching = await available.Select(s => s.VariantId).ToListAsync(ct);
                     hasMatching = mode != "out";
@@ -272,10 +273,11 @@ public static partial class ProductEndpoints
 
             // Stock por producto (suma de sus variantes) para badges en la card.
             var variantIds = items.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
-            var stockByVariant = variantIds.Count > 0
-                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
-                : new Dictionary<Guid, int>();
-            int StockFor(Product p) => p.Variants.Sum(v => stockByVariant.TryGetValue(v.Id, out var a) ? a : 0);
+            var stockByVariant = Inventory.Core.Domain.StockItem.SellableByVariant(variantIds, variantIds.Count > 0
+                ? await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)
+                : []);
+            // null = alguna variante es sin límite: la card no dice "Sin stock" ni "¡Últimas N!".
+            int? StockFor(Product p) => Inventory.Core.Domain.StockItem.Total(p.Variants.Select(v => stockByVariant[v.Id]));
             // Estrellas para la card (reseñas aprobadas).
             var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, items.Select(p => p.Id).ToList(), ct);
 
@@ -511,10 +513,10 @@ public static partial class ProductEndpoints
             var variants = (await catalog.GetVariantsAsync(tenant.TenantId.Value, wanted, ct))
                 .Where(v => v.ProductIsActive)
                 .ToList();
-            var stock = variants.Count > 0
-                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variants.Select(v => v.VariantId).ToList(), ct))
-                    .ToDictionary(s => s.VariantId, s => s.Available)
-                : new Dictionary<Guid, int>();
+            var wantedIds = variants.Select(v => v.VariantId).ToList();
+            var stock = Inventory.Core.Domain.StockItem.SellableByVariant(wantedIds, wantedIds.Count > 0
+                ? await stockRepository.GetByVariantsAsync(tenant.TenantId, wantedIds, ct)
+                : []);
 
             return Results.Ok(new
             {
@@ -524,8 +526,9 @@ public static partial class ProductEndpoints
                     productName = v.ProductName,
                     variantLabel = v.VariantDescription,
                     price = v.Price,
-                    // Sin fila de stock = 0, igual que la reserva del checkout.
-                    available = stock.GetValueOrDefault(v.VariantId),
+                    // Sin fila de stock = 0, igual que la reserva del checkout;
+                    // null = sin límite.
+                    available = stock[v.VariantId],
                 }),
             });
         });
@@ -547,12 +550,12 @@ public static partial class ProductEndpoints
             // "availability" real del JSON-LD (InStock/OutOfStock). Y el de cada
             // variante, porque la ficha vende UNA: con solo el total, un talle
             // agotado se mostraba "en stock" y el comprador recién se enteraba
-            // al pagar. Sin fila de stock = 0, igual que la reserva del checkout.
+            // al pagar. Sin fila de stock = 0, igual que la reserva del checkout;
+            // una variante sin límite va en null (y el total también).
             var variantIds = product.Variants.Select(v => v.Id).ToList();
-            var byVariant = variantIds.Count > 0
-                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct))
-                    .ToDictionary(s => s.VariantId, s => s.Available)
-                : new Dictionary<Guid, int>();
+            var byVariant = Inventory.Core.Domain.StockItem.SellableByVariant(variantIds, variantIds.Count > 0
+                ? await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)
+                : []);
 
             // Estrellas junto al precio y el aggregateRating del JSON-LD.
             var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, [product.Id], ct);
@@ -560,9 +563,9 @@ public static partial class ProductEndpoints
             var dto = product.ToDto();
             return Results.Ok(dto with
             {
-                Stock = byVariant.Values.Sum(),
+                Stock = Inventory.Core.Domain.StockItem.Total(byVariant.Values),
                 Rating = ratings.GetValueOrDefault(product.Id),
-                Variants = dto.Variants.Select(v => v with { Available = byVariant.GetValueOrDefault(v.Id) }).ToList(),
+                Variants = dto.Variants.Select(v => v with { Available = byVariant[v.Id] }).ToList(),
             });
         });
 

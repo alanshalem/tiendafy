@@ -42,8 +42,8 @@ public static class BackInStockEndpoints
 
             // Solo tiene sentido en lo agotado: si hay, que lo compre.
             var rows = await stock.GetByVariantsAsync(tenant.TenantId, [req.VariantId], ct);
-            var available = rows is [var row, ..] ? row.Available : 0;
-            if (available > 0)
+            var available = rows is [var row, ..] ? row.Sellable : 0;
+            if (available is null or > 0)
                 return Error.Conflict("StockAlert.InStock", "¡Ya hay stock! Podés comprarlo ahora.").ToProblem();
 
             var pending = db.StockAlerts.Where(s => s.TenantId == tid && s.Email == email
@@ -123,7 +123,7 @@ public static class BackInStockEndpoints
             var variantIds = page.Select(r => r.VariantId).ToList();
             var variants = (await catalog.GetVariantsAsync(tid, variantIds, ct)).ToDictionary(v => v.VariantId);
             var available = (await stock.GetByVariantsAsync(tenant.TenantId, variantIds, ct))
-                .ToDictionary(s => s.VariantId, s => s.Available);
+                .ToDictionary(s => s.VariantId, s => s.Sellable);
 
             return Results.Ok(new
             {

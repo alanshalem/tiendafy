@@ -653,7 +653,7 @@ export const VENTAS = {
             type: 'callout',
             tone: 'tip',
             title: 'Colchón anti-sobreventa',
-            text: 'Con “Colchón anti-sobreventa (unidades)” Mercado Libre muestra un poco menos de lo que tenés: con 2 de colchón y 10 en stock, ML publica 8. Esas unidades cubren el rato entre una venta en tu tienda y la actualización en ML. Con 0 se publica todo el stock.',
+            text: 'Con “Colchón anti-sobreventa (unidades)” Mercado Libre muestra un poco menos de lo que tenés: con 2 de colchón y 10 en stock, ML publica 8. Esas unidades cubren el rato entre una venta en tu tienda y la actualización en ML. Con 0 se publica todo el stock. Un producto con stock sin límite se publica siempre con 50 unidades (ML exige un número), sin colchón, y después de cada venta en ML se vuelve a completar.',
           },
         ],
       },

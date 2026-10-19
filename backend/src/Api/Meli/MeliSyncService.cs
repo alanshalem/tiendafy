@@ -285,6 +285,18 @@ public sealed class MeliSyncService(
         {
             var delta = reverse ? d.Quantity : -d.Quantity;
             var after = await stock.AdjustAvailableAsync(tenant, d.VariantId, delta, reason, ct);
+            if (after is null)
+            {
+                // Sin límite: acá no se descuenta nada, pero ML bajó la cantidad
+                // de la publicación. Olvidar lo último empujado hace que la
+                // próxima pasada del worker la vuelva a completar.
+                await db.ItemLinks.IgnoreQueryFilters()
+                    .Where(l => l.TenantId == tenantId && l.VariantId == d.VariantId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(l => l.LastPushedQty, (int?)null), ct);
+                logger.LogInformation(
+                    "Stock ML sin límite: tenant {TenantId}, variante {VariantId}; no se descuenta.", tenantId, d.VariantId);
+                continue;
+            }
             logger.LogInformation(
                 "Stock ML {Action}: tenant {TenantId}, variante {VariantId}, {Delta} → queda {After}.",
                 reverse ? "devuelto" : "aplicado", tenantId, d.VariantId, delta, after);

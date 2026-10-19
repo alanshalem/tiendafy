@@ -20,9 +20,9 @@ export const CATALOGO = {
           { type: 'path', segments: ['Productos', 'Agregar producto'] },
           {
             type: 'callout',
-            tone: 'warning',
-            title: 'Sin stock cargado no se puede comprar',
-            text: '“Sin límite” no significa stock infinito: el producto se crea sin stock, se ve agotado y nadie lo puede comprar hasta que le cargues unidades (en el producto o en Productos → Inventario).',
+            tone: 'info',
+            title: 'Stock “Sin límite” o “Limitado”',
+            text: 'Con “Sin límite” el producto se puede comprar siempre: no se agota, no se aparta al pagar y las ventas no le descuentan nada (sirve para lo que se hace a pedido o no se cuenta). Con “Limitado” cargás cuántas unidades hay. Lo cambiás cuando quieras al editar el producto (la casilla “Sin límite” debajo del stock), y en Inventario o en el Escáner, escribiendo un número, pasa a limitado.',
           },
           {
             type: 'callout',
@@ -66,7 +66,7 @@ export const CATALOGO = {
         heading: 'Inventario y reservas',
         paragraphs: [
           'El stock se controla por variante en Productos → Inventario: ahí ves lo disponible y lo reservado, y lo ajustás a mano (escribís el número y tocás “Guardar”; hace falta el permiso “Ajustar el stock”). Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés. Si eligió transferencia o efectivo, la reserva dura lo que configuraste para esos pagos (48 horas de fábrica).',
-          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo, cuántas variantes están sin stock y cuántas quedan con 5 o menos: tocá uno de esos dos para ver solo esos productos.',
+          'Arriba tenés las unidades en depósito, cuánto vale ese stock a costo, cuántas variantes están sin stock y cuántas quedan con 5 o menos: tocá uno de esos dos para ver solo esos productos. Las variantes con stock sin límite dicen “Sin límite” y no entran en esas cuentas: nunca se agotan.',
           'El stock es uno solo para todos los canales: si sincronizás el stock con Mercado Libre, una venta de ML también lo descuenta (y si se cancela, vuelve). Lo explica el artículo «Integración con Mercado Libre».',
           'Para saber por qué una variante tiene el stock que tiene, tocá el reloj al final de su fila: se abre su historial, del cambio más nuevo al más viejo. Cada renglón dice qué pasó (alta, ajuste, apartado por una compra, venta cobrada, o stock que volvió porque la compra se canceló o no se pagó a tiempo), cuánto entró o salió, el motivo, y —si fue una venta— un link a esa venta. Muestra los últimos 50 movimientos.',
         ],
@@ -91,6 +91,7 @@ export const CATALOGO = {
         paragraphs: [
           'En Productos → Categorías armás cómo se organiza el catálogo: “Crear categoría” y, para una subcategoría, elegí la “Categoría padre” (hasta 3 niveles) o usá “Agregar subcategoría” en el menú ⋮ de la categoría.',
           'Ese mismo menú tiene “Editar nombre” (la dirección de la categoría no cambia al renombrarla), “Ver en la tienda” y “Eliminar”: los productos no se borran, solo pierden esa categoría. El ícono de copiar (“Duplicar”) crea otra igual con sus subcategorías, sin productos.',
+          'Para cambiar el orden, arrastrá cada categoría desde su manija (entre las de un mismo nivel) y tocá “Guardar orden”. Queda guardado en la tienda: el menú «Categorías», las subcategorías del menú y la sección de categorías del inicio las muestran en ese orden. Una categoría nueva va al final de su nivel.',
           'Cada producto elige sus categorías en su edición, o con la columna «Categorías» de la planilla. Qué categorías aparecen en el menú de la tienda, y en qué orden, se arma en el editor de diseño: lo explica el artículo «Encabezado, menú, listado, ficha y carrito».',
         ],
         blocks: [{ type: 'path', segments: ['Productos', 'Categorías'] }],
@@ -120,8 +121,9 @@ export const CATALOGO = {
       {
         heading: 'Importación y exportación masiva',
         paragraphs: [
-          'En la lista de productos, “Exportar e importar” baja todo tu catálogo a una planilla (CSV) para editarlo en Excel o Google Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. La solapa Exportar trae todas las variantes con precio, promocional, costo, SKU, código de barras, peso, medidas y las direcciones de las fotos; las descripciones van si dejás marcado “Incluir descripciones”. El stock no viaja en la exportación: esa columna sale vacía.',
-          'En la solapa Importar podés bajar una “Plantilla vacía” o una “Plantilla con ejemplos”, completarla y subirla (hasta 20.000 líneas por archivo). Cada producto se reconoce por su «Identificador de URL»: si ya existe y está marcado “Modificar productos ya existentes”, se actualizan su nombre, descripción y categorías, y de cada variante que coincide por SKU el precio, el promocional, el costo, el código de barras, el peso y las medidas. A un producto que ya existe no se le suman variantes ni fotos, ni cambia si se muestra en la tienda. Con “Actualizar stock”, el número de la columna Stock pisa el que hay.',
+          'En la lista de productos, “Exportar e importar” baja todo tu catálogo a una planilla (CSV) para editarlo en Excel o Google Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. La solapa Exportar trae todas las variantes con precio, promocional, costo, SKU, código de barras, peso, medidas y las direcciones de las fotos, y de cada producto sus categorías, su marca y lo que cargaste para buscadores (SEO); las descripciones van si dejás marcado “Incluir descripciones”. El stock no viaja en la exportación: esa columna sale vacía.',
+          'En la solapa Importar podés bajar una “Plantilla vacía” o una “Plantilla con ejemplos”, completarla y subirla (hasta 20.000 líneas por archivo). Cada producto se reconoce por su «Identificador de URL»: si ya existe y está marcado “Modificar productos ya existentes”, se actualizan su nombre, descripción, marca, categorías y SEO, y de cada variante que coincide por SKU el precio, el promocional, el costo, el código de barras, el peso y las medidas. A un producto que ya existe no se le suman variantes ni fotos, ni cambia si se muestra en la tienda. Con “Actualizar stock”, el número de la columna Stock pisa el que hay.',
+          'Al modificar un producto, una celda vacía no borra nada: ese dato queda como estaba, y lo mismo si la columna no está en el archivo. Así podés subir una planilla con solo SKU y Precio, o volver a subir lo que exportaste sin cambiar nada. La única excepción es «Precio promocional»: si la columna está y la celda va vacía, la variante queda sin oferta.',
           'En «Categorías», la jerarquía va con > y varias categorías se separan con punto y coma: “Indumentaria > Remeras; Ofertas”. Las que no existen se crean solas.',
           'Las fotos entran de dos maneras: por URL en la columna «Imágenes» de la planilla (se descargan y quedan guardadas en tu tienda), o desde la solapa Imágenes, subiendo los archivos o un .zip. Ahí se asocian solas si el nombre del archivo es el identificador de URL del producto (remera-oversize.jpg, remera-oversize-2.jpg para la segunda); si no lo encuentra, prueba con el SKU. Para un catálogo grande, sumá un CSV de mapeo con las columnas «Identificador de URL» y «Archivos» y la asociación es exacta.',
         ],

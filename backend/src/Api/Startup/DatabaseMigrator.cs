@@ -46,7 +46,7 @@ public static class DatabaseMigrator
         var customersPending = await MigrateAsync<CustomersDbContext>(sp, logger);
         await MigrateAsync<ContentDbContext>(sp, logger);
         await MigrateAsync<ThemesDbContext>(sp, logger);
-        await MigrateAsync<InventoryDbContext>(sp, logger);
+        var inventoryPending = await MigrateAsync<InventoryDbContext>(sp, logger);
         await MigrateAsync<CheckoutDbContext>(sp, logger);
         await MigrateAsync<PaymentsDbContext>(sp, logger);
         await MigrateAsync<OrdersDbContext>(sp, logger);
@@ -69,6 +69,14 @@ public static class DatabaseMigrator
         // de aplicar, con las ventas ya migradas.
         if (customersPending.Any(m => m.EndsWith("_AddCustomerTagsAndPurchaseStats", StringComparison.Ordinal)))
             await RestateCustomersAsync(sp, logger);
+
+        // Los productos que se crearon "Sin límite" cuando eso no cargaba stock.
+        if (inventoryPending.Any(m => m.EndsWith(UnlimitedStockBackfill.Migration, StringComparison.Ordinal)))
+        {
+            var unlimited = await UnlimitedStockBackfill.RunAsync(
+                sp.GetRequiredService<CatalogDbContext>(), sp.GetRequiredService<InventoryDbContext>());
+            logger.LogInformation("Stock sin límite: {Count} variantes de productos creados así.", unlimited);
+        }
     }
 
     private static async Task RestateCustomersAsync(IServiceProvider sp, ILogger logger)

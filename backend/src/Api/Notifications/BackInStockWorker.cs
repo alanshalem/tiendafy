@@ -80,7 +80,7 @@ public sealed class BackInStockWorker(
         var variantIds = pending.Select(s => s.VariantId).Distinct().ToList();
         var restocked = (await sp.GetRequiredService<IStockRepository>()
                 .GetByVariantsAsync(TenantId.From(tenantId), variantIds, ct))
-            .Where(s => s.Available > 0)
+            .Where(s => s.Sellable is null or > 0)
             .Select(s => s.VariantId)
             .ToHashSet();
         var ready = pending.Where(s => restocked.Contains(s.VariantId)).ToList();

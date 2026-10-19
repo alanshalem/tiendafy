@@ -128,7 +128,8 @@ export function InventoryPage() {
     }: {
       variantId: string;
       available: number;
-      expectedAvailable: number;
+      /** Sin él (una variante sin límite que pasa a un número), set absoluto. */
+      expectedAvailable?: number;
     }) =>
       api.put(`/api/v1/inventory/${variantId}`, {
         available,
@@ -291,9 +292,12 @@ export function InventoryPage() {
               {items.flatMap((product) =>
                 product.variants.map((variant, vi) => {
                   const current = stockByVariant.get(variant.id);
+                  const unlimited = current?.unlimited === true;
                   const draft = drafts[variant.id];
-                  const value = draft?.value ?? String(current?.available ?? '');
-                  const changed = draft !== undefined && draft.value !== String(current?.available ?? '');
+                  // Sin límite no muestra un número: tipear uno lo pasa a limitado.
+                  const shown = unlimited ? '' : String(current?.available ?? '');
+                  const value = draft?.value ?? shown;
+                  const changed = draft !== undefined && draft.value !== shown;
                   const variantLabel =
                     variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
 
@@ -319,7 +323,12 @@ export function InventoryPage() {
                             inputMode="numeric"
                             className="text-center"
                             value={value}
-                            placeholder="—"
+                            placeholder={unlimited ? 'Sin límite' : '—'}
+                            title={
+                              unlimited
+                                ? 'Stock sin límite: se vende siempre. Escribí un número para limitarlo.'
+                                : undefined
+                            }
                             readOnly={!canAdjust}
                             onChange={(e) =>
                               setDrafts((d) => ({
@@ -343,7 +352,7 @@ export function InventoryPage() {
                                 save.mutate({
                                   variantId: variant.id,
                                   available: parseInt(value || '0', 10),
-                                  expectedAvailable: draft!.seen,
+                                  expectedAvailable: unlimited ? undefined : draft!.seen,
                                 })
                               }
                             >

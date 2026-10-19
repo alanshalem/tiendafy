@@ -67,7 +67,13 @@ public sealed class CategoryResolver
                 continue;
             }
 
-            var created = Category.Create(_tenant, name, parent);
+            // Al final de sus hermanas, como una creada a mano.
+            var position = _byPath.Values
+                .Where(c => c.ParentId == parent?.Id)
+                .Select(c => c.Position + 1)
+                .DefaultIfEmpty(0)
+                .Max();
+            var created = Category.Create(_tenant, name, parent, position);
             if (created.IsFailure) return parent; // ej: supera MaxDepth
             var category = created.Value;
 

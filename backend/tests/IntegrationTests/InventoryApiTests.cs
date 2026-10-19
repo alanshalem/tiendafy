@@ -40,12 +40,12 @@ public sealed class InventoryApiTests(ApiFactory factory)
 
         // Reservar, confirmar, liberar.
         var reservation = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 2));
-        Assert.Equal("ACTIVE", reservation.Value.Status);
+        Assert.Equal("ACTIVE", reservation.Value!.Status);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
         Assert.True((await WithInventoryAsync(i => i.ConfirmReservationAsync(merchant.TenantId, reservation.Value.Id))).IsSuccess);
 
         var released = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 1));
-        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, released.Value.Id))).IsSuccess);
+        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, released.Value!.Id))).IsSuccess);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
 
         // No se reserva más de lo que hay, ni se confirma/libera lo que no existe.

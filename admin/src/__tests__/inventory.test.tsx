@@ -72,6 +72,26 @@ describe('inventario', () => {
     expect(api.calls.filter((c) => c.method === 'PUT').at(-1)!.body).toMatchObject({ available: 0 });
   });
 
+  it('una variante sin límite lo dice, y escribirle un número la limita', async () => {
+    const { api, user } = await openInventory((a) => {
+      a.on('PUT', '/api/v1/inventory/:id', {});
+      a.on('GET', '/api/v1/inventory', {
+        items: [{ variantId: variant.id, available: 0, reserved: 0, unlimited: true }],
+      });
+    });
+    const input = screen.getByLabelText(stockLabel);
+    await waitFor(() => expect(input).toHaveAttribute('placeholder', 'Sin límite'));
+    expect(input).toHaveValue('');
+    await user.type(input, '12');
+    await user.click(within(input.closest('tr') as HTMLElement).getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Stock actualizado')).toBeInTheDocument();
+    // Sin "esperado": sin límite no tiene un número contra el cual comparar.
+    expect(api.calls.find((c) => c.method === 'PUT')!.body).toEqual({
+      available: 12,
+      reason: 'Ajuste manual desde el panel',
+    });
+  });
+
   it('si el stock cambió mientras se tipeaba, no lo pisa: avisa, refresca la fila y el segundo guardado entra', async () => {
     const { api, user } = await openInventory((a) =>
       a.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] }),

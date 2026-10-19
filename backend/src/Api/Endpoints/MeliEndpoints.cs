@@ -871,7 +871,8 @@ public static class MeliEndpoints
                 return Error.Validation("Meli.NoVariant", "El producto no tiene variantes.").ToProblem();
 
             var stockRows = await stock.GetByVariantsAsync(tenant.TenantId, [variant.Id], ct);
-            var available = stockRows.Count > 0 ? stockRows[0].Available : 0;
+            // null = sin límite: se publica con la cantidad fija de MeliListingPayload.
+            var available = stockRows.Count > 0 ? stockRows[0].Sellable : 0;
             if (available <= 0)
                 return Error.Validation("Meli.NoStock",
                     "La variante no tiene stock disponible: Mercado Libre exige publicar con stock.").ToProblem();
