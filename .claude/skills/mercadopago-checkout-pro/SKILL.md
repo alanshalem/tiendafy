@@ -79,7 +79,13 @@ PUT https://api.mercadopago.com/checkout/preferences/{id}
 ```
 
 Primero se vence el link, después se cancela la orden y se liberan reservas:
-al revés, alguien podría pagar una orden cancelada.
+al revés, alguien podría pagar una orden cancelada (si igual pasa, el pago
+tardío la deja pagada y "para revisar"; ver `mercadopago-webhooks`).
+
+Las ventas del checkout sin pagar a las 24 horas las cancela
+`AbandonedPaymentWorker`, después de buscar sus pagos con
+`GET /v1/payments/search?external_reference={orderId}&sort=date_created&criteria=desc`
+(un `pending`/`in_process` la deja esperando; un `approved` sin aplicar la paga).
 
 ## Estados que llegan después
 

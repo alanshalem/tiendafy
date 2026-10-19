@@ -110,6 +110,11 @@ public static class ServiceRegistration
         services.AddScoped<PaywayReconciliationService>();
         if (runPollingWorkers) services.AddHostedService<PaywayReconciliationWorker>();
 
+        // Ventas de pasarela que nadie pagó (Checkout Pro o Brick abandonado,
+        // Payway sin resolver): se cancelan solas, sin avisarle al comprador.
+        services.AddScoped<AbandonedPaymentService>();
+        if (runPollingWorkers) services.AddHostedService<AbandonedPaymentWorker>();
+
         // Facturación automática: outbox de emisión + worker que pide el CAE a ARCA.
         if (runPollingWorkers) services.AddHostedService<Api.Fiscal.FiscalEmissionWorker>();
 

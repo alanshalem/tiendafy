@@ -121,7 +121,11 @@ la tokenización no depende de él.
    `siteOperationId`, nunca reintenta el cobro. Intervalo según la edad del
    intento: cada 2 minutos la primera hora, 15 minutos hasta las 6 horas, una
    hora hasta las 24 y cada 4 horas hasta los 3 días; después deja de
-   preguntar y loguea un warning para mirarlo en el portal. Lo que Payway
+   preguntar y loguea un warning para mirarlo en el portal, y la venta la
+   cancela `AbandonedPaymentWorker` (motivo "No se completó el pago", sin
+   aviso al comprador; ver "Ventas abandonadas" en
+   [mercadopago.md](mercadopago.md)). Una venta de Payway sin ningún cobro en
+   el medio se cancela a las 24 horas, como las de Mercado Pago. Lo que Payway
    resolvió se aplica como el cobro en el momento: `approved` →
    `SettlePaymentHandler` + `PaidOrderSideEffects` (avisos, factura, cupón);
    `rejected` → orden `Failed` y stock liberado; anulado (no quedó plata

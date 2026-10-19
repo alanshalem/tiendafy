@@ -161,6 +161,7 @@ broker de mensajes; ver [ADR 0005](./adr/0005-segundo-plano-con-polling-a-postgr
 | `StockAlertWorker` | 5 min | Alertas de stock bajo (inmediatas o resumen diario) |
 | `ThemeScheduleWorker` | 30 s | Publica los diseños programados |
 | `OfflinePaymentExpiryWorker` | 1 min | Vence las órdenes de transferencia/efectivo no pagadas |
+| `AbandonedPaymentWorker` | 10 min | Cancela las ventas del checkout con Mercado Pago o Payway sin pagar a las 24 h (antes busca si hay un pago en curso; sin aviso al comprador) |
 | `ExpiredReservationsJob` | 30 s | Libera reservas de stock vencidas (siempre prendido) |
 | `ExpiredCheckoutWorker` | 1 min | Cierra los checkouts con el plazo cumplido: vencidos (sin reservas activas, transferencia en plazo ni venta cobrada) o completados (terminaron en venta cobrada) |
 | `ProductImportWorker` / `ProductImageImportWorker` | cola en memoria | Importación de productos por CSV y de imágenes por URL (siempre prendidos) |

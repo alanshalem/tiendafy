@@ -1,9 +1,12 @@
 using System.Text.Json;
+using Api.Payments;
 using Inventory.Core.Domain;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orders.Infrastructure.Persistence;
+using Payments.Core.Domain;
+using Payments.Infrastructure.Persistence;
 
 namespace IntegrationTests;
 
@@ -138,7 +141,164 @@ public sealed class LatePaymentTests(ApiFactory factory)
         await AssertStockAsync(merchant, variantId, available: 0, reserved: 0);
     }
 
+    [Fact]
+    public async Task Una_compra_con_mercado_pago_abandonada_se_cancela_sola_sin_avisar_al_comprador()
+    {
+        var (merchant, _, shopper) = await StoreAsync("taba");
+        var (_, variantId) = await merchant.CreateProductAsync("Silla", priceMinor: 12_000_00, stock: 2);
+        var buyer = $"abandono-{merchant.Subdomain}@test.local";
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId, email: buyer);
+        var preferenceId = await PreferenceOfAsync(orderId);
+        SearchReturns(orderId); // nunca hubo un pago
+        factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/checkout/preferences/{preferenceId}", new { id = preferenceId });
+
+        // Recién creada no se toca.
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        Assert.Equal("PENDINGPAYMENT", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+
+        await AgeAsync(orderId);
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("CANCELLED", order.GetProperty("status").GetString());
+        Assert.Equal("No se completó el pago", order.GetProperty("cancelReason").GetString());
+        Assert.Equal("sistema", order.GetProperty("cancelledBy").GetString());
+        await AssertStockAsync(merchant, variantId, available: 2, reserved: 0);
+        // El link quedó vencido: nadie paga una venta cancelada.
+        Assert.Contains(factory.ExternalHttp.SentTo($"{Api}/checkout/preferences/{preferenceId}"),
+            r => r.Method == HttpMethod.Put && r.Body!.Contains("\"expires\":true"));
+        // Nunca confirmó el pago: no se le avisa nada.
+        Assert.DoesNotContain(factory.ExternalHttp.EmailsTo(buyer), m => m.Subject.Contains("cancel", StringComparison.OrdinalIgnoreCase));
+
+        // Una segunda pasada no la procesa de nuevo.
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        await AssertStockAsync(merchant, variantId, available: 2, reserved: 0);
+    }
+
+    [Fact]
+    public async Task Una_abandonada_con_un_pago_en_curso_espera_y_uno_aprobado_sin_aviso_la_paga()
+    {
+        var (merchant, _, shopper) = await StoreAsync("tabp");
+        var (_, variantId) = await merchant.CreateProductAsync("Mesa", priceMinor: 50_000_00, stock: 3);
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId);
+        await AgeAsync(orderId);
+
+        // Un cupón de Rapipago todavía sin pagar: no se cancela.
+        var paymentId = NewPaymentId();
+        SearchReturns(orderId, (paymentId, "pending"));
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        Assert.Equal("PENDINGPAYMENT", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+
+        // Se pagó, pero el aviso nunca llegó: la consulta lo encuentra y la venta queda pagada.
+        SearchReturns(orderId, (paymentId, "approved"));
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("PAID", order.GetProperty("status").GetString());
+        Assert.Equal(paymentId, order.GetProperty("paymentId").GetString());
+    }
+
+    [Fact]
+    public async Task Un_pago_aprobado_sobre_una_venta_vencida_por_abandono_la_deja_pagada()
+    {
+        var (merchant, mpUserId, shopper) = await StoreAsync("tabv");
+        var (_, variantId) = await merchant.CreateProductAsync("Banqueta", priceMinor: 7_000_00, stock: 1);
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId);
+        SearchReturns(orderId);
+        await AgeAsync(orderId);
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        Assert.Equal("CANCELLED", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+
+        // Un pago en efectivo que se acredita después (o el link que no se pudo vencer).
+        await ApproveAsync(mpUserId, orderId, NewPaymentId());
+
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("PAID", order.GetProperty("status").GetString());
+        Assert.Contains("Figuraba cancelada (No se completó el pago)", order.GetProperty("reviewNote").GetString());
+        await AssertStockAsync(merchant, variantId, available: 0, reserved: 0);
+    }
+
+    [Fact]
+    public async Task Una_venta_de_payway_se_cancela_cuando_la_reconsulta_se_da_por_vencida()
+    {
+        var (merchant, _, shopper) = await StoreAsync("tabw");
+        var (_, variantId) = await merchant.CreateProductAsync("Parlante", priceMinor: 20_000_00, stock: 2);
+        var orderId = await PayWithCheckoutProAsync(shopper, variantId);
+        await AgeAsync(orderId);
+
+        // Un cobro de Payway que quedó en el medio: mientras se reconsulte, se espera.
+        Guid attemptId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var payments = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            var tenantId = await TenantOfAsync(orderId);
+            var attempt = PaywayPaymentAttempt.Start(tenantId, orderId, 1,
+                PaywayPaymentAttempt.BuildSiteTransactionId(orderId, 1), 20_000_00, "ARS", 1, "450799", "4905", "visa", 1);
+            payments.PaywayPaymentAttempts.Add(attempt);
+            await payments.SaveChangesAsync();
+            attemptId = attempt.Id;
+        }
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        Assert.Equal("PENDINGPAYMENT", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+        // Payway no se consulta como Mercado Pago.
+        Assert.Empty(factory.ExternalHttp.SentTo($"{Api}/v1/payments/search?external_reference={orderId}"));
+
+        // Pasaron los tres días de reconsulta sin respuesta: se cancela.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var payments = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            await payments.PaywayPaymentAttempts.IgnoreQueryFilters().Where(a => a.Id == attemptId)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.CreatedAtUtc, DateTime.UtcNow.AddDays(-4)));
+        }
+        await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
+        var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Equal("CANCELLED", order.GetProperty("status").GetString());
+        await AssertStockAsync(merchant, variantId, available: 2, reserved: 0);
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>
+    /// La venta, "creada" hace años: el worker toma las más viejas primero y la
+    /// base de tests guarda ventas pendientes de otras corridas.
+    /// </summary>
+    private async Task AgeAsync(Guid orderId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        await orders.Orders.IgnoreQueryFilters().Where(o => o.Id == orderId)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.CreatedAtUtc, DateTime.UtcNow.AddYears(-5)));
+    }
+
+    /// <summary>Lo que contesta la búsqueda de pagos de Mercado Pago para esa venta.</summary>
+    private void SearchReturns(Guid orderId, params (string Id, string Status)[] payments) =>
+        factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/search?external_reference={orderId}", new
+        {
+            paging = new { total = payments.Length, limit = 50, offset = 0 },
+            results = payments.Select(p => new
+            {
+                id = long.Parse(p.Id),
+                status = p.Status,
+                status_detail = p.Status == "pending" ? "pending_waiting_payment" : "accredited",
+                external_reference = orderId.ToString(),
+                transaction_amount = 1_000m,
+                transaction_amount_refunded = 0m,
+            }),
+        });
+
+    private async Task<string> PreferenceOfAsync(Guid orderId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        return await orders.Orders.IgnoreQueryFilters().Where(o => o.Id == orderId).Select(o => o.PreferenceId!).SingleAsync();
+    }
+
+    private async Task<Guid> TenantOfAsync(Guid orderId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        var tenant = await orders.Orders.IgnoreQueryFilters().Where(o => o.Id == orderId).Select(o => o.TenantId).SingleAsync();
+        return tenant.Value;
+    }
 
     private async Task<(Merchant Merchant, long MpUserId, Shopper Shopper)> StoreAsync(string tag)
     {

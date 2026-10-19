@@ -84,6 +84,14 @@ public interface IMercadoPagoPaymentService
     Task<Result<PaymentStatusDto>> GetPaymentAsync(TenantId tenantId, string paymentId, CancellationToken ct = default);
 
     /// <summary>
+    /// Los pagos de una orden (<c>GET /v1/payments/search?external_reference=</c>),
+    /// del más nuevo al más viejo: los intentos de Checkout Pro, el Brick o un
+    /// pago en efectivo todavía sin acreditar. Sirve para saber si una venta
+    /// pendiente tiene un pago en curso antes de darla por abandonada.
+    /// </summary>
+    Task<Result<IReadOnlyList<PaymentStatusDto>>> SearchPaymentsAsync(TenantId tenantId, Guid orderId, CancellationToken ct = default);
+
+    /// <summary>
     /// Reembolso de un pago aprobado (MercadoPago refunds API). <paramref name="amount"/>
     /// null = total; con valor = parcial. <paramref name="idempotencyKey"/> debe ser único
     /// por intento de refund (no por pago) para permitir múltiples parciales.

@@ -232,6 +232,36 @@ cuenta en "Para hacer hoy" (`toReview` de `GET /home/todo`, filtro
 `review=true` del listado) y el comercio la saca con
 `POST /orders/{id}/review/resolve`. El comprador nunca ve la nota.
 
+**Ventas abandonadas.** Una venta del checkout que se iba a pagar con
+Checkout Pro o el Brick y nadie pagó quedaba pendiente para siempre (solo las
+de transferencia o efectivo vencían; la reserva de stock vence sola a la media
+hora, la venta no). `AbandonedPaymentWorker` (cada 10 minutos, solo con
+`Workers:Enabled`; `AbandonedPaymentService` en `Api/Payments`) mira las del
+canal `web` que llevan más de **24 horas** pendientes y, antes de cancelar,
+busca sus pagos con `GET /v1/payments/search?external_reference={orderId}&sort=date_created&criteria=desc`
+(sin rango de fechas, así trae también los de una venta vieja):
+
+- uno `approved` que no llegó por webhook: se aplica (`SettlePaymentHandler`
+  + `PaidOrderSideEffects`) y la venta queda pagada;
+- uno `pending`, `in_process` o `authorized` (un cupón de Rapipago o Pago Fácil
+  sin pagar, una tarjeta en revisión, un desafío 3DS): se espera a la próxima
+  pasada;
+- ninguno vivo: se vence la preference y se cancela con un `UPDATE`
+  condicional (sigue pendiente → `Cancelled`, `CancelledBy = "sistema"`,
+  motivo "No se completó el pago"), y se liberan las reservas que quedaran. Al
+  comprador no se le avisa: nunca confirmó el pago.
+
+Por qué 24 horas y no los 3 días del efectivo: la preference no lleva
+`date_of_expiration` y ofrece todos los medios, pero un pago en efectivo existe
+en Mercado Pago (`pending`) desde que el comprador saca el cupón, así que la
+búsqueda lo ve y la venta espera lo que haga falta. El plazo solo decide
+cuándo se mira una venta sin pagos. Si la búsqueda falla (Mercado Pago caído,
+la tienda desconectó la cuenta) se reintenta, y pasados 7 días se cancela
+igual. Un pago que se apruebe después de cancelada aplica el "pago tardío" de
+la tabla del webhook: la venta queda pagada y para revisar. Las ventas
+manuales y de presupuestos con link de pago no se tocan: el link lo mandó el
+comercio y la cancela él.
+
 **Cancelar una venta pendiente.** Primero se vence la preference
 (`PUT /checkout/preferences/{id}` con `expires: true` y `expiration_date_to`
 en el pasado) para que el link no acepte pagos, después se cancela la orden,

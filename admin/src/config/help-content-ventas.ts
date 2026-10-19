@@ -196,7 +196,7 @@ export const VENTAS = {
       {
         heading: 'Si un pago queda en duda',
         paragraphs: [
-          'Payway no nos avisa solo cuando algo cambia. Si un cobro quedó en el medio (se cortó la conexión, el banco lo dejó en revisión o pidió una validación extra), le volvemos a preguntar solos por ese pago durante tres días: seguido al principio y cada vez más espaciado. Cuando responde, la venta queda Pagada (con su email y su factura, como cualquier cobro) o, si el pago se rechazó o se anuló, Fallida o Cancelada, y el stock vuelve a la venta. Nunca reintentamos el cobro: es así como se cobra dos veces.',
+          'Payway no nos avisa solo cuando algo cambia. Si un cobro quedó en el medio (se cortó la conexión, el banco lo dejó en revisión o pidió una validación extra), le volvemos a preguntar solos por ese pago durante tres días: seguido al principio y cada vez más espaciado. Cuando responde, la venta queda Pagada (con su email y su factura, como cualquier cobro) o, si el pago se rechazó o se anuló, Fallida o Cancelada, y el stock vuelve a la venta. Si a los tres días sigue sin resolverse, la venta se cancela sola con el motivo “No se completó el pago” (miralo en el portal de Payway). Nunca reintentamos el cobro: es así como se cobra dos veces.',
           'Si ves una venta que sigue pendiente, no la vuelvas a cobrar: consultá el estado en el panel de Payway antes de hacer nada.',
         ],
       },
@@ -287,6 +287,7 @@ export const VENTAS = {
         heading: 'El ciclo de una venta',
         paragraphs: [
           'Cada compra aparece en Ventas como “Pendiente” mientras espera el pago y pasa a “Pagada” cuando se acredita. Con Mercado Pago y Payway la confirmación llega sola, aunque el cliente cierre el navegador; una transferencia o un pago en efectivo los registrás vos (ver “Transferencia, efectivo y cuotas sin interés”).',
+          'Si el comprador se fue sin pagar con Mercado Pago o con tarjeta, la venta se cancela sola al día siguiente, con el motivo “No se completó el pago”, y al comprador no le llega nada. Antes nos fijamos que no tenga un pago en camino: si sacó un cupón para pagar en efectivo, esperamos a que lo pague o venza.',
           'Al expandir una venta ves los productos (con el cupón y el descuento por transferencia o efectivo, si hubo), el cliente (nombre, email, teléfono, DNI/CUIT y el link “Ver en Clientes” a su ficha), el envío (medio, dirección, seguimiento y en qué anda), la forma de cobro, el canal por el que entró, las notas del pedido y su factura.',
           'Una venta “Enviada” es una que despachaste (o marcaste enviada): el sistema no se entera de cuándo la recibe el comprador, por eso no dice “Entregada”.',
         ],

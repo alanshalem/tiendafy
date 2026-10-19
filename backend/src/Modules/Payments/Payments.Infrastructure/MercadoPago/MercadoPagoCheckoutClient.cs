@@ -193,18 +193,54 @@ public sealed class MercadoPagoCheckoutClient(
         }
 
         using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        return new PaymentStatusDto(
-            PaymentId: root.TryGetProperty("id", out var pid) ? pid.ToString() : paymentId,
-            Status: root.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown",
-            StatusDetail: root.TryGetProperty("status_detail", out var sd) ? sd.GetString() ?? string.Empty : string.Empty,
-            ExternalReference: root.TryGetProperty("external_reference", out var er) ? er.GetString() : null,
-            TransactionAmount: JsonRead.GetDecimal(root, "transaction_amount"),
-            TransactionAmountRefunded: JsonRead.GetDecimal(root, "transaction_amount_refunded"),
-            NetReceivedAmount: root.TryGetProperty("transaction_details", out var td) && td.ValueKind == JsonValueKind.Object
-                ? JsonRead.GetDecimal(td, "net_received_amount") is var net and > 0m ? net : null
-                : null);
+        return ReadPayment(doc.RootElement, paymentId);
     }
+
+    public async Task<Result<IReadOnlyList<PaymentStatusDto>>> SearchPaymentsAsync(TenantId tenantId, Guid orderId, CancellationToken ct = default)
+    {
+        var tokenResult = await GetSellerTokenAsync(tenantId, ct);
+        if (tokenResult.IsFailure) return Result.Failure<IReadOnlyList<PaymentStatusDto>>(tokenResult.Error);
+
+        // Sin rango de fechas: la búsqueda por external_reference trae los de
+        // la orden aunque sean viejos (una venta pendiente de hace meses).
+        var url = $"{_o.ApiBaseUrl.TrimEnd('/')}/v1/payments/search" +
+            $"?external_reference={Uri.EscapeDataString(orderId.ToString())}&sort=date_created&criteria=desc&limit=50";
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Value.AccessToken);
+
+        using var resp = await http.SendAsync(req, ct);
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            logger.LogWarning("MercadoPago search payments de la orden {OrderId} error {Status}: {Body}", orderId, (int)resp.StatusCode, json);
+            return Result.Failure<IReadOnlyList<PaymentStatusDto>>(new Error("MercadoPago.SearchFailed",
+                "No se pudieron consultar los pagos de la venta en Mercado Pago."));
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        // La referencia muestra la respuesta como { paging, results }; el
+        // ejemplo de la doc la envuelve en un array. Se aceptan las dos.
+        var root = doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0
+            ? doc.RootElement[0]
+            : doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
+            return Result.Success<IReadOnlyList<PaymentStatusDto>>([]);
+
+        return Result.Success<IReadOnlyList<PaymentStatusDto>>(
+            [.. results.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.Object).Select(p => ReadPayment(p, string.Empty))]);
+    }
+
+    private static PaymentStatusDto ReadPayment(JsonElement root, string fallbackId) => new(
+        PaymentId: root.TryGetProperty("id", out var pid) ? pid.ToString() : fallbackId,
+        Status: root.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown",
+        StatusDetail: root.TryGetProperty("status_detail", out var sd) ? sd.GetString() ?? string.Empty : string.Empty,
+        ExternalReference: root.TryGetProperty("external_reference", out var er) ? er.GetString() : null,
+        TransactionAmount: JsonRead.GetDecimal(root, "transaction_amount"),
+        TransactionAmountRefunded: JsonRead.GetDecimal(root, "transaction_amount_refunded"),
+        NetReceivedAmount: root.TryGetProperty("transaction_details", out var td) && td.ValueKind == JsonValueKind.Object
+            ? JsonRead.GetDecimal(td, "net_received_amount") is var net and > 0m ? net : null
+            : null);
 
     public async Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default)
     {
