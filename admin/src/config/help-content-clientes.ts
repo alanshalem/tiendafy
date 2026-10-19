@@ -457,7 +457,7 @@ export const CLIENTES = {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
           'Meta cobra por mensaje de plantilla entregado (en Argentina, los transaccionales rondan los US$ 0,034 por mensaje; los de marketing cuestan más). Se paga directo a Meta con la tarjeta que cargues en tu app — Tiendafy no intermedia.',
-          'El panel “Uso del mes” de esta pantalla muestra cuántos mensajes salieron y el costo estimado con esa tarifa de referencia.',
+          'El panel “Uso del mes” de esta pantalla muestra cuántos mensajes salieron y el costo estimado con esa tarifa de referencia. Los que Meta rechazó (por ejemplo, con una plantilla que todavía no aprobó) no cuentan: no se cobran.',
         ],
       },
     ],

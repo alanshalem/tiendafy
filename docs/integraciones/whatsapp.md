@@ -10,7 +10,7 @@ No confundir con el botón flotante y los links `wa.me` de la tienda (`storefron
 - Cada tipo de mensaje arranca **apagado**: no sale nada hasta que el merchant lo prende y carga el nombre de su plantilla aprobada en Meta.
 - Es best-effort: un error de WhatsApp nunca rompe el pago, el despacho ni el email, que sale igual.
 - Las ventas manuales (mostrador) no mandan WhatsApp al quedar pagadas: el comprador está enfrente (`PaidOrderSideEffects.RunAsync(whatsApp: false)`).
-- Cuenta cada envío (`NotificationEvent`) para el panel de costos.
+- Cuenta cada envío que Meta aceptó (`NotificationEvent`) para el panel de costos. Meta cobra el mensaje entregado; uno que rechaza (plantilla no aprobada, token vencido) no se cobra y no se cuenta. Sin webhook de estados, "aceptado" es lo más cerca de "entregado" que se puede contar.
 
 ## Cómo está implementado
 
@@ -79,12 +79,11 @@ Revisado contra la documentación de Meta el 18-oct-2026: el envío (`POST /{pho
 
 - Conectá una cuenta de prueba de Meta, cargá tu número como tester y usá "Enviar prueba" en `/configuracion/whatsapp-automatico` (manda `hello_world`).
 - Prendé `confirmacion-pago` con una plantilla aprobada y marcá como pagada una orden con tu teléfono.
-- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos), `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada), `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago) y `AbandonedCartEmailTests.cs` (el de carrito abandonado sale solo con la casilla tildada).
+- Tests: `backend/tests/UnitTests/Notifications/WhatsAppPhoneTests.cs` (normalización de teléfonos), `backend/tests/IntegrationTests/WhatsAppAndAdsFlowTests.cs` (conectar, probar y avisos de venta contra la Graph API simulada; el uso del mes cuenta solo lo aceptado), `MercadoPagoFlowTests.cs` (la confirmación de compra sale una vez, aunque después llegue el aviso de Mercado Pago del mismo pago) y `AbandonedCartEmailTests.cs` (el de carrito abandonado sale solo con la casilla tildada).
 
 ## Pendiente
 
 - Probarlo de punta a punta con un número de WhatsApp Business y plantillas aprobadas reales (los tests corren contra una Graph API simulada).
 - La versión de la Graph API (`MetaGraph.Version`, hoy `v26.0`) hay que subirla antes de que Meta la apague (unos dos años; v20.0, la que había acá, murió el 24-sep-2026 y con ella los avisos; al 18-oct-2026 v26.0 no tiene fecha de baja). Revisala contra el [changelog](https://developers.facebook.com/docs/graph-api/changelog/versions).
 - No hay webhook de estados (entregado, leído, fallido) ni mensajes entrantes: solo se sabe si Meta aceptó el envío.
-- El contador del panel de costos suma también los envíos que Meta rechazó: `WhatsAppNotifier` no mira lo que devuelve `SendTemplateAsync` antes de contar.
 - La descripción de "Carritos abandonados" en el panel (`WhatsAppTemplateCatalog`) todavía dice "solo con clientes que aceptaron recibir novedades": la casilla que vale hoy es la del aviso por WhatsApp junto al teléfono.
