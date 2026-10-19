@@ -344,6 +344,43 @@ public sealed class CatalogFlowTests
     }
 
     [Fact]
+    public async Task El_orden_de_categorias_se_guarda_y_la_tienda_lo_sigue()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cor");
+        async Task<Guid> CreateAsync(string name, Guid? parentId = null) =>
+            (await merchant.PostAsync("/api/v1/categories", new { name, parentId })).GetProperty("id").GetGuid();
+
+        // Creadas en este orden: una nueva va al final de sus hermanas, no por nombre.
+        var zapatillas = await CreateAsync("Zapatillas");
+        var accesorios = await CreateAsync("Accesorios");
+        var medias = await CreateAsync("Medias", accesorios);
+        var gorras = await CreateAsync("Gorras", accesorios);
+
+        var shopper = new Shopper(merchant);
+        async Task<List<Guid>> StoreOrderAsync() =>
+            (await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/categories")).GetProperty("items")
+                .EnumerateArray().Select(c => c.GetProperty("id").GetGuid()).ToList();
+
+        Assert.Equal([zapatillas, accesorios, medias, gorras], await StoreOrderAsync());
+
+        // "Guardar orden" del panel: la lista como se ve, padres antes que hijas.
+        var saved = await merchant.PutAsync("/api/v1/categories/order", new { ids = new[] { accesorios, gorras, medias, zapatillas } });
+        Assert.Equal(4, saved.GetProperty("items").GetArrayLength());
+        Assert.Equal([accesorios, gorras, medias, zapatillas], await StoreOrderAsync());
+
+        // Una creada después va al final de su nivel; una que no vino en la lista
+        // (otra pestaña) queda después de las ordenadas.
+        var remeras = await CreateAsync("Remeras");
+        Assert.Equal([accesorios, gorras, medias, zapatillas, remeras], await StoreOrderAsync());
+        await merchant.PutAsync("/api/v1/categories/order", new { ids = new[] { remeras, accesorios } });
+        Assert.Equal([remeras, accesorios, gorras, medias, zapatillas], await StoreOrderAsync());
+
+        // Ordenar es editar el catálogo: sin sesión, no.
+        var anonymous = await shopper.SendAsync(HttpMethod.Put, "/api/v1/categories/order", new { ids = new[] { zapatillas } });
+        Assert.False(anonymous.IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Importar_lo_recien_exportado_no_cambia_nada_y_lo_que_falta_no_se_toca()
     {
         var merchant = await Merchant.CreateAsync(_factory, "irt");

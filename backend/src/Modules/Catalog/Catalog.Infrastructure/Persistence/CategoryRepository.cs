@@ -16,9 +16,13 @@ public sealed class CategoryRepository(CatalogDbContext context) : ICategoryRepo
         await context.Set<Category>().AddAsync(category, ct);
 
     public async Task<IReadOnlyList<Category>> ListAsync(TenantId tenantId, CancellationToken ct = default) =>
-        await context.Set<Category>()
+        Category.InTreeOrder(await context.Set<Category>()
             .AsNoTracking()
             .Where(c => c.TenantId == tenantId)
-            .OrderBy(c => c.Path)
-            .ToListAsync(ct);
+            .ToListAsync(ct));
+
+    public async Task<int> NextPositionAsync(TenantId tenantId, Guid? parentId, CancellationToken ct = default) =>
+        (await context.Set<Category>()
+            .Where(c => c.TenantId == tenantId && c.ParentId == parentId)
+            .MaxAsync(c => (int?)c.Position, ct) ?? -1) + 1;
 }

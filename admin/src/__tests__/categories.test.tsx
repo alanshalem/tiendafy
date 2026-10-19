@@ -2,13 +2,13 @@
  * Categorías del catálogo: crear (con o sin padre), agregar una subcategoría
  * desde la fila, renombrar, ver en la tienda, eliminar con confirmación,
  * colapsar ramas y reordenar arrastrando (solo entre hermanas; el orden se
- * guarda en el navegador y se puede descartar; con cambios sin guardar,
- * irse de la pantalla pregunta) y duplicar con sus subcategorías.
+ * guarda en la tienda y se puede descartar; con cambios sin guardar, irse de
+ * la pantalla pregunta) y duplicar con sus subcategorías.
  */
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { mockApi } from '../test/api';
+import { fixture, mockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
 
@@ -133,7 +133,11 @@ describe('categorías', () => {
   });
 
   it('colapsa una rama y reordena arrastrando entre hermanas (guardar o descartar)', async () => {
-    const { user } = await open();
+    const { api, user } = await open();
+    const REORDERED = {
+      items: [CATEGORIES.items[0], CATEGORIES.items[2], CATEGORIES.items[1], CATEGORIES.items[3]],
+    };
+    api.on('PUT', '/api/v1/categories/order', REORDERED);
     expect(screen.getByText('Pesas')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Colapsar' }));
     expect(screen.queryByText('Pesas')).not.toBeInTheDocument();
@@ -149,11 +153,17 @@ describe('categorías', () => {
     fireEvent.drop(row('Pesas'));
     expect(screen.getByText('Tenés cambios de orden sin guardar.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Guardar orden' }));
-    expect(
-      Object.values(
-        JSON.parse(Object.entries(localStorage).find(([k]) => k.startsWith('tiendafy.catOrder.'))![1]),
-      ),
-    ).toContainEqual(['bancos', 'pesas']);
+    await settle(2);
+    // Se guarda en la tienda (no en el navegador): todo el árbol, como se ve.
+    expect(api.calls.find((c) => c.method === 'PUT' && c.path === '/api/v1/categories/order')?.body).toEqual({
+      ids: ['fit', 'bancos', 'pesas', 'ropa'],
+    });
+    expect(screen.queryByText('Tenés cambios de orden sin guardar.')).not.toBeInTheDocument();
+    const names = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('[draggable="true"]')).map((r) => r.textContent);
+    expect(names().findIndex((t) => t?.includes('Bancos'))).toBeLessThan(
+      names().findIndex((t) => t?.includes('Pesas')),
+    );
 
     // Entre niveles distintos no se puede.
     fireEvent.dragStart(row('Pesas'));
@@ -168,6 +178,27 @@ describe('categorías', () => {
     fireEvent.drop(row('Fitness'));
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
     expect(screen.queryByText('Tenés cambios de orden sin guardar.')).not.toBeInTheDocument();
+  });
+
+  it('el orden que quedó guardado en el navegador se ofrece para guardarlo en la tienda', async () => {
+    // La tienda activa del panel es la primera de la lista (no hay otra elegida).
+    const key = `tiendafy.catOrder.${fixture<{ items: { id: string }[] }>('/api/v1/tenants').items[0]!.id}`;
+    localStorage.setItem(key, JSON.stringify({ root: ['ropa', 'fit'] }));
+    try {
+      const { api, user } = await open();
+      api.on('PUT', '/api/v1/categories/order', CATEGORIES);
+      expect(screen.getByText('Tenés cambios de orden sin guardar.')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Guardar orden' }));
+      await settle(2);
+      expect(
+        api.calls.find((c) => c.method === 'PUT' && c.path === '/api/v1/categories/order')?.body,
+      ).toEqual({
+        ids: ['ropa', 'fit', 'pesas', 'bancos'],
+      });
+      expect(localStorage.getItem(key)).toBeNull();
+    } finally {
+      localStorage.clear();
+    }
   });
 
   it('un orden sin guardar no se pierde por irse a otra pantalla sin querer', async () => {

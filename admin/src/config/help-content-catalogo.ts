@@ -91,6 +91,7 @@ export const CATALOGO = {
         paragraphs: [
           'En Productos → Categorías armás cómo se organiza el catálogo: “Crear categoría” y, para una subcategoría, elegí la “Categoría padre” (hasta 3 niveles) o usá “Agregar subcategoría” en el menú ⋮ de la categoría.',
           'Ese mismo menú tiene “Editar nombre” (la dirección de la categoría no cambia al renombrarla), “Ver en la tienda” y “Eliminar”: los productos no se borran, solo pierden esa categoría. El ícono de copiar (“Duplicar”) crea otra igual con sus subcategorías, sin productos.',
+          'Para cambiar el orden, arrastrá cada categoría desde su manija (entre las de un mismo nivel) y tocá “Guardar orden”. Queda guardado en la tienda: el menú «Categorías», las subcategorías del menú y la sección de categorías del inicio las muestran en ese orden. Una categoría nueva va al final de su nivel.',
           'Cada producto elige sus categorías en su edición, o con la columna «Categorías» de la planilla. Qué categorías aparecen en el menú de la tienda, y en qué orden, se arma en el editor de diseño: lo explica el artículo «Encabezado, menú, listado, ficha y carrito».',
         ],
         blocks: [{ type: 'path', segments: ['Productos', 'Categorías'] }],
