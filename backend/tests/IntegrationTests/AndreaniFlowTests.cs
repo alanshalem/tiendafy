@@ -334,6 +334,33 @@ public sealed class AndreaniFlowTests
     }
 
     [Fact]
+    public async Task Domicilio_y_sucursal_se_cotizan_a_la_vez()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "anp");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+
+        // Cada tarifa espera a que llegue la otra: de a una, la primera
+        // esperaría sola y volvería sin tarifa. Con los dos contratos y
+        // Andreani lento, eran 2 × 6 s, más que los 10 s que espera el checkout.
+        using var both = new CountdownEvent(2);
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/v1/tarifas", (_, _) =>
+        {
+            both.Signal();
+            return both.Wait(TimeSpan.FromSeconds(3))
+                ? FakeHttp.Json(new { tarifaConIva = new { total = "5000.00" }, tarifaSinIva = new { total = "4132.23" } })
+                : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        });
+
+        var quote = await merchant.PostAsync("/api/v1/shipping/andreani/quote", new { postalCode = "1043", units = 1 });
+
+        var options = quote.GetProperty("options").EnumerateArray().ToList();
+        Assert.Equal(2, options.Count);
+        // El orden de siempre: domicilio primero.
+        Assert.False(options[0].GetProperty("toBranch").GetBoolean());
+        Assert.True(options[1].GetProperty("toBranch").GetBoolean());
+    }
+
+    [Fact]
     public async Task Si_Andreani_no_responde_el_panel_lo_dice_en_vez_de_un_500()
     {
         var merchant = await Merchant.CreateAsync(_factory, "anx");

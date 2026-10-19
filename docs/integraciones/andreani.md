@@ -49,9 +49,10 @@ vars de plataforma para Andreani.
 
 `HttpClient` registrado en `CheckoutModule.cs` con timeout de 40 s; el cliente
 además corta cada cotización a los **6 s** y el resto de las llamadas a los
-20 s. Con los dos contratos cargados, las dos cotizaciones van una después de
-la otra: en el peor caso son 12 s, y el checkout deja de esperar a los 10 s
-(`FETCH_TIMEOUT_MS` de `CheckoutClient.tsx`; la ficha, a los 12 s).
+20 s. Con los dos contratos cargados, las dos cotizaciones van en paralelo:
+en el peor caso son 6 s, por debajo de los 10 s que espera el checkout
+(`FETCH_TIMEOUT_MS` de `CheckoutClient.tsx`; la ficha, 12 s). Hasta el 19-oct
+iban una después de la otra y podían sumar 12 s.
 
 ### Endpoints (bajo `/api/v1`)
 
@@ -104,8 +105,9 @@ pide (todo sale del alta comercial con Andreani; no hay registro autogestionado)
    evita cotizar a un CP inexistente.
 3. Arma un bulto por unidad (hasta 200; más, se pide coordinar con la tienda) y
    reparte el valor declarado entre los bultos.
-4. Llama `GET /v1/tarifas` una vez por contrato. Sin tarifa o con error, esa
-   opción no se ofrece y el checkout sigue con los demás medios.
+4. Llama `GET /v1/tarifas` una vez por contrato, las dos a la vez. Sin tarifa
+   o con error, esa opción no se ofrece y el checkout sigue con los demás
+   medios.
 5. Cada opción vuelve con un token firmado (purpose
    `Tiendafy.Shipping.AndreaniQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). En el submit, `CheckoutEndpoints` desprotege el token y
@@ -269,9 +271,6 @@ de QA y después las de producción.
 - El comprador no elige la sucursal en el checkout: si cotizó retiro en
   sucursal, el operador carga el id de sucursal al despachar. `GET
   /v2/sucursales` responde sin token y alcanzaría para un selector.
-- Las dos cotizaciones (domicilio y sucursal) van en serie, 6 s cada una: si
-  Andreani está lento, la segunda puede llegar después de que el checkout dejó
-  de esperar (10 s). Hacerlas en paralelo o bajar el tope.
 - No hay seguimiento automático ni avisos al comprador por cambio de estado
   (el seguimiento se consulta a pedido desde el panel).
 - Si el proceso muere justo después de que Andreani creó el envío, la reserva

@@ -64,7 +64,12 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
             $"/v2/envios/{Uri.EscapeDataString(trackingNumber)}/trazas";
     }
 
-    /// <summary>Cotizar es parte del checkout: si tarda, se prefiere no ofrecer la opción a trabar la compra.</summary>
+    /// <summary>
+    /// Cotizar es parte del checkout: si tarda, se prefiere no ofrecer la opción
+    /// a trabar la compra. Es por llamada; las de domicilio y sucursal van en
+    /// paralelo (AndreaniEndpoints), así que el checkout espera una sola vez
+    /// este tope, por debajo de sus 10 s.
+    /// </summary>
     private static readonly TimeSpan QuoteTimeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
 

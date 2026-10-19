@@ -207,10 +207,18 @@ public static class AndreaniEndpoints
             var declared = Math.Max(0, req.DeclaredValue ?? 0);
             var packages = BuildPackages(parcels.Units, declared);
 
+            // Una cotización por contrato, en paralelo: de a una, con los dos
+            // contratos y Andreani lento, eran hasta 2 × 6 s y el checkout deja
+            // de esperar a los 10 s. Así el peor caso es un solo tope.
+            var modalities = Modalities(config).ToList();
+            var rates = await Task.WhenAll(modalities.Select(m =>
+                client.QuoteAsync(config, m.Contract, postalCode, packages, ct)));
+
             var options = new List<object>();
-            foreach (var (contract, toBranch, label) in Modalities(config))
+            for (var i = 0; i < modalities.Count; i++)
             {
-                var rate = await client.QuoteAsync(config, contract, postalCode, packages, ct);
+                var (contract, toBranch, label) = modalities[i];
+                var rate = rates[i];
                 if (rate is null || rate.TotalWithTax <= 0) continue;
 
                 var money = Money.FromDecimal(rate.TotalWithTax, Money.DefaultCurrency);
