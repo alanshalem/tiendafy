@@ -76,7 +76,7 @@ export const TIENDA = {
             rows: [
               [
                 'Visión general',
-                'Facturación, ventas cobradas y ticket promedio, cada uno con su variación contra el período anterior, y cuántos clientes tenés en total. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas, los cinco productos que más facturaron y un resumen de tu tienda hoy (productos publicados, borradores, archivados, categorías, cupones activos y páginas).',
+                'Facturación, ventas cobradas, ticket promedio y clientes nuevos, cada uno con su variación contra el período anterior. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas, los cinco productos que más facturaron y un resumen de tu tienda hoy (productos publicados, borradores, archivados, categorías, cupones activos y páginas).',
               ],
               [
                 'Productos',
