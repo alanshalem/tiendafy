@@ -82,6 +82,8 @@ public static class CheckoutEndpoints
             // El token es opaco: se prueba contra cada carrier (propósitos de
             // DataProtection distintos — el ajeno siempre da null).
             QuotedShipping? quote = null;
+            // El CP con el que se cotizó; el envío a domicilio tiene que ir ahí.
+            string? quotedPostalCode = null;
             if (!string.IsNullOrEmpty(request.ShippingQuoteToken))
             {
                 var correoPayload = CorreoQuoteToken.Unprotect(dp, request.ShippingQuoteToken, tenant.TenantId.Value);
@@ -107,12 +109,14 @@ public static class CheckoutEndpoints
                     else
                     {
                         quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: true, null, correoPayload.Units, correoPayload.CartKey);
+                        quotedPostalCode = correoPayload.DestPostalCode;
                     }
                 }
                 else if (zipnovaPayload is not null)
                 {
                     var price = new Money(zipnovaPayload.PriceMinorUnits, zipnovaPayload.Currency);
                     quote = new QuotedShipping(zipnovaPayload.ServiceName, price, RequiresAddress: true, null, zipnovaPayload.Units, zipnovaPayload.CartKey);
+                    quotedPostalCode = zipnovaPayload.DestZipcode;
                 }
                 else if (andreaniPayload is not null)
                 {
@@ -121,12 +125,22 @@ public static class CheckoutEndpoints
                     quote = new QuotedShipping(
                         andreaniPayload.ServiceName, price,
                         RequiresAddress: !andreaniPayload.ToBranch, null, andreaniPayload.Units, andreaniPayload.CartKey);
+                    if (!andreaniPayload.ToBranch) quotedPostalCode = andreaniPayload.DestPostalCode;
                 }
                 else
                 {
                     return Error.Validation("Checkout.QuoteExpired",
                         "La cotización de envío venció. Volvé a calcular el envío.").ToProblem();
                 }
+            }
+
+            // A domicilio, el precio es el del CP cotizado: si la dirección va a
+            // otro, hay que volver a cotizar. Retiro en sucursal no tiene dirección.
+            // Sin dirección no se compara: eso lo rechaza el handler con su mensaje.
+            if (quotedPostalCode is not null && !string.IsNullOrWhiteSpace(request.Address)
+                && ShippingPostalCode.Check(quotedPostalCode, request.PostalCode, request.Address) is { } cpError)
+            {
+                return cpError.ToProblem();
             }
 
             var result = await handler.HandleAsync(new SubmitCheckoutCommand(
@@ -341,7 +355,9 @@ public sealed record SubmitCheckoutRequest(
     string? ShippingQuoteToken = null,
     string? CorreoAgency = null,
     // El aviso por WhatsApp junto al teléfono: sin tildar (o sin mandar) es que no.
-    bool AcceptsWhatsApp = false);
+    bool AcceptsWhatsApp = false,
+    // El CP de la dirección de envío, aparte: se compara con el cotizado.
+    string? PostalCode = null);
 
 public sealed record CheckoutSettingsRequest(
     bool SingleColumn,

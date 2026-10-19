@@ -99,7 +99,12 @@ Se carga en **Configuración → Medios de envío → Correo Argentino**:
 5. Cada opción vuelve con un token firmado (purpose
    `Tiendafy.Shipping.CorreoQuote.v1`, 30 minutos, atado al tenant, la cantidad
    de unidades y la huella del carrito). El precio sale del token al confirmar;
-   si el carrito cambió, se pide recotizar.
+   si el carrito cambió, se pide recotizar. Lo mismo si la entrega es a domicilio y el código postal de la dirección
+   (el campo `postalCode` del submit y el "CP …" de la dirección) no es el
+   cotizado: se comparan los 4 dígitos, así que un CPA como `C1425ABC` vale
+   como `1425` (`Api/Shipping/ShippingPostalCode.cs`). El rechazo es
+   `Checkout.PostalCodeChanged` y la tienda vuelve al paso de envío con las
+   opciones borradas; cambiar el CP de la cotización también las borra.
 6. Si MiCorreo falla (error, timeout de 8 s, red caída o respuesta ilegible),
    la cotización devuelve sin opciones y con un mensaje: el checkout sigue con
    los medios manuales. El timeout y la red caída quedan logueados como

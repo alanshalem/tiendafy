@@ -161,6 +161,7 @@ public sealed class ShippingWeightTests(ApiFactory factory)
             name = "Ana",
             shippingQuoteToken = quoteToken,
             address = "Maipú 100, Olivos",
+            postalCode = "1636",
         });
     }
 

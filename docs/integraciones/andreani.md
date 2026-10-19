@@ -112,7 +112,12 @@ pide (todo sale del alta comercial con Andreani; no hay registro autogestionado)
    `Tiendafy.Shipping.AndreaniQuote.v1`, 30 minutos, atado al tenant y a la
    huella del carrito). En el submit, `CheckoutEndpoints` desprotege el token y
    el precio sale de ahí, nunca del navegador. Si el carrito cambió, el submit
-   pide recotizar.
+   pide recotizar. Lo mismo si la entrega es a domicilio y el código postal de la dirección
+   (el campo `postalCode` del submit y el "CP …" de la dirección) no es el
+   cotizado: se comparan los 4 dígitos, así que un CPA como `C1425ABC` vale
+   como `1425` (`Api/Shipping/ShippingPostalCode.cs`). El rechazo es
+   `Checkout.PostalCodeChanged` y la tienda vuelve al paso de envío con las
+   opciones borradas; cambiar el CP de la cotización también las borra.
 
 Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
 

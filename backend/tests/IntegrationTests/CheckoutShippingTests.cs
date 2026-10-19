@@ -39,7 +39,8 @@ public sealed class CheckoutShippingTests
         string Token(List<JsonElement> options, Func<JsonElement, bool> pick) => options.First(pick).GetProperty("token").GetString()!;
 
         // Correo a domicilio: con dirección.
-        var home = await SubmitAsync(shopper, variantId, 2, Token(correo, o => o.GetProperty("kind").GetString() == "D"), address: "San Martín 100, Neuquén");
+        var home = await SubmitAsync(shopper, variantId, 2, Token(correo, o => o.GetProperty("kind").GetString() == "D"),
+            address: "San Martín 100, Neuquén", postalCode: "8300");
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         var session = await home.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(5_200_00, session.GetProperty("shipping").GetProperty("amount").GetInt64());
@@ -52,19 +53,66 @@ public sealed class CheckoutShippingTests
         Assert.Contains("Centro (Q0001)", (await branch.Content.ReadAsStringAsync()));
 
         // Zipnova a domicilio y Andreani a sucursal (sin dirección).
-        Assert.Equal(HttpStatusCode.OK, (await SubmitAsync(shopper, variantId, 2, Token(zipnova, _ => true), address: "Belgrano 50")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitAsync(shopper, variantId, 2, Token(zipnova, _ => true), address: "Belgrano 50", postalCode: "8300")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await SubmitAsync(shopper, variantId, 2, Token(andreani, o => o.GetProperty("toBranch").GetBoolean()))).StatusCode);
 
         // Lo que no pasa: token trucho, carrito distinto del cotizado, sin
         // dirección cuando hace falta.
         Assert.Contains("venció", await (await SubmitAsync(shopper, variantId, 2, "token-trucho")).Content.ReadAsStringAsync());
-        Assert.Contains("carrito cambió", await (await SubmitAsync(shopper, variantId, 1, Token(zipnova, _ => true), address: "x")).Content.ReadAsStringAsync());
+        Assert.Contains("carrito cambió", await (await SubmitAsync(shopper, variantId, 1, Token(zipnova, _ => true), address: "x", postalCode: "8300")).Content.ReadAsStringAsync());
         Assert.Contains("dirección", await (await SubmitAsync(shopper, variantId, 2, Token(andreani, o => !o.GetProperty("toBranch").GetBoolean()))).Content.ReadAsStringAsync());
 
         // Un token de OTRA tienda no se abre acá.
         var other = await Merchant.CreateAsync(_factory, "chko");
         var (_, otherVariant) = await other.CreateProductAsync("Otra", stock: 5);
         Assert.Equal(HttpStatusCode.BadRequest, (await SubmitAsync(new Shopper(other), otherVariant, 2, Token(zipnova, _ => true), address: "x")).StatusCode);
+    }
+
+    [Fact]
+    public async Task El_envio_a_domicilio_va_al_codigo_postal_cotizado()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "chp");
+        var shopper = new Shopper(merchant);
+        var (_, variantId) = await merchant.CreateProductAsync("Valija", priceMinor: 90_000_00, stock: 30);
+        await ConfigureCarriersAsync(merchant);
+        string HomeToken(JsonElement quote, Func<JsonElement, bool> home) =>
+            quote.GetProperty("options").EnumerateArray().First(home).GetProperty("token").GetString()!;
+
+        // Las tres cotizan a 8300 (Neuquén).
+        var tokens = new[]
+        {
+            HomeToken(await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shipping/correo/quote", new { postalCode = "8300", units = 1 }),
+                o => o.GetProperty("kind").GetString() == "D"),
+            HomeToken(await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shipping/zipnova/quote",
+                new { postalCode = "8300", city = "Neuquén", state = "Neuquén", units = 1, declaredValue = 90_000m }), _ => true),
+            HomeToken(await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shipping/andreani/quote", new { postalCode = "8300", units = 1 }),
+                o => !o.GetProperty("toBranch").GetBoolean()),
+        };
+
+        foreach (var token in tokens)
+        {
+            // Cotizó a un CP y manda la compra a otro: hay que volver a cotizar.
+            var other = await SubmitAsync(shopper, variantId, 1, token, address: "Rivadavia 10, CP 9410", postalCode: "9410");
+            Assert.Equal(HttpStatusCode.BadRequest, other.StatusCode);
+            Assert.Contains("Checkout.PostalCodeChanged", await other.Content.ReadAsStringAsync());
+            Assert.Contains("volvé a cotizar", await other.Content.ReadAsStringAsync());
+
+            // El campo dice el cotizado pero la dirección, otro: tampoco.
+            var mixed = await SubmitAsync(shopper, variantId, 1, token, address: "Rivadavia 10, CP 9410", postalCode: "8300");
+            Assert.Contains("Checkout.PostalCodeChanged", await mixed.Content.ReadAsStringAsync());
+
+            // Sin CP no se sabe a dónde va.
+            var none = await SubmitAsync(shopper, variantId, 1, token, address: "Rivadavia 10");
+            Assert.Contains("Completá el código postal", await none.Content.ReadAsStringAsync());
+
+            // El CPA es el mismo destino que sus 4 dígitos.
+            var cpa = await SubmitAsync(shopper, variantId, 1, token, address: "Rivadavia 10, CP Q8300ABC", postalCode: "Q8300ABC");
+            Assert.Equal(HttpStatusCode.OK, cpa.StatusCode);
+        }
+
+        // Una tienda que todavía no manda el campo aparte: vale el CP de la dirección.
+        var legacy = await SubmitAsync(shopper, variantId, 1, tokens[0], address: "Rivadavia 10, Neuquén, CP 8300");
+        Assert.Equal(HttpStatusCode.OK, legacy.StatusCode);
     }
 
     [Fact]
@@ -151,7 +199,8 @@ public sealed class CheckoutShippingTests
     // ---------------------------------------------------------------- helpers
 
     private static async Task<HttpResponseMessage> SubmitAsync(
-        Shopper shopper, Guid variantId, int quantity, string quoteToken, string? address = null, string? agency = null)
+        Shopper shopper, Guid variantId, int quantity, string quoteToken, string? address = null, string? agency = null,
+        string? postalCode = null)
     {
         var start = await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/checkout", new { lines = new[] { new { variantId, quantity } } });
         return await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{start.GetProperty("id").GetGuid()}/submit", new
@@ -161,6 +210,7 @@ public sealed class CheckoutShippingTests
             shippingQuoteToken = quoteToken,
             address,
             correoAgency = agency,
+            postalCode,
         });
     }
 

@@ -132,7 +132,7 @@ export const ENVIOS = {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Cuando está activa, el comprador ingresa su código postal en el checkout y ve las tarifas reales de Correo Argentino: entrega a domicilio y retiro en una sucursal de Correo (elige cuál, por provincia). El precio se suma al total y queda registrado en la venta.',
-          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito después de cotizar, el checkout pide cotizar de nuevo.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si después de cotizar cambia el carrito o el código postal de la dirección, el checkout pide cotizar de nuevo.',
         ],
       },
       {
@@ -223,7 +223,7 @@ export const ENVIOS = {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Zipnova es un agregador: una sola cuenta te conecta con varios transportes a la vez. Con la integración activa, el comprador pone su ciudad y código postal en el checkout y ve las opciones reales de tu cuenta (por ejemplo “Andreani Estándar $4.200” y “OCA Estándar $4.600”), cada una con su fecha estimada.',
-          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito el checkout pide cotizar de nuevo. Si Zipnova tarda o no responde, el checkout sigue con las demás opciones.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si después de cotizar cambia el carrito o el código postal de la dirección, el checkout pide cotizar de nuevo. Si Zipnova tarda o no responde, el checkout sigue con las demás opciones.',
         ],
       },
       {
@@ -291,7 +291,7 @@ export const ENVIOS = {
         heading: 'Qué hace la integración',
         paragraphs: [
           'Con la integración activa, el comprador pone su código postal en el checkout y ve el precio real de Andreani para su destino. Después, desde la venta pagada, generás el envío y descargás la etiqueta para pegar en el paquete.',
-          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si modifica el carrito el checkout pide cotizar de nuevo.',
+          'El precio cotizado queda fijo: el comprador no lo puede cambiar, y si después de cotizar cambia el carrito o el código postal de la dirección, el checkout pide cotizar de nuevo.',
         ],
       },
       {
