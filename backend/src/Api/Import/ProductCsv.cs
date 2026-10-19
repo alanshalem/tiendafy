@@ -15,7 +15,8 @@ public sealed class ImportVariant
 {
     public string Sku { get; set; } = "";
     public List<string> OptionValues { get; } = [];
-    public long PriceMinor { get; set; }
+    /// <summary>null = celda "Precio" vacía o sin la columna.</summary>
+    public long? PriceMinor { get; set; }
     public long? CompareAtMinor { get; set; }
     public long? CostMinor { get; set; }
     public string? Barcode { get; set; }
@@ -39,6 +40,11 @@ public sealed class ImportProduct
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
     public bool Visible { get; set; } = true;
+    /// <summary>
+    /// Si el archivo trae la columna "Precio promocional": ahí una celda vacía
+    /// quiere decir "sin oferta"; sin la columna, la oferta no se toca.
+    /// </summary>
+    public bool HasCompareAtColumn { get; set; } = true;
     public List<ImportOption> Options { get; } = [];
     public List<ImportVariant> Variants { get; } = [];
     public List<string> ImageUrls { get; } = [];
@@ -49,10 +55,23 @@ public sealed class ImportProduct
 /// Parser + mapper + exportador del CSV de productos estilo Tiendanube.
 /// Agrupa filas por "Identificador de URL": la primera fila del grupo define
 /// el producto; cada fila aporta una variante; las imágenes se acumulan.
+///
+/// La regla de ida y vuelta: importar un archivo recién exportado no cambia
+/// nada. Por eso el export usa los mismos separadores que lee el import
+/// (categorías con <see cref="CategorySeparator"/>) y, al modificar un
+/// producto, una columna que falta o una celda vacía no tocan ese dato. La
+/// única celda vacía que significa algo es "Precio promocional": sin oferta.
 /// </summary>
 public static class ProductCsv
 {
     public const string Currency = Money.DefaultCurrency;
+
+    /// <summary>
+    /// Separa las categorías de un producto en la celda "Categorías", en los dos
+    /// sentidos. Punto y coma y no coma: la coma puede ir dentro de un nombre
+    /// ("Cardinas, Cepillos y Alicates"). La jerarquía va con " > ".
+    /// </summary>
+    public const char CategorySeparator = ';';
 
     /// <summary>Cabecera canónica. El orden manda para la plantilla y el export.</summary>
     public static readonly string[] Headers =
@@ -81,6 +100,7 @@ public static class ProductCsv
         "Tags",
         "Título para SEO",
         "Descripción para SEO",
+        "Marca",
     ];
 
     // ---------------------------------------------------------------- Parsing
@@ -171,6 +191,7 @@ public static class ProductCsv
                 SeoTitle = FirstNonEmpty(groupRows, index, "titulo para seo", "titulo seo"),
                 SeoDescription = FirstNonEmpty(groupRows, index, "descripcion para seo", "descripcion seo"),
                 Visible = ParseBool(Cell(first, index, "mostrar en tienda"), defaultValue: true),
+                HasCompareAtColumn = HasColumn(index, "precio promocional"),
                 Line = groupRows[0].Line,
             };
 
@@ -209,7 +230,7 @@ public static class ProductCsv
                 var variant = new ImportVariant
                 {
                     Sku = Cell(cells, index, "sku").Trim(),
-                    PriceMinor = ParseMinor(Cell(cells, index, "precio")) ?? 0,
+                    PriceMinor = ParseMinor(Cell(cells, index, "precio")),
                     CompareAtMinor = ParseMinor(Cell(cells, index, "precio promocional")),
                     CostMinor = ParseMinor(Cell(cells, index, "costo")),
                     Barcode = Cell(cells, index, "codigo de barras").Trim() is { Length: > 0 } bc ? bc : null,
@@ -245,13 +266,15 @@ public static class ProductCsv
         foreach (var p in products)
         {
             var images = string.Join(' ', p.Images.OrderBy(i => i.Position).Select(i => i.Url));
-            var categories = string.Join(", ", p.CategoryIds
+            var categories = string.Join($"{CategorySeparator} ", p.CategoryIds
                 .Select(id => categoryPaths.GetValueOrDefault(id))
                 .Where(s => !string.IsNullOrEmpty(s)));
             var visible = p.Status == ProductStatus.Active ? "SI" : "NO";
             var opt1 = p.Options.Count > 0 ? p.Options[0].Name : "";
             var opt2 = p.Options.Count > 1 ? p.Options[1].Name : "";
-            var description = includeDescriptions ? (p.Description ?? "").Replace('\n', ' ').Replace('\r', ' ') : "";
+            // Tal cual, con sus saltos de línea: la celda va entre comillas y el
+            // import los lee. Aplanarlos cambiaba la descripción de ida y vuelta.
+            var description = includeDescriptions ? p.Description ?? "" : "";
 
             var variants = p.Variants.Count > 0
                 ? p.Variants.Cast<Variant?>().ToList()
@@ -286,7 +309,10 @@ public static class ProductCsv
                     "NO", // Envío sin cargo
                     firstRow ? description : "",
                     firstRow ? images : "",
-                    "", "", "", // Tags / SEO título / SEO desc
+                    "", // Tags
+                    firstRow ? p.SeoTitle ?? "" : "",
+                    firstRow ? p.SeoDescription ?? "" : "",
+                    firstRow ? p.Brand ?? "" : "",
                 };
                 sb.AppendLine(string.Join(';', cells.Select(Escape)));
             }
@@ -312,14 +338,24 @@ public static class ProductCsv
     {
         foreach (var key in keys)
         {
-            // Match exacto normalizado, o por prefijo (ej "peso (kg)" ~ "peso").
-            if (index.TryGetValue(key, out var i) && i < cells.Count)
+            if (ColumnOf(index, key) is { } i && i < cells.Count)
                 return cells[i];
-            var hit = index.FirstOrDefault(kv => kv.Key.StartsWith(key, StringComparison.Ordinal));
-            if (hit.Key != null && hit.Value < cells.Count)
-                return cells[hit.Value];
         }
         return "";
+    }
+
+    private static bool HasColumn(Dictionary<string, int> index, string key) => ColumnOf(index, key) is not null;
+
+    /// <summary>
+    /// Match exacto normalizado, o con la unidad entre paréntesis ("peso (kg)" ~
+    /// "peso"). Un prefijo suelto no: sin la columna "Precio", "precio" tomaba
+    /// "Precio promocional", y sin "Descripción", la de SEO.
+    /// </summary>
+    private static int? ColumnOf(Dictionary<string, int> index, string key)
+    {
+        if (index.TryGetValue(key, out var i)) return i;
+        var hit = index.FirstOrDefault(kv => kv.Key.StartsWith(key + " (", StringComparison.Ordinal));
+        return hit.Key is null ? null : hit.Value;
     }
 
     private static string? FirstNonEmpty(

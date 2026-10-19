@@ -124,7 +124,7 @@ public sealed class ProductImportWorker(
         {
             var iv = model.Variants[i];
             var sku = string.IsNullOrWhiteSpace(iv.Sku) ? GenerateSku(product.Slug.Value, i) : iv.Sku;
-            var (price, compareAt, cost) = BuildPrice(iv);
+            var (price, compareAt, cost) = BuildPrice(iv.PriceMinor ?? 0, iv);
 
             var vr = product.AddVariant(sku, iv.OptionValues, price, compareAt, cost);
             if (vr.IsFailure)
@@ -167,8 +167,15 @@ public sealed class ProductImportWorker(
         ImportProduct model, Product product, TenantId tenant, ImportJob job,
         CatalogDbContext db, IStockRepository stock, CategoryResolver resolver, CancellationToken ct)
     {
-        product.UpdateDetails(model.Name, model.Description);
-        product.SetBrand(model.Brand);
+        // Al modificar, una celda vacía (o una columna que el archivo no trae)
+        // no toca ese dato: así, importar lo recién exportado no cambia nada, y
+        // una planilla con solo precios no borra descripciones ni marcas.
+        product.UpdateDetails(
+            string.IsNullOrWhiteSpace(model.Name) ? product.Name : model.Name,
+            model.Description ?? product.Description);
+        if (model.Brand is not null) product.SetBrand(model.Brand);
+        if (model.SeoTitle is not null || model.SeoDescription is not null)
+            product.SetSeo(model.SeoTitle ?? product.SeoTitle, model.SeoDescription ?? product.SeoDescription);
 
         var categoryIds = await resolver.ResolveAsync(model.Categories, ct);
         if (categoryIds.Count > 0) product.SetCategories(categoryIds);
@@ -179,9 +186,17 @@ public sealed class ProductImportWorker(
             var match = MatchBySku(product, iv.Sku, blankFallback: false);
             if (match is null) continue;
 
-            var (price, compareAt, cost) = BuildPrice(iv);
-            product.ChangeVariantPrice(match.Id, price, compareAt);
+            // "Precio" vacío = no tocar los precios. Sin la columna "Precio
+            // promocional", la oferta vigente sigue mientras quede por arriba.
+            if (iv.PriceMinor is { } priceMinor)
+            {
+                var (price, compareAt, _) = model.HasCompareAtColumn
+                    ? BuildPrice(priceMinor, iv)
+                    : BuildPrice(priceMinor, iv, keepCompareAt: match.CompareAtPrice);
+                product.ChangeVariantPrice(match.Id, price, compareAt);
+            }
             // Celda "Costo" vacía = no tocar el costo existente (CSVs viejos sin la columna).
+            var cost = BuildCost(iv);
             if (cost is not null) product.SetVariantCost(match.Id, cost);
             if (iv.Barcode is not null) product.SetVariantBarcode(match.Id, iv.Barcode);
             // Celdas de peso y medidas vacías = no tocar lo cargado.
@@ -253,15 +268,33 @@ public sealed class ProductImportWorker(
         return (Math.Min(precio, p), Math.Max(precio, p));
     }
 
-    /// <summary>Precio + promocional del CSV → Money (moneda por defecto del import).</summary>
-    private static (Money Price, Money? CompareAt, Money? Cost) BuildPrice(ImportVariant iv)
+    /// <summary>
+    /// Precio + promocional del CSV → Money (moneda por defecto del import).
+    /// Con <paramref name="keepCompareAt"/> (archivo sin la columna "Precio
+    /// promocional"), el precio de la planilla es el que se cobra y el tachado
+    /// vigente queda si sigue siendo mayor.
+    /// </summary>
+    private static (Money Price, Money? CompareAt, Money? Cost) BuildPrice(
+        long priceFromFile, ImportVariant iv, Money? keepCompareAt = null)
     {
-        var (priceMinor, compareMinor) = NormalizePrice(iv.PriceMinor, iv.CompareAtMinor);
-        var price = new Money(priceMinor, ProductCsv.Currency);
-        Money? compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
-        Money? cost = iv.CostMinor is { } costMinor and >= 0 ? new Money(costMinor, ProductCsv.Currency) : null;
-        return (price, compareAt, cost);
+        Money price;
+        Money? compareAt;
+        if (keepCompareAt is { } kept)
+        {
+            price = new Money(priceFromFile, ProductCsv.Currency);
+            compareAt = kept.AmountInMinorUnits > priceFromFile ? kept : null;
+        }
+        else
+        {
+            var (priceMinor, compareMinor) = NormalizePrice(priceFromFile, iv.CompareAtMinor);
+            price = new Money(priceMinor, ProductCsv.Currency);
+            compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
+        }
+        return (price, compareAt, BuildCost(iv));
     }
+
+    private static Money? BuildCost(ImportVariant iv) =>
+        iv.CostMinor is { } costMinor and >= 0 ? new Money(costMinor, ProductCsv.Currency) : null;
 
     /// <summary>
     /// Busca la variante cuyo SKU coincide (case-insensitive). Con <paramref name="blankFallback"/>

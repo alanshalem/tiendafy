@@ -25,9 +25,11 @@ export const CSV_HEADER = [
   'Tags',
   'Título para SEO',
   'Descripción para SEO',
+  'Marca',
 ];
 
-// Filas de ejemplo: producto con variantes (con 2 imágenes) y producto simple.
+// Filas de ejemplo: producto con variantes (con 2 imágenes) y producto simple
+// en dos categorías (se separan con «;», igual que en lo exportado).
 // La columna "Imágenes" admite varias URLs separadas por espacio; al importar
 // se descargan y re-hospedan en el storage de la tienda.
 export const TEMPLATE_EXAMPLES = [
@@ -56,6 +58,7 @@ export const TEMPLATE_EXAMPLES = [
     'remera,oversize',
     '',
     '',
+    '',
   ],
   [
     'remera-oversize',
@@ -82,11 +85,12 @@ export const TEMPLATE_EXAMPLES = [
     '',
     '',
     '',
+    '',
   ],
   [
     'mate-imperial',
     'Mate Imperial',
-    'Bazar',
+    'Bazar; Regalos',
     '',
     '',
     '',
@@ -106,6 +110,7 @@ export const TEMPLATE_EXAMPLES = [
     'Mate de calabaza forrado en cuero',
     'https://picsum.photos/seed/mate/800',
     'mate,regalo',
+    '',
     '',
     '',
   ],

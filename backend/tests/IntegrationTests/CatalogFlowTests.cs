@@ -344,6 +344,64 @@ public sealed class CatalogFlowTests
     }
 
     [Fact]
+    public async Task Importar_lo_recien_exportado_no_cambia_nada_y_lo_que_falta_no_se_toca()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "irt");
+        var tag = merchant.Subdomain;
+        static string Row(params string[] cells) => string.Join(";", cells);
+
+        var csv = string.Join("\n",
+            Row("Identificador de URL", "Nombre", "Categorías", "Precio", "Precio promocional", "SKU", "Mostrar en tienda",
+                "Descripción", "Título para SEO", "Descripción para SEO", "Marca"),
+            Row($"pava-{tag}", "Pava eléctrica", "\"Hogar > Cocina; Regalos\"", "10000", "8000", $"PAV-{tag}", "SI",
+                "\"Acero inoxidable.\nCorte automático.\"", "Pava eléctrica 1,7 L", "La pava que no se olvida", "Acme"));
+        Assert.Equal(1, (await ImportAsync(merchant, csv, updateExisting: true)).GetProperty("created").GetInt32());
+
+        async Task<string> SnapshotAsync()
+        {
+            var p = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+            var categories = p.GetProperty("categoryIds").EnumerateArray().Select(c => c.GetString()).Order();
+            var variants = p.GetProperty("variants").EnumerateArray().Select(v =>
+                $"{v.GetProperty("sku")}:{v.GetProperty("price").GetProperty("amount")}:{v.GetProperty("compareAtPrice")}");
+            return string.Join("|", p.GetProperty("name"), p.GetProperty("description"), p.GetProperty("brand"),
+                p.GetProperty("seoTitle"), p.GetProperty("seoDescription"),
+                string.Join(",", categories), string.Join(",", variants));
+        }
+
+        var before = await SnapshotAsync();
+        Assert.Contains("Acme", before);
+        Assert.Contains("Acero inoxidable.\nCorte automático.", before);
+        var pava = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+        Assert.Equal(2, pava.GetProperty("categoryIds").GetArrayLength());
+
+        // Ida y vuelta: las categorías salen separadas igual que entran, y
+        // marca, SEO y descripción (con su salto de línea) viajan enteras.
+        var exported = await (await merchant.ExpectOkAsync(HttpMethod.Get, "/api/v1/products/export")).Content.ReadAsStringAsync();
+        Assert.Contains("\"Hogar > Cocina; Regalos\"", exported);
+        Assert.Equal(1, (await ImportAsync(merchant, exported, updateExisting: true)).GetProperty("updated").GetInt32());
+        Assert.Equal(before, await SnapshotAsync());
+
+        // Sin descripciones en el export: la celda vacía no borra la cargada.
+        var noDescriptions = await (await merchant.ExpectOkAsync(
+            HttpMethod.Get, "/api/v1/products/export?includeDescriptions=false")).Content.ReadAsStringAsync();
+        await ImportAsync(merchant, noDescriptions, updateExisting: true);
+        Assert.Equal(before, await SnapshotAsync());
+
+        // Una planilla con solo SKU y precio: lo que no trae no se toca, y sin la
+        // columna "Precio promocional" la oferta sigue mientras quede por arriba.
+        await ImportAsync(merchant, Row("Identificador de URL", "SKU", "Precio") + "\n" + Row($"pava-{tag}", $"PAV-{tag}", "9000"),
+            updateExisting: true);
+        var after = await merchant.GetAsync($"/api/v1/products/by-slug/pava-{tag}");
+        Assert.Equal("Acme", after.GetProperty("brand").GetString());
+        Assert.Equal("Pava eléctrica 1,7 L", after.GetProperty("seoTitle").GetString());
+        Assert.Equal("Acero inoxidable.\nCorte automático.", after.GetProperty("description").GetString());
+        Assert.Equal(2, after.GetProperty("categoryIds").GetArrayLength());
+        var variant = after.GetProperty("variants")[0];
+        Assert.Equal(900000, variant.GetProperty("price").GetProperty("amount").GetInt64());
+        Assert.Equal(1000000, variant.GetProperty("compareAtPrice").GetProperty("amount").GetInt64());
+    }
+
+    [Fact]
     public async Task Importar_con_filas_con_problemas_no_frena_el_resto()
     {
         var merchant = await Merchant.CreateAsync(_factory, "ime");
