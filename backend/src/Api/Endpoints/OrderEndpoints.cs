@@ -186,11 +186,19 @@ public static class OrderEndpoints
             if (payResult.IsFailure) return payResult.Error.ToProblem();
             var charge = payResult.Value;
 
-            // Solo un pago aprobado toca la orden. Un "en revisión" o un estado
-            // que no supimos interpretar la dejan pendiente a propósito: se
-            // despacha cuando Payway confirma, no antes.
+            // Aprobado: la orden queda pagada. Rechazado (el 402 de Payway): lo
+            // mismo que un rechazo de Mercado Pago o que el que encuentra la
+            // reconsulta — la orden pasa a fallida y el stock vuelve a la venta
+            // ya, no a los 30 minutos de la reserva. Si el comprador prueba con
+            // otra tarjeta, la tienda arma otra compra (otra orden y otro
+            // site_transaction_id); antes la rechazada quedaba pendiente para
+            // siempre y, con la última unidad, el reintento no tenía stock.
+            // Un "en revisión" o un estado que no supimos interpretar la dejan
+            // pendiente a propósito: se despacha cuando Payway confirma.
             if (charge.IsApproved && charge.ProviderPaymentId is { } paymentId)
                 await SettleNowAsync(settle, paidEffects, order.Id, "approved", paymentId, ct);
+            else if (charge.Status == PaywayPaymentStatus.Declined)
+                await SettleNowAsync(settle, paidEffects, order.Id, "rejected", charge.ProviderPaymentId, ct);
 
             return Results.Ok(new
             {
@@ -573,7 +581,7 @@ public static class OrderEndpoints
     /// </summary>
     private static async Task SettleNowAsync(
         SettlePaymentHandler settle, Api.Orders.PaidOrderSideEffects paidEffects,
-        Guid orderId, string status, string paymentId, CancellationToken ct)
+        Guid orderId, string status, string? paymentId, CancellationToken ct)
     {
         Result<SettleResult> settled;
         try

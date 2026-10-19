@@ -287,8 +287,9 @@ public sealed class PaywayClient(
     /// Abre la fila del intento ANTES de llamar a Payway. Si el proceso se cae
     /// en el medio, el registro queda y se puede averiguar qué pasó.
     ///
-    /// Solo se cobra de nuevo una orden cuyo último intento fue rechazado (el
-    /// comprador prueba con otra tarjeta). Si fue aprobado o todavía no se
+    /// Solo se cobra de nuevo una orden cuyo último intento fue rechazado. Desde
+    /// el checkout no pasa (un rechazo deja la orden fallida y otra tarjeta es
+    /// otra orden); queda como defensa. Si fue aprobado o todavía no se
     /// resolvió (en revisión, esperando el 3D Secure, sin respuesta), el mismo
     /// pedido repetido —doble clic, reintento del navegador, otra pestaña
     /// sobre la misma compra— recibe ese resultado y Payway no se entera: sin

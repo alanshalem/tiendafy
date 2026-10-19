@@ -201,8 +201,9 @@ public sealed class CheckoutDoublePayTests(ApiFactory factory)
         Assert.Equal("Checkout.AlreadyPaid", await CodeAsync(again));
         Assert.Empty(PaywayChargesWith("tok-dpw-4"));
 
-        // Rechazado: la orden sigue pendiente y otra tarjeta sobre la misma
-        // compra sí se cobra (es el reintento que tiene sentido).
+        // Rechazado: como con Mercado Pago, la orden queda fallida (el stock ya
+        // volvió). Reintentar sobre la misma compra no le llega a Payway; otra
+        // tarjeta es otra compra (ver PaywayFlowTests).
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Payway}/payments", new
         {
             id = Random.Shared.NextInt64(10_000_000, 99_999_999),
@@ -213,12 +214,10 @@ public sealed class CheckoutDoublePayTests(ApiFactory factory)
         var declined = await shopper.CheckoutAsync(variantId);
         var no = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{declined}/pay-payway", PaywayCard("tok-dpw-5"));
         Assert.Equal("DECLINED", no.GetProperty("status").GetString());
-        factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Payway}/payments",
-            PaywayApproved(Random.Shared.NextInt64(10_000_000, 99_999_999)), HttpStatusCode.Created);
-        var yes = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{declined}/pay-payway", PaywayCard("tok-dpw-6"));
-        Assert.Equal("APPROVED", yes.GetProperty("status").GetString());
-        Assert.Equal(no.GetProperty("orderId").GetGuid(), yes.GetProperty("orderId").GetGuid());
-        Assert.Single(PaywayChargesWith("tok-dpw-6"));
+        var retry = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{declined}/pay-payway", PaywayCard("tok-dpw-6"));
+        Assert.Equal(HttpStatusCode.Conflict, retry.StatusCode);
+        Assert.Equal("Checkout.PaymentFailed", await CodeAsync(retry));
+        Assert.Empty(PaywayChargesWith("tok-dpw-6"));
     }
 
     [Fact]

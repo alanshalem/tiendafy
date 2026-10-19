@@ -87,8 +87,9 @@ la tokenización no depende de él.
 3. `PaywayClient.ChargeAsync` **abre la fila del intento antes de llamar a
    Payway**, con `site_transaction_id = TF-{orderId:N}-{intento}` e índice
    único `(tenant, site_transaction_id)` y `(tenant, order, attempt_number)`.
-   Solo se vuelve a cobrar una orden cuyo último intento fue rechazado (el
-   comprador prueba otra tarjeta). Con uno aprobado o sin resolver (en
+   Una orden con un intento rechazado ya no se cobra (queda `Failed`, ver
+   la tabla): otra tarjeta es otra compra, con otra orden y otro
+   `site_transaction_id`. Con un intento aprobado o sin resolver (en
    revisión, 3DS, timeout), el mismo pedido repetido recibe ese resultado y a
    Payway no le llega otro cobro; con uno todavía esperando respuesta,
    `Payway.InProgress`. La orden es una por sesión de checkout (índice único
@@ -103,7 +104,7 @@ la tokenización no depende de él.
 | Payway | Nuestro estado | Qué pasa con la orden |
 |---|---|---|
 | `approved` | `Approved` | Se marca pagada (`SettlePaymentHandler`) y corren los avisos y la factura |
-| `rejected`, `group_rejected` | `Declined` | Queda pendiente; la tienda muestra el motivo y deja probar otra tarjeta |
+| `rejected`, `group_rejected` | `Declined` | Pasa a `Failed` y el stock vuelve a la venta en el momento (como un rechazo de Mercado Pago); la tienda muestra el motivo y, si prueba otra tarjeta, arma otra compra |
 | `review` | `UnderReview` | Queda pendiente. No despachar |
 | `challenge pending`, `fingerprint pending` | `RequiresAction` | Queda pendiente (3DS no está implementado) |
 | `pre_approved` | `Authorized` | Queda pendiente |
@@ -243,16 +244,15 @@ por id, consulta por `siteOperationId` y timeout con recuperación.
   interés, pagos offline (Rapipago, Pago Fácil), pre-autorización, pago
   distribuido y modelo agregador.
 
-No es un bug (decidido así): el número de intento casi siempre es 1. La
+No es un bug (decidido así): el número de intento es 1 desde la tienda. La
 orden es una por sesión de checkout, pero la tienda arma otra sesión cada vez
-que el comprador aprieta pagar (`reserve` en `CheckoutClient.tsx`), así que
-probar otra tarjeta después de un rechazo es otra orden. La protección por
-orden frena el mismo pedido repetido (reintento del navegador, dos pedidos a
-la vez); entre envíos distintos cuentan el token de un solo uso (reusarlo da
+que el comprador aprieta pagar (`reserve` en `CheckoutClient.tsx`), y una
+orden rechazada pasa a `Failed` y ya no se vuelve a cobrar, así que probar
+otra tarjeta después de un rechazo es otra orden (el intento 2 queda solo como
+defensa en `PaywayClient`). La protección por orden frena el mismo pedido
+repetido (reintento del navegador, dos pedidos a la vez); entre envíos
+distintos cuentan el token de un solo uso (reusarlo da
 `409 Payway.TokenAlreadyUsed`) y el botón que se deshabilita mientras paga.
-Ojo: la orden del intento rechazado no pasa a fallida (a diferencia de un
-rechazo de Mercado Pago): queda pendiente en Ventas, sus reservas vuelven al
-stock cuando vencen y nadie la cierra sola; se cancela a mano.
 
 Docs oficiales: el portal de developers de Payway es una SPA que no siempre
 carga (el 18-oct-2026 se revisó de nuevo el README del SDK .NET: confirma el

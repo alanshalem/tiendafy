@@ -202,6 +202,50 @@ public sealed class PaywayFlowTests
     }
 
     [Fact]
+    public async Task Un_rechazo_libera_el_stock_y_otra_tarjeta_es_otra_compra()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "pwx");
+        var shopper = new Shopper(merchant);
+        await merchant.PutAsync("/api/v1/payments/payway/connection", Config());
+        // La última unidad: con la rechazada reteniéndola, el reintento no tenía stock.
+        var (_, variantId) = await merchant.CreateProductAsync("Lámpara Payway", priceMinor: 25_000_00, stock: 1);
+
+        var first = await shopper.CheckoutAsync(variantId);
+        Assert.Equal(0, await merchant.AvailableAsync(variantId));
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments", new
+        {
+            id = Random.Shared.NextInt64(10_000_000, 99_999_999),
+            status = "rejected",
+            amount = 25_000_00,
+            status_details = new { error = new { type = "insufficient_amount", reason = new { id = 51, description = "FONDOS INSUFICIENTES" } } },
+        }, HttpStatusCode.PaymentRequired);
+        var declined = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{first}/pay-payway", Card("tok-x-1"));
+        Assert.Equal("DECLINED", declined.GetProperty("status").GetString());
+        var declinedOrder = declined.GetProperty("orderId").GetGuid();
+
+        // Como un rechazo de Mercado Pago: la venta no queda pendiente y la
+        // unidad vuelve a la venta en el momento, no cuando vence la reserva.
+        Assert.Equal("FAILED", await StatusAsync(shopper, declinedOrder));
+        Assert.Equal(1, await merchant.AvailableAsync(variantId));
+
+        // Otra tarjeta: la tienda arma otra compra, con otra orden y otro
+        // site_transaction_id (Payway no tiene idempotencia y el token es de un uso).
+        var second = await shopper.CheckoutAsync(variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments", Approved(9_500_001, 25_000_00), HttpStatusCode.Created);
+        var paid = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{second}/pay-payway", Card("tok-x-2"));
+        Assert.Equal("APPROVED", paid.GetProperty("status").GetString());
+        var paidOrder = paid.GetProperty("orderId").GetGuid();
+        Assert.NotEqual(declinedOrder, paidOrder);
+        Assert.Equal(0, await merchant.AvailableAsync(variantId));
+
+        var charges = _factory.ExternalHttp.SentTo($"{Sandbox}/payments")
+            .Where(r => r.Method == HttpMethod.Post && r.Body?.Contains("tok-x-") == true).ToList();
+        Assert.Equal(2, charges.Count);
+        Assert.Contains(PaywayPaymentAttempt.BuildSiteTransactionId(declinedOrder, 1), charges[0].Body);
+        Assert.Contains(PaywayPaymentAttempt.BuildSiteTransactionId(paidOrder, 1), charges[1].Body);
+    }
+
+    [Fact]
     public async Task Solo_se_cobra_en_las_cuotas_que_ofrece_la_tienda()
     {
         var merchant = await Merchant.CreateAsync(_factory, "pwc");

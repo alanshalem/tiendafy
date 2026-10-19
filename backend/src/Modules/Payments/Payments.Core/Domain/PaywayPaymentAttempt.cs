@@ -4,8 +4,9 @@ using SharedKernel.Common;
 namespace Payments.Core.Domain;
 
 /// <summary>
-/// Un intento de cobro contra Payway. Uno por intento, no por orden: si al
-/// comprador le rechazan la tarjeta y prueba con otra, son dos filas.
+/// Un intento de cobro contra Payway. Uno por intento, no por orden. Desde la
+/// tienda es casi siempre uno por orden: un rechazo deja la orden fallida y
+/// otra tarjeta es otra compra (otra orden, otro <see cref="SiteTransactionId"/>).
 ///
 /// Existe por una razón muy concreta: <b>Payway no tiene idempotencia</b>. No
 /// hay header equivalente al <c>X-Idempotency-Key</c> de Mercado Pago, así que
@@ -25,7 +26,7 @@ public sealed class PaywayPaymentAttempt
     public Guid TenantId { get; private set; }
     public Guid OrderId { get; private set; }
 
-    /// <summary>1, 2, 3… Cada tarjeta nueva que prueba el comprador suma uno.</summary>
+    /// <summary>1, 2, 3… sobre la misma orden. Desde la tienda, 1 (ver el resumen de la clase).</summary>
     public int AttemptNumber { get; private set; }
 
     /// <summary>Nuestro id de la transacción. Determinístico y único por intento.</summary>

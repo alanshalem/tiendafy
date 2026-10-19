@@ -176,7 +176,7 @@ export const VENTAS = {
         heading: 'Qué ve el comprador',
         paragraphs: [
           'En el checkout elige “Tarjeta de crédito o débito” y completa los datos en tu tienda. Los datos de la tarjeta viajan directo a Payway: no pasan por nuestros servidores ni quedan guardados en ningún lado.',
-          'Si el banco rechaza el pago, le mostramos el motivo en castellano y qué puede hacer: probar con otra tarjeta, elegir menos cuotas o llamar al banco.',
+          'Si el banco rechaza el pago, le mostramos el motivo en castellano y qué puede hacer: probar con otra tarjeta, elegir menos cuotas o llamar al banco. En Ventas, esa compra queda “Fallida” y los productos vuelven a estar a la venta en el momento; si prueba con otra tarjeta, es una venta nueva.',
         ],
       },
       {
