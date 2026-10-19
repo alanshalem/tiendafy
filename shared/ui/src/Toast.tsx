@@ -51,6 +51,17 @@ const variantClasses: Record<ToastVariant, string> = {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
+  // Los timers de cierre se cortan al desmontar: si no, uno pendiente dispara
+  // un setState sobre un provider que ya no está (en los tests, con el jsdom
+  // ya desarmado: "window is not defined" y la suite falla).
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      pending.forEach(clearTimeout);
+      pending.clear();
+    };
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts((current) => current.filter((t) => t.id !== id));
@@ -65,7 +76,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((current) => [...current, { id, message, variant }]);
 
       if (durationMs > 0) {
-        setTimeout(() => dismiss(id), durationMs);
+        const timer = setTimeout(() => {
+          timers.current.delete(timer);
+          dismiss(id);
+        }, durationMs);
+        timers.current.add(timer);
       }
     },
     [dismiss],
