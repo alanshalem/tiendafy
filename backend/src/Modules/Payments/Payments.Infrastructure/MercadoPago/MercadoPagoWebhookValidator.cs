@@ -39,11 +39,9 @@ public sealed class MercadoPagoWebhookValidator(IOptions<MercadoPagoOptions> opt
             return new WebhookValidationResult(false, type, dataId);
 
         // Anti-replay: rechazar si el ts difiere > 5 min del reloj del server.
-        if (long.TryParse(ts, out var tsUnix))
-        {
-            var age = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(tsUnix);
-            if (Math.Abs(age.TotalMinutes) > 5) return new WebhookValidationResult(false, type, dataId);
-        }
+        // Un ts que no se puede leer es una firma inválida (401), nunca un 500.
+        if (!IsFresh(ts, DateTimeOffset.UtcNow))
+            return new WebhookValidationResult(false, type, dataId);
 
         var canonical = $"id:{dataId};request-id:{xRequestId};ts:{ts};";
         var expected = Convert.ToHexString(
@@ -54,6 +52,33 @@ public sealed class MercadoPagoWebhookValidator(IOptions<MercadoPagoOptions> opt
             Encoding.UTF8.GetBytes(v1.ToLowerInvariant()));
 
         return new WebhookValidationResult(ok, type, dataId);
+    }
+
+    /// <summary>Cuánto puede diferir el <c>ts</c> de la firma del reloj del servidor.</summary>
+    public static readonly TimeSpan MaxClockSkew = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// A partir de acá un <c>ts</c> se lee en milisegundos: 10^11 segundos es el
+    /// año 5138, y 10^11 milisegundos, marzo de 1973.
+    /// </summary>
+    private const long MillisecondsThreshold = 100_000_000_000;
+
+    /// <summary>
+    /// Si el <c>ts</c> de <c>x-signature</c> está dentro de <see cref="MaxClockSkew"/>.
+    /// Las SDK oficiales lo leen en segundos (y exigen solo dígitos), pero un
+    /// ejemplo de la documentación de Mercado Pago lo muestra en milisegundos
+    /// (13 dígitos): se aceptan los dos. Antes, uno en milisegundos se pasaba a
+    /// <c>FromUnixTimeSeconds</c>, que tiraba fuera de rango, y el webhook
+    /// contestaba 500; y uno que no era un número salteaba el control.
+    /// </summary>
+    public static bool IsFresh(string ts, DateTimeOffset now)
+    {
+        if (ts.Length is 0 or > 18 || !ts.All(char.IsAsciiDigit)) return false;
+        var value = long.Parse(ts, System.Globalization.CultureInfo.InvariantCulture);
+        var tsMs = value < MillisecondsThreshold ? value * 1000 : value;
+        // Sin DateTimeOffset en el medio: cualquier long de 18 dígitos entra
+        // en la resta sin desbordar.
+        return Math.Abs(now.ToUnixTimeMilliseconds() - tsMs) <= (long)MaxClockSkew.TotalMilliseconds;
     }
 
     private static (string? Type, string? DataId) ParseBody(string rawBody)

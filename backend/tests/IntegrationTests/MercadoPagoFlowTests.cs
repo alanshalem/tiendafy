@@ -81,6 +81,13 @@ public sealed class MercadoPagoFlowTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(paymentId, mpUserId, secret: "otro")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(paymentId, mpUserId)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(paymentId, mpUserId)).StatusCode);
+        // El ts en milisegundos (como un ejemplo de la documentación de MP) también
+        // vale; uno ilegible es firma inválida, no un 500 (antes, FromUnixTimeSeconds
+        // tiraba fuera de rango).
+        Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(paymentId, mpUserId,
+            ts: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString())).StatusCode);
+        foreach (var bad in new[] { "99999999999999999", "abc", "-1", "1.7e9", "999999999999999999999" })
+            Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(paymentId, mpUserId, ts: bad)).StatusCode);
 
         var health = await merchant.GetAsync("/api/v1/payments/mercadopago/webhooks/health");
         Assert.Equal(1, health.GetProperty("pending").GetInt32());
@@ -734,10 +741,11 @@ public sealed class MercadoPagoFlowTests
     }
 
     /// <summary>Un aviso de MP, firmado como lo firma MP.</summary>
-    private Task<HttpResponseMessage> WebhookAsync(string paymentId, long userId, string secret = ApiFactory.MercadoPagoWebhookSecret)
+    private Task<HttpResponseMessage> WebhookAsync(string paymentId, long userId,
+        string secret = ApiFactory.MercadoPagoWebhookSecret, string? ts = null)
     {
         var requestId = Guid.NewGuid().ToString();
-        var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        ts ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
         var v1 = Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(secret),
             Encoding.UTF8.GetBytes($"id:{paymentId};request-id:{requestId};ts:{ts};"))).ToLowerInvariant();

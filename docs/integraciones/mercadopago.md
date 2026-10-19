@@ -223,7 +223,11 @@ se liberan las reservas y se le avisa al comprador con "Cancelación de compra".
 
 - La firma del webhook es `HMAC-SHA256(secret, "id:{data.id};request-id:{x-request-id};ts:{ts};")`
   contra el `v1` de `x-signature`. Se compara en tiempo constante y se rechaza
-  si `ts` difiere más de 5 minutos del reloj del servidor.
+  si `ts` difiere más de 5 minutos del reloj del servidor. Las SDK oficiales
+  leen `ts` en segundos, pero un ejemplo de la documentación lo muestra en
+  milisegundos (13 dígitos): se aceptan los dos. Un `ts` que no son solo
+  dígitos o que no se puede ubicar en el tiempo es firma inválida (401); antes,
+  uno en milisegundos tiraba fuera de rango y el webhook contestaba 500.
 - Hay que contestar 200 rápido y procesar después: un webhook al que ya se le
   contestó no se reenvía, por eso el inbox es durable y con backoff largo.
 - El `X-Idempotency-Key` de un refund tiene que variar entre parciales: con una

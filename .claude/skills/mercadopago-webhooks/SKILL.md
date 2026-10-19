@@ -45,7 +45,10 @@ id:{data.id};request-id:{x-request-id};ts:{ts};
   conectadas), se ve en "Tus integraciones" → Webhooks y se rota con
   "Restablecer".
 - Tiendafy (`MercadoPagoWebhookValidator`, sin la SDK) rechaza si `ts` difiere
-  más de 5 minutos del reloj del servidor. Sin `MercadoPago:WebhookSecret`,
+  más de 5 minutos del reloj del servidor. Acepta `ts` en segundos y en
+  milisegundos (desde 10^11 se lee en ms) y cualquier `ts` que no sean solo
+  dígitos ASCII, o que no se pueda ubicar en el tiempo, es firma inválida
+  (401), nunca un 500. Sin `MercadoPago:WebhookSecret`,
   **todo** webhook da 401. Toma `data.id` del body y usa la query como
   respaldo: para `payment` es el mismo valor; con Orders conviene la query.
 
