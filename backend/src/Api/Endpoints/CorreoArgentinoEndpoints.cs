@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Api.Auth;
 using Api.Shipping;
 using Catalog.Contracts;
@@ -32,7 +31,7 @@ public static class CorreoArgentinoEndpoints
 
         admin.MapPut("/", async (
             CorreoConfigRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository repo,
-            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var existing = await repo.GetAsync(tenant.TenantId.Value, ct);
 
@@ -64,6 +63,11 @@ public static class CorreoArgentinoEndpoints
                 catch (MiCorreoException ex)
                 {
                     return Error.Validation("Correo.ValidateFailed", ex.Message).ToProblem();
+                }
+                catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+                {
+                    loggers.CreateLogger("CorreoArgentino").LogWarning(ex, "MiCorreo no respondió al validar el usuario.");
+                    return Error.Validation("Correo.ValidateFailed", CarrierNoAnswer.Message("Correo Argentino")).ToProblem();
                 }
             }
             customerId ??= existing?.CustomerId;
@@ -116,7 +120,7 @@ public static class CorreoArgentinoEndpoints
         // Cotización de prueba: valida credenciales + CP de origen con datos reales.
         admin.MapPost("/test", async (
             CorreoTestRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository repo,
-            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -146,6 +150,11 @@ public static class CorreoArgentinoEndpoints
             catch (MiCorreoException ex)
             {
                 return Error.Validation("Correo.TestFailed", ex.Message).ToProblem();
+            }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                loggers.CreateLogger("CorreoArgentino").LogWarning(ex, "MiCorreo no respondió a la cotización de prueba.");
+                return Error.Validation("Correo.TestFailed", CarrierNoAnswer.Message("Correo Argentino")).ToProblem();
             }
         });
 
@@ -215,7 +224,7 @@ public static class CorreoArgentinoEndpoints
 
                 return Results.Ok(new { available = true, options });
             }
-            catch (Exception ex) when (ex is MiCorreoException or HttpRequestException or OperationCanceledException or JsonException)
+            catch (Exception ex) when (ex is MiCorreoException || CarrierNoAnswer.Is(ex, ct))
             {
                 // El checkout nunca se rompe por el cotizador: se degrada a los
                 // métodos manuales de la tienda. Un error con respuesta ya lo
@@ -257,7 +266,7 @@ public static class CorreoArgentinoEndpoints
                     }),
                 });
             }
-            catch (Exception ex) when (ex is MiCorreoException or HttpRequestException or OperationCanceledException or JsonException)
+            catch (Exception ex) when (ex is MiCorreoException || CarrierNoAnswer.Is(ex, ct))
             {
                 // Igual que la cotización: sin sucursales, el checkout sigue.
                 return Results.Ok(new { items = Array.Empty<object>() });
@@ -414,7 +423,7 @@ public static class CorreoArgentinoEndpoints
         // Seguimiento de un envío MiCorreo (por número de tracking del carrier).
         group.MapGet("/admin/shipping/correo/tracking", async (
             string shippingId, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
-            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -436,6 +445,11 @@ public static class CorreoArgentinoEndpoints
             catch (MiCorreoException ex)
             {
                 return Error.Validation("Correo.TrackingFailed", ex.Message).ToProblem();
+            }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                loggers.CreateLogger("CorreoArgentino").LogWarning(ex, "MiCorreo no respondió al pedir el seguimiento.");
+                return Error.Validation("Correo.TrackingFailed", CarrierNoAnswer.Message("Correo Argentino")).ToProblem();
             }
         }).RequirePermission(Permission.OrdersRead);
 

@@ -146,7 +146,7 @@ public static class AndreaniEndpoints
         // saber si el usuario, la contraseña y la habilitación de IP están bien.
         admin.MapPost("/test", async (
             ITenantContext tenant, IAndreaniRepository repo, ShippingSecretProtector protector,
-            AndreaniClient client, CancellationToken ct) =>
+            AndreaniClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -160,6 +160,11 @@ public static class AndreaniEndpoints
             catch (AndreaniException ex)
             {
                 return Results.Ok(new { ok = false, message = ex.Message });
+            }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                loggers.CreateLogger("Andreani").LogWarning(ex, "Andreani no respondió a la prueba de conexión.");
+                return Results.Ok(new { ok = false, message = CarrierNoAnswer.Message("Andreani") });
             }
         });
     }
@@ -286,9 +291,25 @@ public static class AndreaniEndpoints
                     : null,
                 async attempt =>
                 {
+                    // Si el login no contesta, la orden ni se mandó: no hay nada
+                    // que revisar en Andreani y se puede reintentar tranquilo.
+                    string token;
                     try
                     {
-                        var token = await client.LoginAsync(config, protector.Unprotect(config.PasswordEncrypted), ct);
+                        token = await client.LoginAsync(config, protector.Unprotect(config.PasswordEncrypted), ct);
+                    }
+                    catch (AndreaniException ex)
+                    {
+                        return Error.Validation("Andreani.CreateFailed", ex.Message).ToProblem();
+                    }
+                    catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+                    {
+                        loggers.CreateLogger("Andreani").LogWarning(ex, "Andreani no respondió al login antes de crear el envío.");
+                        return Error.Validation("Andreani.CreateFailed", CarrierNoAnswer.Message("Andreani")).ToProblem();
+                    }
+
+                    try
+                    {
                         var created = await client.CreateShipmentAsync(config, token, payload, ct);
                         attempt.CarrierCreated($"seguimiento {created.TrackingNumber}");
 
@@ -362,7 +383,7 @@ public static class AndreaniEndpoints
         // envío. No se arma a mano — el path cambió entre versiones de la API.
         group.MapGet("/admin/orders/{orderId:guid}/andreani-label", async (
             Guid orderId, ITenantContext tenant, IAndreaniRepository repo,
-            ShippingSecretProtector protector, AndreaniClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, AndreaniClient client, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             if (shipment is null) return Results.NotFound();
@@ -382,6 +403,11 @@ public static class AndreaniEndpoints
             catch (AndreaniException ex)
             {
                 return Error.Validation("Andreani.LabelFailed", ex.Message).ToProblem();
+            }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                loggers.CreateLogger("Andreani").LogWarning(ex, "Andreani no respondió al pedir una etiqueta.");
+                return Error.Validation("Andreani.LabelFailed", CarrierNoAnswer.Message("Andreani")).ToProblem();
             }
         }).RequirePermission(Permission.OrdersFulfill);
 
@@ -436,6 +462,11 @@ public static class AndreaniEndpoints
             catch (AndreaniException ex)
             {
                 return Error.Validation("Andreani.TrackingFailed", ex.Message).ToProblem();
+            }
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
+            {
+                loggers.CreateLogger("Andreani").LogWarning(ex, "Andreani no respondió al pedir el seguimiento.");
+                return Error.Validation("Andreani.TrackingFailed", CarrierNoAnswer.Message("Andreani")).ToProblem();
             }
         }).RequirePermission(Permission.OrdersRead);
     }

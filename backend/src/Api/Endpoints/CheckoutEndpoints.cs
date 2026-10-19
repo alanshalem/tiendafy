@@ -168,7 +168,8 @@ public static class CheckoutEndpoints
     /// <summary>
     /// "Sucursal Correo Argentino Monte Grande (B0107) — Vicente López 448".
     /// Se resuelve server-side desde el listado cacheado (el cliente solo manda
-    /// el código); si la API no responde, cae al código pelado.
+    /// el código); si la API falla o no responde (timeout, red caída), cae al
+    /// código pelado: la compra no se frena por la dirección de la sucursal.
     /// </summary>
     private static async Task<string> ResolveAgencyLabelAsync(
         Guid tenantId, string agencyCode, ICorreoArgentinoConfigRepository configs,
@@ -191,7 +192,7 @@ public static class CheckoutEndpoints
                 ? $"Sucursal Correo Argentino {agency.Name} ({agency.Code})"
                 : $"Sucursal Correo Argentino {agency.Name} ({agency.Code}) — {street}, {addr!.Locality ?? addr.City}";
         }
-        catch (MiCorreoException)
+        catch (Exception ex) when (ex is MiCorreoException || CarrierNoAnswer.Is(ex, ct))
         {
             return fallback;
         }

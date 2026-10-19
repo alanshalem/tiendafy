@@ -130,9 +130,11 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
    Andreani. Ver `backend/src/Api/Shipping/ShipmentWriteAhead.cs`:
    - Andreani rechaza (error con respuesta): la reserva se suelta y se puede
      reintentar.
-   - Andreani no responde (timeout, red): 502 avisando que el envío pudo
-     haberse creado y que hay que mirarlo en su panel antes de reintentar; la
-     reserva se suelta.
+   - Andreani no responde a la orden (timeout, red): 502 avisando que el envío
+     pudo haberse creado y que hay que mirarlo en su panel antes de reintentar;
+     la reserva se suelta. Si el que no responde es el login, la orden ni se
+     mandó: 400 "Andreani no respondió a tiempo. Probá de nuevo en unos
+     minutos." y se puede reintentar.
    - Andreani lo creó pero no se pudo guardar: la reserva queda `needs_review`
      (log crítico con el número) y la venta no deja crear otro. La venta lo
      avisa en lugar de "Crear envío", con dos salidas (permiso de despacho,
@@ -155,11 +157,15 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
   path cambió entre versiones de la API; armarlo a mano da 404). En lote, se
   hace un login por lote y los PDF se unen en uno (`CarrierLabels.Merge`).
 - El seguimiento es **a pedido** desde el botón "Seguimiento" de la venta
-  (`GET /v2/envios/{n}/trazas`); no
-  hay polling ni webhook. Con el estado `DELIVERED`, "Seguí tu pedido" marca
+  (`GET /v2/envios/{n}/trazas`); no hay polling ni webhook. Con el estado `DELIVERED`, "Seguí tu pedido" marca
   el pedido como entregado. El último evento se traduce con `AndreaniStatusMap` y
   se guarda junto con el estado crudo. Lo que no se reconoce queda como
   `UNKNOWN` y se loguea ("Estado de Andreani sin mapear") para poder sumarlo.
+- Si Andreani no contesta (timeout, red caída o respuesta ilegible), la prueba
+  de conexión, la etiqueta y el seguimiento dicen "Andreani no respondió a
+  tiempo. Probá de nuevo en unos minutos." en vez de un 500, y queda un
+  warning en el log. En la impresión en lote, esa venta sale con ese motivo y
+  las demás etiquetas siguen (`CarrierNoAnswer`, común a los carriers).
 
 ## Lo que aprendimos de la API real
 
@@ -266,9 +272,6 @@ de QA y después las de producción.
 - Las dos cotizaciones (domicilio y sucursal) van en serie, 6 s cada una: si
   Andreani está lento, la segunda puede llegar después de que el checkout dejó
   de esperar (10 s). Hacerlas en paralelo o bajar el tope.
-- La prueba de conexión, la etiqueta y el seguimiento solo atrapan los errores
-  con respuesta de Andreani: un timeout o la red caída salen como 500 (Zipnova
-  ya los trata como falla del proveedor).
 - No hay seguimiento automático ni avisos al comprador por cambio de estado
   (el seguimiento se consulta a pedido desde el panel).
 - Si el proceso muere justo después de que Andreani creó el envío, la reserva

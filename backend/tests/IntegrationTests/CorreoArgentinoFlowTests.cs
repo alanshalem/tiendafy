@@ -322,6 +322,33 @@ public sealed class CorreoArgentinoFlowTests
     }
 
     [Fact]
+    public async Task Si_MiCorreo_no_responde_el_panel_lo_dice_en_vez_de_un_500()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cox");
+        var userToken = $"user-{merchant.Subdomain}";
+        StubToken();
+        await merchant.PutAsync("/api/v1/admin/shipping/correo", Config(userToken));
+
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/rates", (_, _) => throw new TaskCanceledException("timeout"));
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/shipping/tracking", (_, _) => throw new HttpRequestException("sin red"));
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/users/validate", (_, _) => throw new TaskCanceledException("timeout"));
+
+        var responses = new[]
+        {
+            await merchant.SendAsync(HttpMethod.Post, "/api/v1/admin/shipping/correo/test", new { }),
+            await merchant.SendAsync(HttpMethod.Get, "/api/v1/admin/shipping/correo/tracking?shippingId=X1"),
+            // Obtener el customerId con el email y la contraseña de MiCorreo.
+            await merchant.SendAsync(HttpMethod.Put, "/api/v1/admin/shipping/correo",
+                Config(userToken, customerId: null, email: "yo@tienda.com")),
+        };
+        foreach (var res in responses)
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+            Assert.Contains("Correo Argentino no respondió a tiempo", await res.Content.ReadAsStringAsync());
+        }
+    }
+
+    [Fact]
     public async Task Un_alta_a_revisar_se_registra_o_se_libera_desde_la_venta()
     {
         var merchant = await Merchant.CreateAsync(_factory, "cov");

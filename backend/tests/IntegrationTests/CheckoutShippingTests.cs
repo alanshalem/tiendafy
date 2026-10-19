@@ -68,6 +68,28 @@ public sealed class CheckoutShippingTests
     }
 
     [Fact]
+    public async Task Si_MiCorreo_no_responde_al_confirmar_la_sucursal_sale_con_su_codigo()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "chs");
+        var shopper = new Shopper(merchant);
+        var (_, variantId) = await merchant.CreateProductAsync("Termo", priceMinor: 20_000_00, stock: 5);
+        await ConfigureCarriersAsync(merchant);
+        var branchToken = (await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shipping/correo/quote", new { postalCode = "9000", units = 1 }))
+            .GetProperty("options").EnumerateArray().First(o => o.GetProperty("kind").GetString() == "S")
+            .GetProperty("token").GetString()!;
+
+        // La dirección de la sucursal se busca al confirmar; si MiCorreo no
+        // contesta, la compra sigue con el código. Antes era un 500 y el
+        // comprador no podía pagar. Provincia U (Chubut): propia de este test,
+        // por el cache de sucursales.
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Correo}/agencies?provinceCode=U", (_, _) => throw new TaskCanceledException("timeout"));
+        var submitted = await SubmitAsync(shopper, variantId, 1, branchToken, agency: "U0001");
+
+        Assert.Equal(HttpStatusCode.OK, submitted.StatusCode);
+        Assert.Contains("Sucursal Correo Argentino U0001", await submitted.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Medios_propios_stock_y_estado_de_la_sesion()
     {
         var merchant = await Merchant.CreateAsync(_factory, "chm");

@@ -125,10 +125,10 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.TestFailed", ex.Message).ToProblem();
             }
-            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
             {
                 loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió a la cotización de prueba.");
-                return Error.Validation("Zipnova.TestFailed", NoAnswerMessage).ToProblem();
+                return Error.Validation("Zipnova.TestFailed", CarrierNoAnswer.Message("Zipnova")).ToProblem();
             }
         });
 
@@ -194,7 +194,7 @@ public static class ZipnovaEndpoints
 
                 return Results.Ok(new { available = true, options });
             }
-            catch (Exception ex) when (ex is ZipnovaException || IsNoAnswer(ex, ct))
+            catch (Exception ex) when (ex is ZipnovaException || CarrierNoAnswer.Is(ex, ct))
             {
                 // El checkout nunca se rompe por el cotizador: tampoco si Zipnova
                 // tarda más que ZipnovaClient.QuoteTimeout o no se lo alcanza (antes
@@ -393,10 +393,10 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.LabelFailed", ex.Message).ToProblem();
             }
-            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
             {
                 loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió al pedir una etiqueta.");
-                return Error.Validation("Zipnova.LabelFailed", NoAnswerMessage).ToProblem();
+                return Error.Validation("Zipnova.LabelFailed", CarrierNoAnswer.Message("Zipnova")).ToProblem();
             }
         }).RequirePermission(Permission.OrdersFulfill);
 
@@ -432,10 +432,10 @@ public static class ZipnovaEndpoints
             {
                 return Error.Validation("Zipnova.TrackingFailed", ex.Message).ToProblem();
             }
-            catch (Exception ex) when (IsNoAnswer(ex, ct))
+            catch (Exception ex) when (CarrierNoAnswer.Is(ex, ct))
             {
                 loggers.CreateLogger("Zipnova").LogWarning(ex, "Zipnova no respondió al pedir el seguimiento.");
-                return Error.Validation("Zipnova.TrackingFailed", NoAnswerMessage).ToProblem();
+                return Error.Validation("Zipnova.TrackingFailed", CarrierNoAnswer.Message("Zipnova")).ToProblem();
             }
         }).RequirePermission(Permission.OrdersRead);
 
@@ -443,20 +443,6 @@ public static class ZipnovaEndpoints
     }
 
     // ---------------------------------------------------------------- Helpers
-
-    private const string NoAnswerMessage = "Zipnova no respondió a tiempo. Probá de nuevo en unos minutos.";
-
-    /// <summary>
-    /// Zipnova no contestó (timeout, red caída) o mandó algo que no se pudo
-    /// leer: es un problema del proveedor, no nuestro, y se trata igual que un
-    /// error de su API. Si el que cortó fue el que hizo el pedido, no: eso no
-    /// es una falla de nadie. La creación de envíos NO pasa por acá: ahí "no
-    /// respondió" puede querer decir que el envío se creó igual, y lo maneja
-    /// ShipmentWriteAhead.
-    /// </summary>
-    private static bool IsNoAnswer(Exception ex, CancellationToken requestAborted) =>
-        ex is HttpRequestException or JsonException
-        || (ex is OperationCanceledException && !requestAborted.IsCancellationRequested);
 
     /// <summary>Paquetes por envío: más que esto no se cotiza online.</summary>
     private const int MaxUnits = 200;

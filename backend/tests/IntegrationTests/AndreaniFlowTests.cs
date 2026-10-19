@@ -333,6 +333,59 @@ public sealed class AndreaniFlowTests
             && e.GetProperty("summary").GetString()!.Contains("360000000077770"));
     }
 
+    [Fact]
+    public async Task Si_Andreani_no_responde_el_panel_lo_dice_en_vez_de_un_500()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "anx");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
+        var orders = $"{Base}/v2/ordenes-de-envio";
+        var before = _factory.ExternalHttp.SentTo(orders).Count;
+
+        // El login no contesta: la prueba de conexión lo dice, y crear el
+        // envío también, sin mandar la orden (no hay nada que revisar en Andreani).
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/login", (_, _) => throw new TaskCanceledException("timeout"));
+        var test = await merchant.PostAsync("/api/v1/admin/shipping/andreani/test", new { });
+        Assert.False(test.GetProperty("ok").GetBoolean());
+        Assert.Equal("Andreani no respondió a tiempo. Probá de nuevo en unos minutos.", test.GetProperty("message").GetString());
+
+        var create = await merchant.SendAsync(HttpMethod.Post, url, Recipient());
+        Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
+        Assert.Contains("Andreani no respondió a tiempo", await create.Content.ReadAsStringAsync());
+        Assert.Equal(before, _factory.ExternalHttp.SentTo(orders).Count);
+
+        // Ya creado el envío, la etiqueta y el seguimiento sin respuesta
+        // tampoco son un 500, ni sueltos ni en la impresión en lote.
+        StubLogin();
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, orders, new
+        {
+            bultos = new[]
+            {
+                new
+                {
+                    numeroDeEnvio = "360000000088880",
+                    linking = new[] { new { meta = "Etiqueta", contenido = $"{orders}/360000000088880/etiquetas?bulto=1" } },
+                },
+            },
+        });
+        Assert.False((await merchant.PostAsync(url, Recipient())).GetProperty("alreadyExisted").GetBoolean());
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{orders}/360000000088880/etiquetas", (_, _) => throw new HttpRequestException("sin red"));
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/v2/envios/360000000088880/trazas", (_, _) => throw new TaskCanceledException("timeout"));
+
+        foreach (var path in new[] { "andreani-label", "andreani-tracking" })
+        {
+            var res = await merchant.SendAsync(HttpMethod.Get, $"/api/v1/admin/orders/{orderId}/{path}");
+            Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+            Assert.Contains("Andreani no respondió a tiempo", await res.Content.ReadAsStringAsync());
+        }
+
+        var batch = await merchant.PostAsync("/api/v1/fulfillment/labels", new { orderIds = new[] { orderId } });
+        var outcome = Assert.Single(batch.GetProperty("results").EnumerateArray());
+        Assert.Equal("error", outcome.GetProperty("status").GetString());
+        Assert.Contains("no respondió a tiempo", outcome.GetProperty("reason").GetString());
+    }
+
     private async Task RemoveShipmentRowAsync(Guid orderId)
     {
         using var scope = _factory.Services.CreateScope();
