@@ -72,7 +72,7 @@ public sealed class AndreaniFlowTests
     };
 
     private void StubLogin(string token = "tok-123") =>
-        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/login", (_, _) =>
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/login", (_, _) =>
         {
             var res = new HttpResponseMessage(HttpStatusCode.OK);
             res.Headers.Add("x-authorization-token", token);
@@ -107,7 +107,7 @@ public sealed class AndreaniFlowTests
         await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config(password: ""));
 
         // Probar credenciales: una vez mal, una vez bien.
-        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/login", (_, _) => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/login", (_, _) => new HttpResponseMessage(HttpStatusCode.Unauthorized));
         var bad = await merchant.PostAsync("/api/v1/admin/shipping/andreani/test", new { });
         Assert.False(bad.GetProperty("ok").GetBoolean());
         Assert.Contains("incorrectos", bad.GetProperty("message").GetString());
@@ -154,7 +154,7 @@ public sealed class AndreaniFlowTests
             Recipient(email: new string('a', 35) + "@mail.com"));
         Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
 
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/ordenes-de-envio", new
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/v2/ordenes-de-envio", new
         {
             estado = "Pendiente",
             sucursalDeDistribucion = new { descripcion = "BARRACAS" },
@@ -163,7 +163,7 @@ public sealed class AndreaniFlowTests
                 new
                 {
                     numeroDeEnvio = "360000000036820",
-                    linking = new[] { new { meta = "Etiqueta", contenido = $"{Base}/v2/360000000036820/etiquetas" } },
+                    linking = new[] { new { meta = "Etiqueta", contenido = $"{Base}/v2/ordenes-de-envio/360000000036820/etiquetas?bulto=1" } },
                 },
                 new { numeroDeEnvio = "360000000036830", linking = Array.Empty<object>() },
             },
@@ -174,20 +174,20 @@ public sealed class AndreaniFlowTests
         Assert.True(shipment.GetProperty("hasLabel").GetBoolean());
         Assert.Equal("BARRACAS", shipment.GetProperty("branchName").GetString());
 
-        var sent = _factory.ExternalHttp.SentTo($"{Base}/ordenes-de-envio").Last();
+        var sent = _factory.ExternalHttp.SentTo($"{Base}/v2/ordenes-de-envio").Last();
         Assert.Equal("tok-123", sent.Headers["x-authorization-token"]);
         Assert.Contains("\"volumenCm\":9000", sent.Body);
         Assert.Contains("Timbre 3B", sent.Body);
 
         // Andreani no deduplica: el segundo pedido devuelve el envío que ya hay
         // sin mandar otra orden.
-        var before = _factory.ExternalHttp.SentTo($"{Base}/ordenes-de-envio").Count;
+        var before = _factory.ExternalHttp.SentTo($"{Base}/v2/ordenes-de-envio").Count;
         var again = await merchant.PostAsync($"/api/v1/admin/orders/{orderId}/andreani-shipment", Recipient());
         Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
-        Assert.Equal(before, _factory.ExternalHttp.SentTo($"{Base}/ordenes-de-envio").Count);
+        Assert.Equal(before, _factory.ExternalHttp.SentTo($"{Base}/v2/ordenes-de-envio").Count);
 
         // Etiqueta.
-        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/v2/360000000036820/etiquetas", (_, _) =>
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/v2/ordenes-de-envio/360000000036820/etiquetas?bulto=1", (_, _) =>
             new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent("%PDF-1.4"u8.ToArray()) });
         var label = await merchant.SendAsync(HttpMethod.Get, $"/api/v1/admin/orders/{orderId}/andreani-label");
         Assert.Equal(HttpStatusCode.OK, label.StatusCode);
@@ -195,7 +195,7 @@ public sealed class AndreaniFlowTests
 
         // Seguimiento: campos en mayúscula y hora argentina sin zona.
         // JSON literal: serializado en camelCase perdería justo las mayúsculas.
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/envios/360000000036820/trazas", """
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/v2/envios/360000000036820/trazas", """
             {"eventos":[
               {"Fecha":"2026-10-01T10:00:00","EstadoId":5,"Estado":"Ingreso al circuito operativo","Sucursal":"BARRACAS"},
               {"Fecha":"2026-10-02T09:30:00","EstadoId":6,"Estado":"En distribución","MotivoId":1,"Motivo":"x"}
@@ -221,7 +221,7 @@ public sealed class AndreaniFlowTests
         StubLogin();
         var orderId = await merchant.CreateSaleAsync();
         var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
-        var orders = $"{Base}/ordenes-de-envio";
+        var orders = $"{Base}/v2/ordenes-de-envio";
         var before = _factory.ExternalHttp.SentTo(orders).Count;
 
         var (first, second) = await CarrierRace.RunAsync(_factory.ExternalHttp, HttpMethod.Post, orders,
@@ -249,7 +249,7 @@ public sealed class AndreaniFlowTests
         StubLogin();
         var orderId = await merchant.CreateSaleAsync();
         var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
-        var orders = $"{Base}/ordenes-de-envio";
+        var orders = $"{Base}/v2/ordenes-de-envio";
 
         // Sin respuesta no se sabe si se creó: no es un 500, y se avisa que
         // hay que mirar el panel de Andreani antes de reintentar.
@@ -277,7 +277,7 @@ public sealed class AndreaniFlowTests
         StubLogin();
         var orderId = await merchant.CreateSaleAsync();
         var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
-        var orders = $"{Base}/ordenes-de-envio";
+        var orders = $"{Base}/v2/ordenes-de-envio";
 
         // Andreani crea el envío y guardarlo acá falla: mientras tanto apareció
         // otra fila de esa venta y el índice único frena la nuestra.
@@ -347,7 +347,7 @@ public sealed class AndreaniFlowTests
         await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
         var orderId = await merchant.CreateSaleAsync();
         var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
-        var orders = $"{Base}/ordenes-de-envio";
+        var orders = $"{Base}/v2/ordenes-de-envio";
         var before = _factory.ExternalHttp.SentTo(orders).Count;
 
         // Sucursal sin id y sin dirección: antes caía al destino postal y
@@ -410,7 +410,7 @@ public sealed class AndreaniFlowTests
 
         // Andreani rechaza con su formato de lista de errores.
         StubLogin();
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/ordenes-de-envio",
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/v2/ordenes-de-envio",
             new[] { new { code = "E1", property = "destino", message = "El código postal no existe" } },
             HttpStatusCode.BadRequest);
         var rejected = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/orders/{orderId}/andreani-shipment", Recipient());

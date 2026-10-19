@@ -5,8 +5,11 @@ reemplaza al relevamiento previo (16 archivos escritos antes de implementar,
 borrados en el commit `efb5fecd`): lo que sigue es lo que hay en el código y lo
 que se verificó contra la API real. El relevamiento queda en la historia de git.
 
-Documentación oficial: <https://developers.andreani.com/documentacion> (es una
-aplicación web: hay que abrirla en el navegador, no se lee con un fetch).
+Documentación oficial: <https://developers.andreani.com/document> (es una
+aplicación web: hay que abrirla en el navegador, no se lee con un fetch). Cada
+API trae una planilla `.xlsx` descargable con las URL de QA y producción, el
+método y ejemplos de pedido y respuesta: ahí están las rutas que usa el
+cliente (ver "Lo que aprendimos", punto 17).
 
 ## Qué hace en Tiendafy
 
@@ -138,11 +141,11 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
      anda) o **"Ya lo revisé: no se creó"** (suelta la reserva y se puede
      crear de nuevo). Lógica en `Api/Shipping/ShipmentReview.cs`.
    - El proceso murió a mitad de camino: la reserva vence a los 5 minutos.
-3. Login (`POST /login`, Basic) → token en el header de respuesta
-   `x-authorization-token`, que se reenvía en ese mismo header (no Bearer).
-4. `POST /ordenes-de-envio`, **sin reintentos**. Un bulto por unidad vendida;
-   si se carga a mano la cantidad de bultos, manda eso. **Ojo:** esa ruta sin
-   versión da 404 en la API real; ver "Lo que aprendimos", punto 17.
+3. Login (`GET /login`, Basic) → token en el header de respuesta
+   `x-authorization-token` (si no viene, se lee `token` del cuerpo), que se
+   reenvía en ese mismo header (no Bearer).
+4. `POST /v2/ordenes-de-envio`, **sin reintentos**. Un bulto por unidad
+   vendida; si se carga a mano la cantidad de bultos, manda eso.
 5. Se guarda el número de seguimiento del primer bulto (el que ve el
    comprador), todos los números y la URL de la etiqueta tal cual vino.
 
@@ -152,7 +155,7 @@ Andreani no devuelve plazo de entrega en la cotización: no se inventa uno.
   path cambió entre versiones de la API; armarlo a mano da 404). En lote, se
   hace un login por lote y los PDF se unen en uno (`CarrierLabels.Merge`).
 - El seguimiento es **a pedido** desde el botón "Seguimiento" de la venta
-  (`GET /envios/{n}/trazas`, que también da 404 sin versión: ver punto 17); no
+  (`GET /v2/envios/{n}/trazas`); no
   hay polling ni webhook. Con el estado `DELIVERED`, "Seguí tu pedido" marca
   el pedido como entregado. El último evento se traduce con `AndreaniStatusMap` y
   se guarda junto con el estado crudo. Lo que no se reconoce queda como
@@ -203,17 +206,22 @@ el contrato de ejemplo de la documentación pública:
     (pendiente de ingreso), 5 (ingreso al circuito), 6 (en distribución) y 11
     (visita); el resto se interpreta por el nombre, de forma conservadora.
 17. **Crear envíos y trazas también llevan versión.** Sondeo sin credenciales
-    del 18-oct-2026 (producción / QA): `POST /ordenes-de-envio` da 404 / 403 y
-    `POST /v2/ordenes-de-envio`, 401; `GET /envios/{n}/trazas` da 404 / 403 y
-    `GET /v1/envios/{n}/trazas` (y `/v2/...`), 401. Un 401 quiere decir que la
+    del 18 y el 19-oct-2026 (producción / QA): `POST /ordenes-de-envio` da
+    404 / 403 y `POST /v2/ordenes-de-envio`, 401; `GET /envios/{n}/trazas` da
+    404 / 403 y `GET /v2/envios/{n}/trazas`, 401. Un 401 quiere decir que la
     ruta existe y pide token; el 404 o el 403 sin versión es el mismo síntoma
-    que tenía `/tarifas`. Los dos clientes de terceros que revisamos
-    (`lpetrora/node-andreani-api` y `alejoasotelo/andreani-sdk-rest`) usan
-    `/v2/ordenes-de-envio`, `/v1/envios/{n}/trazas` y `GET /login`. **El
-    cliente de Tiendafy todavía usa las rutas sin versión** (`AndreaniClient.cs`):
-    hay que corregirlo antes de la primera prueba con credenciales. `/login`
-    contesta lo mismo a GET y a POST sin credenciales (422), así que el método
-    queda por confirmar.
+    que tenía `/tarifas`. Las planillas oficiales dicen lo mismo: la orden es
+    `POST /v2/ordenes-de-envio` (y `GET /v2/ordenes-de-envio/{numero}` para
+    consultarla), la etiqueta `GET /v2/ordenes-de-envio/{numero}/etiquetas`
+    (el cliente usa la URL que viene en la respuesta de la orden, que es esa)
+    y las trazas `GET /v2/envios/{n}/trazas`. Esa versión de las trazas está
+    marcada "a deprecar": hay una `GET /v3/envios/{n}/trazas` (también da 401)
+    cuyos eventos traen `Evento`, `Motivo` y `Estado` pero **no `EstadoId`**;
+    pasarse obliga a mapear por nombre (ver Pendiente). `/v1/envios/{n}/trazas`
+    también contesta 401, pero no figura en la documentación. El login es
+    `GET /login` con Basic según la documentación: el `POST` existe pero
+    valida un cuerpo con `userName` y contraseña ("parámetros incorrectos en
+    el cuerpo").
 
 Sin credenciales reales quedó sin verificar: el TTL del token de login, el
 esquema vigente del cuerpo de `POST /v2/ordenes-de-envio`, si hay etiqueta ZPL
@@ -244,13 +252,13 @@ de QA y después las de producción.
 
 ## Pendiente
 
-- **Pasar el cliente a las rutas con versión** (`/v2/ordenes-de-envio`,
-  `/v1/envios/{n}/trazas`; ver punto 17) y ajustar el Andreani simulado de los
-  tests, que hoy acepta las rutas sin versión.
+- Pasar las trazas a `/v3/envios/{n}/trazas` antes de que Andreani apague la
+  v2 (punto 17): la v3 no trae `EstadoId` y `AndreaniStatusMap` tendría que
+  mapear por `Evento`/`Estado`.
 - Conseguir credenciales reales (alta comercial) y probar de punta a punta:
   login, orden de envío, etiqueta y trazas.
 - Confirmar con Andreani el cuerpo vigente de `POST /v2/ordenes-de-envio`, el
-  método de `/login`, el TTL del token, la restricción por IP y el catálogo de
+  TTL del token (la documentación dice 24 h), la restricción por IP y el catálogo de
   estados.
 - El comprador no elige la sucursal en el checkout: si cotizó retiro en
   sucursal, el operador carga el id de sucursal al despachar. `GET

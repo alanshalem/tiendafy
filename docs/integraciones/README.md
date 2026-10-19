@@ -41,9 +41,6 @@ Lo que los documentos marcan como bloqueante, juntado acá:
   y emitir el primer CAE real. El `DH_KEY_TOO_SMALL` de `servicios1.afip.gov.ar`
   ya está resuelto en el cliente (solo ECDHE, sin bajar el nivel de seguridad):
   ver [arca.md](arca.md#tls-contra-arca).
-- **Andreani:** pasar el cliente a `/v2/ordenes-de-envio` y
-  `/v1/envios/{n}/trazas` (ver [andreani.md](./andreani.md), "Lo que
-  aprendimos", punto 17).
 - **Correo Argentino:** el seguimiento tiene que mandar el `shippingId` en el
   cuerpo (ver [correo-argentino.md](./correo-argentino.md)).
 - **Mercado Libre:** cargar `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` en `.env.prod`
