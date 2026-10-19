@@ -173,9 +173,9 @@ un sondeo sin credenciales del 18-oct-2026 (ver el último punto).
   inventada da 404). `GET /shipping/tracking?shippingId=…` sin cuerpo da
   **415**, y con `Content-Type: application/json` pero sin cuerpo, 500; con
   el cuerpo `{"shippingId": "…"}` pasa a validar el token (401 con uno
-  falso). `MiCorreoClient.GetTrackingAsync` manda la query sin cuerpo: con
-  credenciales reales, el botón Seguimiento fallaría. Hay que pasarlo al
-  cuerpo antes de probar.
+  falso). Desde el 19-oct, `MiCorreoClient.GetTrackingAsync` lo manda así: un
+  GET con el cuerpo `{"shippingId": "…"}` y sin query. El MiCorreo simulado de
+  los tests responde 415 si llega sin cuerpo, como el real.
 
 ## Cómo probar
 
@@ -192,8 +192,6 @@ un sondeo sin credenciales del 18-oct-2026 (ver el último punto).
 
 ## Pendiente
 
-- **Mandar el `shippingId` del seguimiento en el cuerpo** (ver "Lo que
-  aprendimos") y ajustar el MiCorreo simulado de los tests.
 - **Probar con credenciales reales** (TEST y después PROD): auth, rates,
   agencies, import y tracking.
 - Confirmar el rechazo de un `extOrderId` repetido (hoy no importa: el guard

@@ -56,6 +56,16 @@ public sealed class CorreoArgentinoFlowTests
             },
         });
 
+    /// <summary>
+    /// El seguimiento como lo atiende MiCorreo: el <c>shippingId</c> va en el
+    /// cuerpo del GET. Sin cuerpo, la API real responde 415.
+    /// </summary>
+    private void StubTracking(object response) =>
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/shipping/tracking", (req, body) =>
+            string.IsNullOrEmpty(body) || !string.IsNullOrEmpty(req.RequestUri!.Query)
+                ? new HttpResponseMessage(HttpStatusCode.UnsupportedMediaType)
+                : FakeHttp.Json(response));
+
     [Fact]
     public async Task Configurar_cotizar_sucursales_alta_y_seguimiento()
     {
@@ -164,7 +174,7 @@ public sealed class CorreoArgentinoFlowTests
         Assert.Equal(2, calls);
 
         // Seguimiento: el server responde array, objeto suelto o error.
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipping/tracking", new[]
+        StubTracking(new[]
         {
             new
             {
@@ -178,13 +188,16 @@ public sealed class CorreoArgentinoFlowTests
         });
         var tracking = await merchant.GetAsync("/api/v1/admin/shipping/correo/tracking?shippingId=000500076393019A3G0C701");
         var item = Assert.Single(tracking.GetProperty("items").EnumerateArray());
+        var trackingSent = _factory.ExternalHttp.SentTo($"{Base}/shipping/tracking").Last();
+        Assert.Equal("{\"shippingId\":\"000500076393019A3G0C701\"}", trackingSent.Body);
+        Assert.Equal("", trackingSent.Uri.Query);
         // Del más nuevo al más viejo, con la fecha leída día-mes-año: el panel muestra el primero.
         Assert.Equal("EN DISTRIBUCION", item.GetProperty("events")[0].GetProperty("event").GetString());
 
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipping/tracking", new { trackingNumber = "X1", events = (object?)null });
+        StubTracking(new { trackingNumber = "X1", events = (object?)null });
         Assert.Single((await merchant.GetAsync("/api/v1/admin/shipping/correo/tracking?shippingId=X1")).GetProperty("items").EnumerateArray());
 
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipping/tracking", new { date = "hoy", error = "Envío inexistente", code = "404" });
+        StubTracking(new { date = "hoy", error = "Envío inexistente", code = "404" });
         var missing = await merchant.SendAsync(HttpMethod.Get, "/api/v1/admin/shipping/correo/tracking?shippingId=NOPE");
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
         Assert.Contains("Envío inexistente", await missing.Content.ReadAsStringAsync());
