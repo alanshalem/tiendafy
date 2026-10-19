@@ -22,7 +22,8 @@ public sealed record OrderListFilter(
     string? Channel = null,
     string? Shipping = null,
     string? Payment = null,
-    IReadOnlyCollection<Guid>? Ids = null);
+    IReadOnlyCollection<Guid>? Ids = null,
+    bool NeedsReview = false);
 
 /// <summary>
 /// En qué anda el envío de una venta. No es un estado propio: se deduce del

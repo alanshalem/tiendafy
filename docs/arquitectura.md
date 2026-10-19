@@ -251,7 +251,7 @@ sequenceDiagram
     A->>MP: Crea la preferencia con el token de la tienda
     C->>MP: Paga (Checkout Pro o Bricks)
     MP-->>A: Webhook "payment" → inbox durable (200 al toque)
-    W->>A: PaymentWebhookWorker: settle idempotente → orden pagada,<br/>confirma las reservas
+    W->>A: PaymentWebhookWorker: settle idempotente → orden pagada,<br/>confirma las reservas<br/>(o descuenta directo si vencieron)
     W->>W: PaidOrderSideEffects, paso a paso y best-effort:<br/>stock de kits, email, WhatsApp, factura, cupón, ficha del cliente
     W->>N: "Confirmación de pago" con la plantilla de la tienda
     W->>AR: FiscalEmissionWorker: WSAA → WSFEv1 → CAE<br/>(si la tienda factura al pagar)

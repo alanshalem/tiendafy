@@ -33,7 +33,7 @@ public static class HomeEndpoints
             if (access is null) return AuthExtensions.NotAMember();
             var tid = tenant.TenantId;
 
-            int? toDispatch = null, pendingTransfers = null;
+            int? toDispatch = null, pendingTransfers = null, toReview = null;
             if (access.Can(Permission.OrdersRead))
             {
                 // Lo mismo que "Por despachar" de Ventas: cobradas sin despachar.
@@ -42,6 +42,9 @@ public static class HomeEndpoints
                 // nadie confirmó. Si la tienda no usa ese circuito, da 0.
                 pendingTransfers = await orders.CountAsync(tid, new OrderListFilter(
                     Status: nameof(OrderStatus.PendingPayment), Payment: OrderPayment.Transfer), ct);
+                // Ventas que el sistema no pudo resolver solo: se pagaron sin
+                // stock, o se pagó una que figuraba cancelada o rechazada.
+                toReview = await orders.CountAsync(tid, new OrderListFilter(NeedsReview: true), ct);
             }
 
             object? messages = null;
@@ -80,7 +83,7 @@ public static class HomeEndpoints
                 ? (await Api.Fiscal.FiscalReadiness.CheckAsync(fiscal, tid.Value, ct)).Ready
                 : null;
 
-            return Results.Ok(new { toDispatch, pendingTransfers, messages, mercadoLibre, fiscalReady });
+            return Results.Ok(new { toDispatch, pendingTransfers, toReview, messages, mercadoLibre, fiscalReady });
         }).RequireAnyPermission(Permission.OrdersRead, Permission.MessagesRead, Permission.MeliOperate);
 
         return group;

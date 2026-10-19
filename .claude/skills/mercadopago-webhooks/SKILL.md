@@ -85,7 +85,7 @@ Una tienda solo puede ver o revivir eventos de su propio `user_id`.
 
 | `status` | Efecto |
 |---|---|
-| `approved` | Pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada con ese pago y sin comisión, solo la guarda. Si `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
+| `approved` | Pendiente → `Paid`, confirma reservas (sin reserva activa, descuenta directo; sin stock, queda "para revisar"), guarda la comisión. Si ya estaba pagada con ese pago y sin comisión, solo la guarda. Si `transaction_amount_refunded` creció, aplica la diferencia como reembolso |
 | `rejected`, `cancelled` | Pendiente → `Failed`, libera reservas |
 | `refunded` | → `Refunded` |
 | `charged_back`, `in_mediation` | → `ChargedBack` |

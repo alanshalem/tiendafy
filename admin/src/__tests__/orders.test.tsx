@@ -41,6 +41,31 @@ const body = (api: MockApi, method: string, path: string) =>
   api.calls.filter((c) => c.method === method && c.path === path).at(-1)?.body as Record<string, unknown>;
 
 describe('ventas: una venta pagada', () => {
+  it('para revisar: muestra lo que pasó y se marca revisada', async () => {
+    const note = 'Se pagó pero no había stock de Carpa (falta 1): reponelo o devolvé el pago.';
+    const { api, user } = await openOrder({ ...paid, reviewNote: note } as Order);
+    expect(screen.getByRole('alert')).toHaveTextContent(note);
+    await user.click(screen.getByRole('button', { name: /Ya lo revisé/ }));
+    await settle(2);
+    expect(
+      api.calls.some((c) => c.method === 'POST' && c.path === `/api/v1/orders/${paid.id}/review/resolve`),
+    ).toBe(true);
+  });
+
+  it('el filtro "para revisar" del Inicio viaja al servidor y se puede sacar', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/orders', { items: [paid], total: 1 });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/ventas?revisar=1');
+    await screen.findByText(paid.buyerEmail);
+    expect(
+      api.calls.some((c) => c.path.startsWith('/api/v1/orders?') && c.path.includes('review=true')),
+    ).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Ver todas' }));
+    await settle(2);
+    expect(screen.queryByText(/solo las ventas para revisar/)).toBeNull();
+  });
+
   it('se marca enviada con el número de seguimiento', async () => {
     const { api, user } = await openOrder();
     await user.click(screen.getByRole('button', { name: /Marcar enviada/ }));

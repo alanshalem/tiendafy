@@ -56,7 +56,7 @@ export const EMPEZAR = {
             type: 'checklist',
             items: [
               'El buscador del panel se abre con el botón “Buscar…” de arriba o con Ctrl+K (⌘K en Mac): escribí el número de una venta, el nombre, email o teléfono de un cliente, un producto o su SKU, una compra, un proveedor o el nombre de una pantalla, y vas directo. Los resultados vienen agrupados y te movés con las flechas y Enter.',
-              'En Inicio, la tarjeta “Para hacer hoy” junta lo que necesita tu atención, cada cosa con su link al listado ya filtrado: arrepentimientos sin atender (con los días que quedan del plazo), ventas para despachar, transferencias por confirmar, preguntas de Mercado Libre sin responder, mensajes de contacto sin leer, ventas de Mercado Libre sin facturar, productos que se agotan antes del próximo embarque, cuentas de redes para reconectar, posts que fallaron y ventas del mes sin costo cargado. Cada persona ve solo lo que le toca según su rol, y sin nada pendiente la tarjeta no aparece.',
+              'En Inicio, la tarjeta “Para hacer hoy” junta lo que necesita tu atención, cada cosa con su link al listado ya filtrado: arrepentimientos sin atender (con los días que quedan del plazo), ventas pagadas para revisar (se cobraron sin stock o figuraban canceladas), ventas para despachar, transferencias por confirmar, preguntas de Mercado Libre sin responder, mensajes de contacto sin leer, ventas de Mercado Libre sin facturar, productos que se agotan antes del próximo embarque, cuentas de redes para reconectar, posts que fallaron y ventas del mes sin costo cargado. Cada persona ve solo lo que le toca según su rol, y sin nada pendiente la tarjeta no aparece.',
               'Mientras falte algo básico, Inicio muestra también “Poné tu tienda en marcha”: cargar el primer producto, conectar Mercado Pago y subir tu logo, cada uno con su link. Cuando está todo hecho, desaparece sola.',
               'Arriba a la derecha, junto al buscador: “Ver mi tienda” (la abre en otra pestaña), el modo claro u oscuro y el menú de tu cuenta (tu inicial), con “Mis tiendas” y “Cerrar sesión”. Para pasar a otra tienda usá el selector de tienda del encabezado.',
               'Los listados recuerdan la búsqueda, el filtro y la página en la dirección: si recargás o volvés atrás no perdés dónde estabas, y podés pasarle el link a alguien del equipo.',
@@ -185,7 +185,7 @@ export const EMPEZAR = {
               },
               {
                 term: 'Reservado y disponible',
-                def: 'Reservado es el stock apartado por una compra en curso; disponible, lo que se puede vender ahora (el stock menos lo reservado). Si el pago no llega en 30 minutos, lo reservado vuelve solo a disponible. Con transferencia o efectivo al retirar, queda apartado el tiempo que elegiste en Medios de pago (“Cuánto te guardamos el stock”).',
+                def: 'Reservado es el stock apartado por una compra en curso; disponible, lo que se puede vender ahora (el stock menos lo reservado). Si el pago no llega en 30 minutos, lo reservado vuelve solo a disponible; si llega después igual, la venta queda pagada y el stock se descuenta en ese momento (y si ya no había, la venta queda para revisar). Con transferencia o efectivo al retirar, queda apartado el tiempo que elegiste en Medios de pago (“Cuánto te guardamos el stock”).',
               },
               {
                 term: 'Historial de stock',

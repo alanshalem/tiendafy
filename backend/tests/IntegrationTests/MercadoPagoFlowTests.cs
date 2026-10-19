@@ -1,6 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
 using System.Web;
 using Api.Payments;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -722,23 +720,7 @@ public sealed class MercadoPagoFlowTests
     // ---------------------------------------------------------------- helpers
 
     /// <summary>El OAuth completo: pedir la URL, "autorizar" y volver por el callback.</summary>
-    /// <summary>
-    /// Pasadas del worker hasta vaciar lo que está para procesar. La base de
-    /// tests persiste entre corridas y el worker toma de a 20: puede haber
-    /// avisos viejos adelante del de este test.
-    /// </summary>
-    private async Task DrainWebhooksAsync()
-    {
-        for (var pass = 0; pass < 20; pass++)
-        {
-            await Workers.RunOnceAsync<PaymentWebhookWorker>(_factory);
-            using var scope = _factory.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-            var now = DateTime.UtcNow;
-            if (!await db.PaymentWebhookEvents.AnyAsync(e => e.Status == InboxEntry.StatusPending && e.NextAttemptAtUtc <= now))
-                return;
-        }
-    }
+    private Task DrainWebhooksAsync() => MercadoPagoWebhooks.DrainAsync(_factory);
 
     [Fact]
     public async Task El_nombre_del_resumen_admite_13_y_uno_viejo_mas_largo_no_rompe_el_cobro()
@@ -781,26 +763,9 @@ public sealed class MercadoPagoFlowTests
         Assert.Contains("\"statement_descriptor\":\"MI TIENDA DE\"", preference.Body);
     }
 
-    /// <summary>Un aviso de MP, firmado como lo firma MP.</summary>
     private Task<HttpResponseMessage> WebhookAsync(string paymentId, long userId,
-        string secret = ApiFactory.MercadoPagoWebhookSecret, string? ts = null)
-    {
-        var requestId = Guid.NewGuid().ToString();
-        ts ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var v1 = Convert.ToHexString(HMACSHA256.HashData(
-            Encoding.UTF8.GetBytes(secret),
-            Encoding.UTF8.GetBytes($"id:{paymentId};request-id:{requestId};ts:{ts};"))).ToLowerInvariant();
-
-        var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/webhooks/mercadopago")
-        {
-            Content = new StringContent(
-                $$$"""{"type":"payment","action":"payment.updated","user_id":{{{userId}}},"data":{"id":"{{{paymentId}}}"}}""",
-                Encoding.UTF8, "application/json"),
-        };
-        req.Headers.Add("x-signature", $"ts={ts},v1={v1}");
-        req.Headers.Add("x-request-id", requestId);
-        return _factory.CreateClient().SendAsync(req);
-    }
+        string secret = ApiFactory.MercadoPagoWebhookSecret, string? ts = null) =>
+        MercadoPagoWebhooks.SendAsync(_factory, paymentId, userId, secret, ts);
 
     private static async Task<string?> StatusAsync(Shopper shopper, Guid orderId) =>
         (await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/orders/{orderId}/status")).GetProperty("status").GetString();

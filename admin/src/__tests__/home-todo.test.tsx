@@ -62,6 +62,21 @@ describe('Inicio: para hacer hoy', () => {
     expect(screen.queryByText(/transferencia/)).toBeNull();
   });
 
+  it('las ventas pagadas para revisar van arriba y llevan al listado filtrado', async () => {
+    await home({
+      toDispatch: 0,
+      pendingTransfers: 0,
+      toReview: 2,
+      messages: null,
+      mercadoLibre: null,
+      fiscalReady: null,
+    });
+    expect(
+      screen.getByText('2 ventas pagadas para revisar: se cobraron sin stock o figuraban canceladas.'),
+    ).toBeInTheDocument();
+    expect(link(/Revisar/)).toHaveAttribute('href', '/ventas?revisar=1');
+  });
+
   it('un arrepentimiento vencido lo dice', async () => {
     await home({
       toDispatch: null,

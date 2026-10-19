@@ -22,4 +22,11 @@ public interface IInventoryService
 
     /// <summary>Le da más tiempo a una reserva activa (pago por transferencia).</summary>
     Task<Result> ExtendReservationAsync(Guid tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default);
+
+    /// <summary>
+    /// Descuenta las unidades de una venta cobrada sin reserva activa (venció o
+    /// se liberó antes del pago). Devuelve cuántas faltaron: 0 si alcanzó o si
+    /// la variante es sin límite.
+    /// </summary>
+    Task<int> DeductSaleAsync(Guid tenantId, Guid variantId, int quantity, string? reason, CancellationToken ct = default);
 }

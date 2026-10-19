@@ -143,6 +143,56 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return (await GetByVariantsAsync(tenantId, [variantId], ct))[0].Available;
     }
 
+    public async Task<int> DeductSaleAsync(
+        TenantId tenantId, Guid variantId, int quantity, string? reason, CancellationToken ct = default)
+    {
+        if (quantity <= 0) return 0;
+
+        await using var tx = await context.Database.BeginTransactionAsync(ct);
+
+        // Alcanza: un UPDATE condicional, como la reserva (atómico contra el checkout).
+        var updated = await context.StockItems
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && !s.Unlimited && s.Available >= quantity)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Available, x => x.Available - quantity), ct);
+
+        var taken = quantity;
+        if (updated == 0)
+        {
+            // Sin límite: se vende siempre y no se descuenta.
+            if (await IsUnlimitedAsync(tenantId, variantId, ct)) return 0;
+
+            // No alcanza: se lleva lo que queda y el resto falta. Comparar y
+            // restar en el mismo UPDATE (como SetAvailableIfUnchangedAsync): si
+            // entre leer y restar entró una reserva, se vuelve a leer.
+            taken = 0;
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                var available = await context.StockItems.AsNoTracking()
+                    .Where(s => s.TenantId == tenantId && s.VariantId == variantId)
+                    .Select(s => (int?)s.Available)
+                    .FirstOrDefaultAsync(ct) ?? 0;
+                var take = Math.Clamp(available, 0, quantity);
+                if (take == 0) break;
+                var claimed = await context.StockItems
+                    .Where(s => s.TenantId == tenantId && s.VariantId == variantId && !s.Unlimited && s.Available == available)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.Available, x => x.Available - take), ct);
+                if (claimed == 1)
+                {
+                    taken = take;
+                    break;
+                }
+            }
+        }
+
+        if (taken > 0)
+        {
+            context.Movements.Add(new StockMovement(tenantId, variantId, MovementType.Sold, -taken, reason: reason));
+            await context.SaveChangesAsync(ct);
+        }
+        await tx.CommitAsync(ct);
+        return quantity - taken;
+    }
+
     public async Task<StockItem> SetUnlimitedAsync(
         TenantId tenantId, Guid variantId, string? reason, CancellationToken ct = default)
     {

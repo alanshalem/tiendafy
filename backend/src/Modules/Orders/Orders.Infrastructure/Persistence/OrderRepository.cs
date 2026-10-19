@@ -81,6 +81,9 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             query = query.Where(o => o.Status.ToString().ToUpper() == wanted);
         }
 
+        // "Para revisar": se pagó sin stock, se pagó una que figuraba cancelada…
+        if (filter.NeedsReview) query = query.Where(o => o.ReviewNote != null);
+
         if (filter.FromUtc is { } from) query = query.Where(o => o.CreatedAtUtc >= from);
         if (filter.ToUtc is { } to) query = query.Where(o => o.CreatedAtUtc < to);
 

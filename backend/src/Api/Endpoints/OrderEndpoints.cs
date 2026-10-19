@@ -243,7 +243,8 @@ public static class OrderEndpoints
             if (!isOwnerShopper && !isStaff)
                 return Results.NotFound(); // no revelar existencia a terceros
 
-            return Results.Ok(ToDto(order));
+            // La nota "para revisar" es del equipo: el comprador no la ve.
+            return Results.Ok(ToDto(order, forStaff: isStaff));
         }).RequireTenant();
 
         // Listado del panel: página + total + búsqueda y filtro en la base. El
@@ -260,11 +261,11 @@ public static class OrderEndpoints
                 var filter = await query.ToFilterAsync(tenant.TenantId.Value, fiscalDb, ordersDb, ct);
                 var (page, total) = await orders.ListPageAsync(
                     tenant.TenantId, take, Math.Max(0, offset ?? 0), filter, ct);
-                return Results.Ok(new { items = page.Select(ToDto), total });
+                return Results.Ok(new { items = page.Select(o => ToDto(o)), total });
             }
 
             var items = await orders.ListAsync(tenant.TenantId, take, after, ct);
-            return Results.Ok(new { items = items.Select(ToDto) });
+            return Results.Ok(new { items = items.Select(o => ToDto(o)) });
         }).RequirePermission(Permission.OrdersRead);
 
         // El listado entero (con la misma búsqueda y los mismos filtros que la
@@ -298,6 +299,27 @@ public static class OrderEndpoints
             var c = result.Value;
             return Results.Ok(new { order = ToDto(c.Order), linkExpired = c.LinkExpired, releasedReservations = c.ReleasedReservations });
         }).RequireAnyPermission(Permission.OrdersCreate, Permission.OrdersRefund);
+
+        // "Ya lo revisé": la venta sale de "para revisar" (se pagó sin stock,
+        // se pagó una que figuraba cancelada). La nota se borra; lo que se hizo
+        // al respecto (reponer, devolver) queda en el stock o en los reembolsos.
+        group.MapPost("/orders/{id:guid}/review/resolve", async (
+            Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
+        {
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+            order.ResolveReview();
+            try
+            {
+                await orders.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Error.Conflict("Order.Concurrent",
+                    "La venta cambió mientras la mirabas. Recargá y fijate qué hay para revisar.").ToProblem();
+            }
+            return Results.Ok(ToDto(order));
+        }).RequireAnyPermission(Permission.OrdersCreate, Permission.OrdersFulfill, Permission.OrdersRefund);
 
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
@@ -603,7 +625,11 @@ public static class OrderEndpoints
         string.IsNullOrWhiteSpace(i.VariantDescription) ? i.ProductName : $"{i.ProductName} · {i.VariantDescription}",
         i.Quantity, i.UnitPrice.ToDecimal());
 
-    internal static object ToDto(Order order) => new
+    /// <param name="forStaff">
+    /// Con false (el comprador mirando su pedido) no va la nota "para revisar",
+    /// que es para el equipo de la tienda.
+    /// </param>
+    internal static object ToDto(Order order, bool forStaff = true) => new
     {
         order.Id,
         order.Number,
@@ -624,6 +650,9 @@ public static class OrderEndpoints
         order.CancelledAtUtc,
         order.CancelledBy,
         order.CancelReason,
+        // Lo que el comercio tiene que mirar de esta venta (ver Order.ReviewNote).
+        reviewNote = forStaff ? order.ReviewNote : null,
+        reviewNoteAtUtc = forStaff ? order.ReviewNoteAtUtc : null,
         subtotal = ApiJson.MoneyJson(order.Subtotal),
         discount = ApiJson.MoneyJson(order.DiscountAmount),
         // La parte del descuento que vino de pagar por transferencia o en
@@ -674,7 +703,8 @@ public sealed record OrderListQuery(
     string? Shipping,
     string? Payment,
     string? Ids,
-    string? Fiscal = null)
+    string? Fiscal = null,
+    bool? Review = null)
 {
     /// <summary>
     /// Los filtros, más el fiscal (<c>fiscal=devueltas-sin-nc</c>: facturadas con
@@ -703,7 +733,8 @@ public sealed record OrderListQuery(
         Channel,
         Shipping,
         Payment,
-        ParseIds(Ids));
+        ParseIds(Ids),
+        Review == true);
 
     /// <summary>"a,b,c" → ids; lo que no es un id se ignora, y hay tope (es una selección de la tabla).</summary>
     private static List<Guid>? ParseIds(string? ids)

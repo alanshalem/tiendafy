@@ -439,6 +439,13 @@ export const VENTAS = {
         ],
       },
       {
+        heading: 'Ventas para revisar',
+        paragraphs: [
+          'A veces la plata entra cuando la venta ya no lo esperaba: el comprador tardó en pagar y el stock que le guardábamos volvió a la venta. La venta queda pagada igual (con su email, su factura y todo lo de siempre) y el stock se descuenta en ese momento.',
+          'Si para entonces ya no había stock de algún producto, la venta queda “para revisar”: en Inicio, “Para hacer hoy” te avisa y te lleva a Ventas ya filtrado, y arriba del detalle de la venta dice qué falta. Reponé el stock o devolvé el pago, y tocá “Ya lo revisé” para sacarla de la lista.',
+        ],
+      },
+      {
         heading: 'Carritos abandonados',
         paragraphs: [
           'En Ventas → Carritos abandonados ves los checkouts de los últimos 30 días que no terminaron en compra, con la fecha, el cliente, los ítems y el total. Hay una fila por cliente: si alguien probó varias veces, cuenta su último intento, y si terminó comprando (con otro intento o por transferencia) no aparece. Los que no llegaron a dejar su email figuran como “Sin email (no recuperable)”.',

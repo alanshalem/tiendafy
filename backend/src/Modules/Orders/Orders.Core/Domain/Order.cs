@@ -251,6 +251,38 @@ public sealed class Order : AggregateRoot
         return Result.Success();
     }
 
+    // ------------------------------------------------- Para revisar
+
+    /// <summary>
+    /// Lo que el comercio tiene que mirar de esta venta y el sistema no puede
+    /// resolver solo: se cobró sin stock para entregarla, se pagó una que
+    /// figuraba cancelada, entró un segundo pago. Sale en el Inicio ("para
+    /// revisar") y arriba del detalle, hasta que alguien la da por revisada.
+    /// Null = nada que revisar.
+    /// </summary>
+    public string? ReviewNote { get; private set; }
+
+    /// <summary>Desde cuándo está para revisar.</summary>
+    public DateTime? ReviewNoteAtUtc { get; private set; }
+
+    public const int ReviewNoteMaxLength = 1000;
+
+    /// <summary>Suma un motivo para revisar (los anteriores quedan, uno por renglón).</summary>
+    public void AddReviewNote(string note)
+    {
+        if (string.IsNullOrWhiteSpace(note)) return;
+        var text = string.IsNullOrEmpty(ReviewNote) ? note.Trim() : $"{ReviewNote}\n{note.Trim()}";
+        ReviewNote = text.Length > ReviewNoteMaxLength ? text[..ReviewNoteMaxLength] : text;
+        ReviewNoteAtUtc ??= DateTime.UtcNow;
+    }
+
+    /// <summary>El comercio ya lo miró: sale de "para revisar".</summary>
+    public void ResolveReview()
+    {
+        ReviewNote = null;
+        ReviewNoteAtUtc = null;
+    }
+
     // ------------------------------------------- Pago fuera de una pasarela
 
     /// <summary>

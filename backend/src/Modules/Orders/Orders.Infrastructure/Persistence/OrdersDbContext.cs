@@ -120,6 +120,7 @@ public sealed class OrdersDbContext : DbContext
         order.Property(o => o.Channel).HasMaxLength(20).HasDefaultValue(Order.ChannelWeb);
         order.Property(o => o.CancelledBy).HasMaxLength(200);
         order.Property(o => o.CancelReason).HasMaxLength(300);
+        order.Property(o => o.ReviewNote).HasMaxLength(Order.ReviewNoteMaxLength);
         order.HasIndex(o => new { o.TenantId, o.CreatedAtUtc });
         // Único por tienda: es el número que se habla por teléfono y se busca
         // en el panel. El contador ya lo garantiza; esto frena una escritura a mano.

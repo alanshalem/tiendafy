@@ -217,6 +217,8 @@ interface Aviso {
 interface HomeTodo {
   toDispatch: number | null;
   pendingTransfers: number | null;
+  /** Ventas que se pagaron sin stock o figuraban canceladas: el comercio decide qué hacer. */
+  toReview?: number | null;
   messages: { unreadContact: number; repentance: number; oldestRepentanceAtUtc: string | null } | null;
   mercadoLibre: { unbilled: number; unanswered: number | null } | null;
   fiscalReady: boolean | null;
@@ -260,6 +262,13 @@ function todoAvisos(todo: HomeTodo | undefined): Aviso[] {
       urgent: true,
     });
   }
+  if (todo.toReview && todo.toReview > 0)
+    out.push({
+      text: `${n(todo.toReview, 'venta pagada para revisar', 'ventas pagadas para revisar')}: se cobraron sin stock o figuraban canceladas.`,
+      to: '/ventas?revisar=1',
+      action: 'Revisar',
+      urgent: true,
+    });
   if (todo.toDispatch && todo.toDispatch > 0)
     out.push({
       text: `${n(todo.toDispatch, 'venta cobrada para despachar', 'ventas cobradas para despachar')}.`,

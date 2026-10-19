@@ -37,13 +37,23 @@ public class SettlePaymentHandlerTests
     {
         public readonly List<Guid> Confirmed = [];
         public readonly List<Guid> Released = [];
+        public readonly List<(Guid VariantId, int Quantity)> Deducted = [];
+        public bool ConfirmFails;
+        public int Missing;
         public Task<Result<ReservationDto?>> ReserveAsync(Guid tenantId, Guid variantId, int quantity, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> ConfirmReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default)
-        { Confirmed.Add(reservationId); return Task.FromResult(Result.Success()); }
+        {
+            if (ConfirmFails)
+                return Task.FromResult(Result.Failure(Error.Conflict("Reservation.NotActive", "La reserva de stock ya no está activa.")));
+            Confirmed.Add(reservationId);
+            return Task.FromResult(Result.Success());
+        }
         public Task<Result> ReleaseReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default)
         { Released.Add(reservationId); return Task.FromResult(Result.Success()); }
         public Task<Result> ExtendReservationAsync(Guid tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default) =>
             Task.FromResult(Result.Success());
+        public Task<int> DeductSaleAsync(Guid tenantId, Guid variantId, int quantity, string? reason, CancellationToken ct = default)
+        { Deducted.Add((variantId, quantity)); return Task.FromResult(Missing); }
     }
 
     private static Order Orden(Guid? reserva = null)
@@ -74,6 +84,38 @@ public class SettlePaymentHandlerTests
         Assert.Equal("pay-123", order.PaymentId);
         Assert.Equal([reserva], inv.Confirmed);
         Assert.Equal(1, repo.Saves);
+    }
+
+    [Fact]
+    public async Task Approved_con_la_reserva_vencida_descuenta_el_stock_directo()
+    {
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out _, out var inv);
+        inv.ConfirmFails = true;
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-1");
+
+        Assert.Equal(SettleOutcome.JustPaid, result.Value.Outcome);
+        Assert.Single(inv.Released); // por si seguía activa: se suelta antes de descontar
+        Assert.Equal(1, Assert.Single(inv.Deducted).Quantity);
+        Assert.Null(order.ReviewNote); // alcanzó: no hay nada que revisar
+    }
+
+    [Fact]
+    public async Task Approved_sin_stock_queda_pagada_y_para_revisar()
+    {
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out var repo, out var inv);
+        inv.ConfirmFails = true;
+        inv.Missing = 1;
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-1");
+
+        Assert.Equal(SettleOutcome.JustPaid, result.Value.Outcome);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Contains("no había stock de Producto · Única (falta 1)", order.ReviewNote);
+        Assert.Contains("devolvé el pago", order.ReviewNote);
+        Assert.Equal(2, repo.Saves);
     }
 
     [Fact]

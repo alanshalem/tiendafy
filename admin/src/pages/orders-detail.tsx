@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Ban, Banknote, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
+import { AlertTriangle, Ban, Banknote, Check, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
 import { cn, Spinner } from '@tiendafy/ui';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
@@ -58,6 +58,9 @@ export interface OrderActions {
   /** Transferencia o efectivo: registrar que la plata llegó (permiso de cargar ventas). */
   canRegisterPayment?: boolean;
   onRegisterPayment?: (o: Order) => void;
+  /** "Ya lo revisé" sobre una venta para revisar. */
+  canResolveReview?: boolean;
+  onResolveReview?: (o: Order) => void;
 }
 
 /**
@@ -80,6 +83,8 @@ export function OrderDetail({
   onCancel,
   canRegisterPayment = false,
   onRegisterPayment,
+  canResolveReview = false,
+  onResolveReview,
 }: { order: Order; busy: boolean } & OrderActions) {
   const offline = o.paymentProvider === 'transfer' || o.paymentProvider === 'cash';
   const methodDiscount = o.paymentMethodDiscount?.amount ?? 0;
@@ -87,6 +92,31 @@ export function OrderDetail({
   const paidLike = o.status === 'PAID' || o.status === 'FULFILLED' || o.status === 'PARTIALLYREFUNDED';
   return (
     <div className="space-y-3">
+      {o.reviewNote && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-xs text-warning"
+        >
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex items-center gap-1.5 font-semibold">
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> Para revisar
+            </div>
+            {o.reviewNote.split('\n').map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+          {canResolveReview && onResolveReview && (
+            <button
+              type="button"
+              onClick={() => onResolveReview(o)}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-surface px-3 py-1.5 font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+            >
+              {busy ? <Spinner inline size={14} /> : <Check className="h-3.5 w-3.5" />} Ya lo revisé
+            </button>
+          )}
+        </div>
+      )}
       <div className="space-y-1.5">
         <div className="text-xs font-semibold text-fg-muted">Venta {orderLabel(o)}</div>
         {o.items.map((i) => (

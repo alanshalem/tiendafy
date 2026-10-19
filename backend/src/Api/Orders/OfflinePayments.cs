@@ -4,7 +4,6 @@ using Api.Workers;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Inventory.Contracts;
-using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Core.Features;
@@ -28,7 +27,6 @@ public sealed class OfflinePaymentService(
     IOrderRepository orders,
     OrdersDbContext ordersDb,
     IInventoryService inventory,
-    IStockRepository stock,
     OrderNotifier notifier,
     PaidOrderSideEffects paidEffects,
     ILogger<OfflinePaymentService> logger)
@@ -132,18 +130,21 @@ public sealed class OfflinePaymentService(
                 "La venta cambió mientras se registraba el pago. Recargá y fijate en qué estado quedó."));
         }
 
-        foreach (var item in order.Items.Where(i => i.ReservationId is not null))
+        // La reserva que siga activa se confirma; la que ya no (se pagó pasado
+        // el margen y el job de vencidas devolvió esas unidades a la venta), se
+        // descuenta directo. Si no alcanza, la venta queda para revisar.
+        var shortages = await PaidOrderStock.SettleAsync(inventory, order, logger, ct);
+        if (shortages.Count > 0)
         {
-            var confirm = await inventory.ConfirmReservationAsync(tenantId.Value, item.ReservationId!.Value, ct);
-            if (confirm.IsSuccess) continue;
-
-            // La reserva ya no estaba (se pagó pasado el margen y el job de
-            // vencidas devolvió esas unidades a la venta): se descuentan a mano,
-            // o el stock quedaría contando mercadería que ya se vendió.
-            logger.LogWarning("Reserva {ReservationId} de la orden {OrderId} no se pudo confirmar ({Error}); se descuenta el stock.",
-                item.ReservationId, order.Id, confirm.Error.Code);
-            await stock.AdjustAvailableAsync(tenantId, item.VariantId, -item.Quantity,
-                $"Pago registrado de la venta {order.Label}", ct);
+            order.AddReviewNote(PaidOrderStock.ShortageNote(shortages));
+            try
+            {
+                await orders.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                logger.LogError(ex, "La orden {OrderId} se pagó sin stock y no se pudo dejar para revisar.", order.Id);
+            }
         }
 
         await paidEffects.RunAsync(order, ct: ct);

@@ -88,14 +88,12 @@ public sealed class SettlePaymentHandler(
             // Comisión real de MP (transaction − neto acreditado): rentabilidad.
             if (mpFee is > 0m)
                 order.RecordMpFee(Money.FromDecimal(mpFee.Value, order.Currency));
+            // Guardar primero es lo que reclama el pago: si otro aviso del mismo
+            // pago la dejó pagada en el mismo instante, este guardado choca
+            // (xmin) y el stock no se toca dos veces.
             await repository.SaveChangesAsync(ct);
 
-            foreach (var reservationId in order.ReservationIds)
-            {
-                var confirm = await inventory.ConfirmReservationAsync(order.TenantId.Value, reservationId, ct);
-                if (confirm.IsFailure)
-                    logger.LogWarning("Confirm reserva {ReservationId} (orden {OrderId}) falló: {Error}", reservationId, orderId, confirm.Error.Code);
-            }
+            await SettleStockAsync(order, ct);
 
             logger.LogInformation("Order {OrderId} PAGADA (payment {PaymentId}).", orderId, paymentId);
             return new SettleResult(SettleOutcome.JustPaid, order);
@@ -140,6 +138,28 @@ public sealed class SettlePaymentHandler(
         // pending / in_process → esperar siguiente webhook.
         logger.LogInformation("Order {OrderId}: pago '{Status}', sin cambios.", orderId, status);
         return new SettleResult(SettleOutcome.NoChange, order);
+    }
+
+    /// <summary>
+    /// El stock de la venta recién pagada (ver <see cref="PaidOrderStock"/>).
+    /// Si no alcanzó para algún producto, la venta queda "para revisar" con lo
+    /// que falta. Ese guardado no puede deshacer el pago: si choca con otro
+    /// cambio de la venta, queda en el log y la venta sigue pagada.
+    /// </summary>
+    private async Task SettleStockAsync(Order order, CancellationToken ct)
+    {
+        var shortages = await PaidOrderStock.SettleAsync(inventory, order, logger, ct);
+        if (shortages.Count == 0) return;
+
+        order.AddReviewNote(PaidOrderStock.ShortageNote(shortages));
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "La orden {OrderId} se pagó sin stock y no se pudo dejar para revisar.", order.Id);
+        }
     }
 
     /// <summary>

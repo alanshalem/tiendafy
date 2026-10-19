@@ -86,6 +86,12 @@ export interface Order {
   cancelledAtUtc?: string | null;
   cancelledBy?: string | null;
   cancelReason?: string | null;
+  /**
+   * Lo que el comercio tiene que mirar de esta venta (se pagó sin stock, se
+   * pagó una que figuraba cancelada). Null = nada; el comprador nunca la ve.
+   */
+  reviewNote?: string | null;
+  reviewNoteAtUtc?: string | null;
   subtotal: Money;
   discount: Money;
   total: Money;
@@ -126,6 +132,8 @@ const LIST_DEFAULTS = {
   envio: '',
   cobro: '',
   facturacion: '',
+  /** "1" = solo las ventas para revisar (el aviso del Inicio). */
+  revisar: '',
   pagina: 1,
 };
 
@@ -151,6 +159,7 @@ function listQuery(v: ListValues) {
   if (v.envio) params.set('shipping', v.envio);
   if (v.cobro) params.set('payment', v.cobro);
   if (v.facturacion) params.set('fiscal', v.facturacion);
+  if (v.revisar) params.set('review', 'true');
   return params;
 }
 
@@ -335,6 +344,24 @@ export function OrdersPage() {
     [load, prompt, toast],
   );
 
+  // "Ya lo revisé": la venta sale de "para revisar" (lo que se hizo —reponer,
+  // devolver— queda en el stock o en los reembolsos).
+  const resolveReview = useCallback(
+    async (o: Order) => {
+      setBusy(o.id);
+      try {
+        await api.post(`/api/v1/orders/${o.id}/review/resolve`, {});
+        toast('Listo: la venta ya no está para revisar.', { variant: 'success' });
+        await load();
+      } catch (e) {
+        toast(errMsg(e, 'No se pudo marcar como revisada.'), { variant: 'error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [load, toast],
+  );
+
   // Transferencia o efectivo del checkout: el pago lo registra el comercio
   // cuando ve la plata (stock, email al comprador, factura y cupón).
   const registerPayment = useCallback(
@@ -466,6 +493,8 @@ export function OrdersPage() {
     onCancel: cancel,
     canRegisterPayment: can('orders.create'),
     onRegisterPayment: registerPayment,
+    canResolveReview: can('orders.create') || canFulfill || canRefund,
+    onResolveReview: resolveReview,
   };
 
   return (
@@ -512,6 +541,18 @@ export function OrdersPage() {
         onChange={(patch) => list.set(patch)}
         showMeliLink={can('meli.operate')}
       />
+      {list.values.revisar && (
+        <p className="mb-2 flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+          Mostrando solo las ventas para revisar (se pagaron sin stock o figuraban canceladas).
+          <button
+            type="button"
+            onClick={() => list.set({ revisar: '' })}
+            className="font-medium text-primary hover:underline"
+          >
+            Ver todas
+          </button>
+        </p>
+      )}
 
       {focusOrder && !focusInPage && ordersQuery.isSuccess && (
         <FocusedOrder

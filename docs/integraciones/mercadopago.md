@@ -172,7 +172,7 @@ el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
 
 | `status` de MP | Qué pasa |
 |---|---|
-| `approved` | Orden pendiente → `Paid`, confirma reservas, guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció (un parcial hecho en la cuenta de Mercado Pago), aplica la diferencia como reembolso, avisa al comprador y emite la nota de crédito de ese tramo |
+| `approved` | Orden pendiente → `Paid`, confirma las reservas (la que ya no está activa —se pagó después de que venciera— se suelta si hacía falta y se descuenta directo del stock; si no alcanza, la venta queda pagada igual y "para revisar", ver abajo), guarda la comisión. Si ya estaba pagada con ese mismo pago y no tenía comisión, la guarda sin volver a correr avisos, factura ni stock (el caso del Brick). Si `transaction_amount_refunded` creció (un parcial hecho en la cuenta de Mercado Pago), aplica la diferencia como reembolso, avisa al comprador y emite la nota de crédito de ese tramo |
 | `rejected`, `cancelled` | Orden pendiente → `Failed`, libera reservas |
 | `refunded` | → `Refunded`, con el aviso de reembolso y la nota de crédito del tramo que faltaba |
 | `charged_back`, `in_mediation` | → `ChargedBack` |
@@ -217,6 +217,14 @@ Después de la plata, por cada reembolso (total o parcial):
   por dónde).
 - **Stock:** reingresarlo es opcional y solo con el reembolso total (un
   parcial no dice qué volvió).
+
+**Ventas para revisar.** Lo que el sistema no puede resolver solo queda en
+`orders.review_note` (`Order.AddReviewNote`): una venta que se pagó sin stock
+para entregarla (`PaidOrderStock`, el mismo criterio para la pasarela y la
+transferencia registrada a mano). El panel la muestra arriba del detalle, la
+cuenta en "Para hacer hoy" (`toReview` de `GET /home/todo`, filtro
+`review=true` del listado) y el comercio la saca con
+`POST /orders/{id}/review/resolve`. El comprador nunca ve la nota.
 
 **Cancelar una venta pendiente.** Primero se vence la preference
 (`PUT /checkout/preferences/{id}` con `expires: true` y `expiration_date_to`

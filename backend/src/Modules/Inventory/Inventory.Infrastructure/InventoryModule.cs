@@ -46,6 +46,9 @@ public sealed class InventoryService(IStockRepository repository) : IInventorySe
 
     public Task<Result> ExtendReservationAsync(Guid tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default) =>
         repository.ExtendReservationAsync(TenantId.From(tenantId), reservationId, expiresAtUtc, ct);
+
+    public Task<int> DeductSaleAsync(Guid tenantId, Guid variantId, int quantity, string? reason, CancellationToken ct = default) =>
+        repository.DeductSaleAsync(TenantId.From(tenantId), variantId, quantity, reason, ct);
 }
 
 /// <summary>

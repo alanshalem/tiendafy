@@ -160,6 +160,15 @@ namespace Orders.Infrastructure.Migrations
                         .HasDefaultValue("0|ARS")
                         .HasColumnName("refunded_amount");
 
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewNoteAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("review_note_at_utc");
+
                     b.Property<string>("ShippingAddress")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")

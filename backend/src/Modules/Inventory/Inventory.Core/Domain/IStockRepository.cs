@@ -45,6 +45,15 @@ public interface IStockRepository
     Task<int?> AdjustAvailableAsync(TenantId tenantId, Guid variantId, int delta, string? reason, CancellationToken ct = default);
 
     /// <summary>
+    /// Descuenta las unidades de una venta cobrada que ya no tenía su reserva
+    /// (se pagó después de que venciera, o sobre una venta que figuraba
+    /// rechazada o cancelada). Saca lo que haya hasta <paramref name="quantity"/>
+    /// y devuelve cuántas unidades faltaron: 0 si alcanzó o si la variante es
+    /// sin límite (no se toca nada). Nunca deja el disponible en negativo.
+    /// </summary>
+    Task<int> DeductSaleAsync(TenantId tenantId, Guid variantId, int quantity, string? reason, CancellationToken ct = default);
+
+    /// <summary>
     /// Pasa la variante a stock sin límite (crea la fila si no existe). Las
     /// reservas que ya estaban siguen su curso; las nuevas no se hacen.
     /// </summary>
