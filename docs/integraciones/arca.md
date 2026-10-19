@@ -90,7 +90,7 @@ Casi todo es por tienda y se carga en el panel:
 | Preferencias | `PUT /api/v1/fiscal/config/emission` | Automática sí/no, disparador `PAYMENT` o `FULFILLMENT`, punto de venta por defecto, umbral de consumidor final (default $10.000.000) |
 | Puntos de venta | `GET/POST/DELETE /api/v1/fiscal/points-of-sale` | Número de ARCA + etiqueta. Sin default y con uno solo activo, se usa ese |
 | Certificado | `POST /fiscal/certificate/csr`, `POST /fiscal/certificate/activate` | Ver el flujo abajo |
-| ¿Se puede facturar? | `GET /api/v1/fiscal/readiness` | Emisor + certificado activo + punto de venta |
+| ¿Se puede facturar? | `GET /api/v1/fiscal/readiness` | Emisor + certificado activo del ambiente actual + punto de venta |
 
 Permisos: `FiscalConfig` para configurar, probar la conexión y bajar el libro
 IVA; `FiscalEmit` para emitir (facturas y notas de crédito, también las de
@@ -132,6 +132,14 @@ Del servidor:
 5. En producción, creá en ARCA un punto de venta de tipo "RECE para aplicativo
    y web services" y cargá su número.
 6. Probá con `POST /fiscal/test-connection`.
+
+Todo mira el certificado **del ambiente actual**: `GET /fiscal/config` (el
+último de ese ambiente, y `otherEnvironmentCertificate` si hay uno activo en
+el otro), `readiness`, el diagnóstico y el login en WSAA. Al pasar a
+producción sin su certificado, el panel dice que falta y no ofrece
+"Facturar"; el de homologación queda guardado y vuelve si se vuelve a ese
+ambiente. Los puntos de venta no son por ambiente: homologación acepta
+cualquier número, así que el de web services real sirve en los dos.
 
 **Diagnóstico** (`test-connection`): (1) certificado activo y de quién es
 (avisa si el titular no es el CUIT que factura), (2) WSAA entrega el ticket,

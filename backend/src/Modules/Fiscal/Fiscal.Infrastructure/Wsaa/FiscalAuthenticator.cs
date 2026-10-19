@@ -64,7 +64,10 @@ public sealed class FiscalAuthenticator(
         {
             await tx.RollbackAsync(ct);
             return Result.Failure<FiscalTicket>(Error.Conflict("Fiscal.NoCertificate",
-                "No hay un certificado activo para este ambiente. Completá el paso del certificado."));
+                environment == FiscalEnvironment.Produccion
+                    ? "Falta el certificado de Producción: el de Homologación sirve solo para practicar. " +
+                      "Generalo en Configuración → Facturación, paso Certificado."
+                    : "Falta el certificado de Homologación. Generalo en Configuración → Facturación, paso Certificado."));
         }
 
         var certPem = protector.Unprotect(cert.CertificatePemEncrypted);

@@ -39,10 +39,7 @@ public static class FiscalEndpoints
         fiscal.MapGet("/config", async (ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
         {
             var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
-            var cert = await db.Certificates.AsNoTracking()
-                .Where(c => c.TenantId == tenant.TenantId.Value)
-                .OrderByDescending(c => c.CreatedAtUtc).FirstOrDefaultAsync(ct);
-            return Results.Ok(ConfigDto(cfg, cert));
+            return Results.Ok(await ConfigDtoAsync(db, cfg, ct));
         });
 
         // Alta/edición del emisor: CUIT (validado), razón social, condición, ambiente.
@@ -68,7 +65,7 @@ public static class FiscalEndpoints
                 cfg.UpdateIdentity(cuit.Value, req.BusinessName, condition, environment);
             }
             await db.SaveChangesAsync(ct);
-            return Results.Ok(ConfigDto(cfg, null));
+            return Results.Ok(await ConfigDtoAsync(db, cfg, ct));
         });
 
         // Preferencias de emisión (auto, trigger, punto de venta por defecto, umbral CF).
@@ -85,7 +82,7 @@ public static class FiscalEndpoints
             cfg.SetEmissionPreferences(req.AutoInvoice, trigger, req.DefaultPointOfSaleId,
                 req.ConsumerFinalThresholdMinorUnits ?? 0);
             await db.SaveChangesAsync(ct);
-            return Results.Ok(ConfigDto(cfg, null));
+            return Results.Ok(await ConfigDtoAsync(db, cfg, ct));
         });
 
         // --- Wizard de certificado ----------------------------------------------------
@@ -472,8 +469,26 @@ public static class FiscalEndpoints
         string.Equals(v, "PRODUCCION", StringComparison.OrdinalIgnoreCase)
             ? FiscalEnvironment.Produccion : FiscalEnvironment.Homologacion;
 
+    /// <summary>
+    /// La configuración con el certificado del ambiente en que factura la
+    /// tienda: el último de ese ambiente (activo o con la solicitud a medio
+    /// hacer). Antes era el último de cualquier ambiente, y una tienda recién
+    /// pasada a producción veía "Certificado activo" con el de homologación.
+    /// Los de otro ambiente no se borran: volver a homologación los recupera.
+    /// </summary>
+    private static async Task<object> ConfigDtoAsync(FiscalDbContext db, FiscalConfig? cfg, CancellationToken ct)
+    {
+        if (cfg is null) return ConfigDto(null, null, false);
+        var certificates = db.Certificates.AsNoTracking().Where(c => c.TenantId == cfg.TenantId);
+        var cert = await certificates.Where(c => c.Environment == cfg.Environment)
+            .OrderByDescending(c => c.CreatedAtUtc).FirstOrDefaultAsync(ct);
+        var otherActive = await certificates.AnyAsync(
+            c => c.Environment != cfg.Environment && c.Status == CertificateStatus.Active, ct);
+        return ConfigDto(cfg, cert, otherActive);
+    }
+
     // Nunca devuelve secretos (clave privada / cert cifrado).
-    private static object ConfigDto(FiscalConfig? cfg, FiscalCertificate? cert) => new
+    private static object ConfigDto(FiscalConfig? cfg, FiscalCertificate? cert, bool otherEnvironmentCertificate) => new
     {
         configured = cfg is not null,
         cuit = cfg?.Cuit,
@@ -486,6 +501,8 @@ public static class FiscalEndpoints
         consumerFinalThresholdMinorUnits = cfg?.ConsumerFinalThresholdMinorUnits,
         enabled = cfg?.Enabled ?? false,
         certificate = cert is null ? null : CertDto(cert),
+        // Hay uno activo en el otro ambiente (para explicar que no sirve en este).
+        otherEnvironmentCertificate,
     };
 
     private static object CertDto(FiscalCertificate c) => new
