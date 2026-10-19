@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { KPI_GRID, KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
+import { KPI_GRID, KpiCard, StatsPageHeader, rangeQuery } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
@@ -12,11 +12,14 @@ import { ScreenSkeleton } from '../../components/Skeleton';
 
 interface Overview {
   days: number;
+  from: string;
+  to: string;
   currency: string;
   products: { total: number; published: number; draft: number; archived: number };
   categories: number;
   coupons: { total: number; active: number };
   customers: number;
+  newCustomers: { current: number; previous: number };
   pages: { total: number; published: number };
   sales: {
     available: boolean;
@@ -49,14 +52,12 @@ const SOURCE_LABEL: Record<string, string> = {
 export function StatsOverviewPage() {
   const { store } = useStore();
   const { range, setRange } = useStatsRange();
-  const days = Math.max(
-    1,
-    Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 86_400_000) + 1,
-  );
 
+  // Las fechas del período, no su cantidad de días: con `days` la API contaba
+  // siempre hasta hoy, y un rango personalizado mostraba otras fechas.
   const { data, isLoading } = useQuery({
-    queryKey: ['stats', store?.id, days],
-    queryFn: () => api.get<Overview>(`/api/v1/stats/overview?days=${days}`),
+    queryKey: ['stats-overview', store?.id, range.from, range.to],
+    queryFn: () => api.get<Overview>(`/api/v1/stats/overview?${rangeQuery(range)}`),
     enabled: !!store,
   });
 
@@ -100,13 +101,11 @@ export function StatsOverviewPage() {
               <Delta current={sales?.averageOrder ?? 0} previous={sales?.previous.averageOrder ?? 0} />
             </KpiCard>
             <KpiCard
-              title="Clientes"
-              value={fmt(data.customers)}
-              hint="Fichas en tu agenda: una por comprador, más los que cargaste a mano."
+              title="Clientes nuevos"
+              value={fmt(data.newCustomers.current)}
+              hint={`Fichas que se sumaron a tu agenda en el período: compradores nuevos y los que cargaste a mano. En total tenés ${fmt(data.customers)}.`}
             >
-              <Link to="/clientes" className="text-xs font-medium text-primary hover:underline">
-                Ver clientes
-              </Link>
+              <Delta current={data.newCustomers.current} previous={data.newCustomers.previous} />
             </KpiCard>
           </div>
 

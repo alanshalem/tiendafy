@@ -34,7 +34,7 @@ public static class StatsEndpoints
             ITenantContext tenant,
             CatalogDbContext catalog, DiscountsDbContext discounts, CustomersDbContext customers,
             ContentDbContext content, OrdersDbContext ordersDb,
-            MercadoLibre.Infrastructure.MeliDbContext meli, int? days, CancellationToken ct) =>
+            MercadoLibre.Infrastructure.MeliDbContext meli, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var tidGuid = tid.Value;
@@ -52,14 +52,22 @@ public static class StatsEndpoints
             var pagesPublished = await content.Pages.CountAsync(p => p.TenantId == tidGuid && p.Published, ct);
 
             // Ventas del período elegido y del anterior de la misma duración:
-            // un número solo no dice si el negocio viene mejor o peor.
-            var span = Math.Clamp(days ?? 30, 1, 365);
-            var until = DateTime.UtcNow;
-            var since = until.AddDays(-span);
-            var prevSince = since.AddDays(-span);
+            // un número solo no dice si el negocio viene mejor o peor. El
+            // período llega como from/to (días de Argentina), igual que en el
+            // resto de las estadísticas; `days` queda para quien pide "los
+            // últimos N días" (el Inicio). Antes solo se leía `days`: el panel
+            // mandaba la cantidad de días del período elegido y la API contaba
+            // siempre hasta ahora, así que un rango personalizado mostraba otras
+            // fechas y "Hoy" eran las últimas 24 horas.
+            var (firstDay, lastDay) = OverviewDays(from, to, days);
+            var since = ArgentinaTime.StartOfDayUtc(firstDay);
+            var until = ArgentinaTime.StartOfDayUtc(lastDay.AddDays(1));
+            var prevSince = since - (until - since);
+            var span = lastDay.DayNumber - firstDay.DayNumber + 1;
 
             var window = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.PaidAtUtc >= prevSince)
+                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
+                    && o.PaidAtUtc >= prevSince && o.PaidAtUtc < until)
                 .ToListAsync(ct);
 
             var current = window.Where(o => o.PaidAtUtc >= since).ToList();
@@ -71,13 +79,19 @@ public static class StatsEndpoints
                 ?? previous.FirstOrDefault()?.Currency
                 ?? Money.DefaultCurrency;
 
+            // Clientes que se sumaron a la agenda en el período (y en el anterior).
+            var newCustomers = await customers.Customers
+                .CountAsync(c => c.TenantId == tidGuid && c.CreatedAtUtc >= since && c.CreatedAtUtc < until, ct);
+            var previousNewCustomers = await customers.Customers
+                .CountAsync(c => c.TenantId == tidGuid && c.CreatedAtUtc >= prevSince && c.CreatedAtUtc < since, ct);
+
             // Evolución diaria del período (para el gráfico de barras), en días
             // de Argentina: una venta de las 22 h es de ese día, no del siguiente.
             var byDay = current
                 .GroupBy(o => ArgentinaTime.DateOf(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.NetRevenue.AmountInMinorUnits), Orders: g.Count()));
             var series = Enumerable.Range(0, span)
-                .Select(i => ArgentinaTime.DateOf(since.AddDays(i + 1)))
+                .Select(firstDay.AddDays)
                 .Select(d => new
                 {
                     date = d,
@@ -88,7 +102,7 @@ public static class StatsEndpoints
 
             // De dónde vienen las ventas: canal propio vs. Mercado Libre.
             var meliRevenue = await meli.Orders.AsNoTracking()
-                .Where(o => o.TenantId == tid.Value && o.DateCreatedUtc >= since
+                .Where(o => o.TenantId == tid.Value && o.DateCreatedUtc >= since && o.DateCreatedUtc < until
                     && MercadoLibre.Infrastructure.MeliOrder.EarningStatuses.Contains(o.Status))
                 .ToListAsync(ct);
 
@@ -112,11 +126,14 @@ public static class StatsEndpoints
             return Results.Ok(new
             {
                 days = span,
+                from = firstDay,
+                to = lastDay,
                 currency,
                 products = new { total, published, draft, archived },
                 categories,
                 coupons = new { total = couponsTotal, active = couponsActive },
                 customers = customersCount,
+                newCustomers = new { current = newCustomers, previous = previousNewCustomers },
                 pages = new { total = pagesTotal, published = pagesPublished },
                 sales = new
                 {
@@ -680,6 +697,23 @@ public static class StatsEndpoints
     /// del listado de ventas; tope 366); si no, los
     /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
     /// </summary>
+    /// <summary>
+    /// Primer y último día (de Argentina) de la visión general: from/to si
+    /// vienen, si no los últimos <paramref name="days"/> días hasta hoy. Hasta
+    /// 366 días, como el resto de las estadísticas ("Este año" en un bisiesto).
+    /// </summary>
+    internal static (DateOnly First, DateOnly Last) OverviewDays(DateOnly? from, DateOnly? to, int? days)
+    {
+        var today = ArgentinaTime.Today;
+        if (from is not { } f)
+            return (today.AddDays(1 - Math.Clamp(days ?? 30, 1, 366)), today);
+
+        var t = to ?? today;
+        if (t < f) (f, t) = (t, f);
+        if (t.DayNumber - f.DayNumber + 1 > 366) f = t.AddDays(-365);
+        return (f, t);
+    }
+
     private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
     {
         if (from is { } f)

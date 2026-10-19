@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Download, Lock } from 'lucide-react';
 import { useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -28,6 +29,7 @@ export function FiscalInvoicingPage() {
   const { can } = usePermissions();
   const canConfig = can('fiscal.config');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [config, setConfig] = useState<FiscalConfigDto | null>(null);
   const [points, setPoints] = useState<PointOfSale[]>([]);
@@ -49,6 +51,13 @@ export function FiscalInvoicingPage() {
   // Con permiso pero sin tienda elegida todavía, también es "cargando".
   const loading = fetching || (canConfig && !store);
 
+  // Lo que se cambia acá (ambiente, certificado, puntos de venta) decide si
+  // las otras pantallas ofrecen "Facturar": que no esperen a que venza su copia.
+  const reload = useCallback(async () => {
+    await load();
+    await queryClient.invalidateQueries({ queryKey: ['fiscal-readiness', store?.id] });
+  }, [load, queryClient, store?.id]);
+
   return (
     <div className="pb-10">
       <SettingsHeader
@@ -67,11 +76,11 @@ export function FiscalInvoicingPage() {
         <div className="space-y-5">
           <IntroBanner />
           <ProgressChecklist config={config} points={points} tested={tested} />
-          <IssuerStep config={config} onSaved={load} />
-          <CertificateStep config={config} onChanged={load} />
-          <PointsOfSaleStep points={points} configured={!!config?.configured} onChanged={load} />
+          <IssuerStep config={config} onSaved={reload} />
+          <CertificateStep config={config} onChanged={reload} />
+          <PointsOfSaleStep points={points} configured={!!config?.configured} onChanged={reload} />
           <ConnectionTestStep config={config} points={points} onTested={setTested} />
-          <EmissionStep config={config} points={points} onSaved={load} />
+          <EmissionStep config={config} points={points} onSaved={reload} />
         </div>
       )}
       <HelpLink id="fiscal" />

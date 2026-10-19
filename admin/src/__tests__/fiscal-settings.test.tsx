@@ -23,6 +23,7 @@ const BASE = {
   consumerFinalThresholdMinorUnits: null,
   enabled: false,
   certificate: null as null | object,
+  otherEnvironmentCertificate: false,
 };
 const ACTIVE_CERT = {
   id: 'cert-1',
@@ -46,6 +47,7 @@ const UNCONFIGURED = {
   consumerFinalThresholdMinorUnits: null,
   enabled: false,
   certificate: null,
+  otherEnvironmentCertificate: false,
 };
 
 async function open(config: object = UNCONFIGURED, points: object[] = []) {
@@ -168,11 +170,26 @@ describe('facturación electrónica', () => {
 
   it('con el certificado activo: titular, vencimiento y regenerar', async () => {
     const { api, user } = await open({ ...BASE, certificate: ACTIVE_CERT });
-    expect(screen.getByText('Certificado activo')).toBeInTheDocument();
+    expect(screen.getByText('Certificado de Homologación activo')).toBeInTheDocument();
+    expect(screen.queryByText(/Falta el certificado/)).toBeNull();
     expect(screen.getByText('tiendafy-seed')).toBeInTheDocument();
     api.on('POST', '/api/v1/fiscal/certificate/csr', {}, 500);
     await user.click(screen.getByRole('button', { name: /Regenerar certificado/ }));
     expect(await screen.findByText(/No se pudo generar|status 500/)).toBeInTheDocument();
+  });
+
+  it('recién pasada a producción: dice que falta el certificado de producción, no "activo"', async () => {
+    // La API devuelve el certificado del ambiente actual: en producción, ninguno
+    // todavía; el de homologación sigue guardado.
+    await open({ ...BASE, environment: 'PRODUCCION', certificate: null, otherEnvironmentCertificate: true }, [
+      POS,
+    ]);
+    expect(screen.queryByText(/Certificado de .* activo/)).toBeNull();
+    const notice = screen.getByText('Falta el certificado de Producción').closest('[role="status"]')!;
+    expect(notice.textContent).toMatch(/el de Homologación sirve solo para practicar/);
+    expect(notice.textContent).toMatch(/El de Homologación queda guardado/);
+    expect(screen.getByRole('button', { name: /Generar solicitud \(CSR\)/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Listo para facturar: los pasos 1 a 3/)).toBeNull();
   });
 
   it('paso 3: agrega y elimina puntos de venta', async () => {

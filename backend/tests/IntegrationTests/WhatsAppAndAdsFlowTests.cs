@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -109,6 +110,57 @@ public sealed class WhatsAppAndAdsFlowTests
         var body = Assert.Single(_factory.ExternalHttp.SentTo(messages)).Body!;
         Assert.Contains("juana.perez", body);   // el nombre sale del email
         Assert.Contains("a coordinar", body);   // sin seguimiento todavía
+    }
+
+    /// <summary>
+    /// Meta cobra el mensaje entregado: uno que rechaza (plantilla no aprobada,
+    /// token vencido) no se cobra. El uso del mes contaba cualquier intento y
+    /// el costo estimado sumaba los rechazados.
+    /// </summary>
+    [Fact]
+    public async Task El_uso_del_mes_cuenta_solo_los_mensajes_que_Meta_acepto()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "wau");
+        var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
+        var messages = $"{WhatsAppGraph}/{phoneNumberId}/messages";
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-wau" });
+        await merchant.PutAsync("/api/v1/whatsapp/templates/confirmacion-envio",
+            new { enabled = true, metaTemplateName = "pedido_enviado", languageCode = "es_AR" });
+        var (_, variantId) = await merchant.CreateProductAsync("Taza WA", priceMinor: 5_000_00);
+
+        async Task ShipAsync()
+        {
+            var sale = await merchant.PostAsync("/api/v1/orders/manual", new
+            {
+                items = new[] { new { variantId, quantity = 1 } },
+                paymentMethod = "cash",
+                buyerEmail = "comprador@mail.com",
+                buyerPhone = "11 5555-4444",
+            });
+            await merchant.PostAsync($"/api/v1/orders/{sale.GetProperty("id").GetGuid()}/fulfill", new { tracking = "AR1" });
+        }
+
+        async Task<JsonElement> WhatsAppUsageAsync() =>
+            (await merchant.GetAsync("/api/v1/notifications/usage")).GetProperty("whatsapp");
+
+        // Meta lo rechaza: se intentó, pero no cuenta ni suma costo.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, messages,
+            new { error = new { message = "Template name does not exist in the translation", code = 132001 } },
+            HttpStatusCode.BadRequest);
+        await ShipAsync();
+        Assert.Single(_factory.ExternalHttp.SentTo(messages));
+        var rejected = await WhatsAppUsageAsync();
+        Assert.Equal(0, rejected.GetProperty("month").GetInt32());
+        Assert.Equal(0, rejected.GetProperty("total").GetInt32());
+        Assert.Equal(0m, rejected.GetProperty("estimatedMonthUsd").GetDecimal());
+
+        // Meta lo acepta: cuenta.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, messages, new { messages = new[] { new { id = "wamid.u" } } });
+        await ShipAsync();
+        Assert.Equal(2, _factory.ExternalHttp.SentTo(messages).Count);
+        var accepted = await WhatsAppUsageAsync();
+        Assert.Equal(1, accepted.GetProperty("month").GetInt32());
+        Assert.Equal(1, accepted.GetProperty("total").GetInt32());
     }
 
     [Fact]

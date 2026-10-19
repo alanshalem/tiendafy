@@ -51,7 +51,10 @@ export interface FiscalConfigDto {
   defaultPointOfSaleId: string | null;
   consumerFinalThresholdMinorUnits: number | null;
   enabled: boolean;
+  /** El certificado del ambiente en que factura la tienda (cada ambiente tiene el suyo). */
   certificate: CertificateDto | null;
+  /** Hay uno activo en el otro ambiente, que en este no sirve. */
+  otherEnvironmentCertificate: boolean;
 }
 
 export interface PointOfSale {
@@ -374,6 +377,7 @@ export function IssuerStep({
             <div className="mt-2 flex items-start gap-2 rounded-md border border-warning/30 bg-warning-bg p-2.5 text-xs text-fg">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
               Empezá siempre en Homologación. Pasá a Producción recién cuando comprobaste que todo funciona.
+              Producción usa otro certificado: después de guardar, generalo en el paso 2.
             </div>
           )}
         </div>
@@ -410,6 +414,8 @@ export function CertificateStep({
   const [activating, setActivating] = useState(false);
 
   const isActive = cert?.status === 'ACTIVE';
+  const production = config?.environment === 'PRODUCCION';
+  const envLabel = production ? 'Producción' : 'Homologación';
   // El certificate id activo para pegar/activar: el del CSR recién generado o el de un PENDINGCSR guardado.
   const pendingCertId = csr?.certificateId ?? (cert && cert.status === 'PENDINGCSR' ? cert.id : null);
   const showCsrFlow = !isActive;
@@ -509,7 +515,7 @@ export function CertificateStep({
           <div className="rounded-lg border border-success/30 bg-success-bg p-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-success" />
-              <span className="text-sm font-bold text-success">Certificado activo</span>
+              <span className="text-sm font-bold text-success">Certificado de {envLabel} activo</span>
             </div>
             <dl className="mt-3 space-y-1 text-sm">
               {cert?.subjectCn && (
@@ -533,6 +539,24 @@ export function CertificateStep({
           </div>
         ) : (
           <>
+            {configured && (production || config?.otherEnvironmentCertificate) && (
+              <div
+                role="status"
+                className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-bg p-4 text-sm text-fg"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <div>
+                  <p className="font-semibold">Falta el certificado de {envLabel}</p>
+                  <p className="mt-1 text-fg-muted">
+                    {production
+                      ? 'Para emitir facturas reales necesitás un certificado de Producción: el de Homologación sirve solo para practicar (ARCA da uno distinto para cada ambiente). Hasta que lo actives, no vas a poder facturar.'
+                      : 'Para practicar en Homologación necesitás un certificado de Homologación: el de Producción no sirve acá (ARCA da uno distinto para cada ambiente). Hasta que lo actives, no vas a poder facturar.'}
+                    {config?.otherEnvironmentCertificate &&
+                      ` El de ${production ? 'Homologación' : 'Producción'} queda guardado: si volvés a ese ambiente, sigue andando.`}
+                  </p>
+                </div>
+              </div>
+            )}
             {!csr && (
               <Button onClick={generate} disabled={generating}>
                 {generating ? <Spinner inline /> : <FileText className="h-4 w-4" />}

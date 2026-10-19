@@ -165,7 +165,7 @@ export const LEGAL = {
           'Con todo configurado en Homologación, hacete una compra de prueba y verificá que la venta muestre su factura con CAE.',
           'Descargá el PDF desde el detalle de la venta (recuadro “Facturación (ARCA)”).',
           'Cuando funcione, en el paso 1 cambiá el “Ambiente” a Producción y tocá “Guardar datos”.',
-          'En el paso 2 tocá “Regenerar certificado” (o “Generar solicitud (CSR)”), hacé el trámite en el portal de ARCA (ya no en WSASS) y activá el certificado nuevo.',
+          'El paso 2 va a decir “Falta el certificado de Producción”: tocá “Generar solicitud (CSR)”, hacé el trámite en el portal de ARCA (ya no en WSASS) y activá el certificado nuevo. El de Homologación queda guardado por si volvés a practicar.',
           'Revisá que el punto de venta sea el de Web Services real y tocá “Probar conexión con ARCA”. Desde ahí, facturas reales.',
         ],
         blocks: [

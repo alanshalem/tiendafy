@@ -140,7 +140,7 @@ public static class WhatsAppTemplateCatalog
             "Hola {{1}}, procesamos el reembolso de tu pedido {{2}} por {{3}}. Cualquier duda escribinos por acá."),
 
         new("carritos-abandonados", "Promociones", "Carritos abandonados",
-            "Recordá una compra no finalizada. Meta lo clasifica como marketing: usalo con moderación y solo con clientes que aceptaron recibir novedades.",
+            "Recordá una compra no finalizada. Meta lo clasifica como marketing: sale solo a quien tildó en la compra «avisame por WhatsApp si dejo la compra sin terminar». Usalo con moderación.",
             DefaultEnabled: false, "carrito_abandonado",
             ["nombre", "tienda"],
             "¡Hola {{1}}! Dejaste productos en tu carrito de {{2}}. Terminá tu compra cuando quieras 😉"),

@@ -47,10 +47,10 @@ public sealed class WhatsAppNotifier(
                 _ => [name, shortId, MoneyFormat.ForNotification(order.Total)],
             };
 
-            await sender.SendTemplateAsync(
+            var accepted = await sender.SendTemplateAsync(
                 conn.PhoneNumberId, protector.Unprotect(conn.AccessTokenEncrypted),
                 to, tpl.MetaTemplateName, tpl.LanguageCode, args, ct);
-            await CountAsync(order.TenantId.Value, type, ct);
+            if (accepted) await CountAsync(order.TenantId.Value, type, ct);
         }
         catch (Exception ex)
         {
@@ -70,10 +70,10 @@ public sealed class WhatsAppNotifier(
             if (setup is null) return;
             var (conn, tpl) = setup.Value;
 
-            await sender.SendTemplateAsync(
+            var accepted = await sender.SendTemplateAsync(
                 conn.PhoneNumberId, protector.Unprotect(conn.AccessTokenEncrypted),
                 to, tpl.MetaTemplateName, tpl.LanguageCode, [customerName, storeName], ct);
-            await CountAsync(tenantId, AbandonedCartType, ct);
+            if (accepted) await CountAsync(tenantId, AbandonedCartType, ct);
         }
         catch (Exception ex)
         {
@@ -81,7 +81,14 @@ public sealed class WhatsAppNotifier(
         }
     }
 
-    /// <summary>Contador de uso (panel de costos). Best-effort: nunca rompe el envío.</summary>
+    /// <summary>
+    /// Contador de uso (panel de costos). Best-effort: nunca rompe el envío.
+    /// Solo cuenta lo que Meta aceptó: Meta cobra el mensaje entregado, y uno
+    /// que rechaza (plantilla no aprobada, token vencido, número no habilitado)
+    /// nunca se entrega. Antes se contaba cualquier intento y el costo
+    /// estimado sumaba los rechazados. Sin los avisos de estado de Meta no se
+    /// sabe cuáles se entregaron: aceptado es lo más cerca que se puede contar.
+    /// </summary>
     private async Task CountAsync(Guid tenantId, string template, CancellationToken ct)
     {
         try
