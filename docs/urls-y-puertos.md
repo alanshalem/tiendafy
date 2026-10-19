@@ -72,7 +72,10 @@ smoke (sin hot-reload):
 | Panel  | `127.0.0.1:3001` (ojo: no es el 5173) |
 | API    | `127.0.0.1:5080`      |
 
-Postgres, MinIO y pgAdmin, igual que en desarrollo.
+Postgres, MinIO y pgAdmin, igual que en desarrollo. Las direcciones que usa el
+navegador (la API, el panel, la plantilla de cada tienda) están en el
+`environment` de cada servicio del compose y se leen al arrancar, no al
+construir la imagen; `admin/.env.local` no se usa en este modo.
 
 ## Producción
 

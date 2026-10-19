@@ -283,8 +283,9 @@ Notas de build (ya resueltas en los Dockerfiles):
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
 - Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
-  "La misma imagen en los dos ambientes"). Los `--build-arg` de `NEXT_PUBLIC_*`
-  y `VITE_*` quedan solo para builds sueltos de desarrollo.
+  "La misma imagen en los dos ambientes"). Los Dockerfiles ni siquiera aceptan
+  `NEXT_PUBLIC_*` ni `VITE_*` como build-args: también el modo todo-en-Docker
+  de desarrollo (`docker-compose.app.yml`) les pasa la config por `environment`.
 - **pnpm**: los build scripts nativos aprobados están en `pnpm-workspace.yaml`
   (`allowBuilds`); si no, `--frozen-lockfile` falla. pnpm 12 corta con cualquier
   clave que no reconozca en ese archivo.
@@ -501,7 +502,9 @@ o, en Windows, un solo comando:  `./dev-up.ps1 -Docker`  (y `./dev-down.ps1 -Doc
 
 La API (`ASPNETCORE_ENVIRONMENT=Development`) migra sola al arrancar y apunta a
 `postgres`/`minio` por nombre de servicio; el storefront hace SSR contra `api:8080`
-y el browser pega a `localhost:5080`. Para el día a día de desarrollo conviene el
+y el browser pega a `localhost:5080`. Las URLs del navegador entran al arrancar,
+igual que en producción (`PUBLIC_*` en la tienda, `VITE_*` que el panel vuelca
+en `config.js`): cambiarlas en el compose pide `up -d`, no `--build`. Para el día a día de desarrollo conviene el
 modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/smoke.
 
 ## Seguridad (hecho vs. proxy vs. roadmap)

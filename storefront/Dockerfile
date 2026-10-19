@@ -32,14 +32,10 @@ COPY . .
 # sin los @types compartidos. El costo extra es mínimo: todo sale del store cacheado.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --offline --store-dir /pnpm/store
-# NEXT_PUBLIC_* se inlinea en el bundle del navegador en build-time → build-args.
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_ADMIN_ORIGIN
-ARG NEXT_PUBLIC_SENTRY_DSN
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
-    NEXT_PUBLIC_ADMIN_ORIGIN=${NEXT_PUBLIC_ADMIN_ORIGIN} \
-    NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN} \
-    NEXT_TELEMETRY_DISABLED=1
+# Sin NEXT_PUBLIC_* a propósito: Next las hornearía en el bundle (del cliente
+# y del servidor) y la imagen quedaría atada a un ambiente. La config entra al
+# arrancar como PUBLIC_* (ver storefront/src/lib/runtime.ts).
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter ./storefront build
 
 # --- runtime mínimo (standalone) ---

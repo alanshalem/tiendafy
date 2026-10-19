@@ -22,13 +22,8 @@ COPY . .
 # sin los @types compartidos. El costo extra es mínimo: todo sale del store cacheado.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --offline --store-dir /pnpm/store
-# VITE_* se hornea en el bundle estático en build-time → build-args.
-ARG VITE_API_URL
-ARG VITE_SENTRY_DSN
-ARG VITE_STOREFRONT_ORIGIN
-ENV VITE_STOREFRONT_ORIGIN=$VITE_STOREFRONT_ORIGIN
-ENV VITE_API_URL=${VITE_API_URL} \
-    VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+# Sin VITE_* a propósito: Vite las hornearía en el bundle y la imagen quedaría
+# atada a un ambiente. La config entra al arrancar (docker-config.sh → config.js).
 RUN pnpm --filter ./admin build
 # Los assets con hash salen ya comprimidos (.gz al lado de cada uno): nginx
 # los sirve con gzip_static, sin recomprimir en cada pedido y al nivel máximo.
