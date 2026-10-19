@@ -101,14 +101,28 @@ describe('Mercado Pago', () => {
 
     // El de Mercado Pago (Payway tiene un campo con el mismo nombre).
     const descriptor = screen.getByLabelText('Nombre en el resumen de la tarjeta', {
-      selector: 'input[maxlength="22"]',
+      selector: 'input[maxlength="13"]',
     });
+    expect(screen.getByText(/Hasta 13 caracteres/)).toBeInTheDocument();
     await user.clear(descriptor);
     await user.type(descriptor, 'CKING');
-    api.on('PUT', `${MP}/preferences`, { detail: 'Máximo 22 caracteres.' }, 400);
+    api.on('PUT', `${MP}/preferences`, { detail: 'Máximo 13 caracteres.' }, 400);
     await user.click(screen.getAllByRole('button', { name: 'Guardar' })[0]!);
-    expect(await screen.findByText('Máximo 22 caracteres.')).toBeInTheDocument();
+    expect(await screen.findByText('Máximo 13 caracteres.')).toBeInTheDocument();
     expect((api.calls.at(-1)!.body as { statementDescriptor: string }).statementDescriptor).toBe('CKING');
+    // El input no deja pasar de 13 (Mercado Pago no muestra más).
+    await user.clear(descriptor);
+    await user.type(descriptor, 'MI TIENDA DE ROPA');
+    expect(descriptor).toHaveValue('MI TIENDA DE ');
+  });
+
+  it('uno guardado cuando se aceptaban 22 avisa cómo sale en el resumen', async () => {
+    await openPayments((a) =>
+      a.on('GET', `${MP}/connection`, { ...mpConnected, statementDescriptor: 'MI TIENDA DE ROPA SRL' }),
+    );
+    expect(
+      screen.getByText(/Mercado Pago muestra hasta 13 caracteres: en el resumen sale “\s*MI TIENDA DE”/),
+    ).toBeInTheDocument();
   });
 
   it('desconectar pide confirmación y recarga el estado', async () => {
@@ -243,7 +257,7 @@ describe('medios de pago: rol que solo mira', () => {
     expect(screen.getByText('Solo lectura: tu rol no puede modificar los pagos.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Checkout integrado/ })).toBeDisabled();
     expect(
-      screen.getByLabelText('Nombre en el resumen de la tarjeta', { selector: 'input[maxlength="22"]' }),
+      screen.getByLabelText('Nombre en el resumen de la tarjeta', { selector: 'input[maxlength="13"]' }),
     ).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '3 cuotas' })).toBeDisabled();

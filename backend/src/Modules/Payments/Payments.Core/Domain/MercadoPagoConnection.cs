@@ -89,12 +89,39 @@ public sealed class MercadoPagoConnection : AggregateRoot
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void SetStatementDescriptor(string? descriptor)
+    /// <summary>
+    /// Lo que admite Mercado Pago para el nombre en el resumen de la tarjeta:
+    /// la guía de Checkout Pro dice "hasta 13 caracteres" (revisado el
+    /// 19-oct-2026); la referencia de <c>/v1/payments</c> no da un límite, así
+    /// que vale el más restrictivo para los dos modos.
+    /// </summary>
+    public const int StatementDescriptorMaxLength = 13;
+
+    /// <summary>
+    /// Cambia el nombre del resumen. Más de <see cref="StatementDescriptorMaxLength"/>
+    /// caracteres es un error, salvo que sea el que ya estaba guardado: antes se
+    /// aceptaban 22, y una tienda con uno así tiene que poder seguir guardando
+    /// el resto de sus preferencias (el cobro manda el recortado, ver
+    /// <see cref="StatementDescriptorToSend"/>).
+    /// </summary>
+    public Result SetStatementDescriptor(string? descriptor)
     {
         var trimmed = descriptor?.Trim();
-        StatementDescriptor = string.IsNullOrEmpty(trimmed)
-            ? null
-            : trimmed[..Math.Min(22, trimmed.Length)];
+        var value = string.IsNullOrEmpty(trimmed) ? null : trimmed;
+        if (value is { Length: > StatementDescriptorMaxLength } && value != StatementDescriptor)
+            return Result.Failure(Error.Validation("MercadoPago.StatementDescriptorTooLong",
+                $"El nombre en el resumen de la tarjeta puede tener hasta {StatementDescriptorMaxLength} caracteres."));
+
+        StatementDescriptor = value;
         UpdatedAtUtc = DateTime.UtcNow;
+        return Result.Success();
     }
+
+    /// <summary>
+    /// El nombre que viaja a Mercado Pago, nunca más largo que lo que admite:
+    /// uno guardado cuando el límite era 22 sale recortado en vez de arriesgar
+    /// que Mercado Pago rechace la preferencia o el pago.
+    /// </summary>
+    public string? StatementDescriptorToSend =>
+        StatementDescriptor?[..Math.Min(StatementDescriptorMaxLength, StatementDescriptor.Length)].TrimEnd();
 }

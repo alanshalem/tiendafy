@@ -74,9 +74,13 @@ y `MercadoPago__RedirectUri` con la URL del túnel.
 
 Por tienda (panel, `PUT /api/v1/payments/mercadopago/preferences`): modo
 `PRO`/`API`, `marketplaceFeePercent` (0 a 100, default 0) y
-`statementDescriptor` (se corta a 22 caracteres; ojo: la guía de Checkout Pro
-dice "hasta 13 caracteres", revisado el 18-oct-2026 — sin confirmar qué hace
-Mercado Pago con uno más largo).
+`statementDescriptor` (hasta 13 caracteres, el límite de la guía de Checkout
+Pro, revisada el 19-oct-2026; la referencia de `/v1/payments` no da uno, así
+que vale el mismo para los dos modos. Más largo da 400, salvo que sea el que
+ya estaba guardado: antes se aceptaban 22, y esos se siguen guardando tal cual
+pero a Mercado Pago le llegan los primeros 13 —
+`MercadoPagoConnection.StatementDescriptorToSend`— para no arriesgar que
+rechace la preferencia o el pago).
 
 ## Flujos
 

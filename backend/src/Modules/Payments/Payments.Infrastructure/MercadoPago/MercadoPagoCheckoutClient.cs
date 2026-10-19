@@ -60,8 +60,8 @@ public sealed class MercadoPagoCheckoutClient(
         if (connection.MarketplaceFeePercent > 0)
             body["marketplace_fee"] = Math.Round(total * connection.MarketplaceFeePercent / 100m, 2);
 
-        if (!string.IsNullOrWhiteSpace(connection.StatementDescriptor))
-            body["statement_descriptor"] = connection.StatementDescriptor;
+        if (connection.StatementDescriptorToSend is { } descriptor)
+            body["statement_descriptor"] = descriptor;
 
         // Sin /v1: la API de preferences de Checkout Pro no está versionada como /v1/payments.
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/checkout/preferences");
@@ -122,8 +122,8 @@ public sealed class MercadoPagoCheckoutClient(
             body["notification_url"] = $"{_o.PublicApiBaseUrl.TrimEnd('/')}/api/v1/payments/webhooks/mercadopago";
         if (connection.MarketplaceFeePercent > 0)
             body["application_fee"] = Math.Round(request.Amount * connection.MarketplaceFeePercent / 100m, 2);
-        if (!string.IsNullOrWhiteSpace(connection.StatementDescriptor))
-            body["statement_descriptor"] = connection.StatementDescriptor;
+        if (connection.StatementDescriptorToSend is { } descriptor)
+            body["statement_descriptor"] = descriptor;
 
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/v1/payments");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);

@@ -100,7 +100,8 @@ public static class PaymentsEndpoints
             if (request.MarketplaceFeePercent is { } fee)
                 connection.SetMarketplaceFee(fee);
 
-            connection.SetStatementDescriptor(request.StatementDescriptor);
+            var descriptor = connection.SetStatementDescriptor(request.StatementDescriptor);
+            if (descriptor.IsFailure) return descriptor.Error.ToProblem();
 
             await repository.SaveChangesAsync(ct);
             return Results.Ok(ToDto(connection));

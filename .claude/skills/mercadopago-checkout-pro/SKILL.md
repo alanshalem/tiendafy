@@ -59,8 +59,9 @@ usa: con usuarios de prueba también va `init_point`.
   No puede superar el total (400 "marketplace_fee must not be greater than
   total amount").
 - `statement_descriptor`: la guía oficial dice **hasta 13 caracteres**.
-  Tiendafy hoy acepta y corta a 22 (`MercadoPagoConnection.SetStatementDescriptor`
-  y el panel): pendiente de corregir.
+  Tiendafy valida 13 en el backend (`MercadoPagoConnection.SetStatementDescriptor`)
+  y en el panel; uno de 14 a 22 guardado antes se manda recortado a 13
+  (`StatementDescriptorToSend`).
 - `auto_return` necesita `back_urls` en HTTPS: por http (desarrollo) el regreso
   automático falla en silencio y la orden se concilia igual por webhook.
 - El `returnUrl` que manda el cliente se valida contra dominios propios

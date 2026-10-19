@@ -48,13 +48,38 @@ public class PaymentsCheckoutDomainTests
     }
 
     [Fact]
-    public void StatementDescriptor_se_recorta_a_22_y_vacio_es_null()
+    public void StatementDescriptor_hasta_13_y_vacio_es_null()
     {
         var c = Conexion();
-        c.SetStatementDescriptor("  MI TIENDA ONLINE SUPER LARGA SA  ");
-        Assert.Equal(22, c.StatementDescriptor!.Length); // límite del resumen de tarjeta
-        c.SetStatementDescriptor("   ");
+        Assert.True(c.SetStatementDescriptor("  MI MARCA SRL  ").IsSuccess); // 12 con el trim
+        Assert.Equal("MI MARCA SRL", c.StatementDescriptor);
+        Assert.True(c.SetStatementDescriptor("1234567890123").IsSuccess); // 13: el límite de la guía de Checkout Pro
+
+        // Más largo: error, y queda el que estaba (no se recorta a escondidas).
+        var tooLong = c.SetStatementDescriptor("MI TIENDA ONLINE");
+        Assert.True(tooLong.IsFailure);
+        Assert.Equal("MercadoPago.StatementDescriptorTooLong", tooLong.Error.Code);
+        Assert.Equal("1234567890123", c.StatementDescriptor);
+
+        Assert.True(c.SetStatementDescriptor("   ").IsSuccess);
         Assert.Null(c.StatementDescriptor);
+        Assert.Null(c.StatementDescriptorToSend);
+    }
+
+    [Fact]
+    public void Un_descriptor_de_antes_de_22_se_puede_volver_a_guardar_y_se_manda_recortado()
+    {
+        // Lo que dejó guardado el límite viejo (22), cargado como lo cargaría EF.
+        var c = Conexion();
+        typeof(MercadoPagoConnection).GetProperty(nameof(MercadoPagoConnection.StatementDescriptor))!
+            .SetValue(c, "MI TIENDA DE ROPA SRL");
+
+        // Guardar las preferencias sin tocarlo no falla: el comercio puede
+        // cambiar el modo de cobro sin que le exijan acortar el nombre antes.
+        Assert.True(c.SetStatementDescriptor("MI TIENDA DE ROPA SRL").IsSuccess);
+        // Y a Mercado Pago nunca le llega más de 13 (sin el espacio del corte).
+        Assert.Equal("MI TIENDA DE", c.StatementDescriptorToSend);
+        Assert.Equal("MI TIENDA DE ROPA SRL", c.StatementDescriptor);
     }
 
     // ---- ShippingMethod ----

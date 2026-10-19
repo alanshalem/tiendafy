@@ -66,7 +66,8 @@ export const VENTAS = {
       {
         heading: 'Nombre en el resumen de la tarjeta',
         paragraphs: [
-          'Configurá hasta 22 caracteres que el comprador ve en el resumen de su tarjeta (ej: “MI MARCA”) y tocá “Guardar”. Reduce desconocimientos y contracargos.',
+          'Configurá hasta 13 caracteres que el comprador ve en el resumen de su tarjeta (ej: “MI MARCA”) y tocá “Guardar”. Es lo máximo que admite Mercado Pago. Reduce desconocimientos y contracargos.',
+          'Si guardaste uno más largo antes, se sigue cobrando sin problemas: Mercado Pago recibe los primeros 13 caracteres. Acortalo vos para elegir cómo queda.',
         ],
       },
       {

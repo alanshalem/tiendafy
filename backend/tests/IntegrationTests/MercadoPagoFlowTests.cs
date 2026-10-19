@@ -740,6 +740,47 @@ public sealed class MercadoPagoFlowTests
         }
     }
 
+    [Fact]
+    public async Task El_nombre_del_resumen_admite_13_y_uno_viejo_mas_largo_no_rompe_el_cobro()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "mpsd");
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
+        const string prefsUrl = "/api/v1/payments/mercadopago/preferences";
+
+        // La guía de Checkout Pro dice "hasta 13 caracteres".
+        var tooLong = await merchant.SendAsync(HttpMethod.Put, prefsUrl, new { checkoutMode = "pro", statementDescriptor = "MI TIENDA ONLINE" });
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+        Assert.Contains("hasta 13 caracteres", await tooLong.Content.ReadAsStringAsync());
+        Assert.Equal("1234567890123", (await merchant.PutAsync(prefsUrl,
+            new { checkoutMode = "pro", statementDescriptor = "1234567890123" })).GetProperty("statementDescriptor").GetString());
+
+        // Uno guardado cuando se aceptaban 22: las preferencias se siguen
+        // pudiendo guardar sin tocarlo, y el cobro sale con el recortado.
+        const string legacy = "MI TIENDA DE ROPA SRL";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            await db.MercadoPagoConnections.IgnoreQueryFilters()
+                .Where(c => c.MercadoPagoUserId == mpUserId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.StatementDescriptor, legacy));
+        }
+        var kept = await merchant.PutAsync(prefsUrl, new { checkoutMode = "pro", statementDescriptor = legacy });
+        Assert.Equal(legacy, kept.GetProperty("statementDescriptor").GetString());
+
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra MP", priceMinor: 10_000_00);
+        var shopper = new Shopper(merchant);
+        var checkoutId = await shopper.CheckoutAsync(variantId);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/checkout/preferences",
+            new { id = "pref-sd", init_point = "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-sd" });
+        var pay = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay", new { returnUrl = shopper.ReturnUrl });
+        var orderId = pay.GetProperty("orderId").GetGuid().ToString();
+
+        var preference = _factory.ExternalHttp.SentTo($"{Api}/checkout/preferences")
+            .Last(r => r.Headers["X-Idempotency-Key"] == orderId);
+        Assert.Contains("\"statement_descriptor\":\"MI TIENDA DE\"", preference.Body);
+    }
+
     /// <summary>Un aviso de MP, firmado como lo firma MP.</summary>
     private Task<HttpResponseMessage> WebhookAsync(string paymentId, long userId,
         string secret = ApiFactory.MercadoPagoWebhookSecret, string? ts = null)

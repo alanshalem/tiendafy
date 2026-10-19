@@ -28,6 +28,13 @@ interface ConnectionDto {
 // mucha gente. Este es el mismo azul más oscuro: 5:1 con blanco (AA).
 const MP_BLUE = '#0074b4';
 
+/**
+ * Lo que admite Mercado Pago para el nombre en el resumen de la tarjeta (la
+ * guía de Checkout Pro dice hasta 13). El backend valida lo mismo
+ * (MercadoPagoConnection.StatementDescriptorMaxLength).
+ */
+const DESCRIPTOR_MAX = 13;
+
 export function MercadoPagoConnect() {
   const { store } = useStore();
   const { can } = usePermissions();
@@ -347,7 +354,7 @@ function ConnectedView({
             id={`${fid}-1`}
             aria-label="Nombre en el resumen de la tarjeta"
             value={descriptor}
-            maxLength={22}
+            maxLength={DESCRIPTOR_MAX}
             disabled={readOnly}
             onChange={(e) => setDescriptor(e.target.value)}
             placeholder="MI MARCA"
@@ -360,8 +367,14 @@ function ConnectedView({
           )}
         </div>
         <p className="mt-1 text-xs text-fg-muted">
-          Hasta 22 caracteres. Es lo que ve el comprador en el resumen de su tarjeta.
+          Hasta {DESCRIPTOR_MAX} caracteres. Es lo que ve el comprador en el resumen de su tarjeta.
         </p>
+        {descriptor.trim().length > DESCRIPTOR_MAX && (
+          <p className="mt-1 text-xs text-warning">
+            Mercado Pago muestra hasta {DESCRIPTOR_MAX} caracteres: en el resumen sale “
+            {descriptor.trim().slice(0, DESCRIPTOR_MAX).trimEnd()}”. Acortalo para elegir cómo queda.
+          </p>
+        )}
       </div>
 
       {!readOnly && (
