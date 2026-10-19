@@ -4,4 +4,16 @@
       "path": ".",
     },
   ],
+  "settings": {
+    // Sin esto, C# Dev Kit arma su propia solución con todos los .csproj que
+    // encuentra, incluidos los de los worktrees de agentes (.claude/worktrees),
+    // y cuando se borran quedan errores "project file was not found".
+    "dotnet.defaultSolution": "backend/backend.slnx",
+    "files.watcherExclude": {
+      "**/.claude/worktrees/**": true,
+    },
+    "search.exclude": {
+      "**/.claude/worktrees/**": true,
+    },
+  },
 }
