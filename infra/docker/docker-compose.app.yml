@@ -46,14 +46,16 @@ services:
     build:
       context: ../..
       dockerfile: storefront/Dockerfile
-      args:
-        # Se hornean en el bundle del navegador (client-side: carrito, favoritos, auth).
-        NEXT_PUBLIC_API_URL: 'http://localhost:5080'
-        NEXT_PUBLIC_ADMIN_ORIGIN: 'http://localhost:3001'
     container_name: tiendafy-storefront
     environment:
+      APP_ENV: development
       # SSR (server components) pega a la API por nombre de servicio dentro de la red docker.
       API_URL: 'http://api:8080'
+      # Lo que usa el navegador (carrito, favoritos, login): se lee al arrancar y
+      # viaja en el HTML, como en producción. Sin NEXT_PUBLIC_ a propósito: esas
+      # Next las hornea al compilar (ver storefront/src/lib/runtime.ts).
+      PUBLIC_API_URL: 'http://localhost:5080'
+      PUBLIC_ADMIN_ORIGIN: 'http://localhost:3001'
       PLATFORM_BASE_DOMAIN: localhost
       # El dominio pelado es la tienda de la empresa, no un catálogo de tiendas.
       PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-puenteoriente}
@@ -69,10 +71,16 @@ services:
     build:
       context: ../..
       dockerfile: admin/Dockerfile
-      args:
-        # Vite hornea VITE_API_URL en el build estático → debe ser alcanzable desde el browser.
-        VITE_API_URL: 'http://localhost:5080'
     container_name: tiendafy-admin
+    environment:
+      # El contenedor escribe config.js al arrancar con estos valores (ver
+      # admin/docker-config.sh): la misma imagen que en producción. Son URLs
+      # del navegador, no de la red docker.
+      APP_ENV: development
+      VITE_API_URL: 'http://localhost:5080'
+      VITE_STOREFRONT_ORIGIN: 'http://{sub}.localhost:3000'
+      # La misma que la de la tienda: esa se ve en localhost:3000 a secas.
+      VITE_PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-puenteoriente}
     ports:
       - '127.0.0.1:3001:8080'
     depends_on:
