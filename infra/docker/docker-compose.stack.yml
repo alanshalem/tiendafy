@@ -200,6 +200,8 @@ services:
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       Sentry__Environment: ${APP_ENV}
       Workers__Enabled: ${WORKERS_ENABLED:-true}
+      # Palanca de emergencia: apaga la IA de todas las tiendas (ver docs/integraciones/ia.md).
+      Ai__Disabled: ${AI_DISABLED:-false}
       # Migraciones como PASO DE DEPLOY, no al boot.
       Database__MigrateOnStartup: 'false'
     volumes:

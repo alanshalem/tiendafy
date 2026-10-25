@@ -158,7 +158,7 @@ recrea los contenedores cuya config cambió).
 | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET`, `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` | Redes sociales; Telegram no necesita credenciales ([integraciones/redes-sociales.md](./integraciones/redes-sociales.md)) |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | Cloudflare Turnstile en login, registro y contacto. Vacío = sin captcha |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | "Entrar con Google" de los compradores. Vacío = botón oculto |
-| `AI_API_KEY` / `AI_MODEL` | Sugerencias con IA (Anthropic). Modelo por defecto `claude-sonnet-5` |
+| `AI_DISABLED` | `true` apaga la IA de **todas** las tiendas (palanca de emergencia, vacío = prendida). Las claves de IA no van acá: las carga cada tienda ([integraciones/ia.md](./integraciones/ia.md)) |
 | `REVALIDATE_SECRET` | Lo comparten la API y la tienda: con él, publicar un diseño o cambiar el catálogo se ve al toque; vacío, tarda 30 a 60 s. `openssl rand -hex 32` |
 | `SENTRY_DSN_BACKEND` / `SENTRY_DSN_STOREFRONT` / `SENTRY_DSN_ADMIN` | Errores de cada app. Vacío = Sentry apagado. Los secretos de las URLs (token del bot de Telegram, `access_token`, `?t=` de los links firmados, headers de autorización) se tapan antes de mandar nada: `backend/src/Api/Startup/SentryScrubber.cs` y, en el panel y la tienda, `shared/types/src/sentry-scrub.ts`. Un parámetro secreto nuevo se suma en los dos |
 
@@ -214,6 +214,26 @@ todas las fotos de la tienda quedan rotas.
 Migrar de un proveedor a otro es copiar los objetos entre buckets: las URLs
 guardadas en la base apuntan al dominio viejo, así que hay que mantenerlo vivo
 o reescribirlas.
+
+### Después de desplegar la IA
+
+La IA dejó de usar una clave de la plataforma (`AI_API_KEY` y `AI_MODEL` ya no
+existen). Después del primer deploy con este cambio queda **apagada en todas
+las tiendas** hasta que su dueño la configure, y antes andaba con la clave de
+plataforma, así que conviene avisarles. Para cada tienda:
+
+1. El dueño entra a Configuración → Inteligencia artificial y carga la clave de
+   al menos un proveedor ([cómo sacarla](./integraciones/ia.md#proveedores-y-claves)).
+2. En esa consola del proveedor pone un **límite de gasto mensual**. El tope de
+   Tiendafy es una estimación; este límite es el que de verdad corta el gasto.
+3. Elige el modelo de cada tarea ("Usar recomendados" completa todo), carga un
+   tope mensual y prende el interruptor (sin tope no deja).
+4. Toca "Probar conexión" en cada proveedor.
+
+Si algo sale mal con un proveedor o con el gasto, `AI_DISABLED=true` en
+`.env.prod` y `./infra/deploy.sh prod <el tag que corre>` apaga la IA de todas
+las tiendas sin tocar su configuración; al volverla a vacío vuelve todo como
+estaba.
 
 ## Reverse proxy / TLS
 

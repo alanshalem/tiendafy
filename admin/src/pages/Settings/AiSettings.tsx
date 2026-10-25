@@ -7,6 +7,7 @@ import { qk } from '../../lib/queryKeys';
 import { useStore } from '../../context/StoreContext';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiModelsCard } from './AiModelsCard';
@@ -67,6 +68,7 @@ export function AiSettingsPage() {
             </div>
           </section>
           <AiCopyDialog open={copyOpen} onClose={() => setCopyOpen(false)} />
+          <HelpLink id="ia" />
         </div>
       )}
     </div>

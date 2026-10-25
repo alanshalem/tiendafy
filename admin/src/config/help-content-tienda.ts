@@ -411,4 +411,109 @@ export const TIENDA = {
       },
     ],
   },
+  ia: {
+    title: 'Inteligencia artificial',
+    intro:
+      'Pedile a la inteligencia artificial que te redacte un texto o te sugiera una respuesta. Vos ponés tu propia clave y tu propio tope de gasto: Tiendafy no te cobra nada por usarla.',
+    category: 'Tu tienda online',
+    keywords: [
+      'ia',
+      'chatgpt',
+      'claude',
+      'gemini',
+      'openai',
+      'anthropic',
+      'groq',
+      'api key',
+      'clave',
+      'tokens',
+      'gasto',
+      'presupuesto',
+    ],
+    sections: [
+      {
+        heading: 'Para qué sirve',
+        paragraphs: [
+          'Te ayuda a escribir: una respuesta para una pregunta de Mercado Libre o del chat posventa, un post para tus redes o la descripción de un producto. Siempre te lo muestra como borrador: lo leés, lo corregís si hace falta y recién ahí lo usás. Nunca publica, responde ni cambia nada por su cuenta.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Inteligencia artificial'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Esta pantalla es solo del dueño de la tienda, porque la clave que cargás gasta plata de tu cuenta. El resto del equipo usa los botones de IA según los permisos que ya tiene (por ejemplo, quien carga productos ve el botón de la descripción).',
+          },
+        ],
+      },
+      {
+        heading: 'Dejarla lista, paso a paso',
+        steps: [
+          'Creá una cuenta en el proveedor que prefieras (Anthropic, OpenAI, Google o Groq), cargale saldo si te lo pide y sacá una “clave de API”. Cada proveedor tiene su consola; buscá “API keys”.',
+          'En la consola del proveedor poné un límite de gasto mensual. Es tu red de seguridad de verdad.',
+          'En Configuración → Inteligencia artificial, pegá la clave en la tarjeta de ese proveedor y tocá “Probar conexión”.',
+          'En “Modelos por tarea” elegí un modelo para cada cosa, o tocá “Usar recomendados”. Podés sumar un modelo de respaldo, de otro proveedor si tenés, para que siga andando si el primero se cae.',
+          'En “Presupuesto” poné el tope mensual en dólares y prendé el interruptor. Sin tope no te deja prenderla.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'La clave se guarda cifrada y nadie la vuelve a ver completa: solo los últimos 4 caracteres. Si la perdés o la cambiás, cargá una nueva.',
+          },
+        ],
+      },
+      {
+        heading: 'El tope y el consumo',
+        paragraphs: [
+          'Cada mes la IA puede gastar hasta el tope que pusiste. Antes de cada pedido se calcula lo máximo que podría costar: si no entra en lo que te queda, no se hace y te avisa. Al llegar al tope se frena hasta el mes siguiente, o hasta que lo subas.',
+          'En Inicio te aparece un aviso cuando te acercás al tope (el porcentaje lo elegís vos) y otro cuando lo alcanzás.',
+          '“Consumo del mes” muestra lo gastado contra el tope, por día, por tarea, por modelo y por persona. Si tenés más de una tienda, podés ver el total de todas.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Son cálculos estimados con los precios que conocemos: pueden diferir un poco de lo que te cobra el proveedor. Lo que vale es la factura de él, por eso conviene también el límite en su consola.',
+          },
+        ],
+      },
+      {
+        heading: 'Tengo más de una tienda',
+        paragraphs: [
+          '“Copiar a mis otras tiendas” te deja pasar las claves, los modelos o el presupuesto de esta tienda a las otras donde sos dueño, sin cargarlos de nuevo. Pisa lo que ya tenían: te pide confirmar antes.',
+        ],
+      },
+      {
+        heading: 'Si algo no anda',
+        paragraphs: [
+          'Un botón de IA que no se puede usar todavía te dice por qué al pasar el mouse. Si no tenés el permiso de esa parte del panel, directamente no lo ves. Lo más común:',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué dice', 'Qué hacer'],
+            rows: [
+              [
+                '“Está apagada en esta tienda”',
+                'Prendé el interruptor en Presupuesto (necesita un tope cargado).',
+              ],
+              [
+                '“Elegí un modelo para esta tarea” o “Falta la clave de…”',
+                'Elegí el modelo en Modelos por tarea y cargá la clave de su proveedor.',
+              ],
+              ['“Se alcanzó el tope mensual”', 'Subí el tope en Presupuesto, o esperá al mes siguiente.'],
+              [
+                '“La clave no es válida o no tiene saldo”',
+                'Revisá la clave y el saldo en la consola del proveedor; después “Probar conexión”.',
+              ],
+              [
+                '“El servicio no responde”',
+                'Es del proveedor. Si tenés un modelo de respaldo, se usa solo; si no, probá en unos minutos.',
+              ],
+            ],
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

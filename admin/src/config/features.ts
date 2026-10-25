@@ -106,6 +106,7 @@ export const HELP_LINKS = {
   temaPaginas: { label: 'Más sobre encabezado, menú, listado y carrito' },
   paginas: { label: 'Más sobre páginas de contenido' },
   estadisticas: { label: 'Más sobre estadísticas' },
+  ia: { label: 'Más sobre la inteligencia artificial' },
   users: { label: 'Más sobre roles y permisos' },
   domains: { label: 'Más sobre dominios' },
   fiscal: { label: 'Más sobre facturación electrónica (ARCA)' },

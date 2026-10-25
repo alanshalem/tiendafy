@@ -20,13 +20,14 @@ permiso de su funcionalidad. **Deny by default.** El dueño tiene todo, siempre.
 
 ## El catálogo de permisos
 
-Una entrada por funcionalidad del panel, en `PermissionCatalog.All` (38
+Una entrada por funcionalidad del panel, en `PermissionCatalog.All` (39
 permisos en 10 secciones: Estadísticas, Ventas, Mercado Libre, Catálogo,
 Clientes, Marketing, Tienda online, Finanzas y facturación, Configuración y
 Equipo): clave
 estable (`orders.refund`), sección, texto, descripción, si es **sensible** (mueve
 plata, obligaciones fiscales o da más accesos), si es **solo del dueño**
-(`tenant.admin`: dominios, editar y borrar la tienda — no se delega) y su
+(`tenant.admin`: dominios, editar y borrar la tienda; `ai.config`: claves,
+modelos, tope y consumo de la IA — no se delegan) y su
 **requisito** (`orders.refund` necesita `orders.read`; sin el requisito, el
 permiso no cuenta). También dice qué roles lo traen de fábrica.
 
@@ -43,6 +44,20 @@ panel la muestra tal cual. Agregar una funcionalidad es:
    pantalla la pide. `access.test.ts` exige que las claves sean las mismas del
    backend y en el mismo orden (las compara contra `test-fixtures/api.json`,
    así que hay que regenerar las fixtures con `pnpm fixtures:api`).
+
+## Inteligencia artificial: dos tipos de permiso
+
+`ai.config` (`Permission.AiConfig`, sensible y solo del dueño) cubre la pantalla
+Configuración → Inteligencia artificial entera, consumo incluido: quien tiene
+una clave puede gastar plata del dueño. No lo trae ningún rol de fábrica, ni
+siquiera `admin`.
+
+**Usar** una función de IA no pide `ai.config` sino el permiso de esa función
+(por ejemplo, `catalog.write` para la descripción de un producto). El mapa vive
+en un solo lugar, `backend/src/Api/Ai/AiTaskPermissions.cs`, y lo usan
+`GET /ai/status` (así el panel oculta el botón con el código `Ai.Denied`) y los
+endpoints de cada función. El aviso de tope en Inicio lo ve solo quien tiene
+`ai.config`. Más en [integraciones/ia.md](./integraciones/ia.md).
 
 ## Roles
 

@@ -28,7 +28,7 @@ viejos, con un bloque de estado arriba.
 | [permisos.md](./permisos.md) | Roles y permisos por tienda, y cómo sumar un permiso |
 | [chat-posventa.md](./chat-posventa.md) | El chat posventa y la Bandeja |
 | [sistema-visual.md](./sistema-visual.md) | El sistema visual del panel, las tiendas y los mails |
-| [integraciones/](./integraciones/README.md) | Un documento por servicio externo (pagos, ARCA, envíos, Mercado Libre, redes, mail, WhatsApp) con su estado |
+| [integraciones/](./integraciones/README.md) | Un documento por servicio externo (pagos, ARCA, envíos, Mercado Libre, redes, mail, WhatsApp, inteligencia artificial) con su estado |
 | [`shared/types/src/sections/`](../shared/types/src/sections/README.md) | Cómo sumar o cambiar una sección del editor de tiendas |
 | [`storefront/src/app/fonts/`](../storefront/src/app/fonts/README.md) | Las fuentes de las tiendas: de dónde salen y cómo sumar una |
 
@@ -54,7 +54,7 @@ viejos, con un bloque de estado arriba.
 | [historial/refactor.md](./historial/refactor.md) | Las pasadas de refactor y lo que se descartó a propósito (no reabrir sin motivo) |
 | [historial/informe-rentabilidad-y-wms.md](./historial/informe-rentabilidad-y-wms.md) | El análisis que llevó a Rentabilidad y Compras/depósito |
 | [historial/comparativa-lapyme.md](./historial/comparativa-lapyme.md) | La comparación con La Pyme y lo que todavía falta |
-| [historial/diseno-ia-multi-proveedor.md](./historial/diseno-ia-multi-proveedor.md) | Diseño aprobado (sin construir) de la IA con varios proveedores, presupuesto y las funciones A–D |
+| [historial/diseno-ia-multi-proveedor.md](./historial/diseno-ia-multi-proveedor.md) | Diseño aprobado de la IA con varios proveedores (la base está construida: ver [integraciones/ia.md](./integraciones/ia.md)), presupuesto y las funciones A–D |
 | `historial/plan-ia-*.md` | Los planes de implementación de ese diseño: [0 base](./historial/plan-ia-0-base.md), [A bandeja](./historial/plan-ia-a-bandeja.md), [B asistente](./historial/plan-ia-b-asistente.md), [C fichas](./historial/plan-ia-c-fichas.md), [D facturas](./historial/plan-ia-d-facturas.md) |
 
 ## Cómo mantener esto

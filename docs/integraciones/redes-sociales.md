@@ -18,7 +18,7 @@ Desde **Redes** (`/redes` en el panel) la tienda:
   y en el calendario.
 - Opcionalmente asocia un cupón al post para medir ventas: órdenes pagadas con
   ese código **después** de publicar (mismo criterio que las campañas de email).
-- Puede pedirle a la IA que redacte el texto (`POST /api/v1/ai/social-post`).
+- Puede pedirle a la IA que redacte el texto (`POST /api/v1/ai/short-text` con `kind: "social-post"`; usa la tarea `ShortText` de [la IA](./ia.md)).
 
 Todo requiere el permiso `social.publish`. El seeder de demo **no** siembra
 redes a propósito (un post falso mostraría algo que no existe en ninguna red).

@@ -197,7 +197,7 @@ flowchart LR
         ARCA["ARCA<br/>WSAA, WSFEv1, padrón"]
     end
     subgraph Otros
-        AI["Claude API<br/>(Anthropic)"]
+        AI["Proveedores de IA<br/>(Anthropic, OpenAI, Google, Groq)"]
         TS["Cloudflare Turnstile"]
         GO["Google OAuth"]
         SE["Sentry"]

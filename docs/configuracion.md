@@ -27,7 +27,7 @@ Dos niveles que no se mezclan:
 | Meta Ads | App ID + secret (Marketing API, permiso `ads_read`) | [developers.facebook.com](https://developers.facebook.com). Redirect: `https://api.TUDOMINIO/api/v1/meta-ads/oauth/callback` | Plataforma | Opcional (gasto publicitario en Rentabilidad) |
 | Redes: Meta | App ID + secret (puede ser la de Meta Ads) con `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `instagram_basic`, `instagram_content_publish` | developers.facebook.com. Redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/meta` | Plataforma | Opcional |
 | Redes: X | Client ID (+ secret si la app es confidencial), OAuth 2.0 con `tweet.read tweet.write users.read offline.access` | [developer.x.com](https://developer.x.com). Redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/x` | Plataforma | Opcional |
-| IA (Claude) | API key | [console.anthropic.com](https://console.anthropic.com) | Plataforma | Opcional (sugerencias de textos) |
+| IA (Anthropic, OpenAI, Google, Groq) | API key de cada proveedor | La consola de cada uno ([integraciones/ia.md](./integraciones/ia.md#proveedores-y-claves)) | **Cada tienda** (Configuración → Inteligencia artificial) | Opcional. Sin clave cargada, la IA está apagada en esa tienda |
 | Mercado Pago de la tienda | Nada: un click | Panel → Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
 | Payway | site_id + clave pública + clave privada (distintas en sandbox y producción) | Alta comercial con Payway. Se cargan en Configuración → Medios de pago → Payway | Tienda | Opcional |
 | Mercado Libre de la tienda | Nada: un click | Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
@@ -112,7 +112,9 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Social:Meta:AppId` / `:AppSecret` | Facebook e Instagram. Vacío = conector apagado | Vacío | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET` |
 | `Social:X:ClientId` / `:ClientSecret` | X | Vacío | `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` |
 | `Social:Meta:RedirectUri`, `Social:X:RedirectUri`, `Social:AdminReturnUrl` | OAuth y vuelta | Vacío / vacío / `http://localhost:5173/redes` | Derivadas de `STACK_DOMAIN` |
-| `Ai:ApiKey` / `Ai:Model` | Sugerencias con Claude. Sin key, apagado | Vacío / `claude-sonnet-5` | `AI_API_KEY` / `AI_MODEL` |
+| `Ai:Disabled` | Palanca de emergencia: apaga la IA de todas las tiendas (hace falta reiniciar la API). Las claves son de cada tienda, no de plataforma | `false` | `AI_DISABLED` (el compose la pasa como `Ai__Disabled`) |
+| `RateLimiting:AiPermitLimit` | Llamadas de IA por usuario y por ruta cada 5 minutos | `30` | Sin variable: default del código |
+| `RateLimiting:AiJobsPermitLimit` | Trabajos masivos de IA por tienda por hora | `5` | Sin variable: default del código |
 | `Fiscal:Endpoints:*` | URLs de WSAA, WSFEv1 y padrón (constancia de inscripción) de ARCA, en homologación y producción (cada tienda elige su ambiente) | Las oficiales, en el código | No hace falta tocarlas |
 
 ### Imágenes (storage S3)
