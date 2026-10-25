@@ -76,5 +76,7 @@ public sealed class AiDbContext : DbContext
         i.Property(x => x.ProposalJson).HasColumnType("jsonb");
         i.Property(x => x.JudgeNotes).HasMaxLength(2000);
         i.HasIndex(x => new { x.JobId, x.Status });
+        // El worker de fichas reclama ítems pendientes por estado.
+        i.HasIndex(x => new { x.Status, x.ClaimedAtUtc });
     }
 }

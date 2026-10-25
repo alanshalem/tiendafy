@@ -130,6 +130,9 @@ namespace Ai.Infrastructure.Migrations
                     b.HasIndex("JobId", "Status")
                         .HasDatabaseName("ix_ai_catalog_job_items_job_id_status");
 
+                    b.HasIndex("Status", "ClaimedAtUtc")
+                        .HasDatabaseName("ix_ai_catalog_job_items_status_claimed_at_utc");
+
                     b.ToTable("ai_catalog_job_items", (string)null);
                 });
 
