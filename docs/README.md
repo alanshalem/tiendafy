@@ -54,6 +54,7 @@ viejos, con un bloque de estado arriba.
 | [historial/refactor.md](./historial/refactor.md) | Las pasadas de refactor y lo que se descartó a propósito (no reabrir sin motivo) |
 | [historial/informe-rentabilidad-y-wms.md](./historial/informe-rentabilidad-y-wms.md) | El análisis que llevó a Rentabilidad y Compras/depósito |
 | [historial/comparativa-lapyme.md](./historial/comparativa-lapyme.md) | La comparación con La Pyme y lo que todavía falta |
+| [historial/diseno-ia-multi-proveedor.md](./historial/diseno-ia-multi-proveedor.md) | Diseño aprobado (sin construir) de la IA con varios proveedores, presupuesto y las funciones A–D |
 
 ## Cómo mantener esto
 
