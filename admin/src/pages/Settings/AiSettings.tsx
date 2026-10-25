@@ -48,7 +48,8 @@ export function AiSettingsPage() {
           <Spinner inline /> Cargando…
         </p>
       ) : (
-        <>
+        // key: lo que se tipeó y no se guardó (clave, modelos, tope) es de esta tienda; al cambiar de tienda se descarta.
+        <div key={store?.id} className="space-y-5">
           <AiProvidersCard providers={config.providers} />
           <AiModelsCard tasks={config.tasks} assignments={config.assignments} />
           <AiBudgetCard settings={config.settings} />
@@ -66,7 +67,7 @@ export function AiSettingsPage() {
             </div>
           </section>
           <AiCopyDialog open={copyOpen} onClose={() => setCopyOpen(false)} />
-        </>
+        </div>
       )}
     </div>
   );

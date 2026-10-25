@@ -50,7 +50,12 @@ export function AiCopyDialog({ open, onClose }: { open: boolean; onClose: () => 
       const res = await api.post<{ copied: string[] }>('/api/v1/ai/config/copy', body);
       await invalidateAi(qc, store?.id);
       // Las otras tiendas cambiaron: sus botones de IA tampoco pueden quedar con lo viejo.
-      for (const id of body.targetTenantIds) void qc.invalidateQueries({ queryKey: qk.aiStatus(id) });
+      for (const id of body.targetTenantIds) {
+        void qc.invalidateQueries({ queryKey: qk.aiStatus(id) });
+        // La config y el consumo de la otra tienda (mismo prefijo) también cambiaron.
+        void qc.invalidateQueries({ queryKey: qk.aiConfig(id) });
+        void qc.invalidateQueries({ queryKey: ['home-todo', id] });
+      }
       const n = res.copied?.length ?? body.targetTenantIds.length;
       toast(n === 1 ? 'Configuración copiada a 1 tienda' : `Configuración copiada a ${n} tiendas`, {
         variant: 'success',
