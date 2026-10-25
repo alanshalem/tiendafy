@@ -1,3 +1,5 @@
+using Ai.Infrastructure;
+using Api.Ai;
 using Api.Auth;
 using Api.Meli;
 using Customers.Infrastructure;
@@ -27,7 +29,8 @@ public static class HomeEndpoints
         group.MapGet("/home/todo", async (
             HttpContext http, ITenantContext tenant, IOrderRepository orders, CustomersDbContext customers,
             MeliDbContext meli, MeliTokenService tokens, MeliClient meliClient,
-            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscal, CancellationToken ct) =>
+            global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscal,
+            AiDbContext ai, IAiMonthSpend aiMonth, CancellationToken ct) =>
         {
             var access = await http.GetAccessAsync();
             if (access is null) return AuthExtensions.NotAMember();
@@ -83,10 +86,27 @@ public static class HomeEndpoints
                 ? (await Api.Fiscal.FiscalReadiness.CheckAsync(fiscal, tid.Value, ct)).Ready
                 : null;
 
-            return Results.Ok(new { toDispatch, pendingTransfers, toReview, messages, mercadoLibre, fiscalReady });
+            var aiBudget = access.Can(Permission.AiConfig) ? await AiBudgetNoticeAsync(ai, aiMonth, tid.Value, ct) : null;
+
+            return Results.Ok(new { toDispatch, pendingTransfers, toReview, messages, mercadoLibre, fiscalReady, aiBudget });
         }).RequireAnyPermission(Permission.OrdersRead, Permission.MessagesRead, Permission.MeliOperate);
 
         return group;
+    }
+
+    /// <summary>
+    /// Aviso del tope de IA: null si no hay tope cargado o el gasto no llegó al umbral;
+    /// "warn" desde el umbral, "over" al llegar al 100%.
+    /// </summary>
+    private static async Task<object?> AiBudgetNoticeAsync(AiDbContext ai, IAiMonthSpend month, Guid tenantId, CancellationToken ct)
+    {
+        var settings = await ai.Settings.AsNoTracking().Where(s => s.TenantId == tenantId).FirstOrDefaultAsync(ct);
+        if (settings is null || settings.MonthlyBudgetMicroUsd <= 0) return null;
+
+        var spent = await month.SpentThisMonthMicroUsdAsync(tenantId, ct);
+        var pct = (int)Math.Min(spent * 100 / settings.MonthlyBudgetMicroUsd, int.MaxValue);
+        if (pct < settings.AlertThresholdPct) return null;
+        return new { pct, level = pct >= 100 ? "over" : "warn" };
     }
 
     /// <summary>

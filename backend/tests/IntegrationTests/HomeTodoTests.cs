@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -51,6 +52,63 @@ public sealed class HomeTodoTests(ApiFactory factory)
         // Alguien de catálogo no ve ninguna de estas colas: ni le llega el endpoint.
         var catalog = await merchant.AddTeammateAsync("catalogo");
         Assert.Equal(HttpStatusCode.Forbidden, await catalog.StatusAsync(HttpMethod.Get, "/api/v1/home/todo"));
+    }
+
+    private async Task<JsonElement> AiBudgetAsync(Merchant m, string path = "/api/v1/home/todo") =>
+        (await m.GetAsync(path)).GetProperty("aiBudget");
+
+    private async Task SpendAsync(Guid tenantId, long microUsd)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Ai.Infrastructure.AiDbContext>();
+        db.Usage.Add(new Ai.Infrastructure.AiUsage
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Task = Ai.Infrastructure.AiTask.ShortText,
+            Provider = Ai.Infrastructure.AiProvider.Anthropic,
+            Model = "claude-haiku-5-5",
+            CostMicroUsd = microUsd,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Home_avisa_al_80_por_ciento()
+    {
+        var m = await Merchant.CreateAsync(factory, "homeai");
+        // Sin tope cargado no hay nada que avisar.
+        Assert.Equal(JsonValueKind.Null, (await AiBudgetAsync(m)).ValueKind);
+
+        await m.ExpectOkAsync(HttpMethod.Put, "/api/v1/ai/config/settings", new { enabled = true, monthlyBudgetUsd = 1, alertThresholdPct = 80 });
+        await SpendAsync(m.TenantId, 790_000);
+        Assert.Equal(JsonValueKind.Null, (await AiBudgetAsync(m)).ValueKind);
+
+        await SpendAsync(m.TenantId, 60_000); // 0,85 USD de 1
+        var warn = await AiBudgetAsync(m);
+        Assert.Equal("warn", warn.GetProperty("level").GetString());
+        Assert.Equal(85, warn.GetProperty("pct").GetInt32());
+
+        await SpendAsync(m.TenantId, 150_000); // 1 USD justo
+        var over = await AiBudgetAsync(m);
+        Assert.Equal("over", over.GetProperty("level").GetString());
+        Assert.Equal(100, over.GetProperty("pct").GetInt32());
+    }
+
+    [Fact]
+    public async Task Home_no_avisa_a_quien_no_es_duenio()
+    {
+        var m = await Merchant.CreateAsync(factory, "homeai2");
+        await m.ExpectOkAsync(HttpMethod.Put, "/api/v1/ai/config/settings", new { enabled = true, monthlyBudgetUsd = 1, alertThresholdPct = 80 });
+        await SpendAsync(m.TenantId, 900_000);
+        Assert.Equal("warn", (await AiBudgetAsync(m)).GetProperty("level").GetString());
+
+        var admin = await m.AddTeammateAsync("admin", "homead");
+        var res = await admin.SendAsync(HttpMethod.Get, "/api/v1/home/todo");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var seen = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(JsonValueKind.Null, seen.GetProperty("aiBudget").ValueKind);
     }
 
     [Fact]

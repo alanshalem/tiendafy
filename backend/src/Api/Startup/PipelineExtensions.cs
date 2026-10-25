@@ -71,6 +71,7 @@ public static class PipelineExtensions
         apiV1.MapSocialEndpoints();
         apiV1.MapAiEndpoints();
         apiV1.MapAiConfigEndpoints();
+        apiV1.MapAiUsageEndpoints();
         apiV1.MapOrderEndpoints();
         apiV1.MapPaymentOptionsEndpoints();
         apiV1.MapPaymentWebhookEndpoints();
