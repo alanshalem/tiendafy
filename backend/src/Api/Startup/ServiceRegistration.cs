@@ -199,6 +199,7 @@ public static class ServiceRegistration
         // Leer una factura entera tarda más que redactar un párrafo: el timeout
         // del cliente tiene que aguantar el peor caso de un PDF escaneado.
         services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
+        services.AddSingleton<Api.Ai.IAiChatClientFactory, Api.Ai.AiChatClientFactory>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
