@@ -374,10 +374,10 @@ Estadísticas. `POST /ai/assistant` (`StatsRead` como mínimo).
   |---|---|
   | `resumen_ventas(desde, hasta)` | `StatsRead` |
   | `productos_mas_vendidos(desde, hasta, limite≤20)` | `StatsRead` |
-  | `carritos_abandonados(desde, hasta)` | `StatsRead` |
+  | `carritos_abandonados(desde, hasta)` | `OrdersRead` (como la pantalla) |
   | `rentabilidad(desde, hasta)` | `CostsRead` |
   | `stock_bajo(limite≤50)` | `InventoryRead` |
-  | `sugerencias_de_reposicion(limite≤50)` | `InventoryRead` |
+  | `sugerencias_de_reposicion(limite≤50)` | `PurchasingManage` (como la pantalla) |
   | `ordenes_de_compra(estado, limite≤20)` | `PurchasingManage` |
   | `resumen_clientes(desde, hasta)` | `CustomersRead` (solo agregados, sin datos personales) |
 

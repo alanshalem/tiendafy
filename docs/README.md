@@ -55,6 +55,7 @@ viejos, con un bloque de estado arriba.
 | [historial/informe-rentabilidad-y-wms.md](./historial/informe-rentabilidad-y-wms.md) | El análisis que llevó a Rentabilidad y Compras/depósito |
 | [historial/comparativa-lapyme.md](./historial/comparativa-lapyme.md) | La comparación con La Pyme y lo que todavía falta |
 | [historial/diseno-ia-multi-proveedor.md](./historial/diseno-ia-multi-proveedor.md) | Diseño aprobado (sin construir) de la IA con varios proveedores, presupuesto y las funciones A–D |
+| `historial/plan-ia-*.md` | Los planes de implementación de ese diseño: [0 base](./historial/plan-ia-0-base.md), [A bandeja](./historial/plan-ia-a-bandeja.md), [B asistente](./historial/plan-ia-b-asistente.md), [C fichas](./historial/plan-ia-c-fichas.md), [D facturas](./historial/plan-ia-d-facturas.md) |
 
 ## Cómo mantener esto
 
