@@ -203,6 +203,7 @@ public static class ServiceRegistration
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton(services, TimeProvider.System);
         services.AddSingleton<Api.Ai.IAiMonthSpend, Api.Ai.AiMonthSpend>();
         services.AddSingleton<Api.Ai.AiBudget>();
+        services.AddSingleton<Api.Ai.IAiUsageRecorder, Api.Ai.AiUsageRecorder>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
