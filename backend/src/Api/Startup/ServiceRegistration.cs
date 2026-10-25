@@ -204,6 +204,14 @@ public static class ServiceRegistration
         services.AddSingleton<Api.Ai.IAiMonthSpend, Api.Ai.AiMonthSpend>();
         services.AddSingleton<Api.Ai.AiBudget>();
         services.AddSingleton<Api.Ai.IAiUsageRecorder, Api.Ai.AiUsageRecorder>();
+        // Gateway de IA. Singletons: el corte por fallas (estado en memoria, una sola instancia de API)
+        // y el cifrado de claves (sin estado). Scoped: la configuración de la tienda (usa el AiDbContext
+        // del scope) y el gateway (toma la tienda y el usuario del request).
+        services.AddHttpContextAccessor();
+        services.AddSingleton<Api.Ai.AiCircuitBreaker>();
+        services.AddSingleton<Api.Ai.IAiKeyProtector, Api.Ai.AiKeyProtector>();
+        services.AddScoped<Api.Ai.IAiTenantConfig, Api.Ai.AiTenantConfig>();
+        services.AddScoped<Api.Ai.IAiGateway, Api.Ai.AiGateway>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).

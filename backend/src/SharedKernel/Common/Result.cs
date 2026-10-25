@@ -52,6 +52,7 @@ public enum ErrorType
     Validation = 1,  // 400
     NotFound = 2,    // 404
     Conflict = 3,    // 409
+    Unavailable = 4, // 503: un servicio externo no responde (por ejemplo, el proveedor de IA)
 }
 
 /// <summary>
