@@ -2,7 +2,10 @@ using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests;
 
-/// <summary>Todo lo que loguea la API durante los tests, para afirmar qué NO se loguea (claves, cuerpos de error).</summary>
+/// <summary>
+/// Lo que loguea la API durante los tests (Warning o más), para afirmar qué NO se loguea (claves, cuerpos de
+/// error). Solo Warning y más: la fábrica es compartida por toda la suite y la lista no tiene tope.
+/// </summary>
 public sealed class CapturedLogs : ILoggerProvider
 {
     private readonly object _gate = new();
@@ -38,12 +41,12 @@ public sealed class CapturedLogs : ILoggerProvider
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => first.BeginScope(state);
 
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning || first.IsEnabled(logLevel);
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (first.IsEnabled(logLevel)) first.Log(logLevel, eventId, state, exception, formatter);
-            second.Log(logLevel, eventId, state, exception, formatter);
+            if (logLevel >= LogLevel.Warning) second.Log(logLevel, eventId, state, exception, formatter);
         }
     }
 
@@ -51,7 +54,7 @@ public sealed class CapturedLogs : ILoggerProvider
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {

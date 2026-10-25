@@ -1,3 +1,4 @@
+using Api.Ai;
 using Api.Auth;
 using Catalog.Contracts;
 using Catalog.Core.Features.UpdateProduct;
@@ -254,11 +255,6 @@ public static class PurchasingEndpoints
             Guid id, IFormFile file, PurchasingDbContext db,
             Api.Purchasing.InvoiceScanner scanner, CancellationToken ct) =>
         {
-            if (!scanner.Available)
-                return Error.Validation(
-                    "Ai.NotConfigured",
-                    "La lectura automática de facturas no está configurada en esta plataforma.").ToProblem();
-
             if (file.Length > Api.Purchasing.InvoiceScanner.MaxBytes)
                 return Error.Validation(
                     "Invoice.TooLarge", "El archivo supera los 10 MB.").ToProblem();
@@ -294,7 +290,7 @@ public static class PurchasingEndpoints
                 // IVA) y hay que convertir a mano: mejor decirlo que suponerlo.
                 currencyMismatch = !string.Equals(s.Currency, "ARS", StringComparison.OrdinalIgnoreCase),
             });
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().RequireAiRateLimit(AiRateLimitKind.PerUser);
 
         // Libro de IVA compras del mes, en el mismo formato que el de ventas:
         // el crédito fiscal de las compras que hasta ahora no salía del sistema.

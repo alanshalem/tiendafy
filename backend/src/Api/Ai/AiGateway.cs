@@ -200,7 +200,9 @@ public sealed class AiGateway(
             catch (Exception ex) when (!ct.IsCancellationRequested
                 && (failure = Classify(ex, timeout.IsCancellationRequested)) != AiFailure.Unknown)
             {
-                _logger.LogWarning(ex, "Falló {Model} en la tarea {Task}: {Failure}.", model.Id, task, failure);
+                // Sin la excepción: el cuerpo de un error del proveedor puede traer fragmentos de la clave.
+                _logger.LogWarning("Falló {Model} en la tarea {Task}: {Failure} (HTTP {Status}).",
+                    model.Id, task, failure, HttpStatusOf(ex));
                 switch (failure)
                 {
                     case AiFailure.Auth:

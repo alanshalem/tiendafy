@@ -194,11 +194,7 @@ public static class ServiceRegistration
         services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.TelegramChannel>());
         if (runPollingWorkers) services.AddHostedService<Api.Social.SocialPublishWorker>();
 
-        // Sugerencias con IA (Claude API). Vacío = apagado, botones ocultos.
-        services.Configure<Api.Ai.AiOptions>(configuration.GetSection(Api.Ai.AiOptions.SectionName));
-        // Leer una factura entera tarda más que redactar un párrafo: el timeout
-        // del cliente tiene que aguantar el peor caso de un PDF escaneado.
-        services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
+        // IA: todo pasa por el gateway (modelos y claves por tienda, ver Api/Ai).
         services.AddSingleton<Api.Ai.IAiChatClientFactory, Api.Ai.AiChatClientFactory>();
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton(services, TimeProvider.System);
         services.AddSingleton<Api.Ai.IAiMonthSpend, Api.Ai.AiMonthSpend>();

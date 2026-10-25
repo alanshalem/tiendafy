@@ -12,7 +12,7 @@ namespace IntegrationTests;
 /// La API real, contra Postgres, para todos los tests de integración. Usa una
 /// base propia (tiendafy_itests, o TIENDAFY_TEST_DB) que migra al arrancar.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     /// <summary>Adonde va todo el HTTP saliente de la API (ver <see cref="FakeHttp"/>).</summary>
     public FakeHttp ExternalHttp { get; } = new();
@@ -100,9 +100,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MetaAds:AppId", "test-meta-ads-app");
         builder.UseSetting("MetaAds:AppSecret", "test-meta-ads-secret");
         builder.UseSetting("MetaAds:RedirectUri", "http://localhost:5080/api/v1/meta-ads/oauth/callback");
-        // IA (Claude API) con una clave de mentira: las sugerencias y la lectura
-        // de facturas van al fake.
-        builder.UseSetting("Ai:ApiKey", "sk-ant-test");
         builder.UseSetting("Email:ResendApiKey", "re_test_key");
         builder.UseSetting("Email:WebhookSecret", ResendWebhookSecret);
         builder.UseSetting("Storefront:RevalidateUrl", StorefrontRevalidate);

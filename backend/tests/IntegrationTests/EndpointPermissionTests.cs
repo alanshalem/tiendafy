@@ -150,7 +150,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "GET /api/v1/back-in-stock/unsubscribe",
             "POST /api/v1/back-in-stock/unsubscribe",
         ],
-        ["Solo dice si la IA está configurada en la plataforma"] =
+        ["Solo dice qué funciones de IA puede usar quien pregunta (el permiso se cruza adentro, por tarea)"] =
         [
             "GET /api/v1/ai/status",
         ],

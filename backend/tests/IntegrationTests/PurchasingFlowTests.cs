@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Ai.Infrastructure;
+using Microsoft.Extensions.AI;
 
 namespace IntegrationTests;
 
@@ -19,7 +21,6 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class PurchasingFlowTests
 {
-    private const string Claude = "https://api.anthropic.com/v1/messages";
     private readonly ApiFactory _factory;
 
     public PurchasingFlowTests(ApiFactory factory) => _factory = factory;
@@ -109,43 +110,34 @@ public sealed class PurchasingFlowTests
         Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Put, $"/api/v1/purchasing/purchase-orders/{poId}", new { supplierName = "X", currency = "USD", exchangeRate = 1m })).StatusCode);
 
         // La factura del proveedor: la IA la lee y PROPONE, la persona confirma.
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, Claude, new
+        await AiSetup.ConfigureAsync(merchant, (AiTask.InvoiceRead, AiSetup.Sonnet));
+        _factory.Ai.Respond(AiSetup.Sonnet, AiSetup.Reply("```json\n" + JsonSerializer.Serialize(new
         {
-            content = new[]
-            {
-                new
-                {
-                    type = "text",
-                    text = "```json\n" + JsonSerializer.Serialize(new
-                    {
-                        supplierName = "SHENZHEN TRADING CO",
-                        supplierTaxId = "30-71234567-8",
-                        invoiceType = "a",
-                        invoiceNumber = "0003-00001234",
-                        invoiceDate = "2026-10-05",
-                        currency = "ARS",
-                        netAmount = 500000.00m,
-                        vatAmount = 105000.00m,
-                        totalAmount = 605000.00m,
-                        lines = new[] { new { description = "Remeras", quantity = 100, unitPrice = 4000m } },
-                        confidence = "alta",
-                        warnings = new[] { "El CUIT tiene un dígito borroso" },
-                    }) + "\n```",
-                },
-            },
-        });
+            supplierName = "SHENZHEN TRADING CO",
+            supplierTaxId = "30-71234567-8",
+            invoiceType = "a",
+            invoiceNumber = "0003-00001234",
+            invoiceDate = "2026-10-05",
+            currency = "ARS",
+            netAmount = 500000.00m,
+            vatAmount = 105000.00m,
+            totalAmount = 605000.00m,
+            lines = new[] { new { description = "Remeras", quantity = 100, unitPrice = 4000m } },
+            confidence = "alta",
+            warnings = new[] { "El CUIT tiene un dígito borroso" },
+        }) + "\n```"));
         var scanned = await ScanAsync(merchant, poId, "application/pdf", "%PDF-1.4 factura"u8.ToArray());
         Assert.Equal(HttpStatusCode.OK, scanned.StatusCode);
         var proposal = await scanned.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("30712345678", proposal.GetProperty("supplierTaxId").GetString());
         Assert.Equal("A", proposal.GetProperty("invoiceType").GetString());
         Assert.False(proposal.GetProperty("currencyMismatch").GetBoolean());
-        var sentToClaude = _factory.ExternalHttp.SentTo(Claude).Last();
-        Assert.Contains("\"type\":\"document\"", sentToClaude.Body); // el PDF viaja como documento
-        Assert.Contains("Shenzhen Trading Co.", sentToClaude.Body);   // con el contexto de la orden
+        var sent = Assert.Single(_factory.Ai.Calls(AiSetup.Sonnet)).Single(m => m.Role == ChatRole.User);
+        Assert.Equal("application/pdf", sent.Contents.OfType<DataContent>().Single().MediaType); // el PDF viaja como documento
+        Assert.Contains("Shenzhen Trading Co.", sent.Contents.OfType<TextContent>().Single().Text); // con el contexto de la orden
 
         Assert.Equal(HttpStatusCode.BadRequest, (await ScanAsync(merchant, poId, "text/plain", "hola"u8.ToArray())).StatusCode);
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, Claude, new { content = new[] { new { type = "text", text = "no pude leerla, perdón" } } });
+        _factory.Ai.Respond(AiSetup.Sonnet, AiSetup.Reply("no pude leerla, perdón"));
         Assert.False((await ScanAsync(merchant, poId, "image/png", TestImages.Png)).IsSuccessStatusCode);
 
         // Confirmar la factura: queda la deuda en la cuenta corriente del proveedor.

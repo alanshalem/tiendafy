@@ -28,6 +28,10 @@ public static class AiErrors
     public static readonly Error Unavailable = new(
         "Ai.Unavailable", "El servicio de inteligencia artificial no responde. Probá de nuevo en unos minutos.", ErrorType.Unavailable);
 
+    /// <summary>El modelo contestó, pero sin texto: se puede reintentar, no es un 500.</summary>
+    public static readonly Error Empty = new(
+        "Ai.Empty", "La inteligencia artificial devolvió una respuesta vacía. Probá de nuevo.", ErrorType.Unavailable);
+
     public static readonly Error TimedOut = new(
         "Ai.TimedOut", "La inteligencia artificial tardó demasiado en responder. Probá de nuevo.", ErrorType.Unavailable);
 

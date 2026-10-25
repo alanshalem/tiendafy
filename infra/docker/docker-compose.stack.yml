@@ -192,8 +192,6 @@ services:
       Media__Region: ${MEDIA_REGION:-auto}
       Media__BucketInPublicUrl: ${MEDIA_BUCKET_IN_PUBLIC_URL:-false}
       Media__EnsureBucketOnStartup: ${MEDIA_ENSURE_BUCKET:-false}
-      Ai__ApiKey: ${AI_API_KEY:-}
-      Ai__Model: ${AI_MODEL:-claude-sonnet-5}
       # Aviso al storefront (por la red interna, con el nombre del servicio)
       # para que un diseño publicado o un cambio de catálogo se vea al toque.
       # Sin secreto queda apagado y la tienda vence su caché sola (30 a 60 s).

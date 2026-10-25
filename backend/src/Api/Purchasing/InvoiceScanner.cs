@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Ai.Infrastructure;
 using Api.Ai;
+using Microsoft.Extensions.AI;
 using Purchasing.Infrastructure;
 using SharedKernel.Common;
 
@@ -21,15 +24,13 @@ namespace Api.Purchasing;
 /// tres meses después. El archivo tampoco se guarda: entra, sale la propuesta,
 /// y lo que queda registrado es lo que la persona confirmó.
 /// </summary>
-public sealed class InvoiceScanner(AiClient ai, ILogger<InvoiceScanner> logger)
+public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceScanner> logger)
 {
     /// <summary>10 MB. Una factura escaneada pesa menos de 1; más que esto es una foto sin comprimir.</summary>
     public const long MaxBytes = 10 * 1024 * 1024;
 
     public static readonly string[] AllowedMediaTypes =
         ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-
-    public bool Available => ai.Configured;
 
     private const string SystemPrompt = """
         Sos un asistente que lee facturas de compra argentinas y extrae sus datos.
@@ -62,10 +63,6 @@ public sealed class InvoiceScanner(AiClient ai, ILogger<InvoiceScanner> logger)
     public async Task<Result<ScannedInvoice>> ScanAsync(
         byte[] file, string mediaType, PurchaseOrder? order, CancellationToken ct)
     {
-        if (!ai.Configured)
-            return Result.Failure<ScannedInvoice>(new Error(
-                "Ai.NotConfigured", "La lectura automática de facturas no está configurada en esta plataforma."));
-
         if (file.Length == 0)
             return Result.Failure<ScannedInvoice>(Error.Validation("Invoice.Empty", "El archivo está vacío."));
 
@@ -93,7 +90,16 @@ public sealed class InvoiceScanner(AiClient ai, ILogger<InvoiceScanner> logger)
                - Ítems: {order.Items.Count}
                """;
 
-        var response = await ai.CompleteWithFileAsync(SystemPrompt, prompt, file, mediaType, 4000, ct);
+        // El archivo primero: el modelo lee mejor la consigna sabiendo ya qué tiene delante. Los bytes
+        // viajan al proveedor y no se guardan en ningún lado.
+        var message = new ChatMessage(ChatRole.User, [new DataContent(file, mediaType), new TextContent(prompt)]);
+        var options = new AiRunOptions(EstimateInputTokens(file, mediaType) + (SystemPrompt.Length + prompt.Length) / 3);
+        var response = await gateway.RunAsync(
+            AiTask.InvoiceRead,
+            options,
+            async (run, token) =>
+                (await run.Chat.GetResponseAsync([run.System(SystemPrompt), message], run.NewOptions(), token)).Text,
+            ct);
         if (response.IsFailure) return Result.Failure<ScannedInvoice>(response.Error);
 
         var parsed = Parse(response.Value);
@@ -106,6 +112,27 @@ public sealed class InvoiceScanner(AiClient ai, ILogger<InvoiceScanner> logger)
 
         return parsed;
     }
+
+    /// <summary>
+    /// Tokens que cuesta el archivo, por lo alto (con eso se reserva el peor caso del tope; lo real se
+    /// descuenta al terminar). Un PDF cuesta unos 1500 por página: se cuentan los objetos /Type /Page
+    /// (barato, sin abrir el PDF). Si no se pueden contar (páginas dentro de flujos comprimidos) o es una
+    /// imagen, 1500 por cada 100 KB: bytes / 3 sería muy alto para un PDF, que casi todo es compresión.
+    /// </summary>
+    internal static int EstimateInputTokens(byte[] file, string mediaType)
+    {
+        const int TokensPerUnit = 1500;
+        if (mediaType == "application/pdf")
+        {
+            var pages = PdfPage().Count(System.Text.Encoding.Latin1.GetString(file));
+            if (pages > 0) return pages * TokensPerUnit;
+        }
+
+        return Math.Max(1, (int)Math.Ceiling(file.Length / 102_400d)) * TokensPerUnit;
+    }
+
+    [GeneratedRegex(@"/Type\s*/Page(?![s\w])")]
+    private static partial Regex PdfPage();
 
     /// <summary>
     /// El JSON que vuelve, tolerando que venga envuelto en un bloque de código:
