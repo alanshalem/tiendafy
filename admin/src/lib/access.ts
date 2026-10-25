@@ -44,6 +44,7 @@ export const PERMISSION_KEYS = [
   'shipping.config',
   'notifications.config',
   'store.config',
+  'ai.config',
   'members.read',
   'members.manage',
   'roles.manage',

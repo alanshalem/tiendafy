@@ -214,6 +214,7 @@ public static class ServiceRegistration
         services.AddSingleton<Api.Ai.IAiKeyProtector, Api.Ai.AiKeyProtector>();
         services.AddScoped<Api.Ai.IAiTenantConfig, Api.Ai.AiTenantConfig>();
         services.AddScoped<Api.Ai.IAiGateway, Api.Ai.AiGateway>();
+        services.AddScoped<Api.Ai.AiConfigService>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).

@@ -47,6 +47,7 @@ public enum Permission
     TenantAdmin,
     // Al final a propósito: lo que se agrega no corre el valor de los anteriores.
     ReviewsManage,
+    AiConfig,
 }
 
 /// <summary>
@@ -203,6 +204,9 @@ public static class PermissionCatalog
         new(Permission.StoreConfig, "store.config", "Configuración", "Checkout, redirecciones y medición",
             "Opciones del checkout, redirecciones de direcciones viejas y píxeles de medición.",
             [Admin]),
+        new(Permission.AiConfig, "ai.config", "Configuración", "Inteligencia artificial",
+            "Claves de los proveedores, modelos, tope mensual y consumo.",
+            [], Sensitive: true, OwnerOnly: true),
 
         // Equipo
         new(Permission.MembersRead, "members.read", "Equipo", "Ver el equipo",

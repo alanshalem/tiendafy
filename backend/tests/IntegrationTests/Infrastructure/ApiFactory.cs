@@ -17,6 +17,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Adonde va todo el HTTP saliente de la API (ver <see cref="FakeHttp"/>).</summary>
     public FakeHttp ExternalHttp { get; } = new();
 
+    /// <summary>Los modelos de IA: en vez de un proveedor real contestan lo que el test guionizó (ver <see cref="FakeAi"/>).</summary>
+    public FakeAi Ai { get; } = new();
+
     /// <summary>Con este secreto los tests firman los webhooks de Mercado Pago.</summary>
     public const string MercadoPagoWebhookSecret = "test-webhook-secret";
 
@@ -110,6 +113,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         {
             services.ConfigureAll<HttpClientFactoryOptions>(o =>
                 o.HttpMessageHandlerBuilderActions.Add(b => b.PrimaryHandler = ExternalHttp.CreateHandler()));
+
+            // Ninguna llamada a un modelo sale a un proveedor: el gateway, el medidor y el
+            // consumo son los reales y lo único falso es el cliente de chat.
+            services.RemoveAll<Api.Ai.IAiChatClientFactory>();
+            services.AddSingleton<Api.Ai.IAiChatClientFactory>(Ai);
 
             // El cliente S3 del SDK de AWS no usa IHttpClientFactory: se le da
             // uno propio que también termina en el fake. El resto (firmas,

@@ -246,7 +246,7 @@ public sealed class AiGateway(
 
     private static bool Fits(AiModelInfo model, AiTaskSpec spec) => (model.Capabilities & spec.Requires) == spec.Requires;
 
-    private enum AiFailure
+    internal enum AiFailure
     {
         /// <summary>No viene de un SDK de proveedor (un bug del cuerpo): se relanza.</summary>
         Unknown,
@@ -265,7 +265,7 @@ public sealed class AiGateway(
     /// las de adentro; si no hay, una excepción de un SDK de proveedor es una falla pasajera (nunca un
     /// 500). Si venció el tiempo de la tarea, cualquier excepción es un timeout.
     /// </summary>
-    private static AiFailure Classify(Exception ex, bool timedOut)
+    internal static AiFailure Classify(Exception ex, bool timedOut)
     {
         if (timedOut) return AiFailure.TimedOut;
         for (var e = ex; e is not null; e = e.InnerException)
