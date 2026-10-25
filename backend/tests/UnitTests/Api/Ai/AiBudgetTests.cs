@@ -9,7 +9,43 @@ public sealed class AiBudgetTests
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => now;
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    // La primera lectura responde ya; la segunda espera el portón (y devuelve lo que había en la base al arrancar).
+    private sealed class SecondReadGatedSpend : IAiMonthSpend
+    {
+        private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+        public Task Entered => _entered.Task;
+        public void Open() => _gate.SetResult();
+
+        public async Task<long> SpentThisMonthMicroUsdAsync(Guid tenantId, CancellationToken ct)
+        {
+            if (Interlocked.Increment(ref _calls) == 1) return 0;
+            _entered.TrySetResult();
+            await _gate.Task;
+            return 0; // el snapshot de la consulta no incluye lo que se informó después
+        }
+    }
+
+    [Fact]
+    public async Task AddActual_durante_la_relectura_no_se_pierde()
+    {
+        var clock = new FixedClock(new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero));
+        var spend = new SecondReadGatedSpend();
+        var budget = new AiBudget(spend, clock);
+
+        await using var r = await budget.TryReserveAsync(Tenant, 1_000, 100, CancellationToken.None);
+        clock.Now += TimeSpan.FromSeconds(31); // vence la caché
+        var committed = budget.CommittedMicroUsdAsync(Tenant, CancellationToken.None);
+        await spend.Entered;
+        r!.AddActual(50);
+        spend.Open();
+
+        Assert.Equal(150, await committed); // 50 real + 100 reservado
     }
 
     private sealed class FakeSpend(long spent) : IAiMonthSpend

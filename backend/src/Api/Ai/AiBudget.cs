@@ -107,13 +107,17 @@ public sealed class AiBudget(IAiMonthSpend spend, TimeProvider clock)
                 return state.Spent;
         }
 
+        // Lo real que se informe mientras la consulta está en vuelo puede no estar en su resultado:
+        // se cuenta desde acá y se suma al resultado (en el peor caso se cuenta dos veces un rato,
+        // lo que es conservador y se corrige en la próxima lectura).
+        lock (state) state.ActualSinceReadStart = 0;
         var fresh = await spend.SpentThisMonthMicroUsdAsync(tenantId, ct);
         lock (state)
         {
-            state.Spent = fresh;
+            state.Spent = fresh + state.ActualSinceReadStart;
             state.ReadAtUtc = now;
             state.Month = month;
-            return fresh;
+            return state.Spent;
         }
     }
 
@@ -121,6 +125,7 @@ public sealed class AiBudget(IAiMonthSpend spend, TimeProvider clock)
     {
         public SemaphoreSlim Gate { get; } = new(1, 1);
         public long Spent;
+        public long ActualSinceReadStart;
         public long Reserved;
         public DateTime? ReadAtUtc;
         public DateTime Month;
@@ -145,7 +150,11 @@ public sealed class AiReservation : IAsyncDisposable
 
     public void AddActual(long microUsd)
     {
-        lock (_state) _state.Spent += microUsd;
+        lock (_state)
+        {
+            _state.Spent += microUsd;
+            _state.ActualSinceReadStart += microUsd;
+        }
     }
 
     public ValueTask DisposeAsync()
