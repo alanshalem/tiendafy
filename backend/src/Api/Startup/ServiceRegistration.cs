@@ -200,6 +200,9 @@ public static class ServiceRegistration
         // del cliente tiene que aguantar el peor caso de un PDF escaneado.
         services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
         services.AddSingleton<Api.Ai.IAiChatClientFactory, Api.Ai.AiChatClientFactory>();
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton(services, TimeProvider.System);
+        services.AddSingleton<Api.Ai.IAiMonthSpend, Api.Ai.AiMonthSpend>();
+        services.AddSingleton<Api.Ai.AiBudget>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
