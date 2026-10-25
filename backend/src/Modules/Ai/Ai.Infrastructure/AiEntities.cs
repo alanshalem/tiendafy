@@ -111,10 +111,9 @@ public sealed class AiSettings
 
     public void Update(bool enabled, long monthlyBudgetMicroUsd, int alertThresholdPct)
     {
-        if (monthlyBudgetMicroUsd < 0)
-            throw new ArgumentOutOfRangeException(nameof(monthlyBudgetMicroUsd));
-        if (alertThresholdPct is < 1 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(alertThresholdPct));
+        ArgumentOutOfRangeException.ThrowIfNegative(monthlyBudgetMicroUsd);
+        ArgumentOutOfRangeException.ThrowIfLessThan(alertThresholdPct, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(alertThresholdPct, 100);
         Enabled = enabled;
         MonthlyBudgetMicroUsd = monthlyBudgetMicroUsd;
         AlertThresholdPct = alertThresholdPct;
