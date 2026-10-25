@@ -246,6 +246,16 @@ public sealed class AiConfigTests(ApiFactory factory)
         Assert.Contains("no es válida", bad.GetProperty("message").GetString());
         Assert.False(ProviderOf(await m.GetAsync(Config), "Anthropic").GetProperty("lastTestOk").GetBoolean());
 
+        // El log de la falla no lleva la excepción: el cuerpo de un 401 puede traer la clave enmascarada.
+        const string Leak = "Incorrect API key provided: sk-test-...a1b2";
+        factory.Ai.Throw(Haiku, new HttpRequestException(Leak, new InvalidOperationException(Leak), HttpStatusCode.Unauthorized));
+        await m.PostAsync(test, new { });
+        var logged = factory.Logs.Lines.Where(l => l.Contains("Falló la prueba de la clave")).ToList();
+        Assert.NotEmpty(logged);
+        Assert.All(logged, l => Assert.DoesNotContain("Incorrect API key", l));
+        Assert.All(logged, l => Assert.DoesNotContain("HttpRequestException", l));
+        Assert.Contains(logged, l => l.Contains("Anthropic") && l.Contains("Auth") && l.Contains("401"));
+
         // Un corte del proveedor no dice nada de la clave: no pisa el resultado anterior.
         factory.Ai.Throw(Haiku, new HttpRequestException("caído", null, HttpStatusCode.ServiceUnavailable));
         var down = await m.PostAsync(test, new { });

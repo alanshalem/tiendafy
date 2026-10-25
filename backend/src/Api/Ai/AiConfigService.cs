@@ -170,7 +170,9 @@ public sealed class AiConfigService(
         catch (Exception ex) when (!ct.IsCancellationRequested
             && (failure = AiGateway.Classify(ex, timeout.IsCancellationRequested)) != AiGateway.AiFailure.Unknown)
         {
-            loggers.CreateLogger<AiConfigService>().LogWarning(ex, "Falló la prueba de la clave de {Provider}: {Failure}.", provider, failure);
+            // Sin la excepción: el cuerpo de un 401 puede traer la clave enmascarada.
+            loggers.CreateLogger<AiConfigService>().LogWarning(
+                "Falló la prueba de la clave de {Provider}: {Failure} (HTTP {Status}).", provider, failure, AiGateway.HttpStatusOf(ex));
             if (failure != AiGateway.AiFailure.Auth)
             {
                 // Un corte o un pedido rechazado no dice nada de la clave: no pisa el último resultado.

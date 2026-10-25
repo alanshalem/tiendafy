@@ -20,6 +20,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Los modelos de IA: en vez de un proveedor real contestan lo que el test guionizó (ver <see cref="FakeAi"/>).</summary>
     public FakeAi Ai { get; } = new();
 
+    /// <summary>Lo que loguea la API, para afirmar que algo no se loguea.</summary>
+    public CapturedLogs Logs { get; } = new();
+
     /// <summary>Con este secreto los tests firman los webhooks de Mercado Pago.</summary>
     public const string MercadoPagoWebhookSecret = "test-webhook-secret";
 
@@ -116,6 +119,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
             // Ninguna llamada a un modelo sale a un proveedor: el gateway, el medidor y el
             // consumo son los reales y lo único falso es el cliente de chat.
+            var loggerFactory = services.Last(d => d.ServiceType == typeof(Microsoft.Extensions.Logging.ILoggerFactory));
+            services.Remove(loggerFactory);
+            services.AddSingleton<Microsoft.Extensions.Logging.ILoggerFactory>(sp => Logs.Tee(
+                (Microsoft.Extensions.Logging.ILoggerFactory)(loggerFactory.ImplementationFactory?.Invoke(sp)
+                    ?? loggerFactory.ImplementationInstance
+                    ?? ActivatorUtilities.CreateInstance(sp, loggerFactory.ImplementationType!))));
             services.RemoveAll<Api.Ai.IAiChatClientFactory>();
             services.AddSingleton<Api.Ai.IAiChatClientFactory>(Ai);
 

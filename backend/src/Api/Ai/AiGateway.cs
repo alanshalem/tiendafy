@@ -296,6 +296,27 @@ public sealed class AiGateway(
     }
 
     /// <summary>
+    /// Solo el número de estado HTTP, para loguear sin la excepción: el cuerpo de un 401 puede traer
+    /// la clave enmascarada. Null si no hay uno.
+    /// </summary>
+    internal static int? HttpStatusOf(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            int? status = e switch
+            {
+                AnthropicApiException a => (int)a.StatusCode,
+                Google.GenAI.ApiException { StatusCode: not 0 } g => g.StatusCode,
+                ClientResultException { Status: not 0 } c => c.Status,
+                HttpRequestException { StatusCode: { } h } => (int)h,
+                _ => null,
+            };
+            if (status is not null) return status;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Un 400 es la clave solo si el proveedor lo dice (tipo, código o mensaje): Anthropic contesta
     /// 400 "credit balance is too low" y Google 400 "API key not valid". Cualquier otro 400 es el pedido.
     /// </summary>
