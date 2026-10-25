@@ -210,6 +210,7 @@ public static class ServiceRegistration
         services.AddHttpContextAccessor();
         services.AddSingleton<Api.Ai.AiCircuitBreaker>();
         services.AddSingleton<Api.Ai.AiConcurrency>();
+        services.AddSingleton<Api.Ai.AiRateLimiter>();
         services.AddSingleton<Api.Ai.IAiKeyProtector, Api.Ai.AiKeyProtector>();
         services.AddScoped<Api.Ai.IAiTenantConfig, Api.Ai.AiTenantConfig>();
         services.AddScoped<Api.Ai.IAiGateway, Api.Ai.AiGateway>();
@@ -247,6 +248,24 @@ public static class ServiceRegistration
     }
 
     /// <summary>
+    /// El 429 de la API: Retry-After (si se sabe) y cuerpo RFC 7807 en castellano. Lo usan el
+    /// limitador global y los filtros de cupo por endpoint, para que todos respondan igual.
+    /// </summary>
+    public static IResult RateLimitExceeded(HttpContext http, TimeSpan? retryAfter)
+    {
+        if (retryAfter is { } wait)
+        {
+            http.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(wait.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return Results.Problem(
+            title: "RateLimit.Exceeded",
+            detail: "Demasiados intentos seguidos. Esperá unos minutos y probá de nuevo.",
+            statusCode: StatusCodes.Status429TooManyRequests);
+    }
+
+    /// <summary>
     /// Rate limiting: anti credential-stuffing / brute-force / spam. Particionado por IP.
     /// (En prod, UseForwardedHeaders hace que RemoteIpAddress sea la IP real del cliente.)
     /// </summary>
@@ -260,8 +279,6 @@ public static class ServiceRegistration
         var auth = configuration?.GetValue("RateLimiting:AuthPermitLimit", 10) ?? 10;
         var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
         var checkoutContact = configuration?.GetValue("RateLimiting:CheckoutContactPermitLimit", 30) ?? 30;
-        var ai = configuration?.GetValue("RateLimiting:AiPermitLimit", 30) ?? 30;
-        var aiJobs = configuration?.GetValue("RateLimiting:AiJobsPermitLimit", 5) ?? 5;
         var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
 
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
@@ -269,25 +286,6 @@ public static class ServiceRegistration
             RateLimitPartition.GetFixedWindowLimiter(
                 $"{ctx.Connection.RemoteIpAddress}:{ctx.Request.Path}",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 });
-
-        // Igual, pero por usuario logueado (sin sesión, por IP): varias personas de una misma
-        // tienda detrás de una IP no se pisan el cupo de IA.
-        static RateLimitPartition<string> PerUserPerPath(HttpContext ctx, int permitLimit) =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                $"{Api.Auth.AuthExtensions.GetUserId(ctx.User)?.ToString() ?? ctx.Connection.RemoteIpAddress?.ToString()}:{ctx.Request.Path}",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 });
-
-        // Trabajos de IA pesados: ventana de una hora, un cupo por tienda (sin tienda, por IP).
-        static RateLimitPartition<string> PerTenantPerHour(HttpContext ctx, int permitLimit)
-        {
-            var tenant = ctx.RequestServices.GetService<ITenantContext>();
-            var key = tenant is { HasTenant: true }
-                ? $"tenant:{tenant.TenantId.Value}"
-                : $"ip:{ctx.Connection.RemoteIpAddress}";
-            return RateLimitPartition.GetFixedWindowLimiter(
-                key,
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromHours(1), QueueLimit = 0 });
-        }
 
         services.AddRateLimiter(options =>
         {
@@ -299,16 +297,8 @@ public static class ServiceRegistration
             // diciendo cuándo volver a probar.
             options.OnRejected = async (context, ct) =>
             {
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-                {
-                    context.HttpContext.Response.Headers.RetryAfter =
-                        ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                }
-
-                await Results.Problem(
-                    title: "RateLimit.Exceeded",
-                    detail: "Demasiados intentos seguidos. Esperá unos minutos y probá de nuevo.",
-                    statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(context.HttpContext);
+                TimeSpan? after = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter) ? retryAfter : null;
+                await RateLimitExceeded(context.HttpContext, after).ExecuteAsync(context.HttpContext);
             };
 
             // Global: techo amplio contra agotamiento de recursos (DoS L7), por
@@ -332,11 +322,6 @@ public static class ServiceRegistration
             // comprador real lo llama varias veces (email, nombre, teléfono, el
             // aviso por WhatsApp y al pagar), y si se agota no puede pagar.
             options.AddPolicy("checkout-contact", ctx => PerIpPerPath(ctx, checkoutContact));
-
-            // IA: cada llamada cuesta plata. "ai" por usuario y ruta (30 cada 5 min);
-            // "ai-jobs" (trabajos de catálogo) por tienda, 5 por hora.
-            options.AddPolicy("ai", ctx => PerUserPerPath(ctx, ai));
-            options.AddPolicy("ai-jobs", ctx => PerTenantPerHour(ctx, aiJobs));
         });
         return services;
     }
