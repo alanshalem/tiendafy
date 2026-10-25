@@ -352,6 +352,93 @@ namespace MercadoLibre.Infrastructure.Migrations
 
                     b.ToTable("meli_orders", (string)null);
                 });
+
+            modelBuilder.Entity("MercadoLibre.Infrastructure.MeliProductAttribute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AttributeId")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("attribute_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("ValueId")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("value_id");
+
+                    b.Property<string>("ValueName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("value_name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_meli_product_attributes");
+
+                    b.HasIndex("TenantId", "ProductId", "AttributeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_meli_product_attributes_tenant_id_product_id_attribute_id");
+
+                    b.ToTable("meli_product_attributes", (string)null);
+                });
+
+            modelBuilder.Entity("MercadoLibre.Infrastructure.MeliProductCategory", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("CategoryId")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("category_name");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("TenantId", "ProductId")
+                        .HasName("pk_meli_product_categories");
+
+                    b.ToTable("meli_product_categories", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

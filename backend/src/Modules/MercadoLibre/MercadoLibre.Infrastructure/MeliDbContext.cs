@@ -18,6 +18,8 @@ public sealed class MeliDbContext : DbContext
     public DbSet<MeliOrder> Orders => Set<MeliOrder>();
     public DbSet<MeliItemLink> ItemLinks => Set<MeliItemLink>();
     public DbSet<MeliNotification> Notifications => Set<MeliNotification>();
+    public DbSet<MeliProductCategory> ProductCategories => Set<MeliProductCategory>();
+    public DbSet<MeliProductAttribute> ProductAttributes => Set<MeliProductAttribute>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +60,25 @@ public sealed class MeliDbContext : DbContext
         link.HasIndex(l => new { l.TenantId, l.VariantId });
         link.Property(l => l.MeliItemId).HasMaxLength(30);
         link.Property(l => l.MeliTitle).HasMaxLength(200);
+
+        var productCategory = modelBuilder.Entity<MeliProductCategory>();
+        productCategory.ToTable("meli_product_categories");
+        productCategory.HasKey(c => new { c.TenantId, c.ProductId });
+        productCategory.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        productCategory.Property(c => c.CategoryId).HasMaxLength(30);
+        productCategory.Property(c => c.CategoryName).HasMaxLength(200);
+        productCategory.Property(c => c.Source).HasConversion<string>().HasMaxLength(20);
+
+        var productAttribute = modelBuilder.Entity<MeliProductAttribute>();
+        productAttribute.ToTable("meli_product_attributes");
+        productAttribute.HasKey(a => a.Id);
+        productAttribute.Property(a => a.Id).ValueGeneratedNever();
+        productAttribute.HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
+        productAttribute.HasIndex(a => new { a.TenantId, a.ProductId, a.AttributeId }).IsUnique();
+        productAttribute.Property(a => a.AttributeId).HasMaxLength(60);
+        productAttribute.Property(a => a.ValueId).HasMaxLength(60);
+        productAttribute.Property(a => a.ValueName).HasMaxLength(500);
+        productAttribute.Property(a => a.Unit).HasMaxLength(20);
 
         // Inbox de webhooks: sin tenant (se resuelve por MeliUserId al procesar).
         var notification = modelBuilder.Entity<MeliNotification>();
