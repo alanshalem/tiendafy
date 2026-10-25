@@ -1,3 +1,4 @@
+using Ai.Infrastructure;
 using Analytics.Infrastructure;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Infrastructure.Persistence;
@@ -62,6 +63,7 @@ public static class DatabaseMigrator
         await MigrateAsync<MeliDbContext>(sp, logger);
         await MigrateAsync<SocialDbContext>(sp, logger);
         await MigrateAsync<ReviewsDbContext>(sp, logger);
+        await MigrateAsync<AiDbContext>(sp, logger);
 
         // Relleno de una sola vez: la migración que crea el resumen de compras
         // de los clientes lo deja en cero, y las fichas viejas mostrarían "0

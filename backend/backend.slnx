@@ -72,6 +72,9 @@
   <Folder Name="/src/Modules/Reviews/">
     <Project Path="src/Modules/Reviews/Reviews.Infrastructure/Reviews.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Ai/">
+    <Project Path="src/Modules/Ai/Ai.Infrastructure/Ai.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Finance/">
     <Project Path="src/Modules/Finance/Finance.Infrastructure/Finance.Infrastructure.csproj" />
   </Folder>

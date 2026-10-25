@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Ai.Infrastructure;
 using Analytics.Infrastructure;
 using Api.Import;
 using Api.Middleware;
@@ -76,6 +77,7 @@ public static class ServiceRegistration
         services.AddMediaModule(configuration, isProduction);
         services.AddSupportModule(configuration);
         services.AddReviewsModule(configuration);
+        services.AddAiModule(configuration);
         services.AddPurchasingModule(configuration);
         services.AddFinanceModule(configuration);
         services.AddScoped<Api.Finance.LedgerPoster>();
