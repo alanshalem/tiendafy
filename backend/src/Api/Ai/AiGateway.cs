@@ -206,7 +206,7 @@ public sealed class AiGateway(
                     case AiFailure.Auth:
                         return Result.Failure<T>(AiErrors.BadKey(model.Provider));
                     case AiFailure.Rejected:
-                        return Result.Failure<T>(AiErrors.Unavailable);
+                        return Result.Failure<T>(AiErrors.Rejected);
                     default:
                         breaker.RecordFailure(tenantId, model.Provider);
                         lastError = failure == AiFailure.TimedOut ? AiErrors.TimedOut : AiErrors.Unavailable;
@@ -248,21 +248,22 @@ public sealed class AiGateway(
 
     private enum AiFailure
     {
-        /// <summary>No es del proveedor (un bug del cuerpo): se relanza.</summary>
+        /// <summary>No viene de un SDK de proveedor (un bug del cuerpo): se relanza.</summary>
         Unknown,
-        /// <summary>429, 408, 5xx o red: pasa al respaldo y cuenta para el corte por fallas.</summary>
+        /// <summary>429, 408, 5xx, red o un error del SDK sin estado HTTP: pasa al respaldo y cuenta para el corte por fallas.</summary>
         Transient,
         /// <summary>Venció el tiempo máximo de la tarea: igual que <see cref="Transient"/>.</summary>
         TimedOut,
-        /// <summary>400, 401, 402 o 403: la clave no sirve o no tiene saldo. Sin respaldo.</summary>
+        /// <summary>401, 402, 403, o un 400 que habla de la clave o del saldo. Sin respaldo.</summary>
         Auth,
-        /// <summary>Otro 4xx: el pedido no es válido para el proveedor. Sin respaldo.</summary>
+        /// <summary>Cualquier otro 4xx (un pedido demasiado largo, por ejemplo). Sin respaldo ni corte.</summary>
         Rejected,
     }
 
     /// <summary>
-    /// Cada SDK informa el estado HTTP a su manera; se mira la excepción y las de adentro, y gana la
-    /// primera que se reconoce. Si venció el tiempo de la tarea, cualquier excepción es un timeout.
+    /// Cada SDK informa el estado HTTP a su manera. Primero se busca un estado en la excepción o en
+    /// las de adentro; si no hay, una excepción de un SDK de proveedor es una falla pasajera (nunca un
+    /// 500). Si venció el tiempo de la tarea, cualquier excepción es un timeout.
     /// </summary>
     private static AiFailure Classify(Exception ex, bool timedOut)
     {
@@ -271,26 +272,56 @@ public sealed class AiGateway(
         {
             var failure = e switch
             {
-                AnthropicApiException a => ByStatus((int)a.StatusCode),
+                AnthropicApiException a => ByStatus((int)a.StatusCode, $"{a.ErrorType} {a.ResponseBody}"),
                 AnthropicIOException => AiFailure.Transient,
-                // Status 0 (Google y OpenAI/Groq): no hubo respuesta, es una falla de red.
-                Google.GenAI.ApiException g => g.StatusCode == 0 ? AiFailure.Transient : ByStatus(g.StatusCode),
-                ClientResultException c => c.Status == 0 ? AiFailure.Transient : ByStatus(c.Status),
-                HttpRequestException h => h.StatusCode is { } status ? ByStatus((int)status) : AiFailure.Transient,
+                // Status 0 (Google y OpenAI/Groq): no hubo respuesta; lo resuelve la segunda pasada.
+                Google.GenAI.ApiException { StatusCode: not 0 } g => ByStatus(g.StatusCode, $"{g.Status} {g.Message}"),
+                ClientResultException { Status: not 0 } c => ByStatus(c.Status, $"{c.Message} {RawContent(c)}"),
+                Google.GenAI.ApiException or ClientResultException => AiFailure.Unknown,
+                HttpRequestException h => h.StatusCode is { } status ? ByStatus((int)status, h.Message) : AiFailure.Transient,
                 // Un timeout propio del HttpClient (no el de la tarea ni el del llamador).
                 TimeoutException or OperationCanceledException => AiFailure.Transient,
                 _ => AiFailure.Unknown,
             };
             if (failure != AiFailure.Unknown) return failure;
         }
+
+        // Sin estado HTTP: si es de un SDK (datos inválidos, sin respuesta), es del proveedor.
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is AnthropicException or ClientResultException or Google.GenAI.ApiException)
+                return AiFailure.Transient;
+        }
         return AiFailure.Unknown;
     }
 
-    private static AiFailure ByStatus(int status) => status switch
+    /// <summary>
+    /// Un 400 es la clave solo si el proveedor lo dice (tipo, código o mensaje): Anthropic contesta
+    /// 400 "credit balance is too low" y Google 400 "API key not valid". Cualquier otro 400 es el pedido.
+    /// </summary>
+    private static AiFailure ByStatus(int status, string detail) => status switch
     {
         (int)HttpStatusCode.TooManyRequests or (int)HttpStatusCode.RequestTimeout or >= 500 => AiFailure.Transient,
-        (int)HttpStatusCode.BadRequest or (int)HttpStatusCode.Unauthorized
-            or (int)HttpStatusCode.PaymentRequired or (int)HttpStatusCode.Forbidden => AiFailure.Auth,
+        (int)HttpStatusCode.Unauthorized or (int)HttpStatusCode.PaymentRequired or (int)HttpStatusCode.Forbidden => AiFailure.Auth,
+        (int)HttpStatusCode.BadRequest when SpeaksOfKey(detail) => AiFailure.Auth,
         _ => AiFailure.Rejected,
     };
+
+    private static readonly string[] KeyWords = ["auth", "api key", "api_key", "apikey", "billing", "credit", "balance"];
+
+    private static bool SpeaksOfKey(string detail) =>
+        KeyWords.Any(w => detail.Contains(w, StringComparison.OrdinalIgnoreCase));
+
+    private static string RawContent(ClientResultException c)
+    {
+        try
+        {
+            return c.GetRawResponse()?.Content?.ToString() ?? "";
+        }
+        catch (InvalidOperationException)
+        {
+            // El cuerpo no se bufereó: alcanza con el mensaje.
+            return "";
+        }
+    }
 }

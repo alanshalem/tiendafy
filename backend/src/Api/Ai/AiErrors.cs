@@ -31,7 +31,11 @@ public static class AiErrors
     public static readonly Error TimedOut = new(
         "Ai.TimedOut", "La inteligencia artificial tardó demasiado en responder. Probá de nuevo.", ErrorType.Unavailable);
 
-    /// <summary>400, 401 o 403 del proveedor: es configuración, no caída, y no pasa al respaldo.</summary>
+    /// <summary>El proveedor rechazó el pedido (un 4xx que no es la clave): no pasa al respaldo ni cuenta como caída.</summary>
+    public static readonly Error Rejected = Error.Conflict(
+        "Ai.Rejected", "El proveedor rechazó el pedido (por ejemplo, porque era demasiado largo).");
+
+    /// <summary>401, 402, 403, o un 400 que habla de la clave o del saldo: es configuración, no caída, y no pasa al respaldo.</summary>
     public static Error BadKey(AiProvider provider) => Error.Conflict(
         "Ai.ProviderAuth", $"La clave de {provider} no es válida o no tiene saldo.");
 

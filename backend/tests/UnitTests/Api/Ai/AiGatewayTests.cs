@@ -1,4 +1,7 @@
+using System.ClientModel;
+using System.ClientModel.Primitives;
 using System.Net;
+using System.Text;
 using Ai.Infrastructure;
 using Anthropic.Exceptions;
 using Api.Ai;
@@ -145,6 +148,10 @@ public sealed class AiGatewayTests
         private AiCircuitBreaker? _breaker;
         public AiCircuitBreaker Breaker => _breaker ??= new AiCircuitBreaker(Clock);
 
+        // Uno solo por arnés, como el singleton real: así se ve si una reserva queda sin liberar.
+        private AiBudget? _budget;
+        public AiBudget Budget => _budget ??= new AiBudget(new FixedSpend(0), Clock);
+
         public AiGateway Gateway()
         {
             var settings = new ConfigurationBuilder()
@@ -155,7 +162,7 @@ public sealed class AiGatewayTests
                 new FakeTenant(Tenant),
                 new HttpContextAccessor(),
                 Config,
-                new AiBudget(new FixedSpend(0), Clock),
+                Budget,
                 Breaker,
                 Factory,
                 Recorder,
@@ -175,6 +182,13 @@ public sealed class AiGatewayTests
 
     private static async Task<string> AskAsync(AiRunContext ctx, CancellationToken ct) =>
         (await ctx.Chat.GetResponseAsync([ctx.System("Sos un asistente."), new(ChatRole.User, "hola")], ctx.NewOptions(), ct)).Text;
+
+    /// <summary>Terminada la ejecución, lo comprometido en el tope es solo lo real: ninguna reserva quedó tomada.</summary>
+    private static async Task AssertOnlyRealSpendCommitted(Harness h)
+    {
+        var real = h.Recorder.Entries.Sum(e => e.CostMicroUsd ?? 0);
+        Assert.Equal(real, await h.Budget.CommittedMicroUsdAsync(Tenant, default));
+    }
 
     private static HttpRequestException Http(HttpStatusCode status) => new HttpRequestException("falla", null, status);
 
@@ -259,6 +273,37 @@ public sealed class AiGatewayTests
     // ---- Respaldo y corte por fallas ----
 
     [Fact]
+    public async Task Un_exito_deja_comprometido_solo_lo_real()
+    {
+        var h = new Harness().Assign(AiTask.ShortText, Sonnet);
+        h.Factory.Clients[Sonnet] = new FakeChatClient(Reply("hola"));
+
+        var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, AskAsync, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(h.Recorder.Entries.Sum(e => e.CostMicroUsd ?? 0) > 0);
+        await AssertOnlyRealSpendCommitted(h);
+    }
+
+    [Fact]
+    public async Task Con_tope_para_un_solo_peor_caso_el_respaldo_igual_puede_reservar()
+    {
+        var spec = AiTaskSpecs.For(AiTask.ShortText);
+        var h = new Harness().Assign(AiTask.ShortText, Sonnet, Sol);
+        // Entra exactamente un peor caso (el mayor de los dos modelos), no dos.
+        h.Config.BudgetMicroUsd = Math.Max(
+            AiCost.WorstCaseMicroUsd(AiModelCatalog.Find(Sonnet)!, spec, Small.EstimatedInputTokens),
+            AiCost.WorstCaseMicroUsd(AiModelCatalog.Find(Sol)!, spec, Small.EstimatedInputTokens));
+        h.Factory.Clients[Sonnet] = new ThrowingClient(() => Http(HttpStatusCode.ServiceUnavailable));
+        h.Factory.Clients[Sol] = new FakeChatClient(Reply("desde el respaldo"));
+
+        var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, AskAsync, default);
+
+        Assert.Equal("desde el respaldo", result.Value);
+        await AssertOnlyRealSpendCommitted(h);
+    }
+
+    [Fact]
     public async Task _503_del_principal_usa_el_respaldo_una_vez()
     {
         var h = new Harness().Assign(AiTask.ShortText, Sonnet, Sol);
@@ -280,6 +325,7 @@ public sealed class AiGatewayTests
         // Cada cliente que arma el gateway se libera al terminar.
         Assert.Equal([Sonnet, Sol], h.Factory.Created);
         Assert.All(h.Factory.Built, c => Assert.True(c.Disposed));
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     [Fact]
@@ -297,6 +343,7 @@ public sealed class AiGatewayTests
         Assert.Empty(fallback.Calls);
         Assert.DoesNotContain(Sol, h.Factory.Created);
         Assert.All(h.Factory.Built, c => Assert.True(c.Disposed));
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     [Fact]
@@ -360,6 +407,7 @@ public sealed class AiGatewayTests
         Assert.Equal("Ai.TimedOut", result.Error.Code);
         Assert.Equal(ErrorType.Unavailable, result.Error.Type);
         Assert.All(h.Factory.Built, c => Assert.True(c.Disposed));
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     [Fact]
@@ -381,6 +429,7 @@ public sealed class AiGatewayTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run.WaitAsync(TimeSpan.FromSeconds(10)));
         Assert.DoesNotContain(Sol, h.Factory.Created);
         Assert.False(h.Breaker.IsOpen(Tenant, AiProvider.Anthropic));
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     public static TheoryData<string, string> SdkErrors() => new()
@@ -392,8 +441,19 @@ public sealed class AiGatewayTests
         { "google-403", "Ai.ProviderAuth" },
         { "anthropic-401", "Ai.ProviderAuth" },
         { "anthropic-red", "Ok" },
+        { "google-400-clave", "Ai.ProviderAuth" },
+        { "google-400-otro", "Ai.Rejected" },
+        { "anthropic-400-saldo", "Ai.ProviderAuth" },
+        { "anthropic-400-largo", "Ai.Rejected" },
+        { "anthropic-datos-invalidos", "Ok" },
+        { "openai-401", "Ai.ProviderAuth" },
+        { "openai-429", "Ok" },
+        { "openai-500", "Ok" },
+        { "openai-400-clave", "Ai.ProviderAuth" },
+        { "openai-400-otro", "Ai.Rejected" },
+        { "openai-sin-respuesta", "Ok" },
         { "http-sin-estado", "Ok" },
-        { "http-404", "Ai.Unavailable" },
+        { "http-404", "Ai.Rejected" },
         { "timeout-del-httpclient", "Ok" },
     };
 
@@ -409,11 +469,74 @@ public sealed class AiGatewayTests
             ResponseBody = "",
         },
         "anthropic-red" => new AnthropicIOException("red", new HttpRequestException("red")),
+        "google-400-clave" => new Google.GenAI.ClientError("API key not valid. Please pass a valid API key.", 400, "INVALID_ARGUMENT", null),
+        "google-400-otro" => new Google.GenAI.ClientError("The input token count exceeds the maximum.", 400, "INVALID_ARGUMENT", null),
+        "anthropic-400-saldo" => new AnthropicBadRequestException(new HttpRequestException("400"))
+        {
+            StatusCode = HttpStatusCode.BadRequest,
+            ErrorType = Anthropic.Models.ErrorType.InvalidRequestError,
+            ResponseBody = """{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}""",
+        },
+        "anthropic-400-largo" => new AnthropicBadRequestException(new HttpRequestException("400"))
+        {
+            StatusCode = HttpStatusCode.BadRequest,
+            ErrorType = Anthropic.Models.ErrorType.InvalidRequestError,
+            ResponseBody = """{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 250000 tokens > 200000 maximum"}}""",
+        },
+        "anthropic-datos-invalidos" => new AnthropicInvalidDataException("respuesta ilegible", new FormatException()),
+        "openai-401" => OpenAi(401, """{"error":{"code":"invalid_api_key"}}"""),
+        "openai-429" => OpenAi(429, """{"error":{"code":"rate_limit_exceeded"}}"""),
+        "openai-500" => OpenAi(500, """{"error":{"code":"server_error"}}"""),
+        "openai-400-clave" => OpenAi(400, """{"error":{"message":"Incorrect API key provided.","code":"invalid_api_key"}}"""),
+        "openai-400-otro" => OpenAi(400, """{"error":{"message":"This model's maximum context length is 128000 tokens.","code":"context_length_exceeded"}}"""),
+        "openai-sin-respuesta" => new ClientResultException("sin respuesta", null, new HttpRequestException("red")),
         "http-sin-estado" => new HttpRequestException("red"),
         "http-404" => Http(HttpStatusCode.NotFound),
         "timeout-del-httpclient" => new TaskCanceledException("timeout", new TimeoutException()),
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
+
+    /// <summary>La excepción de estado de OpenAI y Groq, con la respuesta como la arma el SDK.</summary>
+    private static ClientResultException OpenAi(int status, string body) =>
+        new($"HTTP {status}", new FakeResponse(status, body));
+
+    private sealed class FakeResponse(int status, string body) : PipelineResponse
+    {
+        private Stream? _stream = new MemoryStream(Encoding.UTF8.GetBytes(body));
+
+        public override int Status => status;
+        public override string ReasonPhrase => "";
+        protected override PipelineResponseHeaders HeadersCore { get; } = new NoHeaders();
+
+        public override Stream? ContentStream
+        {
+            get => _stream;
+            set => _stream = value;
+        }
+
+        public override BinaryData Content => BinaryData.FromString(body);
+        public override BinaryData BufferContent(CancellationToken cancellationToken = default) => Content;
+        public override ValueTask<BinaryData> BufferContentAsync(CancellationToken cancellationToken = default) => new(Content);
+        public override void Dispose() => _stream?.Dispose();
+    }
+
+    private sealed class NoHeaders : PipelineResponseHeaders
+    {
+        public override bool TryGetValue(string name, out string? value)
+        {
+            value = null;
+            return false;
+        }
+
+        public override bool TryGetValues(string name, out IEnumerable<string>? values)
+        {
+            values = null;
+            return false;
+        }
+
+        public override IEnumerator<KeyValuePair<string, string>> GetEnumerator() =>
+            Enumerable.Empty<KeyValuePair<string, string>>().GetEnumerator();
+    }
 
     [Theory]
     [MemberData(nameof(SdkErrors))]
@@ -426,6 +549,9 @@ public sealed class AiGatewayTests
         var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, AskAsync, default);
 
         Assert.Equal(expected, result.IsSuccess ? "Ok" : result.Error.Code);
+        // Lo que no es una caída del proveedor no pasa al respaldo.
+        if (expected != "Ok") Assert.DoesNotContain(Sol, h.Factory.Created);
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     [Fact]
@@ -440,6 +566,7 @@ public sealed class AiGatewayTests
 
         Assert.Equal([Sonnet], h.Factory.Created);
         Assert.All(h.Factory.Built, c => Assert.True(c.Disposed));
+        await AssertOnlyRealSpendCommitted(h);
     }
 
     [Fact]
@@ -451,6 +578,7 @@ public sealed class AiGatewayTests
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.Disabled));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.NotConfigured));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.Busy));
+        Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.Rejected));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.BadKey(AiProvider.OpenAI)));
 
         static int? Status(Error error) => Assert.IsType<ProblemHttpResult>(error.ToProblem()).StatusCode;
@@ -524,5 +652,19 @@ public sealed class AiGatewayTests
         Assert.Null(claude.Temperature);
         Assert.Equal(AiTaskSpecs.For(AiTask.CatalogWrite).MaxOutputTokens, openAi.MaxOutputTokens);
         Assert.Null(openAi.Reasoning);
+    }
+
+    [Fact]
+    public async Task AiRunContexts_arma_un_contexto_para_probar_un_cuerpo()
+    {
+        var model = new FakeChatClient(Reply("listo"));
+        var ctx = AiRunContexts.For(model, AiTask.QuestionDraft);
+
+        var response = await ctx.WithTools().GetResponseAsync([ctx.System("fijo"), new(ChatRole.User, "hola")], ctx.NewOptions());
+
+        Assert.Equal("listo", response.Text);
+        Assert.Equal(AiTask.QuestionDraft, ctx.Spec.Task);
+        Assert.Equal(Sonnet, ctx.Model.Id);
+        Assert.Single(model.Calls);
     }
 }
