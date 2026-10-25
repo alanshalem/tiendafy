@@ -58,6 +58,18 @@ public static class AiConfigEndpoints
             return result.IsFailure ? result.Error.ToProblem() : Results.NoContent();
         });
 
+        // Escribe en otras tiendas: solo hacia las del dueño, todo o nada.
+        config.MapPost("/copy", async (AiCopyRequest request, HttpContext http, IMembershipService memberships,
+            AiConfigService service, CancellationToken ct) =>
+        {
+            var userId = http.User.GetUserId();
+            if (userId is null) return AuthExtensions.NotAMember();
+            var owned = (await memberships.OwnedTenantIdsAsync(userId.Value, ct)).ToHashSet();
+            var result = await service.CopyAsync(owned, request, ct);
+            if (result.IsSuccess) return Results.Ok(new AiCopyResult(result.Value));
+            return result.Error.Code == AiConfigService.CopyForbiddenCode ? AuthExtensions.NotAMember() : result.Error.ToProblem();
+        });
+
         return group;
     }
 

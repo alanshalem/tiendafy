@@ -25,6 +25,10 @@ public sealed record AiConfigDto(
 
 public sealed record AiAssignmentItem(string? Task, string? PrimaryModel, string? FallbackModel);
 
+public sealed record AiCopyRequest(List<Guid>? TargetTenantIds, bool Keys, bool Models, bool Budget);
+
+public sealed record AiCopyResult(Guid[] Copied);
+
 public sealed record AiTestResult(bool Ok, string Message);
 
 /// <summary>
@@ -243,6 +247,89 @@ public sealed class AiConfigService(
         if (!providers.Contains(model.Provider))
             return Error.Validation("Ai.ModelWithoutKey", $"Cargá primero la clave de {model.Provider} para usar {model.Label}.");
         return null;
+    }
+
+    /// <summary>Código del error cuando algún destino no es una tienda de la persona (el endpoint lo traduce a 403).</summary>
+    public const string CopyForbiddenCode = "Ai.CopyForbidden";
+
+    /// <summary>
+    /// Copia lo elegido de esta tienda a otras del mismo dueño. Todo o nada: se valida cada destino antes de
+    /// escribir y se guarda en un único SaveChanges (una transacción). Pisa lo que el destino tenía. Las
+    /// asignaciones se copian tal cual aunque el destino no tenga la clave del proveedor (sin <c>keys</c>):
+    /// el gateway las informa entonces como no disponibles ("Falta la clave de …"). La clave se descifra y se
+    /// vuelve a cifrar con el mismo purpose; el resultado de su prueba no viaja. Cruza tiendas: ignora el
+    /// filtro y acota a mano por los destinos ya validados contra <paramref name="owned"/>.
+    /// </summary>
+    public async Task<Result<Guid[]>> CopyAsync(IReadOnlySet<Guid> owned, AiCopyRequest request, CancellationToken ct)
+    {
+        var targets = (request.TargetTenantIds ?? []).Distinct().ToList();
+        if (targets.Count == 0)
+            return Result.Failure<Guid[]>(Error.Validation("Ai.CopyNoTargets", "Elegí al menos una tienda."));
+        if (!request.Keys && !request.Models && !request.Budget)
+            return Result.Failure<Guid[]>(Error.Validation("Ai.CopyNothing", "Elegí qué querés copiar."));
+        if (targets.Any(t => !owned.Contains(t)))
+            return Result.Failure<Guid[]>(new Error(CopyForbiddenCode, "No tenés acceso a esa tienda."));
+        if (targets.Contains(TenantId))
+            return Result.Failure<Guid[]>(Error.Validation("Ai.CopySelf", "No se puede copiar a la misma tienda."));
+
+        if (request.Keys)
+        {
+            var credentials = await db.Credentials.AsNoTracking().Where(c => c.TenantId == TenantId).ToListAsync(ct);
+            var existing = await db.Credentials.IgnoreQueryFilters()
+                .Where(c => targets.Contains(c.TenantId)).ToListAsync(ct);
+            foreach (var source in credentials)
+            {
+                string plain;
+                try { plain = keys.Unprotect(source.KeyEncrypted); }
+                catch (System.Security.Cryptography.CryptographicException)
+                {
+                    return Result.Failure<Guid[]>(Error.Conflict("Ai.KeyUnreadable",
+                        $"No pudimos leer la clave de {source.Provider}. Volvé a cargarla y probá de nuevo."));
+                }
+                foreach (var target in targets)
+                {
+                    var encrypted = keys.Protect(plain);
+                    if (existing.FirstOrDefault(c => c.TenantId == target && c.Provider == source.Provider) is { } current)
+                        current.ReplaceKey(encrypted, source.Last4);
+                    else db.Credentials.Add(AiProviderCredential.Create(target, source.Provider, encrypted, source.Last4));
+                }
+            }
+        }
+
+        if (request.Models)
+        {
+            var assignments = await db.Assignments.AsNoTracking().Where(a => a.TenantId == TenantId).ToListAsync(ct);
+            var existing = await db.Assignments.IgnoreQueryFilters()
+                .Where(a => targets.Contains(a.TenantId)).ToListAsync(ct);
+            foreach (var source in assignments)
+                foreach (var target in targets)
+                {
+                    if (existing.FirstOrDefault(a => a.TenantId == target && a.Task == source.Task) is { } current)
+                        current.Set(source.PrimaryModel, source.FallbackModel);
+                    else db.Assignments.Add(AiTaskAssignment.Create(target, source.Task, source.PrimaryModel, source.FallbackModel));
+                }
+        }
+
+        if (request.Budget)
+        {
+            var source = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.TenantId == TenantId, ct)
+                ?? AiSettings.CreateDefault(TenantId);
+            var existing = await db.Settings.IgnoreQueryFilters()
+                .Where(s => targets.Contains(s.TenantId)).ToListAsync(ct);
+            foreach (var target in targets)
+            {
+                var settings = existing.FirstOrDefault(s => s.TenantId == target);
+                if (settings is null)
+                {
+                    settings = AiSettings.CreateDefault(target);
+                    db.Settings.Add(settings);
+                }
+                settings.Update(source.Enabled, source.MonthlyBudgetMicroUsd, source.AlertThresholdPct);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return targets.ToArray();
     }
 
     public async Task<Result> SaveSettingsAsync(bool enabled, decimal monthlyBudgetUsd, int alertThresholdPct, CancellationToken ct)
