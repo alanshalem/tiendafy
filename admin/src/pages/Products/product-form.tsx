@@ -4,7 +4,7 @@ import { FormField, Input, Textarea, useToast, Spinner, SearchInput } from '@tie
 import { api, errMsg } from '../../lib/api';
 import { foldText } from '../../lib/text';
 import { useCategories } from '../../lib/useCategories';
-import { useAiEnabled } from '../../lib/useAi';
+import { useAiTask } from '../../lib/useAi';
 import { Section } from './FormSection';
 import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
 import type { Category } from './types';
@@ -37,13 +37,14 @@ export function DetailsSection({
   error?: string;
 }) {
   const { toast } = useToast();
-  const aiEnabled = useAiEnabled();
+  const aiShortText = useAiTask('ShortText');
   const [aiWriting, setAiWriting] = useState(false);
 
   const writeWithAi = async () => {
     setAiWriting(true);
     try {
-      const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
+      const r = await api.post<{ text: string }>('/api/v1/ai/short-text', {
+        kind: 'product-description',
         name,
         notes: description || null,
       });
@@ -67,13 +68,16 @@ export function DetailsSection({
           <FormField label="Descripción" hint="Contale a tus clientes qué hace especial a este producto">
             <Textarea value={description} onChange={(e) => onDescription(e.target.value)} rows={5} />
           </FormField>
-          {aiEnabled && name.trim().length > 2 && (
+          {aiShortText.visible && name.trim().length > 2 && (
             <button
               type="button"
-              disabled={aiWriting}
+              disabled={aiWriting || !aiShortText.available}
               onClick={writeWithAi}
               className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-              title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
+              title={
+                aiShortText.reason ??
+                'Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya'
+              }
             >
               {aiWriting ? <Spinner inline size={12} /> : <Sparkles className="h-3 w-3" />}
               Escribir con IA

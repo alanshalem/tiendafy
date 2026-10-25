@@ -256,7 +256,7 @@ describe('chat posventa: el hilo', () => {
 
   it('la IA sugiere un borrador a partir del último mensaje del cliente', async () => {
     const { api, user } = await openChat((a) => {
-      a.on('GET', '/api/v1/ai/status', { enabled: true });
+      a.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'QuestionDraft', available: true, reason: null }] });
       a.on('POST', '/api/v1/ai/support-reply', { detail: 'La IA está saturada.' }, 503);
     });
     const box = await openThread(user);

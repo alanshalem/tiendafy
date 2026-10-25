@@ -89,7 +89,7 @@ describe('compositor de redes', () => {
   it('se puede tocar todo sin romperlo (y editar un post existente)', { timeout: 60_000 }, async () => {
     const api = mockApi();
     // La IA no está en las fixtures (necesita una clave): su contrato es { text }.
-    api.on('POST', '/api/v1/ai/social-post', { text: 'Texto mejorado' });
+    api.on('POST', '/api/v1/ai/short-text', { text: 'Texto mejorado' });
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const existing = {
       id: '88888888-0000-0000-0000-000000000000',
@@ -335,8 +335,8 @@ describe('compositor de redes: reglas y acciones', () => {
 
   it('mejorar con IA reescribe el borrador; si falla, lo dice', async () => {
     const api = mockApi();
-    api.on('GET', '/api/v1/ai/status', { enabled: true });
-    api.on('POST', '/api/v1/ai/social-post', { detail: 'La IA está saturada.' }, 503);
+    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'ShortText', available: true, reason: null }] });
+    api.on('POST', '/api/v1/ai/short-text', { detail: 'La IA está saturada.' }, 503);
     const user = setup();
     open();
     const d = await dialog();
@@ -346,7 +346,7 @@ describe('compositor de redes: reglas y acciones', () => {
     await user.click(await d.findByRole('button', { name: /Mejorar con IA/ }));
     expect(await screen.findByText('La IA está saturada.')).toBeInTheDocument();
 
-    api.on('POST', '/api/v1/ai/social-post', { text: 'Llegaron las remeras nuevas' });
+    api.on('POST', '/api/v1/ai/short-text', { text: 'Llegaron las remeras nuevas' });
     await user.click(d.getByRole('button', { name: /Mejorar con IA/ }));
     await waitFor(() => expect(text(d).value).toBe('Llegaron las remeras nuevas'));
   });

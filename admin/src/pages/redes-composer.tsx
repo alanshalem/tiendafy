@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Modal, Spinner, Textarea, cn, useToast, SearchInput } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
-import { useAiEnabled } from '../lib/useAi';
+import { useAiTask } from '../lib/useAi';
 import { storePublicUrl } from '../lib/storefront';
 import { useProductSearch } from '../lib/useProductSearch';
 import { CouponPicker } from '../components/CouponPicker';
@@ -88,7 +88,7 @@ export function ComposerModal({
   const dirty = JSON.stringify(draft) !== opened;
   const cancel = useGuardedClose(dirty, onClose);
   useBeforeUnload(dirty);
-  const aiEnabled = useAiEnabled();
+  const aiShortText = useAiTask('ShortText');
   const [improving, setImproving] = useState(false);
 
   // Cupón para medir ventas del post (misma atribución que campañas). Solo se
@@ -182,7 +182,10 @@ export function ComposerModal({
   const improveWithAi = async () => {
     setImproving(true);
     try {
-      const r = await api.post<{ text: string }>('/api/v1/ai/social-post', { draft: content });
+      const r = await api.post<{ text: string }>('/api/v1/ai/short-text', {
+        kind: 'social-post',
+        draft: content,
+      });
       setContent(r.text);
     } catch (err) {
       toast(errMsg(err, 'La IA no pudo mejorar el texto.'), { variant: 'error' });
@@ -277,13 +280,16 @@ export function ComposerModal({
                   <label htmlFor={textId} className="text-sm font-medium text-fg">
                     Texto
                   </label>
-                  {aiEnabled && content.trim().length > 0 && (
+                  {aiShortText.visible && content.trim().length > 0 && (
                     <button
                       type="button"
                       onClick={improveWithAi}
-                      disabled={improving}
+                      disabled={improving || !aiShortText.available}
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                      title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
+                      title={
+                        aiShortText.reason ??
+                        'Reescribe el borrador con tono vendedor (conserva link y cupón)'
+                      }
                     >
                       {improving ? <Spinner inline size={12} /> : <Sparkles className="h-3 w-3" />}
                       Mejorar con IA

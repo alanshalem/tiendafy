@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { ExternalLink, ImageOff, Sparkles } from 'lucide-react';
 import { Button, EmptyList, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { useAiEnabled } from '../lib/useAi';
+import { useAiTask } from '../lib/useAi';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { useServerLoad } from '../lib/useServerLoad';
 import { useListParams } from '../lib/useListParams';
@@ -48,7 +48,7 @@ export function PreguntasTab() {
   const setSoloSinResponder = (only: boolean) => list.set({ preguntas: only ? 'sin-responder' : 'todas' });
   const [questions, setQuestions] = useState<MeliQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const aiEnabled = useAiEnabled();
+  const aiDraft = useAiTask('QuestionDraft');
   const [suggesting, setSuggesting] = useState<number | null>(null);
   const [sendingId, setSendingId] = useState<number | null>(null);
 
@@ -144,7 +144,8 @@ export function PreguntasTab() {
                   onChange={(text) => setAnswers((a) => ({ ...a, [q.id]: text }))}
                   onSend={() => answer(q)}
                   sending={sendingId === q.id}
-                  onSuggest={aiEnabled ? () => suggest(q) : null}
+                  onSuggest={aiDraft.visible ? () => suggest(q) : null}
+                  suggestOff={aiDraft.available ? null : aiDraft.reason}
                   suggesting={suggesting === q.id}
                 />
               )}
@@ -224,6 +225,7 @@ function AnswerBox({
   onSend,
   sending,
   onSuggest,
+  suggestOff,
   suggesting,
 }: {
   question: MeliQuestion;
@@ -232,6 +234,8 @@ function AnswerBox({
   onSend: () => void;
   sending: boolean;
   onSuggest: (() => void) | null;
+  /** El motivo por el que la IA no está disponible ahora (deshabilita el botón); null si anda. */
+  suggestOff: string | null;
   suggesting: boolean;
 }) {
   const hintId = useId();
@@ -256,8 +260,8 @@ function AnswerBox({
           <Button
             variant="secondary"
             onClick={onSuggest}
-            disabled={suggesting}
-            title="Sugerir una respuesta con IA (después la editás)"
+            disabled={suggesting || suggestOff !== null}
+            title={suggestOff ?? 'Sugerir una respuesta con IA (después la editás)'}
           >
             {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
           </Button>

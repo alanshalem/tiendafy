@@ -24,6 +24,10 @@ export const qk = {
   tenants: () => ['tenants'] as const,
   tenantsPage: (page: number, q: string) => ['tenants', 'pagina', page, q] as const,
 
+  /* ---------- Inteligencia artificial ---------- */
+  /** Qué tareas de IA puede usar esta persona en esta tienda (disponibilidad y motivo). */
+  aiStatus: (store: StoreId) => ['ai-status', store] as const,
+
   /* ---------- Catálogo ---------- */
   categories: (store: StoreId) => ['categories', store] as const,
   products: (store: StoreId) => ['products', store] as const,

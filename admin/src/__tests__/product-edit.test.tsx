@@ -403,15 +403,30 @@ describe('editar producto', () => {
 
   it('escribir la descripción con IA (y si falla, avisa)', async () => {
     const api = mockApi();
-    api.on('GET', '/api/v1/ai/status', { enabled: true });
-    api.on('POST', '/api/v1/ai/product-description', { text: 'Mancuerna de hierro fundido.' });
+    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'ShortText', available: true, reason: null }] });
+    api.on('POST', '/api/v1/ai/short-text', { text: 'Mancuerna de hierro fundido.' });
     const user = await open(api);
     await user.click(screen.getByRole('button', { name: /Escribir con IA/ }));
     await settle(2);
     expect(screen.getByDisplayValue('Mancuerna de hierro fundido.')).toBeInTheDocument();
 
-    api.on('POST', '/api/v1/ai/product-description', {}, 503);
+    api.on('POST', '/api/v1/ai/short-text', {}, 503);
     await user.click(screen.getByRole('button', { name: /Escribir con IA/ }));
     expect(await screen.findByText(/no pudo|failed|status 503/i)).toBeInTheDocument();
+  });
+
+  it('con la IA sin presupuesto, el botón queda deshabilitado y dice el motivo', async () => {
+    const api = mockApi();
+    const reason = 'Se agotó el presupuesto de IA de este mes.';
+    api.on('GET', '/api/v1/ai/status', {
+      tasks: [
+        { task: 'ShortText', available: false, reason },
+        { task: 'QuestionDraft', available: true, reason: null },
+      ],
+    });
+    await open(api);
+    const button = await screen.findByRole('button', { name: /Escribir con IA/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', reason);
   });
 });

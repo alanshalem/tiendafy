@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Archive, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast, Spinner, PageHeader, Button } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { useAiEnabled } from '../lib/useAi';
+import { useAiTask } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
 import { LoadError } from '../components/LoadError';
 import { HelpLink } from '../components/HelpLink';
@@ -95,7 +95,7 @@ export function SupportChatPage() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const aiEnabled = useAiEnabled();
+  const aiDraft = useAiTask('QuestionDraft');
   const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -541,12 +541,12 @@ export function SupportChatPage() {
                   placeholder="Respondé al cliente…"
                   className="h-10 flex-1 rounded-full border border-border-strong bg-surface px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                {aiEnabled && (
+                {aiDraft.visible && (
                   <button
                     type="button"
                     onClick={suggestReply}
-                    disabled={suggesting}
-                    title="Sugerir una respuesta con IA (después la editás)"
+                    disabled={suggesting || !aiDraft.available}
+                    title={aiDraft.reason ?? 'Sugerir una respuesta con IA (después la editás)'}
                     className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
                     aria-label="Sugerir con IA"
                   >

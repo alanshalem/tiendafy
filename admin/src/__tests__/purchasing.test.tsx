@@ -22,8 +22,11 @@ interface Po {
 const po = fixture<Po>('/api/v1/purchasing/purchase-orders/:id');
 const supplier = fixture<{ items: { id: string; name: string }[] }>('/api/v1/suppliers').items[0]!;
 
-async function openPo(patch: Partial<Po> = {}) {
+/** `ai`: la IA lee facturas en esta tienda (el estado se pide al abrir la orden, antes de dibujarla). */
+async function openPo(patch: Partial<Po> = {}, ai = false) {
   const api = mockApi();
+  if (ai)
+    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'InvoiceRead', available: true, reason: null }] });
   api.on('GET', `/api/v1/purchasing/purchase-orders/${po.id}`, { ...po, ...patch });
   api.on('GET', '/api/v1/purchasing/purchase-orders', {
     items: [{ ...po, ...patch, totalFob: 1, items: po.items.length, units: 3, leadTimeDays: 50 }],
@@ -252,8 +255,7 @@ describe('compras: factura del proveedor', () => {
   });
 
   it('la IA lee la factura escaneada, se revisa y se usa', async () => {
-    const { api, user } = await openPo({ status: 'RECEIVED' });
-    api.on('GET', '/api/v1/ai/status', { enabled: true });
+    const { api, user } = await openPo({ status: 'RECEIVED' }, true);
     api.on('POST', `/api/v1/purchasing/purchase-orders/${po.id}/invoice/scan`, {
       supplierName: 'Shenzhen Trading Co.',
       supplierTaxId: '30711111119',
@@ -285,8 +287,7 @@ describe('compras: factura del proveedor', () => {
   });
 
   it('un escaneo de más de 10 MB se rechaza antes de subirlo', async () => {
-    const { api, user } = await openPo({ status: 'RECEIVED' });
-    api.on('GET', '/api/v1/ai/status', { enabled: true });
+    const { api, user } = await openPo({ status: 'RECEIVED' }, true);
     renderApp('/compras');
     const input = await waitFor(() => document.querySelector<HTMLInputElement>('input[type=file]')!);
     const huge = new File(['x'], 'enorme.pdf', { type: 'application/pdf' });

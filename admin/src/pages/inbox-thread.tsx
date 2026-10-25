@@ -18,7 +18,7 @@ import { Badge, Button, cn, Select, Textarea, useToast, Spinner } from '@tiendaf
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
-import { useAiEnabled } from '../lib/useAi';
+import { useAiTask } from '../lib/useAi';
 import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { ERROR_SHOWN } from '../components/LoadError';
@@ -512,7 +512,7 @@ function replySpec(thread: InboxThread): {
 function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const aiEnabled = useAiEnabled();
+  const aiDraft = useAiTask('QuestionDraft');
   // Un borrador por conversación: cambiar de hilo no arrastra lo escrito.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -594,13 +594,13 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
           {spec.hint}
           {spec.max !== undefined && ` · ${text.length}/${spec.max}`}
         </span>
-        {aiEnabled && (thread.channel === 'ml-pregunta' || thread.channel === 'posventa') && (
+        {aiDraft.visible && (thread.channel === 'ml-pregunta' || thread.channel === 'posventa') && (
           <Button
             size="sm"
             variant="secondary"
             onClick={suggest}
-            disabled={suggesting}
-            title="Sugerir una respuesta con IA (después la editás)"
+            disabled={suggesting || !aiDraft.available}
+            title={aiDraft.reason ?? 'Sugerir una respuesta con IA (después la editás)'}
             aria-label="Sugerir con IA"
           >
             {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}

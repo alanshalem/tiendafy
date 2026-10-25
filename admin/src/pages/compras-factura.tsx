@@ -7,7 +7,7 @@ import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { parseMoneyInput } from '../lib/price';
-import { useAiEnabled } from '../lib/useAi';
+import { useAiTask } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
 import { CONFIDENCE_TONE } from './compras-tipos';
 import { UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
@@ -71,7 +71,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
   const { store } = useStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const aiEnabled = useAiEnabled();
+  const aiInvoice = useAiTask('InvoiceRead');
   const [taxId, setTaxId] = useState(po.supplierTaxId ?? '');
   const [type, setType] = useState(po.invoiceType ?? '');
   const [number, setNumber] = useState(po.invoiceNumber ?? '');
@@ -113,7 +113,13 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
             misma pantalla.
           </p>
         </div>
-        {aiEnabled && <InvoiceScanButton poId={po.id} onScanned={setScan} />}
+        {aiInvoice.visible && (
+          <InvoiceScanButton
+            poId={po.id}
+            onScanned={setScan}
+            offReason={aiInvoice.available ? null : aiInvoice.reason}
+          />
+        )}
       </div>
 
       {scan && (
@@ -175,7 +181,16 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
 
 // ------------------------------------------------ Lectura de la factura
 
-function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan: ScannedInvoice) => void }) {
+function InvoiceScanButton({
+  poId,
+  onScanned,
+  offReason,
+}: {
+  poId: string;
+  onScanned: (scan: ScannedInvoice) => void;
+  /** El motivo por el que la IA no está disponible ahora (deshabilita el botón); null si anda. */
+  offReason: string | null;
+}) {
   // Lo que no sirve (otro formato, más de 10 MB) se rechaza antes de mandarlo.
   const scans = useUploadQueue('invoiceScan', (file, progress) => {
     const form = new FormData();
@@ -200,8 +215,8 @@ function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan
       <Button
         variant="secondary"
         onClick={picker.open}
-        disabled={scans.busy}
-        title={`${spec.formats} · ${spec.weight}`}
+        disabled={scans.busy || offReason !== null}
+        title={offReason ?? `${spec.formats} · ${spec.weight}`}
       >
         {current ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
         {!current
