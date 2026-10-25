@@ -84,8 +84,11 @@ public static class AiRateLimitExtensions
         var userId = http.User.GetUserId();
         if (userId is null) return Results.Unauthorized();
 
+        // El patrón de la ruta y no el path: en /purchase-orders/{id}/invoice/scan cada orden tendría
+        // su propio cupo y el límite no protegería nada.
+        var route = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? http.Request.Path.ToString();
         var key = kind == AiRateLimitKind.PerUser
-            ? $"{userId}:{http.Request.Path}"
+            ? $"{userId}:{route}"
             : tenant.TenantId.Value.ToString();
 
         var (allowed, retryAfter) = http.RequestServices.GetRequiredService<AiRateLimiter>().TryAcquire(kind, key);
