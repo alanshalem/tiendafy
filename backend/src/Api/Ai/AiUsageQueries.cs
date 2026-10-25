@@ -45,7 +45,8 @@ public sealed class AiUsageQueries(
     {
         var budget = await db.Settings.AsNoTracking().Where(s => s.TenantId == tenantId)
             .Select(s => s.MonthlyBudgetMicroUsd).FirstOrDefaultAsync(ct);
-        return await BuildAsync("store", anyDay, [tenantId], budget, stores: null, ct);
+        // Con el filtro de tienda del contexto puesto: acá no se cruza nada.
+        return await BuildAsync("store", anyDay, db.Usage, [tenantId], budget, stores: null, ct);
     }
 
     public async Task<AiUsageReport> OwnedAsync(Guid userId, DateOnly anyDay, CancellationToken ct)
@@ -70,16 +71,16 @@ public sealed class AiUsageQueries(
             .OrderByDescending(s => s.SpentMicroUsd).ThenBy(s => s.Name)
             .ToList();
 
-        return await BuildAsync("owned", anyDay, owned, stores.Sum(s => s.BudgetMicroUsd), stores, ct);
+        // Único lugar que ignora el filtro de tienda; el Where explícito de BuildAsync lo acota a las propias.
+        return await BuildAsync("owned", anyDay, db.Usage.IgnoreQueryFilters(), owned, stores.Sum(s => s.BudgetMicroUsd), stores, ct);
     }
 
     private async Task<AiUsageReport> BuildAsync(
-        string scope, DateOnly anyDay, IReadOnlyCollection<Guid> tenantIds, long budget,
+        string scope, DateOnly anyDay, IQueryable<AiUsage> usage, IReadOnlyCollection<Guid> tenantIds, long budget,
         IReadOnlyList<AiUsageStore>? stores, CancellationToken ct)
     {
         var (start, end) = AiMonth.RangeUtc(anyDay);
-        // El filtro de tienda del contexto no alcanza para "todas mis tiendas": se ignora y se filtra a mano.
-        var month = db.Usage.IgnoreQueryFilters().AsNoTracking()
+        var month = usage.AsNoTracking()
             .Where(u => tenantIds.Contains(u.TenantId) && u.CreatedAtUtc >= start && u.CreatedAtUtc < end);
 
         var spent = await month.SumAsync(u => (long?)u.CostMicroUsd, ct) ?? 0;

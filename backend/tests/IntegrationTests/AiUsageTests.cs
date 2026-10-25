@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Ai.Infrastructure;
 using Api.Ai;
+using Api.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Common;
@@ -131,6 +132,24 @@ public sealed class AiUsageTests(ApiFactory factory)
             mar.GetProperty("byTask").EnumerateArray().Select(d => (d.GetProperty("key").GetString()!, d.GetProperty("microUsd").GetInt64())));
         Assert.Equal([(AiSetup.Haiku, 4000L), (AiSetup.Sonnet, 15L)],
             mar.GetProperty("byModel").EnumerateArray().Select(d => (d.GetProperty("key").GetString()!, d.GetProperty("microUsd").GetInt64())));
+    }
+
+    [Fact]
+    public async Task La_vista_de_una_tienda_respeta_el_filtro_de_tienda_del_contexto()
+    {
+        var a = await Merchant.CreateAsync(factory, "aiusflt");
+        var b = await a.OpenAnotherStoreAsync("aiusflb");
+        var at = new DateTime(2026, 7, 10, 15, 0, 0, DateTimeKind.Utc);
+        await AddUsageAsync(a.TenantId, at, 111);
+        await AddUsageAsync(b.TenantId, at, 222);
+
+        // El contexto es la tienda A: aunque se pida la B, el filtro global no deja pasar nada de la B.
+        using var scope = factory.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<TenantContextHolder>().Set(TenantId.From(a.TenantId));
+        var queries = scope.ServiceProvider.GetRequiredService<AiUsageQueries>();
+        var day = new DateOnly(2026, 7, 1);
+        Assert.Equal(0, (await queries.StoreAsync(b.TenantId, day, CancellationToken.None)).SpentMicroUsd);
+        Assert.Equal(111, (await queries.StoreAsync(a.TenantId, day, CancellationToken.None)).SpentMicroUsd);
     }
 
     [Fact]
