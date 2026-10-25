@@ -7,59 +7,83 @@ import { useAiTask } from './useAi';
 
 vi.mock('../context/StoreContext', () => ({ useStore: () => ({ store: { id: 'store-1' } }) }));
 
-const DENIED = 'No tenés permiso para usar esta función.';
+// Los textos y códigos que manda el backend (AiErrors y AiTaskPermissions).
+const OFF = {
+  reason:
+    'La inteligencia artificial está apagada en esta tienda. Prendela en Configuración → Inteligencia artificial.',
+  code: 'Ai.Disabled',
+};
+const NO_MODEL = {
+  reason: 'Elegí un modelo para esta tarea en Configuración → Inteligencia artificial.',
+  code: 'Ai.TaskNotConfigured',
+};
+const NO_KEY = { reason: 'Falta la clave de Anthropic.', code: 'Ai.TaskNotConfigured' };
+const DENIED = { reason: 'No tenés permiso para usar esta función.', code: 'Ai.Denied' };
+const OK = { reason: null, code: null };
 
-function setup(tasks: { task: string; available: boolean; reason: string | null }[]) {
+type Why = { reason: string | null; code: string | null };
+const item = (task: string, available: boolean, why: Why) => ({ task, available, ...why });
+
+function setup(tasks: ReturnType<typeof item>[]) {
   const api = mockApi();
   api.on('GET', '/api/v1/ai/status', { tasks });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  return { api, wrapper };
+  return { client, wrapper };
+}
+
+/** Espera a que /ai/status llegue y se asiente en la caché. */
+async function settled(client: QueryClient) {
+  await waitFor(() => expect(client.getQueryState(['ai-status', 'store-1'])?.status).toBe('success'));
 }
 
 describe('useAiTask', () => {
-  it('devuelve el motivo de una tarea no disponible, con el botón visible', async () => {
-    const { wrapper } = setup([
-      { task: 'ShortText', available: false, reason: 'Llegaste al tope de gasto del mes.' },
-      { task: 'QuestionDraft', available: true, reason: null },
-    ]);
+  it('una tarea sin la clave del proveedor queda visible, no disponible y con su motivo', async () => {
+    const { wrapper } = setup([item('ShortText', false, NO_KEY), item('QuestionDraft', true, OK)]);
     const { result } = renderHook(() => useAiTask('ShortText'), { wrapper });
     await waitFor(() => expect(result.current.visible).toBe(true));
-    expect(result.current).toEqual({
-      visible: true,
-      available: false,
-      reason: 'Llegaste al tope de gasto del mes.',
-    });
+    expect(result.current).toEqual({ visible: true, available: false, reason: NO_KEY.reason });
   });
 
   it('una tarea disponible no trae motivo', async () => {
-    const { wrapper } = setup([{ task: 'InvoiceRead', available: true, reason: null }]);
+    const { wrapper } = setup([item('InvoiceRead', true, OK)]);
     const { result } = renderHook(() => useAiTask('InvoiceRead'), { wrapper });
     await waitFor(() => expect(result.current.visible).toBe(true));
     expect(result.current).toEqual({ visible: true, available: true, reason: null });
   });
 
-  it('sin ninguna tarea disponible en la tienda (IA sin configurar), no se muestra', async () => {
-    const { api, wrapper } = setup([
-      { task: 'ShortText', available: false, reason: 'La IA no está configurada.' },
-      { task: 'QuestionDraft', available: false, reason: 'La IA no está configurada.' },
+  it('con la IA apagada en la tienda, los botones quedan visibles y deshabilitados con el motivo', async () => {
+    const { wrapper } = setup([item('ShortText', false, OFF), item('QuestionDraft', false, OFF)]);
+    const { result } = renderHook(() => useAiTask('ShortText'), { wrapper });
+    await waitFor(() => expect(result.current.visible).toBe(true));
+    expect(result.current).toEqual({ visible: true, available: false, reason: OFF.reason });
+  });
+
+  it('si ninguna tarea tiene modelo (IA sin armar), no se muestra', async () => {
+    const { client, wrapper } = setup([
+      item('ShortText', false, NO_MODEL),
+      item('QuestionDraft', false, NO_MODEL),
     ]);
     const { result } = renderHook(() => useAiTask('ShortText'), { wrapper });
-    await waitFor(() => expect(api.calls.some((c) => c.path === '/api/v1/ai/status')).toBe(true));
-    await new Promise((r) => setTimeout(r, 20));
+    await settled(client);
     expect(result.current.visible).toBe(false);
   });
 
   it('sin el permiso de la función, no se muestra aunque la tienda use IA', async () => {
-    const { api, wrapper } = setup([
-      { task: 'ShortText', available: false, reason: DENIED },
-      { task: 'QuestionDraft', available: true, reason: null },
-    ]);
+    const { client, wrapper } = setup([item('ShortText', false, DENIED), item('QuestionDraft', true, OK)]);
     const { result } = renderHook(() => useAiTask('ShortText'), { wrapper });
-    await waitFor(() => expect(api.calls.some((c) => c.path === '/api/v1/ai/status')).toBe(true));
-    await new Promise((r) => setTimeout(r, 20));
+    await settled(client);
     expect(result.current.visible).toBe(false);
+  });
+
+  it('con la IA apagada, la tarea sin permiso se oculta y las otras quedan deshabilitadas', async () => {
+    const { client, wrapper } = setup([item('ShortText', false, DENIED), item('QuestionDraft', false, OFF)]);
+    const denied = renderHook(() => useAiTask('ShortText'), { wrapper });
+    const other = renderHook(() => useAiTask('QuestionDraft'), { wrapper });
+    await settled(client);
+    expect(denied.result.current.visible).toBe(false);
+    expect(other.result.current).toEqual({ visible: true, available: false, reason: OFF.reason });
   });
 });

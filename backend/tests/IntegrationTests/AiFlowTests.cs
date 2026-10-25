@@ -36,6 +36,7 @@ public sealed class AiFlowTests(ApiFactory factory)
         {
             Assert.False(t.GetProperty("available").GetBoolean());
             Assert.False(string.IsNullOrWhiteSpace(t.GetProperty("reason").GetString()));
+            Assert.Equal("Ai.Disabled", t.GetProperty("code").GetString());
         });
 
         // Con una tarea asignada, esa sí; las demás siguen sin modelo.
@@ -43,8 +44,10 @@ public sealed class AiFlowTests(ApiFactory factory)
         tasks = TasksOf(await m.GetAsync(Status));
         Assert.True(tasks["ShortText"].GetProperty("available").GetBoolean());
         Assert.Equal(JsonValueKind.Null, tasks["ShortText"].GetProperty("reason").ValueKind);
+        Assert.Equal(JsonValueKind.Null, tasks["ShortText"].GetProperty("code").ValueKind);
         Assert.False(tasks["QuestionDraft"].GetProperty("available").GetBoolean());
         Assert.Contains("modelo", tasks["QuestionDraft"].GetProperty("reason").GetString());
+        Assert.Equal("Ai.TaskNotConfigured", tasks["QuestionDraft"].GetProperty("code").GetString());
     }
 
     [Fact]
@@ -63,6 +66,7 @@ public sealed class AiFlowTests(ApiFactory factory)
         {
             Assert.False(tasks[denied].GetProperty("available").GetBoolean());
             Assert.Equal("No tenés permiso para usar esta función.", tasks[denied].GetProperty("reason").GetString());
+            Assert.Equal("Ai.Denied", tasks[denied].GetProperty("code").GetString());
         }
 
         // El dueño ve las tres.

@@ -335,7 +335,9 @@ describe('compositor de redes: reglas y acciones', () => {
 
   it('mejorar con IA reescribe el borrador; si falla, lo dice', async () => {
     const api = mockApi();
-    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'ShortText', available: true, reason: null }] });
+    api.on('GET', '/api/v1/ai/status', {
+      tasks: [{ task: 'ShortText', available: true, reason: null, code: null }],
+    });
     api.on('POST', '/api/v1/ai/short-text', { detail: 'La IA está saturada.' }, 503);
     const user = setup();
     open();

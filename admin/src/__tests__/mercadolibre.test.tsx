@@ -139,7 +139,9 @@ describe('Mercado Libre: ventas', () => {
 describe('Mercado Libre: preguntas', () => {
   it('responde a mano y con la sugerencia de la IA; filtra sin responder / todas', async () => {
     const { api, user } = await open('preguntas', (a) => {
-      a.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'QuestionDraft', available: true, reason: null }] });
+      a.on('GET', '/api/v1/ai/status', {
+        tasks: [{ task: 'QuestionDraft', available: true, reason: null, code: null }],
+      });
       a.on('POST', '/api/v1/ai/ml-answer', { text: 'Sí, es compatible.' });
     });
     expect(await screen.findByText(question.text)).toBeInTheDocument();
@@ -170,7 +172,9 @@ describe('Mercado Libre: preguntas', () => {
 describe('Mercado Libre: preguntas con su publicación', () => {
   it('muestra título, precio y stock, y la IA recibe el título (no el id)', async () => {
     const { api, user } = await open('preguntas', (a) => {
-      a.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'QuestionDraft', available: true, reason: null }] });
+      a.on('GET', '/api/v1/ai/status', {
+        tasks: [{ task: 'QuestionDraft', available: true, reason: null, code: null }],
+      });
       a.on('POST', '/api/v1/ai/ml-answer', { text: 'Sí.' });
       a.on('GET', '/api/v1/admin/meli/questions', {
         total: 1,

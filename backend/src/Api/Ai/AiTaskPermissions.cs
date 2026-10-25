@@ -11,6 +11,9 @@ public static class AiTaskPermissions
 {
     public const string Denied = "No tenés permiso para usar esta función.";
 
+    /// <summary>El código que <c>/ai/status</c> manda con <see cref="Denied"/>: el panel oculta el botón por él, no por el texto.</summary>
+    public const string DeniedCode = "Ai.Denied";
+
     public static IReadOnlyList<Permission> For(AiTask task) => task switch
     {
         AiTask.QuestionClassify or AiTask.QuestionDraft => [Permission.MeliOperate, Permission.SupportChat, Permission.MessagesRead],

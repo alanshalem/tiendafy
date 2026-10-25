@@ -10,8 +10,11 @@ using CacheControlEphemeral = Anthropic.Models.Messages.CacheControlEphemeral;
 
 namespace Api.Ai;
 
-/// <summary>Si una tarea se puede usar en esta tienda y, si no, por qué (en castellano, para el panel).</summary>
-public sealed record AiTaskAvailability(AiTask Task, bool Available, string? Reason);
+/// <summary>
+/// Si una tarea se puede usar en esta tienda y, si no, por qué: <c>Reason</c> en castellano para el panel y
+/// <c>Code</c> (el código del error, p. ej. <c>Ai.Disabled</c>) para que el panel decida sin leer el texto.
+/// </summary>
+public sealed record AiTaskAvailability(AiTask Task, bool Available, string? Reason, string? Code);
 
 /// <summary>
 /// <paramref name="EstimatedInputTokens"/> se estima por lo alto (largo del prompt / 3): con eso se
@@ -145,8 +148,8 @@ public sealed class AiGateway(
 
         return AiTaskSpecs.All
             .Select(spec => (blocked ?? Resolve(snapshot!, spec).Error) is { } error
-                ? new AiTaskAvailability(spec.Task, false, error.Message)
-                : new AiTaskAvailability(spec.Task, true, null))
+                ? new AiTaskAvailability(spec.Task, false, error.Message, error.Code)
+                : new AiTaskAvailability(spec.Task, true, null, null))
             .ToList();
     }
 

@@ -26,7 +26,9 @@ const supplier = fixture<{ items: { id: string; name: string }[] }>('/api/v1/sup
 async function openPo(patch: Partial<Po> = {}, ai = false) {
   const api = mockApi();
   if (ai)
-    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'InvoiceRead', available: true, reason: null }] });
+    api.on('GET', '/api/v1/ai/status', {
+      tasks: [{ task: 'InvoiceRead', available: true, reason: null, code: null }],
+    });
   api.on('GET', `/api/v1/purchasing/purchase-orders/${po.id}`, { ...po, ...patch });
   api.on('GET', '/api/v1/purchasing/purchase-orders', {
     items: [{ ...po, ...patch, totalFob: 1, items: po.items.length, units: 3, leadTimeDays: 50 }],

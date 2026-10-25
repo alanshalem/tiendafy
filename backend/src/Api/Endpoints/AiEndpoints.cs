@@ -36,8 +36,8 @@ public static class AiEndpoints
             return Results.Ok(new
             {
                 tasks = tasks.Select(t => AiTaskPermissions.Allows(access, t.Task)
-                    ? new { task = t.Task.ToString(), available = t.Available, reason = t.Reason }
-                    : new { task = t.Task.ToString(), available = false, reason = (string?)AiTaskPermissions.Denied }),
+                    ? new { task = t.Task.ToString(), available = t.Available, reason = t.Reason, code = t.Code }
+                    : new { task = t.Task.ToString(), available = false, reason = (string?)AiTaskPermissions.Denied, code = (string?)AiTaskPermissions.DeniedCode }),
             });
         }).RequireAuthorization();
 

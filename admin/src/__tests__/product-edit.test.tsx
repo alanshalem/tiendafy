@@ -403,7 +403,9 @@ describe('editar producto', () => {
 
   it('escribir la descripción con IA (y si falla, avisa)', async () => {
     const api = mockApi();
-    api.on('GET', '/api/v1/ai/status', { tasks: [{ task: 'ShortText', available: true, reason: null }] });
+    api.on('GET', '/api/v1/ai/status', {
+      tasks: [{ task: 'ShortText', available: true, reason: null, code: null }],
+    });
     api.on('POST', '/api/v1/ai/short-text', { text: 'Mancuerna de hierro fundido.' });
     const user = await open(api);
     await user.click(screen.getByRole('button', { name: /Escribir con IA/ }));
@@ -415,13 +417,29 @@ describe('editar producto', () => {
     expect(await screen.findByText(/no pudo|failed|status 503/i)).toBeInTheDocument();
   });
 
-  it('con la IA sin presupuesto, el botón queda deshabilitado y dice el motivo', async () => {
+  it('con la IA apagada en la tienda, el botón queda deshabilitado y dice el motivo', async () => {
     const api = mockApi();
-    const reason = 'Se agotó el presupuesto de IA de este mes.';
+    const reason =
+      'La inteligencia artificial está apagada en esta tienda. Prendela en Configuración → Inteligencia artificial.';
     api.on('GET', '/api/v1/ai/status', {
       tasks: [
-        { task: 'ShortText', available: false, reason },
-        { task: 'QuestionDraft', available: true, reason: null },
+        { task: 'ShortText', available: false, reason, code: 'Ai.Disabled' },
+        { task: 'QuestionDraft', available: false, reason, code: 'Ai.Disabled' },
+      ],
+    });
+    await open(api);
+    const button = await screen.findByRole('button', { name: /Escribir con IA/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', reason);
+  });
+
+  it('sin la clave del proveedor, el botón queda deshabilitado y dice el motivo', async () => {
+    const api = mockApi();
+    const reason = 'Falta la clave de Anthropic.';
+    api.on('GET', '/api/v1/ai/status', {
+      tasks: [
+        { task: 'ShortText', available: false, reason, code: 'Ai.TaskNotConfigured' },
+        { task: 'QuestionDraft', available: true, reason: null, code: null },
       ],
     });
     await open(api);
