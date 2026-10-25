@@ -89,6 +89,34 @@ describe('Inicio: para hacer hoy', () => {
   });
 });
 
+describe('Inicio: tope de la inteligencia artificial', () => {
+  const base = {
+    toDispatch: 0,
+    pendingTransfers: 0,
+    messages: null,
+    mercadoLibre: null,
+    fiscalReady: null,
+  };
+
+  it('al llegar al umbral avisa el porcentaje y lleva a la pantalla', async () => {
+    await home({ ...base, aiBudget: { pct: 83, level: 'warn' } });
+    expect(
+      screen.getByText('Ya usaste el 83 % del tope mensual de la inteligencia artificial.'),
+    ).toBeInTheDocument();
+    expect(link(/Ver consumo/)).toHaveAttribute('href', '/configuracion/inteligencia-artificial');
+  });
+
+  it('al llegar al 100 % dice que la IA quedó frenada', async () => {
+    await home({ ...base, aiBudget: { pct: 100, level: 'over' } });
+    expect(screen.getByText(/Llegaste al tope mensual de la inteligencia artificial/)).toBeInTheDocument();
+  });
+
+  it('sin aviso del servidor no muestra nada de IA', async () => {
+    await home({ ...base, toDispatch: 1, aiBudget: null });
+    expect(screen.queryByText(/inteligencia artificial/)).toBeNull();
+  });
+});
+
 describe('plazo del arrepentimiento', () => {
   it('cuenta días corridos desde la solicitud', () => {
     const now = Date.parse('2026-10-14T12:00:00Z');

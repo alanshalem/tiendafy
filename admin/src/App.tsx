@@ -54,6 +54,7 @@ const InboxPage = lazyPage(() => import('./pages/Inbox'), 'InboxPage');
 const DespachoPage = lazyPage(() => import('./pages/Despacho'), 'DespachoPage');
 const StockBajoPage = lazyPage(() => import('./pages/Products/StockBajo'), 'StockBajoPage');
 const StockAlertsPage = lazyPage(() => import('./pages/Settings/StockAlerts'), 'StockAlertsPage');
+const AiSettingsPage = lazyPage(() => import('./pages/Settings/AiSettings'), 'AiSettingsPage');
 const ReviewsPage = lazyPage(() => import('./pages/Reviews'), 'ReviewsPage');
 const BackInStockPage = lazyPage(() => import('./pages/Products/StockAlerts'), 'StockAlertsPage');
 const OrdersPage = lazyPage(() => import('./pages/Orders'), 'OrdersPage');
@@ -160,6 +161,7 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'ficha-tecnica', el: <SpecFieldsPage /> },
   { path: 'busqueda', el: <SearchSettingsPage /> },
   { path: 'alertas-de-stock', el: <StockAlertsPage /> },
+  { path: 'inteligencia-artificial', el: <AiSettingsPage /> },
 ];
 
 /**

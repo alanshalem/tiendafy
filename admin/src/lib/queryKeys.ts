@@ -27,6 +27,9 @@ export const qk = {
   /* ---------- Inteligencia artificial ---------- */
   /** Qué tareas de IA puede usar esta persona en esta tienda (disponibilidad y motivo). */
   aiStatus: (store: StoreId) => ['ai-status', store] as const,
+  /** La configuración de IA de la tienda; el consumo cuelga de ella (mismo prefijo). */
+  aiConfig: (store: StoreId) => ['ai-config', store] as const,
+  aiUsage: (store: StoreId, scope: 'store' | 'owned') => ['ai-config', store, 'usage', scope] as const,
 
   /* ---------- Catálogo ---------- */
   categories: (store: StoreId) => ['categories', store] as const,

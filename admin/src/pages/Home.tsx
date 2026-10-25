@@ -222,6 +222,8 @@ interface HomeTodo {
   messages: { unreadContact: number; repentance: number; oldestRepentanceAtUtc: string | null } | null;
   mercadoLibre: { unbilled: number; unanswered: number | null } | null;
   fiscalReady: boolean | null;
+  /** Solo para quien configura la IA: el gasto del mes llegó al umbral ("warn") o al tope ("over"). */
+  aiBudget?: { pct: number; level: 'warn' | 'over' } | null;
 }
 
 /**
@@ -303,6 +305,17 @@ function todoAvisos(todo: HomeTodo | undefined): Aviso[] {
       action: ready ? 'Facturar' : 'Configurá la facturación',
     });
   }
+  const ai = todo.aiBudget;
+  if (ai)
+    out.push({
+      text:
+        ai.level === 'over'
+          ? 'Llegaste al tope mensual de la inteligencia artificial: las funciones de IA quedan frenadas hasta el mes que viene o hasta que subas el tope.'
+          : `Ya usaste el ${ai.pct} % del tope mensual de la inteligencia artificial.`,
+      to: '/configuracion/inteligencia-artificial',
+      action: 'Ver consumo',
+      urgent: ai.level === 'over',
+    });
   return out;
 }
 
@@ -338,7 +351,8 @@ function AvisosCard() {
   const { data: todo } = useQuery({
     queryKey: ['home-todo', store?.id],
     queryFn: () => api.get<HomeTodo>('/api/v1/home/todo'),
-    enabled: !!store && (can('orders.read') || can('messages.read') || can('meli.operate')),
+    enabled:
+      !!store && (can('orders.read') || can('messages.read') || can('meli.operate') || can('ai.config')),
     retry: false,
   });
 

@@ -80,6 +80,7 @@ export const SETTINGS_PERMISSIONS = {
   dominios: 'tenant.admin',
   redirecciones: 'store.config',
   medicion: 'store.config',
+  'inteligencia-artificial': 'ai.config',
 } as const satisfies Record<string, PermRequirement>;
 
 type SettingsPath = keyof typeof SETTINGS_PERMISSIONS;

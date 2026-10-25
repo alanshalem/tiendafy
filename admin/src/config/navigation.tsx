@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Signpost,
+  Sparkles,
   Store,
   User,
   type LucideIcon,
@@ -434,6 +435,17 @@ const SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'Medición y píxeles',
         desc: 'Google Analytics, Google Ads, el píxel de Meta y Clarity, con permiso del visitante.',
         icon: BarChart3,
+      },
+    ],
+  },
+  {
+    heading: 'Herramientas',
+    items: [
+      {
+        to: '/configuracion/inteligencia-artificial',
+        label: 'Inteligencia artificial',
+        desc: 'Claves, modelos, tope mensual y consumo de la IA.',
+        icon: Sparkles,
       },
     ],
   },
