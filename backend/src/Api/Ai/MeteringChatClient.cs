@@ -6,10 +6,12 @@ namespace Api.Ai;
 /// <summary>
 /// Mide cada respuesta del modelo: registra una fila de consumo y le informa el costo real a la
 /// reserva. Normaliza los tokens para que el costo sea el mismo sin importar el proveedor:
-/// <c>Input = InputTokenCount - CachedInputTokenCount</c> y <c>Cached = CachedInputTokenCount</c>.
-/// En Anthropic, lo que se escribe en caché (<c>CacheCreationInputTokens</c>) se suma a la entrada:
-/// en esta versión se cobra al precio de entrada, no al recargo de escritura (es un poco menos que
-/// lo real si algún día se usa caché explícita).
+/// <c>Input = max(0, InputTokenCount - CachedInputTokenCount)</c> y <c>Cached = CachedInputTokenCount</c>.
+/// El adaptador de Anthropic ya informa en <c>InputTokenCount</c> lectura de caché + escritura de caché +
+/// entrada sin caché, así que la escritura de caché no se suma otra vez: queda cobrada al precio de
+/// entrada (es un poco menos que el recargo real si algún día se usa caché explícita).
+/// Registrar el consumo nunca rompe la llamada: si el insert falla se loguea y se sigue, y la reserva
+/// se informa antes de tocar la base.
 /// </summary>
 public sealed class MeteringChatClient(
     IChatClient inner,
@@ -18,8 +20,6 @@ public sealed class MeteringChatClient(
     AiReservation? reservation,
     ILogger<MeteringChatClient>? logger = null) : DelegatingChatClient(inner)
 {
-    private const string CacheCreationKey = "CacheCreationInputTokens";
-
     public override async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -30,15 +30,14 @@ public sealed class MeteringChatClient(
         }
         catch
         {
-            // Registrar el error no tiene que depender del token cancelado que lo provocó.
-            await RecordAsync(0, 0, 0, AiOutcome.Error, CancellationToken.None);
+            await RecordAsync(0, 0, 0, AiOutcome.Error);
             throw;
         }
 
         var (input, cached, output) = Normalize(response.Usage);
         if (response.Usage is null)
             logger?.LogWarning("La respuesta de {Model} no trae uso de tokens: se registra en 0.", template.Model.Id);
-        await RecordAsync(input, cached, output, template.Outcome, cancellationToken);
+        await RecordAsync(input, cached, output, template.Outcome);
         return response;
     }
 
@@ -48,27 +47,34 @@ public sealed class MeteringChatClient(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
         base.GetStreamingResponseAsync(messages, options, cancellationToken);
 
-    private (long Input, long Cached, long Output) Normalize(UsageDetails? usage)
+    private static (long Input, long Cached, long Output) Normalize(UsageDetails? usage)
     {
         if (usage is null) return (0, 0, 0);
         var cached = usage.CachedInputTokenCount ?? 0;
-        var input = (usage.InputTokenCount ?? 0) - cached;
-        if (template.Model.Provider == AiProvider.Anthropic
-            && usage.AdditionalCounts is { } counts
-            && counts.TryGetValue(CacheCreationKey, out var written))
-            input += written;
+        var input = Math.Max(0, (usage.InputTokenCount ?? 0) - cached);
         return (input, cached, usage.OutputTokenCount ?? 0);
     }
 
-    private async Task RecordAsync(long input, long cached, long output, AiOutcome outcome, CancellationToken ct)
+    private async Task RecordAsync(long input, long cached, long output, AiOutcome outcome)
     {
-        await recorder.RecordAsync(template with
+        var cost = AiCost.MicroUsd(template.Model, input, cached, output);
+        reservation?.AddActual(cost);
+        try
         {
-            InputTokens = input,
-            CachedInputTokens = cached,
-            OutputTokens = output,
-            Outcome = outcome,
-        }, ct);
-        reservation?.AddActual(AiCost.MicroUsd(template.Model, input, cached, output));
+            // Token None: si el pedido se cancela después de que el proveedor respondió (y cobró),
+            // la fila igual tiene que quedar.
+            await recorder.RecordAsync(template with
+            {
+                InputTokens = input,
+                CachedInputTokens = cached,
+                OutputTokens = output,
+                Outcome = outcome,
+                CostMicroUsd = cost,
+            }, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "No se pudo registrar el consumo de {Model} ({CostMicroUsd} micro-USD).", template.Model.Id, cost);
+        }
     }
 }

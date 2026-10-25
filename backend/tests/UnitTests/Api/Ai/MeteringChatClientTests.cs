@@ -1,6 +1,7 @@
 using Ai.Infrastructure;
 using Api.Ai;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace UnitTests.Api.Ai;
 
@@ -83,12 +84,13 @@ public sealed class MeteringChatClientTests
     }
 
     [Fact]
-    public async Task Suma_escritura_de_cache_de_Anthropic()
+    public async Task Escritura_de_cache_de_Anthropic_no_se_cuenta_dos_veces()
     {
         var recorder = new FakeRecorder();
+        // El adaptador ya incluye la escritura de caché en InputTokenCount.
         var inner = new FakeChatClient(Reply(new UsageDetails
         {
-            InputTokenCount = 1000,
+            InputTokenCount = 1300,
             CachedInputTokenCount = 0,
             OutputTokenCount = 50,
             AdditionalCounts = new AdditionalPropertiesDictionary<long> { ["CacheCreationInputTokens"] = 300 },
@@ -129,6 +131,59 @@ public sealed class MeteringChatClientTests
         Assert.Equal(AiOutcome.Error, entry.Outcome);
         Assert.Equal(0, entry.InputTokens);
         Assert.Equal(0, entry.OutputTokens);
+    }
+
+    private sealed class ThrowingRecorder : IAiUsageRecorder
+    {
+        public Task RecordAsync(AiUsageEntry entry, CancellationToken ct) => throw new InvalidOperationException("db caída");
+    }
+
+    private sealed class CapturingLogger : ILogger<MeteringChatClient>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Levels.Add(logLevel);
+    }
+
+    [Fact]
+    public async Task Si_el_registro_falla_la_respuesta_llega_y_la_reserva_recibe_el_costo()
+    {
+        var budget = new AiBudget(new FixedSpend(0), TimeProvider.System);
+        await using var reservation = (await budget.TryReserveAsync(Tenant, 100_000_000, 10_000_000, default))!;
+        var sonnet = AiModelCatalog.Find("claude-sonnet-5-5")!;
+        var logger = new CapturingLogger();
+        var inner = new FakeChatClient(Reply(new UsageDetails { InputTokenCount = 1000, OutputTokenCount = 500 }));
+        var client = new MeteringChatClient(inner, new ThrowingRecorder(), Template("claude-sonnet-5-5"), reservation, logger);
+
+        var response = await client.GetResponseAsync(Hi);
+
+        Assert.Equal("ok", response.Text);
+        Assert.Equal(10_000_000 + AiCost.MicroUsd(sonnet, 1000, 0, 500), await budget.CommittedMicroUsdAsync(Tenant, default));
+        Assert.Contains(LogLevel.Error, logger.Levels);
+    }
+
+    [Fact]
+    public async Task Si_fallan_el_proveedor_y_el_registro_llega_la_excepcion_original()
+    {
+        var client = new MeteringChatClient(new ThrowingClient(), new ThrowingRecorder(), Template("claude-sonnet-5-5"), null);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => client.GetResponseAsync(Hi));
+    }
+
+    [Fact]
+    public async Task Cacheados_mayores_que_la_entrada_no_dan_entrada_negativa()
+    {
+        var recorder = new FakeRecorder();
+        var inner = new FakeChatClient(Reply(new UsageDetails { InputTokenCount = 100, CachedInputTokenCount = 150 }));
+
+        await new MeteringChatClient(inner, recorder, Template("gpt-6-luna"), null).GetResponseAsync(Hi);
+
+        Assert.Equal(0, Assert.Single(recorder.Entries).InputTokens);
     }
 
     [Fact]

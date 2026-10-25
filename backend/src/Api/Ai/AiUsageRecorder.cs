@@ -12,11 +12,12 @@ public sealed record AiUsageEntry(
     long InputTokens,
     long CachedInputTokens,
     long OutputTokens,
-    AiOutcome Outcome);
+    AiOutcome Outcome,
+    long? CostMicroUsd = null);
 
 public interface IAiUsageRecorder
 {
-    /// <summary>Inserta una fila de <see cref="AiUsage"/> con el costo calculado por <see cref="AiCost"/>.</summary>
+    /// <summary>Inserta una fila de <see cref="AiUsage"/> con el costo de la entrada o, si no trae, el calculado por <see cref="AiCost"/>.</summary>
     Task RecordAsync(AiUsageEntry entry, CancellationToken ct);
 }
 
@@ -42,7 +43,8 @@ public sealed class AiUsageRecorder(IServiceScopeFactory scopes, TimeProvider cl
             InputTokens = entry.InputTokens,
             CachedInputTokens = entry.CachedInputTokens,
             OutputTokens = entry.OutputTokens,
-            CostMicroUsd = AiCost.MicroUsd(entry.Model, entry.InputTokens, entry.CachedInputTokens, entry.OutputTokens),
+            CostMicroUsd = entry.CostMicroUsd
+                ?? AiCost.MicroUsd(entry.Model, entry.InputTokens, entry.CachedInputTokens, entry.OutputTokens),
             Outcome = entry.Outcome,
             CreatedAtUtc = clock.GetUtcNow().UtcDateTime,
         });
