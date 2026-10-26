@@ -176,6 +176,7 @@ public static class ServiceRegistration
         services.AddSingleton<Api.Meli.MeliWait>(_ => (delay, ct) => Task.Delay(delay, ct));
         services.AddSingleton<Api.Meli.MeliTenantGate>();
         services.AddScoped<Api.Meli.MeliCatalogReader>();
+        services.AddScoped<Api.Meli.MeliCategoryResolver>();
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliStockSyncWorker>();
