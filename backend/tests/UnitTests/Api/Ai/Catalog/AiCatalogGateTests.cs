@@ -239,6 +239,32 @@ public sealed class AiCatalogGateTests
     }
 
     [Fact]
+    public void GTIN_armado_pegando_digitos_de_campos_distintos_no_es_textual()
+    {
+        // Dos números de campos vecinos (separados por un salto de línea) que juntos forman un GTIN válido.
+        var result = AiCatalogGate.Check(
+            Proposal(attributes: [Value("GTIN", "4006381333931")]),
+            [Attr("GTIN", identifier: true)], Source + "\nStock 4006381\n333931 unidades.");
+
+        Assert.True(Assert.Single(result.Cleaned.Attributes).Missing);
+        Assert.Single(result.Notes);
+    }
+
+    [Theory]
+    [InlineData("Profess")]
+    [InlineData("GSB")]
+    [InlineData("5")]
+    public void Identificador_que_no_es_palabra_completa_o_es_muy_corto_queda_falta_dato(string model)
+    {
+        var result = AiCatalogGate.Check(
+            Proposal(attributes: [Value("MODEL", model)]),
+            [Attr("MODEL", identifier: true)], "Taladro Bosch Professional GSB 5 de 600 W.");
+
+        Assert.True(result.Ok);
+        Assert.True(Assert.Single(result.Cleaned.Attributes).Missing);
+    }
+
+    [Fact]
     public void Modelo_inventado_queda_falta_dato()
     {
         var result = AiCatalogGate.Check(

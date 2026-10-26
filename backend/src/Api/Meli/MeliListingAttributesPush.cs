@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using MercadoLibre.Infrastructure;
@@ -19,7 +20,8 @@ namespace Api.Meli;
 /// </summary>
 /// <remarks>
 /// Sin confirmar con una cuenta real: si ML trata el <c>attributes</c> de un PUT como reemplazo de la lista entera o como un cambio de
-/// solo los ids enviados (la documentación, con ejemplos que mandan un subconjunto, apunta a lo segundo).
+/// solo los ids enviados (la documentación, con ejemplos que mandan un subconjunto, apunta a lo segundo). Por eso antes de cada PUT se
+/// lee la publicación y se manda la UNIÓN (lo nuestro gana por id): sirve con cualquiera de las dos semánticas.
 /// </remarks>
 public sealed class MeliListingAttributesPush(
     MeliDbContext db,
@@ -83,11 +85,17 @@ public sealed class MeliListingAttributesPush(
         {
             try
             {
-                await gate.RunAsync(tenantId.Value, async cancel =>
+                var sent = await gate.RunAsync(tenantId.Value, async cancel =>
                 {
-                    using var _ = await client.PutAsync(token, $"/items/{itemId}", new { attributes }, cancel);
+                    // Se lee lo que la publicación tiene ahora y se manda la unión: no se sabe si el PUT reemplaza la lista o mezcla.
+                    var current = await client.GetItemsBulkAsync(token, [itemId], cancel, ["id", "attributes"]);
+                    if (current.Count == 0) return false;
+                    using var _ = await client.PutAsync(token, $"/items/{itemId}", new { attributes = Union(attributes, current[0]) }, cancel);
                     return true;
                 }, ct);
+                if (!sent)
+                    return Result.Failure<int>(Error.Validation("Meli.UpdateFailed",
+                        $"No se pudo leer la publicación {itemId} en Mercado Libre: no se la actualizó."));
             }
             catch (MeliException ex)
             {
@@ -95,5 +103,25 @@ public sealed class MeliListingAttributesPush(
             }
         }
         return itemIds.Count;
+    }
+
+    /// <summary>
+    /// Lo nuestro más lo que la publicación ya tenía y no tocamos (por id, sin distinguir mayúsculas). Lo de ahora de ML se vuelve a
+    /// mandar como <c>{ id, value_id }</c> o <c>{ id, value_name }</c>; los atributos sin valor no se mandan.
+    /// </summary>
+    internal static List<object> Union(IReadOnlyList<object> ours, JsonElement listing)
+    {
+        var union = new List<object>(ours);
+        var ourIds = JsonSerializer.SerializeToElement(ours).EnumerateArray()
+            .Select(a => JsonRead.GetString(a, "id") ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!listing.TryGetProperty("attributes", out var current) || current.ValueKind != JsonValueKind.Array) return union;
+
+        foreach (var attribute in current.EnumerateArray())
+        {
+            if (JsonRead.GetString(attribute, "id") is not { Length: > 0 } id || ourIds.Contains(id)) continue;
+            if (JsonRead.GetString(attribute, "value_id") is { Length: > 0 } valueId) union.Add(new { id, value_id = valueId });
+            else if (JsonRead.GetString(attribute, "value_name") is { Length: > 0 } valueName) union.Add(new { id, value_name = valueName });
+        }
+        return union;
     }
 }

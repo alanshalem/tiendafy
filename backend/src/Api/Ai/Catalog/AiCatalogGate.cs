@@ -256,13 +256,27 @@ public static class AiCatalogGate
             if (!requireTextual)
                 return Gtin.IsValid(digits) ? null : $"El {definition.Name} «{value.ValueName}» no es válido: revisá los dígitos.";
 
-            if (!Gtin.Normalize(sourceText ?? "").Contains(digits, StringComparison.Ordinal))
+            // Cada número del texto por separado: pegar los dígitos de campos vecinos podría armar un GTIN que no está escrito.
+            if (!NumbersIn(sourceText ?? "").Any(number => number.Contains(digits, StringComparison.Ordinal)))
                 return $"El {definition.Name} no aparece en los datos del producto: queda para completar.";
             return Gtin.IsValid(digits) ? null : $"El {definition.Name} que aparece en los datos no tiene un dígito verificador válido: queda para completar.";
         }
 
-        if (requireTextual && !(sourceText ?? "").Contains(value.ValueName, StringComparison.OrdinalIgnoreCase))
+        if (requireTextual && !AppearsAsWord(sourceText ?? "", value.ValueName.Trim()))
             return $"El {definition.Name} no aparece en los datos del producto: queda para completar.";
         return null;
     }
+
+    private const int MinIdentifierLength = 4;
+
+    private static readonly Regex DigitRuns = new(@"\d+(?:[ .\-]\d+)*", RegexOptions.Compiled);
+
+    /// <summary>Cada número escrito en el texto, sin espacios, puntos ni guiones (los que lo parten en grupos), sin cruzar letras ni saltos de línea.</summary>
+    private static IEnumerable<string> NumbersIn(string text) =>
+        DigitRuns.Matches(text).Select(m => new string([.. m.Value.Where(char.IsAsciiDigit)]));
+
+    /// <summary>La palabra completa (no un pedazo de otra) y de al menos <see cref="MinIdentifierLength"/> caracteres.</summary>
+    private static bool AppearsAsWord(string text, string value) =>
+        value.Length >= MinIdentifierLength
+        && Regex.IsMatch(text, $@"(?<![\p{{L}}\p{{N}}]){Regex.Escape(value)}(?![\p{{L}}\p{{N}}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 }

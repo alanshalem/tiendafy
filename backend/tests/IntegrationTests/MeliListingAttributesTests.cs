@@ -39,6 +39,7 @@ public sealed class MeliListingAttributesTests(ApiFactory factory)
         var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/items", new { id = itemId, permalink = (string?)null });
         var (productId, _) = await store.CreateProductAsync("Taladro con ficha", priceMinor: 30_000_00, stock: 5);
+        await SaveCategoryAsync(store.TenantId, productId, "MLA1", "Taladros eléctricos", MeliCategorySource.Manual);
         await SaveAsync(store.TenantId, productId,
             MeliProductAttribute.Create(store.TenantId, productId, "IS_KIT", "242084", "No", null),
             MeliProductAttribute.Create(store.TenantId, productId, "GTIN", null, "7790001000017", null),
@@ -52,6 +53,24 @@ public sealed class MeliListingAttributesTests(ApiFactory factory)
         Assert.Equal("7790001000017", attributes["GTIN"].GetProperty("value_name").GetString());
         Assert.Equal("2 m", attributes["LENGTH"].GetProperty("value_name").GetString());
         Assert.Contains("SELLER_SKU", attributes.Keys);
+    }
+
+    [Fact]
+    public async Task Publicar_en_otra_categoria_no_manda_los_atributos_guardados()
+    {
+        var (store, _) = await MeliAccount.ConnectAsync(factory, "mla1b");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/items", new { id = itemId, permalink = (string?)null });
+        var (productId, _) = await store.CreateProductAsync("Taladro con ficha", priceMinor: 30_000_00, stock: 5);
+        await SaveCategoryAsync(store.TenantId, productId, "MLA1", "Taladros eléctricos", MeliCategorySource.Manual);
+        await SaveAsync(store.TenantId, productId,
+            MeliProductAttribute.Create(store.TenantId, productId, "GTIN", null, "7790001000017", null));
+
+        await store.PostAsync($"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "MLA2" });
+
+        var body = JsonDocument.Parse(factory.ExternalHttp.SentTo($"{Api}/items").Last(r => r.Uri.AbsolutePath == "/items").Body!).RootElement;
+        var ids = body.GetProperty("attributes").EnumerateArray().Select(a => a.GetProperty("id").GetString()).ToList();
+        Assert.DoesNotContain("GTIN", ids);
     }
 
     [Fact]
@@ -132,7 +151,18 @@ public sealed class MeliListingAttributesTests(ApiFactory factory)
         ai.CatalogJobItems.AddRange(items);
         await ai.SaveChangesAsync();
         await meli.SaveChangesAsync();
+        // Por defecto las publicaciones no tienen atributos cargados.
+        StubCurrentAttributes([.. meliItems.Select(m => (m, Array.Empty<object>()))]);
         return (job.Id, [.. items.Select(i => i.Id)], [.. products], [.. meliItems]);
+    }
+
+    /// <summary>Lo que Mercado Libre contesta al leer las publicaciones antes de actualizarlas (por id; sin entrada, sin atributos).</summary>
+    private void StubCurrentAttributes(params (string MeliItem, object[] Attributes)[] listings)
+    {
+        // Una ruta por id (con el id completo): otros tests dejan rutas como ?ids=MLA1, que le ganarían a /items/bulk a secas.
+        foreach (var (meliItem, attributes) in listings)
+            factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items/bulk?ids={meliItem}",
+                new[] { new { status_code = 200, body = new { id = meliItem, attributes } } });
     }
 
     private List<FakeHttp.Recorded> PutsTo(string meliItem) =>
@@ -156,6 +186,46 @@ public sealed class MeliListingAttributesTests(ApiFactory factory)
         Assert.Equal("GTIN", Assert.Single(attributes).GetProperty("id").GetString());
         Assert.Equal("7790001000017", attributes[0].GetProperty("value_name").GetString());
     }
+
+    [Fact]
+    public async Task Actualizar_manda_la_union_con_lo_que_la_publicacion_ya_tenia()
+    {
+        var (store, _) = await MeliAccount.ConnectAsync(factory, "mla6b");
+        var (_, items, _, meliItems) = await ApprovedAsync(store, 1);
+        factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/items/{meliItems[0]}", new { id = meliItems[0] });
+        StubCurrentAttributes((meliItems[0], new object[]
+        {
+            new { id = "GTIN", name = "GTIN", value_id = (string?)null, value_name = "111" },
+            new { id = "COLOR", name = "Color", value_id = "52049", value_name = "Negro" },
+            new { id = "BATTERY", name = "Batería", value_id = (string?)null, value_name = "18 V" },
+            new { id = "EMPTY", name = "Sin valor", value_id = (string?)null, value_name = (string?)null },
+        }));
+
+        await store.PostAsync($"{Catalog}/items/{items[0]}/push-to-meli", new { });
+
+        var put = Assert.Single(PutsTo(meliItems[0]));
+        var attributes = JsonDocument.Parse(put.Body!).RootElement.GetProperty("attributes").EnumerateArray()
+            .ToDictionary(a => a.GetProperty("id").GetString()!);
+        // Lo nuestro gana por id; lo que no tocamos viaja igual, para que sirva si el PUT reemplaza la lista.
+        Assert.Equal("7790001000017", attributes["GTIN"].GetProperty("value_name").GetString());
+        Assert.Equal("52049", attributes["COLOR"].GetProperty("value_id").GetString());
+        Assert.Equal("18 V", attributes["BATTERY"].GetProperty("value_name").GetString());
+        Assert.DoesNotContain("EMPTY", attributes.Keys);
+        Assert.Equal(3, attributes.Count);
+    }
+
+    [Fact]
+    public async Task Si_no_se_puede_leer_la_publicacion_no_se_la_pisa()
+    {
+        var (store, _) = await MeliAccount.ConnectAsync(factory, "mla6c");
+        var (_, items, _, meliItems) = await ApprovedAsync(store, 1);
+        factory.ExternalHttp.On(HttpMethod.Get, $"{Api}/items/bulk?ids={meliItems[0]}", (_, _) =>
+            FakeHttp.Json(new { message = "boom" }, HttpStatusCode.InternalServerError));
+
+        var response = await store.SendAsync(HttpMethod.Post, $"{Catalog}/items/{items[0]}/push-to-meli", new { });
+
+        Assert.False(response.IsSuccessStatusCode);
+        Assert.Empty(PutsTo(meliItems[0]));    }
 
     [Fact]
     public async Task Sin_MeliPublish_da_403()

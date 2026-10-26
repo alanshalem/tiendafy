@@ -181,7 +181,7 @@ public sealed class MeliCatalogReader(
 
             // Sin dato de relevancia (el recurso no lo documenta) todo lo visible cuenta; con él, solo lo de máxima prioridad.
             var relevant = !entry.TryGetProperty("relevance", out var relevance) || relevance.ValueKind != JsonValueKind.Number
-                || relevance.GetInt32() == 1
+                || (relevance.TryGetInt32(out var priority) && priority == 1)
                 || RelevantTags.Any(tags.Contains)
                 || hierarchy is "PARENT_PK" or "CHILD_PK";
 

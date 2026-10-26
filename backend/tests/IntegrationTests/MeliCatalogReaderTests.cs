@@ -54,6 +54,21 @@ public sealed class MeliCatalogReaderTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Una_relevancia_no_entera_no_rompe_la_lectura_de_la_categoria()
+    {
+        var (connection, _) = await ConnectedAsync();
+        var category = NewCategoryId();
+        factory.ExternalHttp.On(HttpMethod.Get, $"{MlApi}/categories/{category}/attributes", (_, _) => FakeHttp.Json(
+            """[{"id":"BRAND","name":"Marca","tags":{"required":true},"value_type":"string","relevance":1.5}]"""));
+        var reader = NewReader(out var scope);
+        using var _ = scope;
+
+        var attributes = await reader.AttributesAsync(connection, category, CancellationToken.None);
+
+        Assert.Equal(["BRAND"], attributes.Select(a => a.Id));
+    }
+
+    [Fact]
     public async Task Otra_tienda_aprovecha_la_cache_de_la_categoria()
     {
         var (first, _) = await ConnectedAsync();
