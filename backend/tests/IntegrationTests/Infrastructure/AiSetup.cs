@@ -20,6 +20,9 @@ public static class AiSetup
         await merchant.ExpectOkAsync(HttpMethod.Put, $"{Config}/settings", new { enabled = true, monthlyBudgetUsd = 20, alertThresholdPct = 80 });
     }
 
+    /// <summary>Una sola tarea lista para usar con ese modelo (la clave de Anthropic, la asignación y el tope).</summary>
+    public static Task EnableAsync(Merchant owner, AiTask task, string modelId) => ConfigureAsync(owner, (task, modelId));
+
     /// <summary>Los borradores de la bandeja: Haiku clasifica y Sonnet redacta.</summary>
     public static Task EnableDraftsAsync(Merchant merchant) =>
         ConfigureAsync(merchant, (AiTask.QuestionClassify, Haiku), (AiTask.QuestionDraft, Sonnet));

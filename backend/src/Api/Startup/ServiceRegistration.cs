@@ -222,6 +222,7 @@ public static class ServiceRegistration
         services.AddMemoryCache();
         services.AddScoped<Api.Inbox.MeliInboxSource>();
         Api.Ai.Questions.QuestionDraftsRegistration.AddQuestionDrafts(services);
+        Api.Ai.Assistant.AssistantRegistration.AddAssistant(services);
         services.AddScoped<Api.Inbox.InboxService>();
 
         // Despacho: cola de pedidos, lista de picking, etiquetas en lote y

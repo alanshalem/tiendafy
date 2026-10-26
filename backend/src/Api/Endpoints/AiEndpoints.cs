@@ -1,5 +1,6 @@
 using Ai.Infrastructure;
 using Api.Ai;
+using Api.Ai.Assistant;
 using Api.Ai.Questions;
 using Api.Auth;
 using Identity.Infrastructure;
@@ -44,6 +45,9 @@ public static class AiEndpoints
 
         // Borradores de la bandeja: la consulta la lee el servidor (ver Api/Ai/Questions).
         ai.MapQuestionDrafts();
+
+        // Preguntale a tu tienda: el asistente de datos (ver Api/Ai/Assistant).
+        ai.MapAssistant();
 
         // Textos cortos para el comercio: un post para redes o la descripción de un producto. El permiso
         // depende del tipo, así que se mira dentro (la ruta pide cualquiera de los dos).
