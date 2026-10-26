@@ -4,6 +4,7 @@ using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
+using SharedKernel.Common;
 
 namespace Api.Notifications;
 
@@ -48,7 +49,7 @@ public static class AbandonedCarts
 
     public static async Task<IReadOnlyDictionary<Guid, Outcome>> ClassifyAsync(
         IReadOnlyCollection<CheckoutSession> sessions, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb,
-        CancellationToken ct)
+        CancellationToken ct, TenantId? onlyTenant = null)
     {
         if (sessions.Count == 0) return new Dictionary<Guid, Outcome>();
 
@@ -58,17 +59,23 @@ public static class AbandonedCarts
 
         // La orden de la propia sesión (aunque haya pagado con otro email), o
         // una del mismo comprador hecha después.
-        var orders = await ordersDb.Orders.AsNoTracking()
+        // Con onlyTenant (el listado del panel y el asistente) las dos lecturas
+        // quedan acotadas a esa tienda aunque el filtro global esté apagado.
+        var ordersQuery = ordersDb.Orders.AsNoTracking()
             .Where(o => o.CreatedAtUtc >= since
                 && (ids.Contains(o.CheckoutSessionId) || emails.Contains(o.BuyerEmail.ToLower())))
-            .Where(ClosesCart)
+            .Where(ClosesCart);
+        if (onlyTenant is { } ordersTenant) ordersQuery = ordersQuery.Where(o => o.TenantId == ordersTenant);
+        var orders = await ordersQuery
             .Select(o => new { o.TenantId, o.BuyerEmail, o.CheckoutSessionId, o.CreatedAtUtc })
             .ToListAsync(ct);
 
+        var newerQuery = checkoutDb.Sessions.AsNoTracking()
+            .Where(s => s.Email != null && s.CreatedAtUtc >= since && emails.Contains(s.Email.ToLower()));
+        if (onlyTenant is { } newerTenant) newerQuery = newerQuery.Where(s => s.TenantId == newerTenant);
         var newer = emails.Count == 0
             ? []
-            : await checkoutDb.Sessions.AsNoTracking()
-                .Where(s => s.Email != null && s.CreatedAtUtc >= since && emails.Contains(s.Email.ToLower()))
+            : await newerQuery
                 .Select(s => new { s.Id, s.TenantId, s.Email, s.CreatedAtUtc })
                 .ToListAsync(ct);
 

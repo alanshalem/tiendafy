@@ -71,6 +71,30 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
         Assert.Equal(20_000, summary.AverageSpentMinor); // (10.000 + 40.000 + 10.000) / 3
     }
 
+    [Fact]
+    public async Task Carritos_abandonados_filtran_por_tienda_sin_filtro_global()
+    {
+        var a = await Merchant.CreateAsync(factory, "sqca");
+        var b = await Merchant.CreateAsync(factory, "sqcb");
+        var shared = $"mismo-{a.Subdomain}@mail.com";
+        var (_, variantA) = await a.CreateProductAsync("Mochila A", priceMinor: 40_000_00);
+        var (_, variantB) = await b.CreateProductAsync("Mochila B", priceMinor: 9_000_00);
+        var cartA = await new Shopper(a).SaveContactAsync(variantA, shared);
+        var cartB = await new Shopper(b).SaveContactAsync(variantB, shared); // más nuevo, mismo mail, OTRA tienda
+
+        var since = DateTime.UtcNow.AddDays(-1);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var query = scope.ServiceProvider.GetRequiredService<AbandonedCartsQuery>();
+
+        // Sin tienda en el scope, el filtro global está apagado: lo que cuenta es el Where explícito.
+        var pendingA = await query.PendingAsync(SharedKernel.Common.TenantId.From(a.TenantId), since, null, CancellationToken.None);
+        var pendingB = await query.PendingAsync(SharedKernel.Common.TenantId.From(b.TenantId), since, null, CancellationToken.None);
+
+        // La compra posterior de B no reemplaza el carrito de A: son tiendas distintas.
+        Assert.Equal(cartA, Assert.Single(pendingA).Id);
+        Assert.Equal(cartB, Assert.Single(pendingB).Id);
+    }
+
     private static Task<CustomerSummary> RunCustomersAsync(AsyncServiceScope scope, Guid tenantId)
     {
         var now = DateTime.UtcNow;
