@@ -1,0 +1,15 @@
+# Configuración de gitleaks (CI: .github/workflows/gitleaks.yml). Usa todas las
+# reglas por defecto y solo exime valores que sabemos que no son secretos.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores de prueba y nombres fijos que la regla genérica confunde con claves"
+regexes = [
+  # Claves falsas de los tests y los planes de IA ("sk-test-123456a1b2"): un
+  # proveedor real nunca emite el prefijo sk-test-.
+  '''^sk-test-[0-9a-z]+$''',
+  # Purposes de DataProtection ("Tiendafy.Ai.Keys.v1"): son nombres fijos, no
+  # secretos, y no se pueden cambiar (ver AGENTS.md).
+  '''^Tiendafy\.[A-Za-z]+(\.[A-Za-z]+)*\.v[0-9]+$''',
+]
