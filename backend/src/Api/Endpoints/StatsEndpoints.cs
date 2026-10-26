@@ -435,21 +435,12 @@ public static class StatsEndpoints
         // una compra, uno por comprador (el mismo criterio que el recordatorio,
         // ver AbandonedCarts).
         carts.MapGet("/abandoned-carts", async (
-            ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb,
+            ITenantContext tenant, AbandonedCartsQuery abandonedCarts,
             int? days, int? limit, int? offset, CancellationToken ct) =>
         {
-            var tid = tenant.TenantId;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 90));
 
-            var sessions = await checkoutDb.Sessions
-                .Where(s => s.TenantId == tid && s.CreatedAtUtc >= since && s.Status != CheckoutStatus.Completed)
-                .ToListAsync(ct);
-
-            var outcomes = await AbandonedCarts.ClassifyAsync(sessions, checkoutDb, ordersDb, ct);
-            var pending = sessions
-                .Where(s => outcomes[s.Id] == AbandonedCarts.Outcome.Abandoned)
-                .OrderByDescending(s => s.CreatedAtUtc)
-                .ToList();
+            var pending = await abandonedCarts.PendingAsync(tenant.TenantId, since, null, ct);
 
             var page = pending
                 .Skip(Math.Max(0, offset ?? 0))

@@ -13,6 +13,7 @@ public static class StatsQueriesRegistration
         services.AddScoped<SalesOverviewQuery>();
         services.AddScoped<TopProductsQuery>();
         services.AddScoped<ProfitabilityQuery>();
+        services.AddScoped<AbandonedCartsQuery>();
         return services;
     }
 }
