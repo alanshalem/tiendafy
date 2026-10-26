@@ -356,13 +356,19 @@ function LinkModal({
   );
 }
 
+/** Una categoría para publicar: la que ya tiene guardada el producto (`saved`) o una que sugiere Mercado Libre. */
+interface CategoryOption {
+  categoryId: string | null;
+  categoryName: string | null;
+  domainName: string | null;
+  saved?: boolean;
+}
+
 function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
-  const [suggestions, setSuggestions] = useState<
-    { categoryId: string | null; categoryName: string | null; domainName: string | null }[] | null
-  >(null);
+  const [suggestions, setSuggestions] = useState<CategoryOption[] | null>(null);
   const [categoryId, setCategoryId] = useState('');
   const [publishing, setPublishing] = useState(false);
   const { dirty, close } = useModalFormGuard({ productId, categoryId }, onClose);
@@ -371,8 +377,9 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   const products = found?.items ?? [];
   const product = products.find((p) => p.id === productId);
 
-  // Al elegir producto, pedirle a ML la categoría sugerida por el título. Si
-  // se elige otro antes de que responda, la respuesta vieja se descarta.
+  // Al elegir producto, se le pide a ML la categoría sugerida por el título y se mira si el producto ya tiene una
+  // guardada (la que eligió una persona o la IA al armar la ficha): esa va primera y queda elegida, y la predicción
+  // sigue a la vista como alternativas. Si se elige otro producto antes de que responda, la respuesta vieja se descarta.
   const lastPick = useRef('');
   const choose = (id: string) => {
     setProductId(id);
@@ -381,16 +388,34 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
     lastPick.current = id;
     const picked = products.find((p) => p.id === id);
     if (!picked) return;
-    api
-      .get<{
-        suggestions: { categoryId: string | null; categoryName: string | null; domainName: string | null }[];
-      }>(`/api/v1/admin/meli/categories/predict?title=${encodeURIComponent(picked.name)}`)
-      .then((r) => {
-        if (lastPick.current !== id) return;
-        setSuggestions(r.suggestions);
-        if (r.suggestions[0]?.categoryId) setCategoryId(r.suggestions[0].categoryId);
-      })
-      .catch(() => lastPick.current === id && setSuggestions([]));
+    Promise.all([
+      api
+        .get<{ suggestions: CategoryOption[] }>(
+          `/api/v1/admin/meli/categories/predict?title=${encodeURIComponent(picked.name)}`,
+        )
+        .then((r) => r.suggestions)
+        .catch(() => [] as CategoryOption[]),
+      api
+        .get<{ categoryId: string | null; categoryName?: string | null }>(
+          `/api/v1/admin/meli/products/${id}/category`,
+        )
+        .catch(() => null),
+    ]).then(([predicted, saved]) => {
+      if (lastPick.current !== id) return;
+      const options: CategoryOption[] = saved?.categoryId
+        ? [
+            {
+              categoryId: saved.categoryId,
+              categoryName: saved.categoryName ?? null,
+              domainName: null,
+              saved: true,
+            },
+            ...predicted.filter((s) => s.categoryId !== saved.categoryId),
+          ]
+        : predicted;
+      setSuggestions(options);
+      if (options[0]?.categoryId) setCategoryId(options[0].categoryId);
+    });
   };
 
   const publish = async () => {
@@ -454,7 +479,9 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
               .filter((s): s is typeof s & { categoryId: string } => !!s.categoryId)
               .map((s) => ({
                 value: s.categoryId,
-                label: `${s.categoryName ?? s.categoryId}${s.domainName ? ` · ${s.domainName}` : ''}`,
+                label: s.saved
+                  ? `Guardada: ${s.categoryName ?? s.categoryId}`
+                  : `${s.categoryName ?? s.categoryId}${s.domainName ? ` · ${s.domainName}` : ''}`,
               }))}
           />
         )}

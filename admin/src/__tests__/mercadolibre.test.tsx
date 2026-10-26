@@ -438,6 +438,91 @@ describe('Mercado Libre: publicaciones', () => {
     expect(await screen.findByText(/Publicado en Mercado Libre! \(MLA555\)/)).toBeInTheDocument();
   });
 
+  it('con una categoría guardada del producto, arranca elegida aunque Mercado Libre sugiera otra', async () => {
+    const { api, user } = await open('publicaciones', (a) => {
+      a.on('GET', '/api/v1/admin/meli/categories/predict', {
+        suggestions: [
+          { categoryId: 'MLA1234', categoryName: 'Mancuernas', domainName: 'Fitness' },
+          { categoryId: 'MLA9999', categoryName: 'Pesas', domainName: null },
+        ],
+      });
+      a.on('GET', `/api/v1/admin/meli/products/${product.id}/category`, {
+        categoryId: 'MLA9999',
+        categoryName: 'Pesas',
+        source: 'Manual',
+      });
+      a.on('POST', `/api/v1/admin/meli/products/${product.id}/publish`, {
+        itemId: 'MLA555',
+        permalink: null,
+      });
+    });
+    await user.click(screen.getByRole('button', { name: /Publicar un producto en ML/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Publicar en Mercado Libre' }));
+    await user.type(
+      dialog.getByPlaceholderText('Buscar producto por nombre o SKU…'),
+      product.name.slice(0, 5),
+    );
+    await user.click(await dialog.findByRole('button', { name: rx(product.name) }));
+
+    const select = await dialog.findByRole('combobox', { name: 'Categoría de Mercado Libre' });
+    expect(select).toHaveValue('MLA9999');
+    // La guardada va primera y las sugeridas siguen a la vista, sin repetir la guardada.
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Guardada: Pesas', 'Mancuernas · Fitness']);
+
+    await user.click(dialog.getByRole('button', { name: /^Publicar/ }));
+    await settle(2);
+    expect(posted(api, `/api/v1/admin/meli/products/${product.id}/publish`)).toEqual({
+      categoryId: 'MLA9999',
+    });
+  });
+
+  it('con la categoría guardada y sin sugerencias de Mercado Libre, igual se puede publicar', async () => {
+    const { user } = await open('publicaciones', (a) => {
+      a.on('GET', '/api/v1/admin/meli/categories/predict', { suggestions: [] });
+      a.on('GET', `/api/v1/admin/meli/products/${product.id}/category`, {
+        categoryId: 'MLA9999',
+        categoryName: 'Pesas',
+        source: 'Predicted',
+      });
+    });
+    await user.click(screen.getByRole('button', { name: /Publicar un producto en ML/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Publicar en Mercado Libre' }));
+    await user.type(
+      dialog.getByPlaceholderText('Buscar producto por nombre o SKU…'),
+      product.name.slice(0, 5),
+    );
+    await user.click(await dialog.findByRole('button', { name: rx(product.name) }));
+
+    expect(await dialog.findByRole('combobox', { name: 'Categoría de Mercado Libre' })).toHaveValue(
+      'MLA9999',
+    );
+    expect(dialog.getByRole('button', { name: /^Publicar/ })).toBeEnabled();
+  });
+
+  it('sin categoría guardada, arranca en la primera sugerencia como siempre', async () => {
+    const { user } = await open('publicaciones', (a) => {
+      a.on('GET', '/api/v1/admin/meli/categories/predict', {
+        suggestions: [{ categoryId: 'MLA1234', categoryName: 'Mancuernas', domainName: 'Fitness' }],
+      });
+      a.on('GET', `/api/v1/admin/meli/products/${product.id}/category`, { categoryId: null });
+    });
+    await user.click(screen.getByRole('button', { name: /Publicar un producto en ML/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Publicar en Mercado Libre' }));
+    await user.type(
+      dialog.getByPlaceholderText('Buscar producto por nombre o SKU…'),
+      product.name.slice(0, 5),
+    );
+    await user.click(await dialog.findByRole('button', { name: rx(product.name) }));
+
+    expect(await dialog.findByRole('combobox', { name: 'Categoría de Mercado Libre' })).toHaveValue(
+      'MLA1234',
+    );
+  });
+
   it('sin categoría sugerida avisa y no deja publicar', async () => {
     const { user } = await open('publicaciones', (a) =>
       a.on('GET', '/api/v1/admin/meli/categories/predict', { suggestions: [] }),
