@@ -69,6 +69,10 @@ public sealed class MeliCatalogReader(
         return token is null ? null : new MeliReaderConnection(tenantId, connection.SiteId, token);
     }
 
+    /// <summary>Si la tienda tiene una cuenta real conectada (no la de demostración). No renueva el token ni sale a Mercado Libre.</summary>
+    public Task<bool> HasRealConnectionAsync(Guid tenantId, CancellationToken ct) =>
+        db.Connections.IgnoreQueryFilters().AsNoTracking().AnyAsync(c => c.TenantId == tenantId && !c.IsDemo, ct);
+
     /// <summary>La categoría de una publicación; null si la publicación ya no existe.</summary>
     public Task<string?> ItemCategoryIdAsync(MeliReaderConnection c, string itemId, CancellationToken ct) =>
         gate.RunAsync<string?>(c.TenantId, async token =>

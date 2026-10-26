@@ -7,6 +7,8 @@ public static class AiCatalogRegistration
     {
         services.AddScoped<IAiCatalogModels, AiCatalogModels>();
         services.AddScoped<AiCatalogDrafter>();
+        services.AddScoped<AiCatalogSelection>();
+        services.AddScoped<AiCatalogJobs>();
         return services;
     }
 }

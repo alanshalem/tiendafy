@@ -1,3 +1,4 @@
+using Api.Ai.Catalog;
 using Api.Endpoints;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -70,6 +71,7 @@ public static class PipelineExtensions
         apiV1.MapMeliEndpoints();
         apiV1.MapSocialEndpoints();
         apiV1.MapAiEndpoints();
+        apiV1.MapAiCatalogEndpoints();
         apiV1.MapAiConfigEndpoints();
         apiV1.MapAiUsageEndpoints();
         apiV1.MapOrderEndpoints();
