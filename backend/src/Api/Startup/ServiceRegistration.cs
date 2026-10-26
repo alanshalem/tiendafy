@@ -5,6 +5,7 @@ using Api.Import;
 using Api.Middleware;
 using Api.Notifications;
 using Api.Payments;
+using Api.Stats;
 using Catalog.Infrastructure;
 using Checkout.Infrastructure;
 using Content.Infrastructure;
@@ -83,6 +84,7 @@ public static class ServiceRegistration
         services.AddScoped<Api.Finance.LedgerPoster>();
         services.AddScoped<Api.Finance.PartyDirectory>();
         services.AddScoped<Api.Pricing.PriceListService>();
+        services.AddStatsQueries();
         services.AddFiscalModule(configuration);
         services.AddInventoryModule(configuration);
         services.AddCheckoutModule(configuration);

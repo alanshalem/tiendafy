@@ -34,8 +34,7 @@ public static class StatsEndpoints
         stats.MapGet("/overview", async (
             ITenantContext tenant,
             CatalogDbContext catalog, DiscountsDbContext discounts, CustomersDbContext customers,
-            ContentDbContext content, OrdersDbContext ordersDb,
-            MercadoLibre.Infrastructure.MeliDbContext meli, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            ContentDbContext content, SalesOverviewQuery salesQuery, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var tidGuid = tid.Value;
@@ -61,106 +60,41 @@ public static class StatsEndpoints
             // siempre hasta ahora, así que un rango personalizado mostraba otras
             // fechas y "Hoy" eran las últimas 24 horas.
             var (firstDay, lastDay) = StatsRanges.OverviewDays(from, to, days);
-            var since = ArgentinaTime.StartOfDayUtc(firstDay);
-            var until = ArgentinaTime.StartOfDayUtc(lastDay.AddDays(1));
-            var prevSince = since - (until - since);
-            var span = lastDay.DayNumber - firstDay.DayNumber + 1;
-
-            var window = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
-                    && o.PaidAtUtc >= prevSince && o.PaidAtUtc < until)
-                .ToListAsync(ct);
-
-            var current = window.Where(o => o.PaidAtUtc >= since).ToList();
-            var previous = window.Where(o => o.PaidAtUtc < since).ToList();
-
-            var revenue = current.Sum(o => o.NetRevenue.AmountInMinorUnits);
-            var previousRevenue = previous.Sum(o => o.NetRevenue.AmountInMinorUnits);
-            var currency = current.FirstOrDefault()?.Currency
-                ?? previous.FirstOrDefault()?.Currency
-                ?? Money.DefaultCurrency;
-
-            // Clientes que se sumaron a la agenda en el período (y en el anterior).
-            var newCustomers = await customers.Customers
-                .CountAsync(c => c.TenantId == tidGuid && c.CreatedAtUtc >= since && c.CreatedAtUtc < until, ct);
-            var previousNewCustomers = await customers.Customers
-                .CountAsync(c => c.TenantId == tidGuid && c.CreatedAtUtc >= prevSince && c.CreatedAtUtc < since, ct);
-
-            // Evolución diaria del período (para el gráfico de barras), en días
-            // de Argentina: una venta de las 22 h es de ese día, no del siguiente.
-            var byDay = current
-                .GroupBy(o => ArgentinaTime.DateOf(o.PaidAtUtc ?? o.CreatedAtUtc))
-                .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.NetRevenue.AmountInMinorUnits), Orders: g.Count()));
-            var series = Enumerable.Range(0, span)
-                .Select(firstDay.AddDays)
-                .Select(d => new
-                {
-                    date = d,
-                    revenue = byDay.TryGetValue(d, out var v) ? v.Revenue : 0,
-                    orders = byDay.TryGetValue(d, out var v2) ? v2.Orders : 0,
-                })
-                .ToList();
-
-            // De dónde vienen las ventas: canal propio vs. Mercado Libre.
-            var meliRevenue = await meli.Orders.AsNoTracking()
-                .Where(o => o.TenantId == tid.Value && o.DateCreatedUtc >= since && o.DateCreatedUtc < until
-                    && MercadoLibre.Infrastructure.MeliOrder.EarningStatuses.Contains(o.Status))
-                .ToListAsync(ct);
-
-            // Origen del tráfico que terminó en venta (utm_source de la orden).
-            var bySource = current
-                .GroupBy(o => string.IsNullOrWhiteSpace(o.UtmSource) ? "directo" : o.UtmSource!)
-                .Select(g => new { source = g.Key, orders = g.Count(), revenue = g.Sum(o => o.NetRevenue.AmountInMinorUnits) })
-                .OrderByDescending(x => x.revenue)
-                .Take(6)
-                .ToList();
-
-            // Lo más vendido del período, por facturación.
-            var topProducts = current
-                .SelectMany(o => o.Items)
-                .GroupBy(i => i.ProductName)
-                .Select(g => new { product = g.Key, units = g.Sum(i => i.Quantity), revenue = g.Sum(i => i.LineTotal.AmountInMinorUnits) })
-                .OrderByDescending(x => x.revenue)
-                .Take(5)
-                .ToList();
+            var sales = await salesQuery.RunAsync(tid, firstDay, lastDay, ct);
 
             return Results.Ok(new
             {
-                days = span,
-                from = firstDay,
-                to = lastDay,
-                currency,
+                days = sales.Days,
+                from = sales.FirstDay,
+                to = sales.LastDay,
+                currency = sales.Currency,
                 products = new { total, published, draft, archived },
                 categories,
                 coupons = new { total = couponsTotal, active = couponsActive },
                 customers = customersCount,
-                newCustomers = new { current = newCustomers, previous = previousNewCustomers },
+                newCustomers = new { current = sales.NewCustomers, previous = sales.PreviousNewCustomers },
                 pages = new { total = pagesTotal, published = pagesPublished },
                 sales = new
                 {
                     available = true,
-                    orders = current.Count,
-                    revenue,
-                    averageOrder = current.Count > 0 ? revenue / current.Count : 0,
+                    orders = sales.Current.Orders,
+                    revenue = sales.Current.RevenueMinor,
+                    averageOrder = sales.Current.AverageMinor,
                     previous = new
                     {
-                        orders = previous.Count,
-                        revenue = previousRevenue,
-                        averageOrder = previous.Count > 0 ? previousRevenue / previous.Count : 0,
+                        orders = sales.Previous.Orders,
+                        revenue = sales.Previous.RevenueMinor,
+                        averageOrder = sales.Previous.AverageMinor,
                     },
                 },
-                series,
+                series = sales.Series.Select(d => new { date = d.Date, revenue = d.RevenueMinor, orders = d.Orders }).ToList(),
                 channels = new
                 {
-                    own = new { orders = current.Count, revenue },
-                    meli = new
-                    {
-                        orders = meliRevenue.Count,
-                        revenue = meliRevenue.Sum(o => (long)Math.Round(o.BillableAmount * 100m)),
-                    },
+                    own = new { orders = sales.Current.Orders, revenue = sales.Current.RevenueMinor },
+                    meli = new { orders = sales.Meli.Orders, revenue = sales.Meli.RevenueMinor },
                 },
-                bySource,
-                topProducts,
+                bySource = sales.BySource.Select(x => new { source = x.Source, orders = x.Orders, revenue = x.RevenueMinor }).ToList(),
+                topProducts = sales.TopProducts.Select(x => new { product = x.Product, units = x.Units, revenue = x.RevenueMinor }).ToList(),
             });
         });
 
@@ -200,42 +134,23 @@ public static class StatsEndpoints
 
         // Productos más vendidos (de OrderItems de órdenes pagadas). Rango: from/to o days.
         stats.MapGet("/products/top", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, CatalogDbContext catalog,
+            ITenantContext tenant, TopProductsQuery topQuery,
             int? days, int? limit, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var (since, until) = StatsRanges.Range(from, to, days ?? 30);
             var take = Math.Clamp(limit ?? 10, 1, 50);
-
-            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
-            var lines = paid.SelectMany(o => o.Items).ToList();
-
-            var ranked = lines
-                .GroupBy(i => i.ProductName)
-                .Select(g => new { product = g.Key, units = g.Sum(i => i.Quantity), revenue = g.Sum(i => i.LineTotal.AmountInMinorUnits) })
-                .ToList();
-
-            var top = ranked.OrderByDescending(x => x.units).Take(take).ToList();
-            var topRevenue = ranked.OrderByDescending(x => x.revenue).Take(take).ToList();
-
-            // Lo que NO se vendió es tan informativo como el top: son los
-            // productos publicados que no movieron una sola unidad en el período.
-            var sold = ranked.Select(x => x.product).ToHashSet();
-            var published = await catalog.Products
-                .Where(p => p.TenantId == tid && p.Status == ProductStatus.Active)
-                .Select(p => p.Name)
-                .ToListAsync(ct);
-            var idle = published.Where(name => !sold.Contains(name)).OrderBy(n => n).ToList();
+            var result = await topQuery.RunAsync(tid, since, until, take, ct);
 
             return Results.Ok(new
             {
-                items = top,
-                byRevenue = topRevenue,
-                totalUnits = lines.Sum(i => i.Quantity),
-                distinctProducts = ranked.Count,
-                publishedProducts = published.Count,
-                idleCount = idle.Count,
-                idleSample = idle.Take(12).ToList(),
+                items = result.ByUnits.Select(x => new { product = x.Product, units = x.Units, revenue = x.RevenueMinor }).ToList(),
+                byRevenue = result.ByRevenue.Select(x => new { product = x.Product, units = x.Units, revenue = x.RevenueMinor }).ToList(),
+                totalUnits = result.TotalUnits,
+                distinctProducts = result.DistinctProducts,
+                publishedProducts = result.PublishedProducts,
+                idleCount = result.Idle.Count,
+                idleSample = result.Idle.Take(12).ToList(),
             });
         });
 
