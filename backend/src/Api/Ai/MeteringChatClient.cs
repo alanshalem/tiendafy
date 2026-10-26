@@ -28,8 +28,11 @@ public sealed class MeteringChatClient(
         {
             response = await base.GetResponseAsync(messages, options, cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
+            // La marca dice que la excepción salió del proveedor (y no de una herramienta o del cuerpo):
+            // solo esas cuentan como caída. Se marca sin envolverla, así el cuerpo la ve con su tipo.
+            ex.Data[ProviderMark] = true;
             await RecordAsync(0, 0, 0, AiOutcome.Error);
             throw;
         }
@@ -41,11 +44,26 @@ public sealed class MeteringChatClient(
         return response;
     }
 
-    // Ninguna tarea de la v1 usa streaming: se deja pasar al cliente de adentro SIN medir.
-    // Si alguna lo usa, hay que medirlo acá (el uso llega en la última actualización).
+    // Ninguna tarea de la v1 usa streaming. Dejarlo pasar sería gastar sin medir y sin tope: si alguna
+    // lo necesita, hay que medirlo acá (el uso llega en la última actualización).
     public override IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
-        base.GetStreamingResponseAsync(messages, options, cancellationToken);
+        throw new NotSupportedException("MeteringChatClient no mide el streaming: usá GetResponseAsync.");
+
+    private const string ProviderMark = "Tiendafy.Ai.FromProvider";
+
+    /// <summary>
+    /// Si <paramref name="ex"/>, o una de las de adentro, salió de la llamada al proveedor (la marca este
+    /// medidor). Lo que tira una herramienta o el cuerpo no pasa por acá y no queda marcado.
+    /// </summary>
+    internal static bool CameFromProvider(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e.Data[ProviderMark] is true) return true;
+        }
+        return false;
+    }
 
     private static (long Input, long Cached, long Output) Normalize(UsageDetails? usage)
     {

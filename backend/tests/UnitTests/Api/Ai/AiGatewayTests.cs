@@ -53,8 +53,12 @@ public sealed class AiGatewayTests
         public List<string> Created { get; } = [];
         public List<TrackedClient> Built { get; } = [];
 
+        /// <summary>Si está, armar el cliente lanza esto (como un constructor de SDK con una variable de entorno inválida).</summary>
+        public Exception? CreateError { get; set; }
+
         public IChatClient Create(AiProvider provider, string apiKey, string modelId, int maxOutputTokens)
         {
+            if (CreateError is not null) throw CreateError;
             Created.Add(modelId);
             var client = new TrackedClient(Clients[modelId]);
             Built.Add(client);
@@ -220,6 +224,40 @@ public sealed class AiGatewayTests
         Assert.Equal("Ai.Disabled", result.Error.Code);
         Assert.Equal(ErrorType.Conflict, result.Error.Type);
         Assert.Empty(h.Factory.Created);
+        // Con modelo y la tienda apagada, el panel muestra el botón deshabilitado con el motivo.
+        var shortText = Assert.Single(await h.Gateway().AvailabilityAsync(default), a => a.Task == AiTask.ShortText);
+        Assert.Equal("Ai.Disabled", shortText.Code);
+    }
+
+    [Fact]
+    public async Task Tienda_nunca_configurada_da_NotConfigured_aunque_este_apagada()
+    {
+        // Sin fila de AiSettings: apagada y sin ningún modelo asignado.
+        var h = new Harness();
+        h.Config.Enabled = false;
+        h.Config.Keys.Clear();
+
+        var availability = await h.Gateway().AvailabilityAsync(default);
+        var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, AskAsync, default);
+
+        Assert.Equal(AiTaskSpecs.All.Count, availability.Count);
+        Assert.All(availability, a => Assert.Equal("Ai.TaskNotConfigured", a.Code));
+        Assert.Equal("Ai.TaskNotConfigured", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Una_tienda_en_las_opciones_distinta_de_la_del_request_lanza()
+    {
+        var h = new Harness().Assign(AiTask.ShortText, Sonnet);
+        h.Factory.Clients[Sonnet] = new FakeChatClient(Reply("hola"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Gateway().RunAsync(
+            AiTask.ShortText, Small with { TenantId = Guid.NewGuid() }, AskAsync, default));
+        Assert.Empty(h.Factory.Created);
+
+        // La misma tienda del request sí se acepta.
+        var same = await h.Gateway().RunAsync(AiTask.ShortText, Small with { TenantId = Tenant }, AskAsync, default);
+        Assert.Equal("hola", same.Value);
     }
 
     [Fact]
@@ -555,17 +593,72 @@ public sealed class AiGatewayTests
     }
 
     [Fact]
-    public async Task Un_error_que_no_es_del_proveedor_se_relanza_y_libera_el_cliente()
+    public async Task Un_error_del_cuerpo_da_Failed_sin_respaldo_y_libera_el_cliente()
     {
         var h = new Harness().Assign(AiTask.ShortText, Sonnet, Sol);
-        h.Factory.Clients[Sonnet] = new FakeChatClient(Reply("hola"));
+        h.Factory.Clients[Sonnet] = new FakeChatClient(Reply("no es json"));
         h.Factory.Clients[Sol] = new FakeChatClient(Reply("no debería"));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Gateway().RunAsync<string>(
-            AiTask.ShortText, Small, (_, _) => throw new InvalidOperationException("bug del cuerpo"), default));
+        // El modelo contestó bien; lo que falla es el parseo de la respuesta en el cuerpo.
+        var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, async (ctx, ct) =>
+        {
+            var text = await AskAsync(ctx, ct);
+            return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(text);
+        }, default);
 
+        Assert.Equal("Ai.Failed", result.Error.Code);
+        Assert.Equal(ErrorType.Unavailable, result.Error.Type);
         Assert.Equal([Sonnet], h.Factory.Created);
         Assert.All(h.Factory.Built, c => Assert.True(c.Disposed));
+        await AssertOnlyRealSpendCommitted(h);
+    }
+
+    [Fact]
+    public async Task Una_herramienta_que_falla_con_HttpRequestException_no_es_una_caida_del_proveedor()
+    {
+        var h = new Harness().Assign(AiTask.DataAssistant, Sonnet, Sol);
+        var script = Enumerable.Range(0, 5)
+            .Select(i => new ChatResponse(new ChatMessage(ChatRole.Assistant,
+                [new FunctionCallContent($"call-{i}", "consultar_carrier")])))
+            .ToArray();
+        h.Factory.Clients[Sonnet] = new FakeChatClient(script);
+        var fallback = new FakeChatClient(Reply("no debería"));
+        h.Factory.Clients[Sol] = fallback;
+        // A una falla de abrirse: si la herramienta contara como caída de Anthropic, lo abriría.
+        h.Breaker.RecordFailure(Tenant, AiProvider.Anthropic);
+        h.Breaker.RecordFailure(Tenant, AiProvider.Anthropic);
+        var toolCalls = 0;
+        var tool = AIFunctionFactory.Create(new Func<string>(() =>
+        {
+            toolCalls++;
+            throw new HttpRequestException("carrier caído", null, HttpStatusCode.ServiceUnavailable);
+        }), "consultar_carrier", "Consulta el carrier.");
+
+        var result = await h.Gateway().RunAsync(AiTask.DataAssistant, Small, async (ctx, ct) =>
+        {
+            var options = ctx.NewOptions();
+            options.Tools = [tool];
+            return (await ctx.WithTools().GetResponseAsync([new(ChatRole.User, "¿dónde está el envío?")], options, ct)).Text;
+        }, default);
+
+        Assert.Equal(3, toolCalls);
+        Assert.Equal("Ai.Failed", result.Error.Code);
+        Assert.Equal(ErrorType.Unavailable, result.Error.Type);
+        Assert.Empty(fallback.Calls);
+        Assert.DoesNotContain(Sol, h.Factory.Created);
+        Assert.False(h.Breaker.IsOpen(Tenant, AiProvider.Anthropic));
+        await AssertOnlyRealSpendCommitted(h);
+    }
+
+    [Fact]
+    public async Task Si_armar_el_cliente_falla_da_Failed_y_no_500()
+    {
+        var h = new Harness().Assign(AiTask.ShortText, Sonnet);
+        h.Factory.CreateError = new ArgumentException("ANTHROPIC_BASE_URL inválida");
+
+        var result = await h.Gateway().RunAsync(AiTask.ShortText, Small, AskAsync, default);
+
+        Assert.Equal("Ai.Failed", result.Error.Code);
         await AssertOnlyRealSpendCommitted(h);
     }
 
@@ -574,6 +667,7 @@ public sealed class AiGatewayTests
     {
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, Status(AiErrors.Unavailable));
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, Status(AiErrors.TimedOut));
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, Status(AiErrors.Failed));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.Budget));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.Disabled));
         Assert.Equal(StatusCodes.Status409Conflict, Status(AiErrors.NotConfigured));

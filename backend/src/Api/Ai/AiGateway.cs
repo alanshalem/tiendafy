@@ -115,8 +115,10 @@ public interface IAiGateway
 
 /// <summary>
 /// Scoped: toma la tienda y el usuario del request. En orden: apagado global (<c>Ai:Disabled</c>) →
-/// apagado de la tienda → modelo asignado con clave → corte por fallas → reserva del peor caso →
-/// cuerpo con el tiempo máximo de la tarea → respaldo una vez si el principal se cae.
+/// tarea sin modelo → apagado de la tienda → clave del modelo → corte por fallas → reserva del peor
+/// caso → cuerpo con el tiempo máximo de la tarea → respaldo una vez si el principal se cae.
+/// Solo una excepción que salió del proveedor (la marca <see cref="MeteringChatClient"/>) pasa al
+/// respaldo o cuenta para el corte; cualquier otra del cuerpo es <see cref="AiErrors.Failed"/>.
 /// </summary>
 public sealed class AiGateway(
     IConfiguration configuration,
@@ -137,17 +139,11 @@ public sealed class AiGateway(
     public async Task<IReadOnlyList<AiTaskAvailability>> AvailabilityAsync(CancellationToken ct)
     {
         var tenantId = RequestTenant();
-        Error? blocked = null;
         AiTenantConfigSnapshot? snapshot = null;
-        if (configuration.GetValue<bool>(DisabledKey)) blocked = AiErrors.DisabledGlobally;
-        else
-        {
-            snapshot = await config.LoadAsync(tenantId, ct);
-            if (!snapshot.Enabled) blocked = AiErrors.Disabled;
-        }
+        if (!configuration.GetValue<bool>(DisabledKey)) snapshot = await config.LoadAsync(tenantId, ct);
 
         return AiTaskSpecs.All
-            .Select(spec => (blocked ?? Resolve(snapshot!, spec).Error) is { } error
+            .Select(spec => (snapshot is null ? AiErrors.DisabledGlobally : Resolve(snapshot, spec).Error) is { } error
                 ? new AiTaskAvailability(spec.Task, false, error.Message, error.Code)
                 : new AiTaskAvailability(spec.Task, true, null, null))
             .ToList();
@@ -158,14 +154,17 @@ public sealed class AiGateway(
     {
         if (configuration.GetValue<bool>(DisabledKey)) return Result.Failure<T>(AiErrors.DisabledGlobally);
 
+        // La tienda de las opciones es para workers: en un request no puede ser otra que la del request.
+        if (options.TenantId is { } optionsTenant && tenant.HasTenant && optionsTenant != tenant.TenantId.Value)
+            throw new InvalidOperationException("AiRunOptions.TenantId no coincide con la tienda del request.");
         var tenantId = options.TenantId ?? RequestTenant();
         var userId = options.UserId ?? http.HttpContext?.User.GetUserId();
         var snapshot = await config.LoadAsync(tenantId, ct);
-        if (!snapshot.Enabled) return Result.Failure<T>(AiErrors.Disabled);
 
+        // Resolve decide también la tienda apagada, en el mismo orden que AvailabilityAsync.
         var spec = AiTaskSpecs.For(task);
-        var (primary, fallback, notConfigured) = Resolve(snapshot, spec);
-        if (notConfigured is not null) return Result.Failure<T>(notConfigured);
+        var (primary, fallback, blocked) = Resolve(snapshot, spec);
+        if (blocked is not null) return Result.Failure<T>(blocked);
 
         // Con el principal dado por caído se va directo al respaldo.
         var attempts = new List<AiModelInfo>(2);
@@ -186,28 +185,36 @@ public sealed class AiGateway(
             if (key is null) return Result.Failure<T>(AiErrors.MissingKey(model.Provider));
 
             var outcome = ReferenceEquals(model, primary) ? AiOutcome.Ok : AiOutcome.Fallback;
-            using var client = factory.Create(model.Provider, key, model.Id, spec.MaxOutputTokens);
-            var metered = new MeteringChatClient(
-                client, recorder, new AiUsageEntry(tenantId, userId, task, model, runId, 0, 0, 0, outcome),
-                reservation, loggers.CreateLogger<MeteringChatClient>());
-
             using var timeout = new CancellationTokenSource(spec.Timeout, clock);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
-            AiFailure failure;
             try
             {
+                // Adentro del try: si el constructor de un SDK lanza, también se clasifica.
+                using var client = factory.Create(model.Provider, key, model.Id, spec.MaxOutputTokens);
+                var metered = new MeteringChatClient(
+                    client, recorder, new AiUsageEntry(tenantId, userId, task, model, runId, 0, 0, 0, outcome),
+                    reservation, loggers.CreateLogger<MeteringChatClient>());
                 var value = await body(new AiRunContext(runId, spec, model, metered), linked.Token);
                 breaker.RecordSuccess(tenantId, model.Provider);
                 return Result.Success(value);
             }
-            catch (Exception ex) when (!ct.IsCancellationRequested
-                && (failure = Classify(ex, timeout.IsCancellationRequested)) != AiFailure.Unknown)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
+                var failure = Classify(ex, timeout.IsCancellationRequested);
+                if (failure == AiFailure.NotProvider)
+                {
+                    // No salió del proveedor (herramienta, parseo, base): se loguea entera, no puede traer la clave.
+                    _logger.LogError(ex, "Falló la tarea {Task} con {Model} por algo que no es el proveedor.", task, model.Id);
+                    return Result.Failure<T>(AiErrors.Failed);
+                }
+
                 // Sin la excepción: el cuerpo de un error del proveedor puede traer fragmentos de la clave.
                 _logger.LogWarning("Falló {Model} en la tarea {Task}: {Failure} (HTTP {Status}).",
                     model.Id, task, failure, HttpStatusOf(ex));
                 switch (failure)
                 {
+                    case AiFailure.Unknown:
+                        return Result.Failure<T>(AiErrors.Failed);
                     case AiFailure.Auth:
                         return Result.Failure<T>(AiErrors.BadKey(model.Provider));
                     case AiFailure.Rejected:
@@ -231,7 +238,9 @@ public sealed class AiGateway(
     /// <summary>
     /// Principal y respaldo de la tarea. El principal tiene que existir en el catálogo, cumplir lo que
     /// pide la tarea y tener clave; si no, es el error (su mensaje es el motivo que ve el panel). Un
-    /// respaldo que no cumple lo mismo, o que es el mismo modelo, se ignora.
+    /// respaldo que no cumple lo mismo, o que es el mismo modelo, se ignora. Una tarea sin modelo es
+    /// <see cref="AiErrors.NotConfigured"/> antes que <see cref="AiErrors.Disabled"/>: en una tienda que
+    /// nunca armó la IA el panel no muestra el botón; con modelo y la tienda apagada, lo muestra deshabilitado.
     /// </summary>
     private static (AiModelInfo? Primary, AiModelInfo? Fallback, Error? Error) Resolve(
         AiTenantConfigSnapshot snapshot, AiTaskSpec spec)
@@ -240,6 +249,7 @@ public sealed class AiGateway(
             || AiModelCatalog.Find(assigned.Primary) is not { } primary
             || !Fits(primary, spec))
             return (null, null, AiErrors.NotConfigured);
+        if (!snapshot.Enabled) return (null, null, AiErrors.Disabled);
         if (!snapshot.ProvidersWithKey.Contains(primary.Provider))
             return (null, null, AiErrors.MissingKey(primary.Provider));
 
@@ -253,8 +263,13 @@ public sealed class AiGateway(
 
     internal enum AiFailure
     {
-        /// <summary>No viene de un SDK de proveedor (un bug del cuerpo): se relanza.</summary>
+        /// <summary>
+        /// Salió del proveedor pero no se reconoce como una falla suya (un bug de un adaptador, por
+        /// ejemplo): <see cref="AiErrors.Failed"/>, sin respaldo ni corte.
+        /// </summary>
         Unknown,
+        /// <summary>No salió del proveedor (una herramienta, el parseo, la base): <see cref="AiErrors.Failed"/>, sin respaldo ni corte.</summary>
+        NotProvider,
         /// <summary>429, 408, 5xx, red o un error del SDK sin estado HTTP: pasa al respaldo y cuenta para el corte por fallas.</summary>
         Transient,
         /// <summary>Venció el tiempo máximo de la tarea: igual que <see cref="Transient"/>.</summary>
@@ -266,13 +281,16 @@ public sealed class AiGateway(
     }
 
     /// <summary>
-    /// Cada SDK informa el estado HTTP a su manera. Primero se busca un estado en la excepción o en
-    /// las de adentro; si no hay, una excepción de un SDK de proveedor es una falla pasajera (nunca un
-    /// 500). Si venció el tiempo de la tarea, cualquier excepción es un timeout.
+    /// Si venció el tiempo de la tarea, cualquier excepción es un timeout. Si no, solo una excepción
+    /// marcada por <see cref="MeteringChatClient"/> es del proveedor: una herramienta que tira un
+    /// <see cref="HttpRequestException"/> no es una caída del modelo. Cada SDK informa el estado HTTP a
+    /// su manera: primero se busca un estado en la excepción o en las de adentro; si no hay, una
+    /// excepción de un SDK de proveedor es una falla pasajera (nunca un 500).
     /// </summary>
     internal static AiFailure Classify(Exception ex, bool timedOut)
     {
         if (timedOut) return AiFailure.TimedOut;
+        if (!MeteringChatClient.CameFromProvider(ex)) return AiFailure.NotProvider;
         for (var e = ex; e is not null; e = e.InnerException)
         {
             var failure = e switch

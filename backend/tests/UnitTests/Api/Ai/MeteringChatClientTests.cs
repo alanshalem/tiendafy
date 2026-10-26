@@ -125,12 +125,26 @@ public sealed class MeteringChatClientTests
         var recorder = new FakeRecorder();
         var client = new MeteringChatClient(new ThrowingClient(), recorder, Template("claude-sonnet-5-5"), null);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => client.GetResponseAsync(Hi));
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetResponseAsync(Hi));
 
         var entry = Assert.Single(recorder.Entries);
         Assert.Equal(AiOutcome.Error, entry.Outcome);
         Assert.Equal(0, entry.InputTokens);
         Assert.Equal(0, entry.OutputTokens);
+        // Sale con su tipo de siempre, marcada como del proveedor para que el gateway la clasifique.
+        Assert.True(MeteringChatClient.CameFromProvider(error));
+        Assert.True(MeteringChatClient.CameFromProvider(new InvalidOperationException("envuelta", error)));
+        Assert.False(MeteringChatClient.CameFromProvider(new HttpRequestException("de una herramienta")));
+    }
+
+    [Fact]
+    public void El_streaming_no_se_mide_y_por_eso_no_se_permite()
+    {
+        var client = new MeteringChatClient(new FakeChatClient(), new FakeRecorder(), Template("claude-sonnet-5-5"), null);
+
+        var error = Assert.Throws<NotSupportedException>(() => client.GetStreamingResponseAsync(Hi));
+        // Lo lanza el medidor, no el cliente de adentro (que también lo rechaza).
+        Assert.Contains("no mide el streaming", error.Message);
     }
 
     private sealed class ThrowingRecorder : IAiUsageRecorder

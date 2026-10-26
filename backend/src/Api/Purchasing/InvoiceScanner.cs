@@ -106,7 +106,8 @@ public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceSc
         if (parsed is null)
         {
             logger.LogWarning("Factura: respuesta de la IA no parseable: {Body}", Text.Clip(response.Value, 400));
-            return Result.Failure<ScannedInvoice>(new Error(
+            // 409 y no 500: el modelo contestó algo que no es la factura; se puede cargar a mano o reintentar.
+            return Result.Failure<ScannedInvoice>(Error.Conflict(
                 "Invoice.Unreadable", "No se pudo interpretar la respuesta. Cargá los datos a mano."));
         }
 

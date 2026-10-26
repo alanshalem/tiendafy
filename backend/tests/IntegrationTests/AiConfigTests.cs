@@ -5,6 +5,7 @@ using Api.Ai;
 using Api.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Common;
 
@@ -266,6 +267,30 @@ public sealed class AiConfigTests(ApiFactory factory)
         // Cambiar la clave borra el resultado de la prueba: era de la clave vieja.
         await SaveKeyAsync(m, "Anthropic", "sk-test-nueva-clave-7k7k");
         Assert.Equal(JsonValueKind.Null, ProviderOf(await m.GetAsync(Config), "Anthropic").GetProperty("lastTestOk").ValueKind);
+    }
+
+    [Fact]
+    public async Task Probar_conexion_respeta_el_apagado_global()
+    {
+        var m = await Merchant.CreateAsync(factory, "aitestoff");
+        await SaveKeyAsync(m);
+        factory.Ai.Respond(Haiku); // Borra lo registrado: así se ve que no llegó ninguna llamada.
+        var configuration = factory.Services.GetRequiredService<IConfiguration>();
+
+        configuration[AiGateway.DisabledKey] = "true";
+        try
+        {
+            var res = await m.SendAsync(HttpMethod.Post, $"{Provider("Anthropic")}/test");
+
+            // El mismo error que el gateway: la palanca apaga la IA de toda la plataforma, la prueba incluida.
+            Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+            Assert.Contains(AiErrors.DisabledGlobally.Message, await res.Content.ReadAsStringAsync());
+            Assert.Empty(factory.Ai.Calls(Haiku));
+        }
+        finally
+        {
+            configuration[AiGateway.DisabledKey] = "false";
+        }
     }
 
     [Fact]

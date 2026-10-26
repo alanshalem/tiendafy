@@ -28,15 +28,22 @@ public sealed class AiFlowTests(ApiFactory factory)
     public async Task Status_lista_las_tareas_con_motivo()
     {
         var m = await Merchant.CreateAsync(factory, "aist");
+        using (var scope = factory.Services.CreateScope())
+        {
+            var settings = scope.ServiceProvider.GetRequiredService<AiDbContext>().Settings.IgnoreQueryFilters();
+            Assert.False(await settings.AnyAsync(s => s.TenantId == m.TenantId));
+        }
 
-        // Sin configurar nada: ninguna tarea se puede usar, y cada una dice por qué.
+        // Una tienda que nunca armó la IA (sin fila de AiSettings, así que apagada): todas las tareas
+        // dicen que no tienen modelo, no que la IA está apagada, y el panel no muestra los botones.
         var tasks = TasksOf(await m.GetAsync(Status));
+        Assert.Equal(7, tasks.Count);
         Assert.Equal(Enum.GetValues<AiTask>().Length, tasks.Count);
         Assert.All(tasks.Values, t =>
         {
             Assert.False(t.GetProperty("available").GetBoolean());
             Assert.False(string.IsNullOrWhiteSpace(t.GetProperty("reason").GetString()));
-            Assert.Equal("Ai.Disabled", t.GetProperty("code").GetString());
+            Assert.Equal("Ai.TaskNotConfigured", t.GetProperty("code").GetString());
         });
 
         // Con una tarea asignada, esa sí; las demás siguen sin modelo.
@@ -178,7 +185,8 @@ public sealed class AiFlowTests(ApiFactory factory)
 
         var res = await m.SendAsync(HttpMethod.Post, ShortText, new { kind = "social-post", draft = "Hola" });
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
-        Assert.Contains("apagada", await res.Content.ReadAsStringAsync());
+        // Nunca armó la IA: lo que falta es elegir un modelo, antes que prenderla.
+        Assert.Contains("Elegí un modelo", await res.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -191,13 +199,7 @@ public sealed class AiFlowTests(ApiFactory factory)
         var poId = order.GetProperty("id").GetGuid();
 
         factory.Ai.Respond(Sonnet, Reply("""{"invoiceNumber":"0001-00000042","currency":"ARS","confidence":"alta"}"""));
-        using var form = new MultipartFormDataContent
-        {
-            { new ByteArrayContent("%PDF-1.4 factura"u8.ToArray()) { Headers = { ContentType = new MediaTypeHeaderValue("application/pdf") } }, "file", "factura.pdf" },
-        };
-        var req = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/purchasing/purchase-orders/{poId}/invoice/scan") { Content = form };
-        req.Headers.Add("X-Tenant-Id", m.TenantId.ToString());
-        var res = await m.Client.SendAsync(req);
+        var res = await ScanAsync(m, poId);
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("0001-00000042", (await res.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("invoiceNumber").GetString());
@@ -205,6 +207,23 @@ public sealed class AiFlowTests(ApiFactory factory)
         var file = Assert.Single(message.Contents.OfType<DataContent>());
         Assert.Equal("application/pdf", file.MediaType);
         Assert.Contains("Shenzhen Trading Co.", message.Contents.OfType<TextContent>().Single().Text);
+
+        // Una respuesta que no es JSON se explica y no es un 500.
+        factory.Ai.Respond(Sonnet, Reply("No pude leer la factura, perdón."));
+        var unreadable = await ScanAsync(m, poId);
+        Assert.Equal(HttpStatusCode.Conflict, unreadable.StatusCode);
+        Assert.Contains("Cargá los datos a mano", await unreadable.Content.ReadAsStringAsync());
+    }
+
+    private static async Task<HttpResponseMessage> ScanAsync(Merchant m, Guid poId)
+    {
+        using var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent("%PDF-1.4 factura"u8.ToArray()) { Headers = { ContentType = new MediaTypeHeaderValue("application/pdf") } }, "file", "factura.pdf" },
+        };
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/purchasing/purchase-orders/{poId}/invoice/scan") { Content = form };
+        req.Headers.Add("X-Tenant-Id", m.TenantId.ToString());
+        return await m.Client.SendAsync(req);
     }
 
     [Fact]

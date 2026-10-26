@@ -36,6 +36,7 @@ public sealed record AiTestResult(bool Ok, string Message);
 /// <see cref="AiDbContext"/> del request, filtrado por tienda). Ninguna respuesta lleva una clave.
 /// </summary>
 public sealed class AiConfigService(
+    IConfiguration configuration,
     AiDbContext db,
     ITenantContext tenant,
     IAiKeyProtector keys,
@@ -143,10 +144,13 @@ public sealed class AiConfigService(
     /// <summary>
     /// Prueba la clave con una llamada mínima al modelo más barato del proveedor, sin depender de que
     /// haya una tarea asignada. Queda en el consumo como <see cref="AiTask.ShortText"/>. Un error de
-    /// clave se clasifica igual que en el gateway.
+    /// clave se clasifica igual que en el gateway. Con la palanca global (<c>Ai:Disabled</c>) no llama
+    /// a nadie y devuelve el mismo error que el gateway.
     /// </summary>
     public async Task<Result<AiTestResult>> TestKeyAsync(AiProvider provider, CancellationToken ct)
     {
+        if (configuration.GetValue<bool>(AiGateway.DisabledKey)) return Result.Failure<AiTestResult>(AiErrors.DisabledGlobally);
+
         var credential = await db.Credentials.FirstOrDefaultAsync(c => c.TenantId == TenantId && c.Provider == provider, ct);
         var key = credential is null ? null : await tenantConfig.KeyAsync(TenantId, provider, ct);
         if (credential is null || key is null)
@@ -172,7 +176,8 @@ public sealed class AiConfigService(
             return new AiTestResult(true, $"La conexión con {provider} funciona.");
         }
         catch (Exception ex) when (!ct.IsCancellationRequested
-            && (failure = AiGateway.Classify(ex, timeout.IsCancellationRequested)) != AiGateway.AiFailure.Unknown)
+            && (failure = AiGateway.Classify(ex, timeout.IsCancellationRequested))
+                is not (AiGateway.AiFailure.Unknown or AiGateway.AiFailure.NotProvider))
         {
             // Sin la excepción: el cuerpo de un 401 puede traer la clave enmascarada.
             loggers.CreateLogger<AiConfigService>().LogWarning(

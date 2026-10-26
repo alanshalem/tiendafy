@@ -35,6 +35,13 @@ public static class AiErrors
     public static readonly Error TimedOut = new(
         "Ai.TimedOut", "La inteligencia artificial tardó demasiado en responder. Probá de nuevo.", ErrorType.Unavailable);
 
+    /// <summary>
+    /// Falló algo que no es el proveedor (una herramienta, el parseo de la respuesta, la base): no pasa
+    /// al respaldo ni cuenta para el corte por fallas, pero tampoco es un 500.
+    /// </summary>
+    public static readonly Error Failed = new(
+        "Ai.Failed", "No se pudo completar la tarea de inteligencia artificial. Probá de nuevo en unos minutos.", ErrorType.Unavailable);
+
     /// <summary>El proveedor rechazó el pedido (un 4xx que no es la clave): no pasa al respaldo ni cuenta como caída.</summary>
     public static readonly Error Rejected = Error.Conflict(
         "Ai.Rejected", "El proveedor rechazó el pedido (por ejemplo, porque era demasiado largo).");

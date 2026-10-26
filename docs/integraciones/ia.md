@@ -78,7 +78,9 @@ Las consolas cambian de nombre y de menú: si algún paso no coincide, buscá
 - "Probar conexión" manda un mensaje de pocos tokens al modelo más barato de
   ese proveedor y lo registra como consumo de la tarea `ShortText`. **No pasa
   por el tope** (se puede probar una clave aunque el mes esté agotado) y por eso
-  tampoco lo frena el tope.
+  tampoco lo frena el tope. La palanca global `Ai:Disabled` sí la frena: con la
+  IA apagada en la plataforma no llama a nadie y devuelve el mismo error que el
+  gateway.
 - "Copiar a mis otras tiendas" descifra y vuelve a cifrar con el mismo purpose,
   solo hacia tiendas donde la persona es dueña, y pisa lo que haya en el destino
   (el panel pide confirmación).
@@ -127,8 +129,11 @@ clase `AiGateway`:
    de **todas** las tiendas sin tocar nada de ellas. Es para una emergencia
    (un proveedor con un problema de seguridad, un gasto que se dispara). Se
    lee en cada llamada, así que alcanza con reiniciar la API.
-2. **Interruptor de la tienda.**
-3. **Modelo asignado, que exista, cumpla la tarea y tenga clave.**
+2. **Modelo asignado, que exista y cumpla la tarea.** Sin modelo es
+   `Ai.TaskNotConfigured` aunque la tienda esté apagada: en una tienda que nunca
+   armó la IA el panel no muestra los botones.
+3. **Interruptor de la tienda** (`Ai.Disabled`: con modelo y la tienda apagada,
+   el botón se ve deshabilitado con el motivo) y **clave del modelo**.
 4. **Corte por fallas:** 3 fallas seguidas de un proveedor en una tienda lo dan
    por caído 5 minutos y se va directo al respaldo. En memoria: un reinicio lo
    borra (la API es una sola instancia).
@@ -137,18 +142,32 @@ clase `AiGateway`:
 7. **Respaldo una vez** si el principal cae. Por eso el cuerpo de una ejecución
    tiene que ser **de solo lectura**: se vuelve a correr entero.
 
-Qué cuenta como falla y qué no (`AiGateway.Classify`):
+Qué cuenta como falla y qué no (`AiGateway.Classify`). Del proveedor es solo
+lo que salió de la llamada al modelo: `MeteringChatClient` marca esa excepción
+(en `Exception.Data`, sin cambiarle el tipo). Lo que tira una herramienta, el
+parseo de la respuesta o la base no está marcado, aunque sea un
+`HttpRequestException` de un carrier caído:
 
 | Caso | Qué hace |
 |---|---|
-| 429, 408, 5xx, red, timeout | Pasa al respaldo y suma al corte por fallas |
-| 401, 402, 403, o un 400 que habla de clave o saldo | Error de configuración (`Ai.ProviderAuth`): **no** pasa al respaldo ni cuenta como caída |
-| Cualquier otro 4xx (pedido demasiado largo, por ej.) | `Ai.Rejected`: ni respaldo ni corte |
-| Excepción que no es de un SDK de proveedor | Se relanza: es un bug nuestro |
+| Del proveedor: 429, 408, 5xx, red, timeout | Pasa al respaldo y suma al corte por fallas |
+| Del proveedor: 401, 402, 403, o un 400 que habla de clave o saldo | Error de configuración (`Ai.ProviderAuth`): **no** pasa al respaldo ni cuenta como caída |
+| Del proveedor: cualquier otro 4xx (pedido demasiado largo, por ej.) | `Ai.Rejected`: ni respaldo ni corte |
+| Venció el tiempo máximo de la tarea | `Ai.TimedOut`: pasa al respaldo y suma al corte |
+| Cualquier otra excepción del cuerpo (herramienta, parseo, base, armar el cliente del SDK) | `Ai.Failed` (503): ni respaldo ni corte; se loguea entera porque no viene del proveedor |
+
+La cancelación del pedido (el usuario cerró la pestaña) no es una falla: se
+propaga como `OperationCanceledException`.
 
 Ningún error del gateway es un 500: configuración y tope son 409, una caída del
-proveedor es 503. Los códigos (`Ai.Disabled`, `Ai.TaskNotConfigured`,
-`Ai.BudgetExceeded`, `Ai.ProviderAuth`…) están en `AiErrors.cs`.
+proveedor o una falla del cuerpo es 503. Los códigos (`Ai.Disabled`,
+`Ai.TaskNotConfigured`, `Ai.BudgetExceeded`, `Ai.ProviderAuth`, `Ai.Failed`…)
+están en `AiErrors.cs`. Los SDK no reintentan por su cuenta (`MaxRetries = 0` y
+equivalentes en `AiChatClientFactory`): el único reintento es el respaldo.
+
+El tope (la reserva), el corte por fallas, la concurrencia y los cupos viven en
+memoria y suponen **una sola instancia** de la API: con dos réplicas cada una
+lleva su cuenta.
 
 ### Cupos
 
