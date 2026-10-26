@@ -127,6 +127,30 @@ export interface PurchasingSummary {
   withoutInvoice: number;
 }
 
+/** Cómo se emparejó una línea de la factura con un ítem de la orden. */
+export type LineMatchMethod = 'code' | 'description' | 'ai' | 'none';
+
+export const MATCH_LABEL: Record<LineMatchMethod, string> = {
+  code: 'por código',
+  description: 'por descripción',
+  ai: 'elegido por la IA',
+  none: 'sin emparejar',
+};
+
+export interface ScannedInvoiceLine {
+  description: string;
+  code: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  match: {
+    variantId: string | null;
+    method: LineMatchMethod;
+    confidence: 'alta' | 'media' | 'baja';
+    /** Variantes de la orden entre las que dudó, la más parecida primero. */
+    candidates: string[];
+  };
+}
+
 export interface ScannedInvoice {
   supplierName: string | null;
   supplierTaxId: string | null;
@@ -136,10 +160,16 @@ export interface ScannedInvoice {
   currency: string;
   netAmount: number | null;
   vatAmount: number | null;
+  /** No gravado, exento, percepciones e impuestos internos: lo que suma al total sin ser neto ni IVA. */
+  otherAmount: number | null;
   totalAmount: number | null;
   confidence: string;
   warnings: string[];
-  lines: { description: string; quantity: number | null; unitPrice: number | null }[];
+  /** Lo que sigue sin cerrar después de la segunda lectura, con los números tal cual se leyeron. */
+  checks: { code: string; message: string }[];
+  /** La IA releyó la factura porque algo no cerraba. */
+  correctionRound: boolean;
+  lines: ScannedInvoiceLine[];
   currencyMismatch: boolean;
 }
 

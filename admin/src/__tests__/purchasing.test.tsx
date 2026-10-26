@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
+import type { PoDetail, ScannedInvoice, ScannedInvoiceLine } from '../pages/compras-tipos';
 
 interface Po {
   id: string;
@@ -256,23 +257,40 @@ describe('compras: factura del proveedor', () => {
     expect(screen.getByRole('button', { name: /Guardar comprobante/ })).toBeDisabled();
   });
 
-  it('la IA lee la factura escaneada, se revisa y se usa', async () => {
+  const scanPath = `/api/v1/purchasing/purchase-orders/${po.id}/invoice/scan`;
+  const items = fixture<PoDetail>('/api/v1/purchasing/purchase-orders/:id').items;
+  const noMatch: ScannedInvoiceLine['match'] = {
+    variantId: null,
+    method: 'none',
+    confidence: 'baja',
+    candidates: [],
+  };
+
+  /** La respuesta de /invoice/scan: una factura que cierra, con lo que se pise encima. */
+  const scanned = (patch: Partial<ScannedInvoice> = {}): ScannedInvoice => ({
+    supplierName: 'Shenzhen Trading Co.',
+    supplierTaxId: '30711111119',
+    invoiceType: 'Despacho',
+    invoiceNumber: '26001IC04000123X',
+    invoiceDateUtc: '2026-09-15T00:00:00Z',
+    netAmount: 1500000,
+    vatAmount: 315000,
+    otherAmount: null,
+    totalAmount: 1815000,
+    currency: 'USD',
+    currencyMismatch: true,
+    confidence: 'media',
+    warnings: ['El total no coincide con la suma de las líneas.'],
+    checks: [],
+    correctionRound: false,
+    lines: [{ description: 'Mancuernas', code: null, quantity: 10, unitPrice: 150000, match: noMatch }],
+    ...patch,
+  });
+
+  /** Abre la orden con la IA, sube un PDF y espera la revisión de lo leído. */
+  async function scan(response: ScannedInvoice) {
     const { api, user } = await openPo({ status: 'RECEIVED' }, true);
-    api.on('POST', `/api/v1/purchasing/purchase-orders/${po.id}/invoice/scan`, {
-      supplierName: 'Shenzhen Trading Co.',
-      supplierTaxId: '30711111119',
-      invoiceType: 'Despacho',
-      invoiceNumber: '26001IC04000123X',
-      invoiceDateUtc: '2026-09-15T00:00:00Z',
-      netAmount: 1500000,
-      vatAmount: 315000,
-      totalAmount: 1815000,
-      currency: 'USD',
-      currencyMismatch: true,
-      confidence: 'media',
-      warnings: ['El total no coincide con la suma de las líneas.'],
-      lines: [{ description: 'Mancuernas', quantity: 10, unitPrice: 150000 }],
-    });
+    api.on('POST', scanPath, response);
     // El botón de leer con IA aparece con la IA habilitada: se vuelve a abrir la orden.
     renderApp('/compras');
     const file = await waitFor(() => {
@@ -281,11 +299,125 @@ describe('compras: factura del proveedor', () => {
       return input;
     });
     await user.upload(file, new File(['%PDF'], 'factura.pdf', { type: 'application/pdf' }));
+    await screen.findByText(/Confianza/);
+    return { api, user };
+  }
+
+  it('la IA lee la factura escaneada, se revisa y se usa', async () => {
+    const { user } = await scan(scanned());
     expect(await screen.findByText(/Confianza media/)).toBeInTheDocument();
     expect(screen.getByText(/La factura está en USD/)).toBeInTheDocument();
     expect(screen.getByText('El total no coincide con la suma de las líneas.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Usar estos datos' }));
     expect(screen.getByDisplayValue('26001IC04000123X')).toBeInTheDocument();
+  });
+
+  it('muestra lo que no cierra', async () => {
+    await scan(
+      scanned({
+        checks: [
+          {
+            code: 'Invoice.LinesVsNet',
+            message: 'Las líneas suman 400.000,00 y el neto leído es 500.000,00.',
+          },
+        ],
+      }),
+    );
+    expect(screen.getByText('Revisá: esto no cierra')).toBeInTheDocument();
+    expect(
+      screen.getByText('Las líneas suman 400.000,00 y el neto leído es 500.000,00.'),
+    ).toBeInTheDocument();
+  });
+
+  it('avisa que releyó', async () => {
+    await scan(scanned({ correctionRound: true }));
+    expect(screen.getByText(/La IA releyó la factura/)).toBeInTheDocument();
+  });
+
+  it('muestra cómo se emparejó cada línea y deja cambiarlo', async () => {
+    const [first, second] = items;
+    const { user } = await scan(
+      scanned({
+        lines: [
+          {
+            description: 'Mancuerna 10',
+            code: first!.sku,
+            quantity: first!.quantity,
+            unitPrice: first!.unitCost,
+            match: { variantId: first!.variantId, method: 'code', confidence: 'alta', candidates: [] },
+          },
+          {
+            description: 'Barra',
+            code: null,
+            quantity: second!.quantity - 10,
+            unitPrice: second!.unitCost,
+            match: { ...noMatch, candidates: [second!.variantId] },
+          },
+        ],
+      }),
+    );
+    expect(screen.getByText('por código')).toBeInTheDocument();
+    expect(screen.getByText('sin emparejar')).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: 'Ítem de la orden para "Barra"' });
+    expect(select).toHaveValue('');
+
+    await user.selectOptions(select, second!.variantId);
+    expect(screen.getByText(`Pedido: ${second!.quantity}`)).toBeInTheDocument();
+    // La primera línea coincide con la orden: sin diferencias que mostrar.
+    expect(screen.getAllByText(/Pedido:/)).toHaveLength(1);
+  });
+
+  it('compara el costo solo si la factura está en la moneda de la orden', async () => {
+    const [first] = items;
+    const line = (unitPrice: number): ScannedInvoiceLine => ({
+      description: 'Mancuerna',
+      code: null,
+      quantity: first!.quantity,
+      unitPrice,
+      match: { variantId: first!.variantId, method: 'ai', confidence: 'media', candidates: [] },
+    });
+    await scan(scanned({ currency: 'USD', lines: [line(first!.unitCost + 1)] }));
+    expect(screen.getByText(/Costo en la orden/)).toBeInTheDocument();
+    expect(screen.getByText('elegido por la IA')).toBeInTheDocument();
+  });
+
+  it('los candidatos van primero', async () => {
+    const [, second, third] = items;
+    await scan(
+      scanned({
+        lines: [
+          {
+            description: 'Barra',
+            code: null,
+            quantity: 1,
+            unitPrice: 1,
+            match: { ...noMatch, candidates: [third!.variantId, second!.variantId] },
+          },
+        ],
+      }),
+    );
+    const options = within(
+      screen.getByRole('combobox', { name: 'Ítem de la orden para "Barra"' }),
+    ).getAllByRole('option');
+    expect(options[0]).toHaveTextContent('Sin emparejar');
+    expect(options[1]).toHaveValue(third!.variantId);
+    expect(options[2]).toHaveValue(second!.variantId);
+  });
+
+  it('usar estos datos no manda el emparejamiento', async () => {
+    const { api, user } = await scan(scanned());
+    await user.click(screen.getByRole('button', { name: 'Usar estos datos' }));
+    await user.click(screen.getByRole('button', { name: /Guardar comprobante/ }));
+    await settle(2);
+    const body = last(api, 'PUT', `/api/v1/purchasing/purchase-orders/${po.id}/invoice`);
+    expect(Object.keys(body).sort()).toEqual([
+      'invoiceDateUtc',
+      'invoiceNetArs',
+      'invoiceNumber',
+      'invoiceType',
+      'invoiceVatArs',
+      'supplierTaxId',
+    ]);
   });
 
   it('un escaneo de más de 10 MB se rechaza antes de subirlo', async () => {

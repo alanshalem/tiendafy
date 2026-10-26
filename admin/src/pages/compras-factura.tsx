@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../lib/queryKeys';
 import { FileSpreadsheet, Sparkles, Upload } from 'lucide-react';
-import { Badge, Button, Card, FormField, Input, useToast, Spinner } from '@tiendafy/ui';
+import { Badge, Button, Card, FormField, Input, Select, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { parseMoneyInput } from '../lib/price';
 import { useAiTask } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
-import { CONFIDENCE_TONE } from './compras-tipos';
+import { CONFIDENCE_TONE, MATCH_LABEL } from './compras-tipos';
 import { UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
 import { UPLOADS, describe } from '../lib/uploads';
-import type { PoDetail, ScannedInvoice } from './compras-tipos';
+import type { PoDetail, ScannedInvoice, ScannedInvoiceLine } from './compras-tipos';
 
 /**
  * La factura del proveedor: leerla con IA, revisarla y descargar el libro de
@@ -125,6 +125,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
       {scan && (
         <ScanReview
           scan={scan}
+          po={po}
           onDismiss={() => setScan(null)}
           onApply={() => {
             if (scan.supplierTaxId) setTaxId(scan.supplierTaxId);
@@ -240,10 +241,12 @@ function InvoiceScanButton({
  */
 function ScanReview({
   scan,
+  po,
   onApply,
   onDismiss,
 }: {
   scan: ScannedInvoice;
+  po: PoDetail;
   onApply: () => void;
   onDismiss: () => void;
 }) {
@@ -255,6 +258,10 @@ function ScanReview({
     ['Fecha', scan.invoiceDateUtc ? formatDate(scan.invoiceDateUtc) : null],
     ['Neto', scan.netAmount != null ? formatAmount(scan.netAmount) : null],
     ['IVA', scan.vatAmount != null ? formatAmount(scan.vatAmount) : null],
+    [
+      'Otros (no gravado, exento, percepciones)',
+      scan.otherAmount != null ? formatAmount(scan.otherAmount) : null,
+    ],
     ['Total', scan.totalAmount != null ? formatAmount(scan.totalAmount) : null],
   ];
   const read = rows.filter(([, value]) => value);
@@ -298,6 +305,23 @@ function ScanReview({
         </p>
       )}
 
+      {scan.checks.length > 0 && (
+        <div role="alert" className="mt-2 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning">
+          <p className="font-medium">Revisá: esto no cierra</p>
+          <ul className="mt-1 list-inside list-disc">
+            {scan.checks.map((c) => (
+              <li key={c.code}>{c.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {scan.correctionRound && (
+        <p className="mt-2 text-sm text-fg-muted">
+          La IA releyó la factura porque algo no cerraba. Mirá los números con más cuidado.
+        </p>
+      )}
+
       {scan.warnings.length > 0 && (
         <ul className="mt-2 list-inside list-disc text-sm text-fg-muted">
           {scan.warnings.map((w) => (
@@ -307,25 +331,19 @@ function ScanReview({
       )}
 
       {scan.lines.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-sm text-fg-muted">
+        <div className="mt-3">
+          <h3 className="text-sm font-medium">
             {scan.lines.length} línea{scan.lines.length === 1 ? '' : 's'} del detalle
-          </summary>
-          <ul className="mt-1 space-y-0.5 text-sm text-fg-muted">
-            {scan.lines.map((l, i) => (
-              <li key={`${l.description}-${i}`} className="flex justify-between gap-2">
-                <span className="truncate">{l.description}</span>
-                <span className="shrink-0 tabular-nums">
-                  {l.quantity ?? '—'} × {l.unitPrice != null ? formatAmount(l.unitPrice) : '—'}
-                </span>
-              </li>
+          </h3>
+          <ul className="mt-1 divide-y divide-border">
+            {scan.lines.map((line, i) => (
+              <ScanLineRow key={`${line.description}-${i}`} line={line} scan={scan} po={po} />
             ))}
           </ul>
           <p className="mt-1 text-xs text-fg-subtle">
-            El detalle es solo para comparar contra los ítems de la orden: los precios de compra siguen siendo
-            los que cargaste arriba.
+            El emparejamiento es para comparar con la orden: no cambia ítems ni costos.
           </p>
-        </details>
+        </div>
       )}
 
       <p className="mt-2 text-xs text-fg-subtle">
@@ -333,6 +351,59 @@ function ScanReview({
         compras y la deuda con el proveedor.
       </p>
     </div>
+  );
+}
+
+/** Un renglón de la factura con el ítem de la orden al que se emparejó, que la persona puede cambiar. */
+function ScanLineRow({ line, scan, po }: { line: ScannedInvoiceLine; scan: ScannedInvoice; po: PoDetail }) {
+  const [variantId, setVariantId] = useState(line.match.variantId ?? '');
+  const label = (item: PoDetail['items'][number]) =>
+    `${item.productName} ${item.variantDescription} · ${item.sku}`;
+  const candidates = line.match.candidates
+    .map((id) => po.items.find((item) => item.variantId === id))
+    .filter((item) => item !== undefined);
+  const rest = po.items.filter((item) => !candidates.includes(item));
+  const options = [
+    { value: '', label: 'Sin emparejar' },
+    ...[...candidates, ...rest].map((item) => ({ value: item.variantId, label: label(item) })),
+  ];
+
+  // Las diferencias contra la orden: para revisar, no para cambiar nada.
+  const item = po.items.find((i) => i.variantId === variantId);
+  const sameCurrency = scan.currency === po.currency;
+  const quantityDiffers = item && line.quantity != null && line.quantity !== item.quantity;
+  const priceDiffers =
+    item && sameCurrency && line.unitPrice != null && Math.abs(line.unitPrice - item.unitCost) >= 0.005;
+
+  return (
+    <li className="py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 flex-1 truncate" title={line.description}>
+          {line.description}
+          {line.code && <span className="ml-1 text-xs text-fg-subtle">({line.code})</span>}
+        </span>
+        <span className="shrink-0 tabular-nums text-fg-muted">
+          {line.quantity ?? '—'} × {line.unitPrice != null ? formatAmount(line.unitPrice) : '—'}
+        </span>
+        <Badge variant={CONFIDENCE_TONE[line.match.confidence] ?? 'neutral'}>
+          {MATCH_LABEL[line.match.method]}
+        </Badge>
+      </div>
+      <Select
+        className="mt-1"
+        aria-label={`Ítem de la orden para "${line.description}"`}
+        value={variantId}
+        onChange={(e) => setVariantId(e.target.value)}
+        options={options}
+      />
+      {(quantityDiffers || priceDiffers) && item && (
+        <p className="mt-1 text-xs text-warning">
+          {quantityDiffers && <>Pedido: {item.quantity}</>}
+          {quantityDiffers && priceDiffers && ' · '}
+          {priceDiffers && <>Costo en la orden: {formatAmount(item.unitCost, po.currency)}</>}
+        </p>
+      )}
+    </li>
   );
 }
 
