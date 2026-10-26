@@ -29,7 +29,7 @@ public static partial class DraftGuardrails
         var warnings = new List<DraftWarning>();
         draft ??= string.Empty;
 
-        if (LinkPattern().IsMatch(draft))
+        if (Safe(() => LinkPattern().IsMatch(draft)))
         {
             warnings.Add(new("link", "El borrador incluye un link. Revisá que sea correcto antes de enviarlo."));
         }
@@ -39,7 +39,7 @@ public static partial class DraftGuardrails
             warnings.Add(new("contact-data", "El borrador copió un dato oculto del comprador."));
         }
 
-        if (PiiRedactor.ContainsContactData(draft) || SocialHandlePattern().IsMatch(draft))
+        if (Safe(() => PiiRedactor.ContainsContactData(draft)) || Safe(() => SocialHandlePattern().IsMatch(draft)))
         {
             warnings.Add(new("contact-data", "El borrador tiene datos de contacto o un número que parece personal."));
         }
@@ -77,7 +77,18 @@ public static partial class DraftGuardrails
 
     private static IEnumerable<long> AmountsIn(string draft)
     {
-        foreach (Match m in AmountPattern().Matches(draft))
+        MatchCollection matches;
+        try
+        {
+            matches = AmountPattern().Matches(draft);
+            _ = matches.Count;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            yield break;
+        }
+
+        foreach (Match m in matches)
         {
             var raw = m.Groups["a"].Success ? m.Groups["a"].Value : m.Groups["b"].Value;
             var normalized = raw.Replace(".", string.Empty).Replace(',', '.');
@@ -94,37 +105,50 @@ public static partial class DraftGuardrails
     private const string AmountNumber = @"(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?";
 
     // "$ 15.000", "$15.000,50", "14.000 pesos"
-    [GeneratedRegex(@"\$\s*(?<a>" + AmountNumber + @")|(?<![\d.,])(?<b>" + AmountNumber + @")\s*pesos\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\$\s*(?<a>" + AmountNumber + @")|(?<![\d.,])(?<b>" + AmountNumber + @")\s*pesos\b", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex AmountPattern();
 
-    [GeneratedRegex(@"https?://\S+|\bwww\.\S+|(?<![@\w.-])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2})?/\S+|(?<![@\w.-])[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|ar|app|shop|store|me|ly|io|co|ee|gl|link|info|xyz)\b(?!@)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"https?://\S+|\bwww\.\S+|(?<![@\w.-])[a-z][\w-]*\.[a-z]{2,}(?:\.[a-z]{2})?/\S+|(?<![@\w.-])[a-z][\w-]*(?:\.[\w-]+)*\.(?-i:com|net|org|ar|app|shop|store|me|ly|io|co|ee|gl|link|info|xyz)\b(?!@)", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex LinkPattern();
 
     // @usuario, o una red social seguida de un usuario (@x, con ":" o con algún número/guion bajo/punto) o un teléfono
     [GeneratedRegex(
         @"(?<![\w.@])@[\w.]{3,}|\b(?:instagram|insta|whatsapp|wsp|telegram)\b(?:\s*:\s*[\w.]{3,}|\s+(?:es\s+)?(?:@[\w.]{3,}|\+?\d[\d\s-]{5,}|[\w]*[\d_.][\w.]*))",
-        RegexOptions.IgnoreCase)]
+        RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex SocialHandlePattern();
 
-    private static bool HasStrongDeliveryPromise(string draft) => StrongDeliveryPattern().IsMatch(draft);
+    private static bool HasStrongDeliveryPromise(string draft) => Safe(() => StrongDeliveryPattern().IsMatch(draft));
 
     private static bool HasWeakDeliveryPromise(string draft) =>
-        SentenceSplit().Split(draft).Any(sentence =>
-            WeakDeliveryPattern().IsMatch(sentence) && DeliveryVerbPattern().IsMatch(sentence));
+        Safe(() => SentenceSplit().Split(draft).Any(sentence =>
+            WeakDeliveryPattern().IsMatch(sentence) && DeliveryVerbPattern().IsMatch(sentence)));
+
+    // Un patrón que se pasa del tiempo cuenta como "sin coincidencia": un aviso de menos es mejor que un 500.
+    private static bool Safe(Func<bool> match)
+    {
+        try
+        {
+            return match();
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return false;
+        }
+    }
 
     // Fuertes: avisan solas.
     [GeneratedRegex(
-        @"\b(?:en|dentro\s+de)\s+\d+\s*(?:d[ií]as?|horas?|hs?)\b|\b\d+\s*(?:y|a|o|-)\s*\d+\s*d[ií]as\b|\bd[ií]as\s+h[aá]biles\b|\besta\s+semana\b|\bla\s+semana\s+(?:que\s+viene|pr[oó]xima)\b|\ba\s+fin\s+de\s+mes\b|\bel\s+\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\bpasado\s+ma[ñn]ana\b",
-        RegexOptions.IgnoreCase)]
+        @"\b(?:en|dentro\s+de)\s+\d+\s*(?:d[ií]as?|horas?|hs?)\b|\b\d+\s*(?:y|a|o|-)\s*\d+\s*d[ií]as\b|\bd[ií]as\s+h[aá]biles\b|\besta\s+semana\b|\bla\s+semana\s+(?:que\s+viene|pr[oó]xima)\b|\ba\s+fin\s+de\s+mes\b|\bel\s+\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\bpasado\s+ma[ñn]ana\b|\b\d{2}\s*(?:hs|horas)\b",
+        RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex StrongDeliveryPattern();
 
     // Débiles: avisan solo con un verbo de entrega en la misma oración.
     [GeneratedRegex(
         @"\b(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[ñn]ana|hoy)\b|(?<![\d/])(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])(?![\d/])",
-        RegexOptions.IgnoreCase)]
+        RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex WeakDeliveryPattern();
 
-    [GeneratedRegex(@"\b(?:lleg|recib|entreg|despach|envi|mand)\w*|\bsal(?:e|dr)\w*", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:lleg|recib|entreg|despach|envi|mand)\w*|\bsal(?:e|dr)\w*", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex DeliveryVerbPattern();
 
     [GeneratedRegex(@"[.!?;\n]+")]

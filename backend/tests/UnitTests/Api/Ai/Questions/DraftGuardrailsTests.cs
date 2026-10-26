@@ -185,4 +185,33 @@ public sealed class DraftGuardrailsTests
 
         Assert.Contains("$ 12.000 o $ 15.000.", warning.Message);
     }
+
+    [Theory]
+    [InlineData("Pesa 1.5kg/caja")]
+    [InlineData("Mide 2.5mts/caja")]
+    [InlineData("Trae 0.5lt/botella")]
+    [InlineData("Hola.Me llamo Juan")]
+    public void Medidas_y_oraciones_pegadas_no_son_links(string draft)
+    {
+        Assert.DoesNotContain(DraftGuardrails.Check(draft, Facts()), w => w.Code == "link");
+    }
+
+    [Theory]
+    [InlineData("Despachamos dentro de las 24hs")]
+    [InlineData("Llega en las próximas 48 hs")]
+    [InlineData("Demora 72 horas")]
+    public void Plazos_en_horas_sueltos_avisan(string draft)
+    {
+        Assert.Equal("delivery-date", Assert.Single(DraftGuardrails.Check(draft, Facts())).Code);
+    }
+
+    [Fact]
+    public void Un_texto_enorme_no_lanza_por_timeout_de_regex()
+    {
+        var draft = string.Concat(Enumerable.Repeat("a.", 200_000)) + "!";
+
+        var ex = Record.Exception(() => DraftGuardrails.Check(draft, Facts()));
+
+        Assert.Null(ex);
+    }
 }
