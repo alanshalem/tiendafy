@@ -25,6 +25,9 @@ public static partial class PiiRedactor
         return result;
     }
 
+    /// <summary>¿El texto trae un mail, teléfono, DNI o CUIT? Mismo criterio que <see cref="Redact"/>.</summary>
+    internal static bool ContainsContactData(string text) => !string.IsNullOrEmpty(text) && Redact(text) != text;
+
     // Una corrida de dígitos, con espacios o guiones sueltos entre medio. Se evalúa entera
     // (nunca por pedazos) para que un CUIT de 11 dígitos no quede a medias tapado.
     private static bool ShouldMask(string text, Match m)
