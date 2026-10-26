@@ -44,9 +44,13 @@ public sealed record AiCatalogValueDto(string Id, string Name);
 public sealed record AiCatalogCurrentDto(
     string Name, string? Description, string? SeoTitle, string? SeoDescription, string? Brand, AiCatalogSpecDto[] Specs);
 
-/// <summary><c>Target</c> dice a dónde va al aprobar: <c>spec</c> (la ficha que ve el comprador) o <c>meli</c> (solo Mercado Libre).</summary>
+/// <summary>
+/// <c>Target</c> dice a dónde va al aprobar: <c>spec</c> (la ficha que ve el comprador) o <c>meli</c> (solo Mercado Libre).
+/// <c>Definition</c> es cómo se pide ese dato en la categoría (tipo, opciones, unidades): con eso el panel lo deja corregir.
+/// </summary>
 public sealed record AiCatalogProposedAttributeDto(
-    string Id, string Name, string Value, string? ValueId, string? ValueName, string? Unit, string Target);
+    string Id, string Name, string Value, string? ValueId, string? ValueName, string? Unit, string Target,
+    AiCatalogMissingDto? Definition);
 
 public sealed record AiCatalogProposalDto(
     string Description, string SeoTitle, string SeoDescription, AiCatalogProposedAttributeDto[] Attributes);

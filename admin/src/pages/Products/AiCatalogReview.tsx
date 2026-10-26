@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Pause, Play, Square } from 'lucide-react';
 import { Badge, Button, EmptyList, PageHeader, Spinner, Tabs, useConfirm, useToast } from '@tiendafy/ui';
@@ -7,7 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { Pagination } from '../../components/Pagination';
-import { api, errMsg } from '../../lib/api';
+import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { formatUsd } from '../../lib/ai';
 import {
   ITEM_TABS,
@@ -133,6 +133,14 @@ export function AiCatalogReviewPage() {
   );
   const [pushRunning, setPushRunning] = useState(false);
   const pushAll = async () => {
+    // Es la única escritura hacia Mercado Libre y llega a muchas publicaciones: se confirma con la cantidad.
+    const count = data?.byStatus.Approved ?? 0;
+    const ok = await confirm({
+      title: 'Actualizar en Mercado Libre',
+      message: `Se actualizan hasta ${count} ${count === 1 ? 'publicación' : 'publicaciones'} en Mercado Libre con los datos de las fichas aprobadas. Lo que ya cargaste directo en esas publicaciones se conserva.`,
+      confirmLabel: 'Actualizar',
+    });
+    if (!ok) return;
     setPushRunning(true);
     let after: string | undefined;
     let updated = 0;
@@ -172,6 +180,12 @@ export function AiCatalogReviewPage() {
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Fichas con IA
     </Link>
   );
+
+  // Un trabajo es de una tienda: al cambiar de tienda la pantalla se arma de nuevo con el mismo id y ese trabajo no existe en la
+  // otra (404). En vez del error, vuelve a la lista de trabajos de la tienda que se eligió.
+  if (job.error instanceof ApiRequestError && job.error.status === 404) {
+    return <Navigate to="/productos/fichas-ia" replace />;
+  }
 
   if (job.isError) {
     return (

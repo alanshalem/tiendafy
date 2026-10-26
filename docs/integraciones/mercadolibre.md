@@ -121,7 +121,7 @@ Todos bajo `/api/v1`.
 | `PUT /admin/meli/items/{itemId}/sync` | `meli.publish` | Switches de stock y precio de UNA publicación vinculada (`{ meliVariationId, syncStock?, syncPrice? }`). No escribe en ML: vale también en la cuenta de ejemplo. |
 | `GET /admin/meli/categories/predict`, `POST /admin/meli/products/{id}/publish` | `meli.publish` | Sugerir categoría y publicar. |
 | `GET /admin/meli/products/{id}/category` | `meli.publish` | La categoría de ML guardada del producto (`{ categoryId, categoryName, source }`, o `{ categoryId: null }`). Solo lee la base. |
-| `POST /ai/catalog/items/{id}/push-to-meli`, `POST /ai/catalog/jobs/{id}/push-to-meli` | `catalog.write` y `meli.publish` | "Actualizar la ficha en ML": un `PUT /items/{id}` por publicación vinculada con los atributos guardados (no la categoría ni el `SELLER_SKU`). El del trabajo va por tramos (`after`/`next`). 409 con la cuenta de ejemplo, sin salir. Ver [ia.md](./ia.md#actualizar-la-publicación-en-ml). |
+| `POST /ai/catalog/items/{id}/push-to-meli`, `POST /ai/catalog/jobs/{id}/push-to-meli` | `catalog.write` y `meli.publish` | "Actualizar la ficha en ML": un `PUT /items/{id}` por publicación vinculada con los atributos guardados más lo que la publicación ya tenía (lee antes con `GET /items/bulk` y manda la unión; no la categoría ni el `SELLER_SKU`). El del trabajo va por tramos (`after`/`next`). 409 con la cuenta de ejemplo, sin salir. Ver [ia.md](./ia.md#actualizar-la-publicación-en-ml). |
 | `POST /webhooks/meli` | público (allowlist en `AdminWriteAuthMiddleware`) | Webhook: solo persiste y responde 200 (también a un cuerpo que no es JSON, ver "Venta nueva"). |
 
 ## Configuración
@@ -250,7 +250,7 @@ defecto, hasta 6 fotos, atributos `BRAND`, `SELLER_SKU`, los de la ficha
 técnica que tengan `MeliAttributeId` y, al final, los que la tienda guardó del
 producto para ML (`meli_product_attributes`: GTIN, "Es kit"…, que completa la
 revisión de fichas con IA; lo que la tienda ya tiene manda y de lo guardado
-solo entran los ids que no estén ya). El modal de publicar trae preelegida la
+solo entran los ids que no estén ya, y solo si la categoría elegida es la guardada). El modal de publicar trae preelegida la
 categoría guardada del producto (`GET /admin/meli/products/{id}/category`), con
 la predicción de ML como alternativas. La descripción va en un segundo
 `POST /items/{id}/description`. Después auto-vincula, con lo que viajó
@@ -296,7 +296,8 @@ real (ver Pendiente).
   y el nombre de `GET /categories/{id}`. `domain_discovery` acepta `limit` de 1 a 8 (la doc
   recomienda 3).
 - **Sin confirmar con una cuenta real**: si el `attributes` de un `PUT /items/{id}` cambia solo
-  los ids enviados (los ejemplos de la doc mandan un subconjunto) o reemplaza la lista entera. Los
+  los ids enviados (los ejemplos de la doc mandan un subconjunto) o reemplaza la lista entera; por
+  eso "Actualizar la ficha en ML" lee la publicación antes y manda la unión. Los
   atributos de una categoría se piden de a una llamada por tienda (`MeliTenantGate`) y ante un 429 se
   espera 1, 2, 4, 8 y 16 s dentro del mismo turno.
 - Mensajes posventa limitados a 350 caracteres. Leer un pack

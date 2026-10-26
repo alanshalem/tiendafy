@@ -75,6 +75,8 @@ export interface AiCatalogProposedAttribute {
   unit: string | null;
   /** Dónde se guarda al aprobar: la ficha que ve el comprador o solo Mercado Libre. */
   target: 'spec' | 'meli';
+  /** Cómo se pide el dato en la categoría (tipo, opciones, unidades): con eso se lo puede corregir en la revisión. */
+  definition: AiCatalogMissing | null;
 }
 
 export interface AiCatalogProposal {
@@ -134,6 +136,8 @@ export interface AiCatalogApproveBody {
   seoTitle?: string;
   seoDescription?: string;
   attributes?: AiCatalogAttributeInput[];
+  /** Ids de los datos propuestos que la persona quitó: no se guardan. */
+  remove?: string[];
 }
 
 export interface AiCatalogPushResult {

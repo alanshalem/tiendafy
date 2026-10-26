@@ -532,7 +532,8 @@ panel en `admin/src/pages/Products/AiCatalog*.tsx`. Las tareas son `CatalogWrite
   Haiku 5.5 son 13.558 micro-dólares por producto, unos US$ 13,6 cada mil. Siempre se muestra como
   estimado; el costo real sale del consumo, corrida por corrida.
 - No se puede crear sin IA lista (redactor **y** evaluador) ni sin una cuenta de Mercado Libre
-  **real** conectada (la de demostración no cuenta); hay un solo trabajo activo por tienda (409) y
+  **real** conectada (la de demostración no cuenta); hay un solo trabajo activo por tienda (409,
+  con un candado por tienda, `pg_advisory_xact_lock`, alrededor del chequeo y la creación) y
   el arranque cuenta en el cupo de 5 por hora por tienda.
 
 ### Qué se manda al modelo y qué no
@@ -560,8 +561,10 @@ la publicación, hasta 40, con su tipo, sus valores permitidos (60 en el prompt)
    60, descripción SEO 70 a 160), sin precios, links ni mails, solo atributos de la lista, valores
    de lista permitidos, números con unidad válida. **Un identificador (GTIN/EAN, modelo, número de
    parte) solo vale si aparece textual en los datos del producto y, para GTIN, con dígito
-   verificador válido; si no, queda `falta_dato` y se avisa, no se inventa.** Un gate que falla no
-   gasta evaluador.
+   verificador válido; si no, queda `falta_dato` y se avisa, no se inventa.** "Textual" es: un GTIN
+   tiene que estar dentro de un mismo número escrito en el texto (no se juntan los dígitos de campos
+   vecinos) y un modelo o código, como palabra completa de al menos 4 caracteres. Un gate que falla
+   no gasta evaluador.
 5. **Evaluar** (`CatalogJudge`, conviene que sea de otro proveedor; la pantalla de configuración
    avisa si no): `inventa_datos`, tono y voseo, claridad, atributos, puntaje de 1 a 5 y motivos.
    Pasa con puntaje 4 o más y sin datos inventados; si no pasa y hubo menos de 2 redacciones,
@@ -579,12 +582,29 @@ evaluador sin volver a pagar la redacción.
   evaluaciones). Si no entra, el trabajo queda **pausado por presupuesto** y ningún ítem falla por
   eso; se reanuda a mano (`POST /jobs/{id}/resume`, que se rechaza si sigue sin entrar).
 - **Pausa por falta de IA o de ML**: sin redactor o evaluador, apagada, clave inválida o cuenta de ML
-  desconectada, el trabajo se pausa (`PausedUnavailable`) con el motivo.
+  desconectada, **o un 401/403 de Mercado Libre** (credenciales rechazadas aunque la cuenta siga
+  conectada), el trabajo se pausa (`PausedUnavailable`) con el motivo; en el último caso el texto
+  pide reconectar Mercado Libre y revisar la clave antes de reanudar, porque reanudar sin arreglarlo
+  vuelve a pausar.
+- **Transiciones del worker**: arrancar, pausar y terminar son `UPDATE ... WHERE Status = <esperado>`
+  (sin migración): si la API canceló el trabajo mientras se procesaba, el cancelar manda. Además
+  retoma los trabajos `Done` que tengan un ítem `Pending` (la carrera de elegir la categoría justo
+  cuando el trabajo se cierra; elegir la categoría también reabre el trabajo con un `UPDATE`
+  condicional bajo el mismo candado por tienda).
 - **Mercado Libre**: las llamadas de una tienda van de a una (`MeliTenantGate`). Ante un 429 se espera
   1, 2, 4, 8 y 16 segundos dentro del mismo turno; si sigue limitando el ítem se suelta **sin sumar
   intento ni falla** y se retoma en otra pasada.
-- **Fallas**: una falla pasajera de la IA o de ML suma una en el ítem y a la tercera el ítem falla;
-  un rechazo del proveedor falla el ítem de una; un producto borrado también.
+- **Fallas**: una falla pasajera de la IA o de ML suma una en el ítem y lo deja **esperando 1, 5 y
+  15 minutos** (se corre el reclamo, `ClaimedAtUtc`) en vez de reintentarlo en la pasada siguiente:
+  una caída de unos minutos del proveedor no mata los ítems. A la cuarta, el ítem falla; **pero si
+  ya hay una redacción paga** (por ejemplo, se cae el evaluador) queda para revisar, con la nota
+  de que no se pudo evaluar y sin el sello de "pasó". Un rechazo del proveedor sin propuesta
+  falla el ítem de una; un producto borrado también.
+- **Reintentar** (`POST /ai/catalog/items/{id}/retry`): un ítem `Failed` vuelve a `Pending` desde cero
+  intentos, en el mismo trabajo (que se reabre si había terminado). Gasta de nuevo, así que respeta lo
+  mismo que reanudar: IA y ML listos y que entre un ítem en lo que queda del tope del mes (409 si no).
+- Un corte de la API entre una corrida paga y su checkpoint deja esa corrida sin sumar al costo real
+  del trabajo (el libro de consumo la tiene igual).
 - **Costo real**: cada corrida suma al trabajo lo que dice el libro de consumo.
 
 ### La revisión
@@ -600,8 +620,14 @@ solo ML) y **lo que le falta a la ficha para ML**, editable ahí mismo con los v
   llega vacía), suma las specs nuevas a las que ya tenía el producto (`SetSpecs` reemplaza la
   ficha entera) y deja la categoría y lo que es solo de ML (`GTIN`, "Es kit"…) en
   `meli_product_categories` y `meli_product_attributes`, no en la ficha que ve el comprador. Una
-  spec de lista solo recibe un valor que sea una de sus opciones; si no, va a ML. **Aprobar no hace
+  spec de lista solo recibe un valor que sea una de sus opciones; una spec numérica, un número
+  cuya unidad coincida con la de la spec (300 m no se guarda como 300 cm: va a ML con su unidad);
+  una spec de texto guarda "valor unidad". Si no entra en la spec, va a ML. **Aprobar no hace
   ningún pedido a Mercado Libre** y es idempotente si algo falla a mitad.
+- **Corregir y quitar lo propuesto**: en el panel cada dato que propuso la IA se edita con el mismo
+  campo que los que faltan y tiene un "Quitar". El `approve` acepta `attributes` (valores editados,
+  pisan por id) y `remove` (lista de ids que no se guardan; si un id viene editado y quitado, manda
+  quitar).
 - **Aprobar todos los que pasaron**: de a uno, sin cambios; el que falla se informa y el resto sigue.
 - **Elegí la categoría**: las sugerencias de la predicción o una búsqueda (`GET
   /ai/catalog/categories/search`); elegir una valida que exista en ML, devuelve el ítem a la
@@ -614,10 +640,14 @@ Es la **única escritura hacia Mercado Libre** y tiene su propio clic y su propi
 (`meli.publish`, además de `catalog.write`): `POST /ai/catalog/items/{id}/push-to-meli` y
 `POST /ai/catalog/jobs/{id}/push-to-meli` (por tramos con `after`/`next`, 20 por defecto y 50 como
 máximo, para que ningún pedido dure minutos). Manda un `PUT /items/{id}` por publicación con solo
-los atributos: ni la categoría, que ML no deja cambiar con ventas, ni el `SELLER_SKU`. Con la cuenta
-de demostración o sin conexión da 409 sin salir. Al **publicar** un producto nuevo, el payload suma
-los atributos guardados (lo que la tienda ya tiene manda) y el modal de publicar trae preelegida la
-categoría guardada.
+los atributos: ni la categoría, que ML no deja cambiar con ventas, ni el `SELLER_SKU`. **Antes del
+`PUT` lee la publicación** (`GET /items/bulk`, por el mismo turno de la tienda) y manda la **unión**:
+lo nuestro gana por id y lo que la publicación ya tenía y no tocamos viaja igual, así que sirve tanto
+si ML reemplaza la lista como si la mezcla, y no se borra lo que el comercio cargó directo en ML. Si
+no se puede leer la publicación, no se la pisa. El botón del lote pide confirmación con la cantidad.
+Con la cuenta de demostración o sin conexión da 409 sin salir. Al **publicar** un producto nuevo, el
+payload suma los atributos guardados solo si la categoría elegida es la guardada (lo que la tienda ya
+tiene manda) y el modal de publicar trae preelegida la categoría guardada.
 
 ### Probar las fichas con una clave real (pendiente)
 
@@ -627,7 +657,9 @@ distintos), y un tope de unos US$ 1 para mirar el consumo de 3 o 4 productos. Mi
 que el GTIN quede en "Le falta" cuando no está en el producto, que un modelo o código inventado no
 llegue a ninguna propuesta, y que aprobar no cambie nada en ML. Después, **con una publicación de
 prueba**, "Actualizar la ficha en ML": falta confirmar si el `PUT` de `attributes` de ML cambia solo
-los ids enviados (lo que sugieren los ejemplos de su documentación) o reemplaza la lista entera.
+los ids enviados (lo que sugieren los ejemplos de su documentación) o reemplaza la lista entera. Con
+la unión da igual, pero conviene mirar que ML acepte reenviar los atributos que ya tenía la
+publicación (por ejemplo, alguno de solo lectura) sin rechazar el pedido.
 
 ## Lectura de facturas
 
@@ -720,7 +752,8 @@ del tope no se queda corta con un PDF de varias páginas.
   `POST /jobs/preview`, `POST /jobs` (con el cupo de 5 por hora por tienda), `GET /jobs`,
   `GET /jobs/{id}`, `POST /jobs/{id}/resume`, `POST /jobs/{id}/cancel`,
   `GET /jobs/{id}/items?status=&offset=&limit=`, `POST /items/{id}/approve`,
-  `POST /items/{id}/discard`, `POST /jobs/{id}/approve-passed`, `PUT /items/{id}/category`,
+  `POST /items/{id}/discard`, `POST /items/{id}/retry`, `POST /jobs/{id}/approve-passed`,
+  `PUT /items/{id}/category`,
   `GET /categories/search?q=`. Los dos de actualizar la publicación en ML,
   `POST /items/{id}/push-to-meli` y `POST /jobs/{id}/push-to-meli`, piden además `meli.publish`.
 - `GET /ai/config`, `PUT|DELETE /ai/config/providers/{provider}`,

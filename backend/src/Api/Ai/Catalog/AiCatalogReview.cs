@@ -389,7 +389,8 @@ public sealed class AiCatalogReview(
                     asked.TryGetValue(a.Id, out var definition) ? definition.Name : a.Id,
                     string.Join(' ', new[] { a.ValueName, a.Unit }.Where(s => !string.IsNullOrWhiteSpace(s))),
                     a.ValueId, a.ValueName, a.Unit,
-                    mapping.TryGetValue(a.Id, out var spec) && SpecValue(spec, a) is not null ? "spec" : "meli"))]);
+                    mapping.TryGetValue(a.Id, out var spec) && SpecValue(spec, a) is not null ? "spec" : "meli",
+                    asked.TryGetValue(a.Id, out var asking) ? ToMissing(asking) : null))]);
 
         // Lo que se pidió y no tiene un valor válido en la propuesta: eso le falta a la ficha para Mercado Libre.
         var filled = state.Proposal?.Attributes.Where(a => !a.Missing).Select(a => a.Id).ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];

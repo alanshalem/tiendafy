@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, ExternalLink, Search } from 'lucide-react';
+import { AlertTriangle, Check, ExternalLink, RotateCcw, Search } from 'lucide-react';
 import { Badge, Button, Input, Select, Spinner, Textarea, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -12,6 +12,7 @@ import {
   type AiCatalogCategory,
   type AiCatalogItem,
   type AiCatalogMissing,
+  type AiCatalogProposedAttribute,
 } from '../../lib/aiCatalog';
 import { qk } from '../../lib/queryKeys';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
@@ -42,6 +43,16 @@ export function AiCatalogItemCard({ item, canPublish }: { item: AiCatalogItem; c
       return refresh();
     },
     onError: (err) => toast(errMsg(err, 'No se pudo descartar.'), { variant: 'error' }),
+  });
+
+  // Vuelve a la cola desde cero intentos; gasta de nuevo, así que el servidor respeta el tope del mes.
+  const retry = useMutation({
+    mutationFn: () => api.post(`/api/v1/ai/catalog/items/${item.id}/retry`, {}),
+    onSuccess: () => {
+      toast('La ficha vuelve a la cola.', { variant: 'success' });
+      return refresh();
+    },
+    onError: (err) => toast(errMsg(err, 'No se pudo reintentar.'), { variant: 'error' }),
   });
 
   return (
@@ -90,9 +101,25 @@ export function AiCatalogItemCard({ item, canPublish }: { item: AiCatalogItem; c
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             {item.failureReason ?? 'No se pudo armar la ficha de este producto.'}
           </p>
-          <Button variant="secondary" size="sm" onClick={() => discard.mutate()} loading={discard.isPending}>
-            Descartar
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => retry.mutate()}
+              loading={retry.isPending}
+              disabled={discard.isPending}
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reintentar
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => discard.mutate()}
+              loading={discard.isPending}
+              disabled={retry.isPending}
+            >
+              Descartar
+            </Button>
+          </div>
         </div>
       )}
       {item.status === 'Discarded' && (
@@ -131,6 +158,9 @@ function ReviewBody({
   const [seoTitle, setSeoTitle] = useState(proposal.seoTitle);
   const [seoDescription, setSeoDescription] = useState(proposal.seoDescription);
   const [filled, setFilled] = useState<Record<string, Filled>>({});
+  // Los datos que propuso la IA se pueden corregir (lo que cambió la persona) o quitar.
+  const [corrected, setCorrected] = useState<Record<string, Filled>>({});
+  const [removed, setRemoved] = useState<string[]>([]);
 
   const approve = useMutation({
     mutationFn: () => {
@@ -138,10 +168,18 @@ function ReviewBody({
         description,
         seoTitle,
         seoDescription,
-        attributes: item.missing.flatMap((m) => {
-          const input = attributeInput(m, filled[m.attributeId]);
-          return input ? [input] : [];
-        }),
+        attributes: [
+          ...item.missing.flatMap((m) => {
+            const input = attributeInput(m, filled[m.attributeId]);
+            return input ? [input] : [];
+          }),
+          ...proposal.attributes.flatMap((a) => {
+            const input =
+              a.definition && !removed.includes(a.id) ? attributeInput(a.definition, corrected[a.id]) : null;
+            return input ? [input] : [];
+          }),
+        ],
+        remove: removed,
       };
       return api.post(`/api/v1/ai/catalog/items/${item.id}/approve`, body);
     },
@@ -216,16 +254,45 @@ function ReviewBody({
             />
           </label>
           {proposal.attributes.length > 0 && (
-            <ul aria-label="Datos de la ficha" className="space-y-1 text-sm">
-              {proposal.attributes.map((a) => (
-                <li key={a.id} className="flex flex-wrap items-center gap-2">
-                  <span className="text-fg-muted">{a.name}:</span>
-                  <span className="font-medium text-fg">{a.value}</span>
-                  <Badge variant={a.target === 'spec' ? 'primary' : 'neutral'}>
-                    {a.target === 'spec' ? 'Ficha de la tienda' : 'Solo Mercado Libre'}
-                  </Badge>
-                </li>
-              ))}
+            <ul aria-label="Datos de la ficha" className="space-y-2 text-sm">
+              {proposal.attributes.map((a) => {
+                const isRemoved = removed.includes(a.id);
+                return (
+                  <li key={a.id} className="flex flex-wrap items-end gap-2">
+                    {isRemoved ? (
+                      <span className="text-fg-muted line-through">
+                        {a.name}: {a.value}
+                      </span>
+                    ) : a.definition ? (
+                      <div className="min-w-40 flex-1">
+                        <MissingField
+                          missing={a.definition}
+                          value={corrected[a.id] ?? proposedFilled(a)}
+                          onChange={(v) => setCorrected((prev) => ({ ...prev, [a.id]: v }))}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-fg-muted">{a.name}:</span>
+                        <span className="font-medium text-fg">{a.value}</span>
+                      </>
+                    )}
+                    <Badge variant={a.target === 'spec' ? 'primary' : 'neutral'}>
+                      {a.target === 'spec' ? 'Ficha de la tienda' : 'Solo Mercado Libre'}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setRemoved((prev) => (isRemoved ? prev.filter((id) => id !== a.id) : [...prev, a.id]))
+                      }
+                      aria-label={`${isRemoved ? 'Restaurar' : 'Quitar'} ${a.name}`}
+                    >
+                      {isRemoved ? 'Restaurar' : 'Quitar'}
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -272,6 +339,13 @@ function ReviewBody({
       </div>
     </div>
   );
+}
+
+/** Lo que propuso la IA, como lo muestra el campo para corregirlo. */
+function proposedFilled(a: AiCatalogProposedAttribute): Filled {
+  const kind = a.definition?.kind;
+  if (kind === 'List' || kind === 'Boolean') return { valueId: a.valueId ?? undefined };
+  return { text: a.valueName ?? '', unit: a.unit ?? undefined };
 }
 
 /** El dato de ML que la persona completó, como lo espera el servidor; null si lo dejó vacío. */

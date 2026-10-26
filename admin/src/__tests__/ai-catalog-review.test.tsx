@@ -72,6 +72,18 @@ const item = (over: Partial<AiCatalogItem> = {}): AiCatalogItem => ({
         valueName: 'Negro',
         unit: null,
         target: 'meli',
+        definition: {
+          attributeId: 'COLOR',
+          name: 'Color',
+          kind: 'List',
+          values: [
+            { id: '52049', name: 'Negro' },
+            { id: '51993', name: 'Rojo' },
+          ],
+          units: [],
+          defaultUnit: null,
+          required: false,
+        },
       },
       {
         id: 'POWER',
@@ -81,6 +93,15 @@ const item = (over: Partial<AiCatalogItem> = {}): AiCatalogItem => ({
         valueName: '600',
         unit: null,
         target: 'spec',
+        definition: {
+          attributeId: 'POWER',
+          name: 'Potencia',
+          kind: 'Number',
+          values: [],
+          units: [],
+          defaultUnit: null,
+          required: false,
+        },
       },
     ],
   },
@@ -232,6 +253,34 @@ describe('revisión de fichas', () => {
     ]);
   });
 
+  it('un dato propuesto se corrige y se quita: viaja lo corregido y la lista de lo quitado', async () => {
+    const { api, user } = await openReview([item()]);
+    const card = within(screen.getByRole('article'));
+
+    await user.selectOptions(card.getByLabelText('Color'), '51993');
+    await user.click(card.getByRole('button', { name: 'Quitar Potencia' }));
+    expect(card.getByRole('button', { name: 'Restaurar Potencia' })).toBeInTheDocument();
+    await user.click(card.getByRole('button', { name: /Aprobar/ }));
+    await settle(2);
+
+    expect(posted(api, `${ITEMS}/${ITEM_ID}/approve`).at(0)!.body).toMatchObject({
+      attributes: [{ id: 'COLOR', valueId: '51993', valueName: 'Rojo' }],
+      remove: ['POWER'],
+    });
+  });
+
+  it('un dato propuesto sin tocar no se vuelve a mandar', async () => {
+    const { api, user } = await openReview([item()]);
+
+    await user.click(within(screen.getByRole('article')).getByRole('button', { name: /Aprobar/ }));
+    await settle(2);
+
+    expect(posted(api, `${ITEMS}/${ITEM_ID}/approve`).at(0)!.body).toMatchObject({
+      attributes: [],
+      remove: [],
+    });
+  });
+
   it('lo que se deja vacío no se manda', async () => {
     const { api, user } = await openReview([item()]);
 
@@ -357,6 +406,26 @@ describe('revisión de fichas', () => {
     expect(await screen.findByText('2 fichas aprobadas.')).toBeInTheDocument();
   });
 
+  it('una ficha con error se puede reintentar', async () => {
+    const failed = item({
+      status: 'Failed',
+      proposal: null,
+      missing: [],
+      failureReason: 'La IA no respondió después de 4 intentos.',
+    });
+    const { api, user } = await openReview([failed], {
+      jobData: job({}, { Failed: 1 }),
+      setup: (a) => a.on('POST', `${ITEMS}/${ITEM_ID}/retry`, { ...failed, status: 'Pending' }),
+    });
+
+    expect(screen.getByText('La IA no respondió después de 4 intentos.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Reintentar/ }));
+    await settle(2);
+
+    expect(posted(api, `${ITEMS}/${ITEM_ID}/retry`)).toHaveLength(1);
+    expect(await screen.findByText('La ficha vuelve a la cola.')).toBeInTheDocument();
+  });
+
   it('un trabajo pausado por el tope muestra el motivo y "Reanudar"', async () => {
     const reason = 'Se alcanzó el tope mensual de IA. Subilo o esperá al mes que viene y reanudá.';
     const { api, user } = await openReview([], {
@@ -393,13 +462,24 @@ describe('revisión de fichas', () => {
     expect(jobCalls()).toBe(before);
   });
 
-  it('un trabajo que no existe muestra el error', async () => {
+  it('un trabajo que no existe (o es de otra tienda) vuelve a la lista de trabajos', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/ai/status', ready);
+    api.on('GET', JOBS, { items: [] });
     api.on('GET', JOB, { title: 'AiCatalog.JobNotFound', detail: 'Ese trabajo de fichas no existe.' }, 404);
     renderApp(`/productos/fichas-ia/${JOB_ID}`);
 
-    expect((await screen.findAllByText('Ese trabajo de fichas no existe.')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Todavía no mejoraste fichas con IA')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Revisar fichas con IA/ })).toBeNull();
+  });
+
+  it('otro error del trabajo sí se muestra', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/ai/status', ready);
+    api.on('GET', JOB, { title: 'Boom', detail: 'Se rompió algo.' }, 500);
+    renderApp(`/productos/fichas-ia/${JOB_ID}`);
+
+    expect((await screen.findAllByText('Se rompió algo.')).length).toBeGreaterThan(0);
   });
 });
 
@@ -430,6 +510,17 @@ describe('actualizar la ficha en Mercado Libre', () => {
     expect(await screen.findByText('Se actualizó la publicación en Mercado Libre.')).toBeInTheDocument();
   });
 
+  it('si se cancela la confirmación del lote no se escribe nada en ML', async () => {
+    const { api, user } = await openReview([approved()], { jobData: job({}, { Approved: 1 }) });
+
+    await user.click(screen.getByRole('button', { name: 'Actualizar en ML los aprobados' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Actualizar en Mercado Libre' }));
+    await user.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    await settle(2);
+
+    expect(posted(api, `${JOB}/push-to-meli`)).toHaveLength(0);
+  });
+
   it('una ficha aprobada sin publicación no ofrece actualizar', async () => {
     await openReview([approved({ hasMeliListing: false })], { jobData: job({}, { Approved: 1 }) });
 
@@ -455,6 +546,11 @@ describe('actualizar la ficha en Mercado Libre', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Actualizar en ML los aprobados' }));
+    // Antes de escribir en Mercado Libre se confirma, con la cantidad.
+    const dialog = within(await screen.findByRole('dialog', { name: 'Actualizar en Mercado Libre' }));
+    expect(dialog.getByText(/Se actualizan hasta 25 publicaciones/)).toBeInTheDocument();
+    expect(posted(api, `${JOB}/push-to-meli`)).toHaveLength(0);
+    await user.click(dialog.getByRole('button', { name: 'Actualizar' }));
     await settle(3);
 
     const calls = posted(api, `${JOB}/push-to-meli`);
