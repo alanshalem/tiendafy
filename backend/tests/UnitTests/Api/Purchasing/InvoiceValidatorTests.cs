@@ -42,7 +42,9 @@ public sealed class InvoiceValidatorTests
     {
         var invoice = Valid() with
         {
-            NetAmount = 100_000m, VatAmount = 21_000m, TotalAmount = 121_000m,
+            NetAmount = 100_000m,
+            VatAmount = 21_000m,
+            TotalAmount = 121_000m,
             Lines = [Line(1, 33_333.33m), Line(1, 33_333.33m), Line(1, 33_333.33m)],
         };
 
@@ -54,7 +56,11 @@ public sealed class InvoiceValidatorTests
     {
         var invoice = Valid() with
         {
-            InvoiceType = "B", NetAmount = null, VatAmount = null, TotalAmount = 50_000m, Lines = [Line(2, 25_000)],
+            InvoiceType = "B",
+            NetAmount = null,
+            VatAmount = null,
+            TotalAmount = 50_000m,
+            Lines = [Line(2, 25_000)],
         };
 
         Assert.Empty(Check(invoice));
@@ -75,7 +81,11 @@ public sealed class InvoiceValidatorTests
     {
         var invoice = Valid() with
         {
-            NetAmount = 100_000m, VatAmount = 21_000m, OtherAmount = 3_000m, TotalAmount = 124_000m, Lines = [],
+            NetAmount = 100_000m,
+            VatAmount = 21_000m,
+            OtherAmount = 3_000m,
+            TotalAmount = 124_000m,
+            Lines = [],
         };
 
         Assert.Empty(Check(invoice));

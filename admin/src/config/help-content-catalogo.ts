@@ -504,15 +504,17 @@ export const CATALOGO = {
       {
         heading: 'Leer la factura con IA',
         paragraphs: [
-          'En la orden de compra, el botón "Leer factura" te deja subir el PDF o una foto del comprobante del proveedor. La IA propone tipo, número, fecha, CUIT, neto e IVA, y vos revisás antes de guardar.',
+          'En la orden de compra, el botón "Leer factura" te deja subir el PDF o una foto del comprobante del proveedor (hasta 10 MB y 20 páginas). La IA propone tipo, número, fecha, CUIT, neto, IVA y otros importes (no gravado, exento, percepciones), y vos revisás antes de guardar.',
           'Propone y no guarda: de esos números salen el libro de IVA compras y la deuda con el proveedor. La pantalla muestra también lo que NO pudo leer y con cuánta confianza leyó el resto.',
+          'Antes de mostrarte la propuesta, el sistema controla que las cuentas cierren: que las líneas sumen el neto, que neto, IVA y otros importes den el total, que el CUIT sea válido, que la fecha no sea futura y que la moneda sea conocida. Si algo no cierra, le pide a la IA que relea la factura una sola vez. Lo que siga sin cerrar aparece arriba, en "Revisá: esto no cierra", con los números tal cual se leyeron: el sistema nunca los corrige por su cuenta.',
+          'Cada línea de la factura se empareja con un ítem de la orden: primero por código (el SKU que cargaste), después por parecido de descripción, y la IA solo ayuda con las dudosas. Al lado de cada línea ves cómo se emparejó y podés cambiarlo con el selector; si la cantidad o el costo difieren de la orden, te lo marca. El emparejamiento sirve para comparar: no cambia los ítems ni los costos de la orden.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
             title: 'Si no ves el botón',
-            text: 'La lectura automática necesita la clave de IA cargada en la plataforma. Sin ella el botón no aparece, igual que el resto de las sugerencias con IA del panel.',
+            text: 'La lectura automática necesita que la IA esté prendida en tu tienda, con una clave cargada y un modelo elegido para "Leer facturas": todo eso se configura en Configuración → Inteligencia artificial. Si te falta el permiso de Compras, el botón no aparece. Si la IA está apagada o falta algo, el botón se ve deshabilitado y te dice por qué.',
           },
         ],
       },

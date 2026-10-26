@@ -42,6 +42,7 @@ herramienta que le damos al modelo escribe nada.
 | Estado por tarea y por persona, y los textos cortos | `backend/src/Api/Endpoints/AiEndpoints.cs` |
 | Borradores de la bandeja (endpoints, pasos, herramientas, datos personales, avisos) | `backend/src/Api/Ai/Questions/` |
 | Fichas del catálogo en lote (selección, gate, prompts, worker, revisión) | `backend/src/Api/Ai/Catalog/` |
+| Lectura de facturas encadenada (extraer, validar, corregir, emparejar) | `backend/src/Api/Purchasing/Invoice*.cs`; panel: `admin/src/pages/compras-factura.tsx` |
 | Lectura de categorías y atributos de ML, una llamada a la vez por tienda | `backend/src/Api/Meli/MeliCatalogReader.cs`, `MeliTenantGate.cs`, `MeliCategoryResolver.cs`, `MeliListingAttributesPush.cs` |
 | Panel | `admin/src/pages/Settings/AiSettings.tsx` y las tarjetas `Ai*Card.tsx`; `admin/src/lib/useAi.ts` |
 | Aviso de tope en Inicio | `HomeEndpoints.cs` (`AiBudgetNoticeAsync`) |
@@ -628,6 +629,66 @@ llegue a ninguna propuesta, y que aprobar no cambie nada en ML. Después, **con 
 prueba**, "Actualizar la ficha en ML": falta confirmar si el `PUT` de `attributes` de ML cambia solo
 los ids enviados (lo que sugieren los ejemplos de su documentación) o reemplaza la lista entera.
 
+## Lectura de facturas
+
+"Leer factura", en la orden de compra (`POST /purchasing/purchase-orders/{id}/invoice/scan`, permiso
+`purchasing.manage`, cupo por usuario): la persona sube el PDF o la foto del comprobante del proveedor y el
+sistema **propone** los datos; nada se guarda hasta que ella confirma con el `PUT …/invoice` de siempre. Es una
+cadena corta, en `backend/src/Api/Purchasing/` (orquestación: toca Compras y la IA):
+
+1. **Extraer** (`InvoiceRead`, PDF o imagen) con salida estructurada: el esquema es `InvoiceExtraction`. Si el
+   modelo ignora el esquema y contesta texto (o un bloque de código), cae al parser tolerante
+   (`InvoiceResponseParser`); si tampoco se entiende, `Invoice.Unreadable` (409, no 500).
+2. **Validar en código** (`InvoiceValidator`; "hoy" es `ArgentinaTime.Today`):
+   - las líneas (cantidad × precio, cada una redondeada al centavo) contra el neto, o contra el total si no
+     hay neto (factura B o C): diferencia de hasta un centavo por línea o el 0,1 % de la base, lo que sea mayor;
+   - neto + IVA + `otherAmount` contra el total: hasta 0,02;
+   - dígito verificador del CUIT, fecha no futura y moneda conocida (`ARS`, `USD`, `EUR`).
+
+   `otherAmount` es lo que no es neto ni IVA pero suma al total (no gravado, exento, percepciones, impuestos
+   internos): sin él, cualquier factura A con una percepción de IIBB "no cerraría".
+3. **Una sola corrección.** Si algo no cierra se vuelve a pedir **una vez**, con el archivo y diciendo
+   exactamente qué no cierra; el pedido prohíbe cambiar un número para que cierre. Se queda con la segunda
+   lectura salvo que no se pueda interpretar o cierre peor. Lo que siga sin cerrar vuelve **tal cual se leyó**,
+   con su control a la vista: el código nunca recalcula ni "arregla" un importe.
+4. **Emparejar** las líneas con los ítems de la orden (`InvoiceLineMatcher`), sin IA primero: por código (el
+   SKU propio de la variante, en la columna de código o dentro de la descripción) y después por parecido de
+   descripción (Sørensen–Dice sobre palabras normalizadas). Se acepta con puntaje de 0,80 o más y 0,15 de
+   ventaja sobre el segundo; por debajo de 0,30 es "sin emparejar" (un flete, un recargo) y no se le pregunta
+   a nadie. Lo del medio es ambiguo: hasta **20** líneas, con hasta 5 candidatos cada una, se le preguntan al
+   modelo **en una sola llamada**. Confianza: código, `alta`; descripción, `alta` con 0,90 o más, si no `media`;
+   IA, `media`; sin emparejar, `baja`.
+5. Vuelve la propuesta: lo leído, los controles que quedaron sin cerrar (`checks`), si hubo segunda lectura
+   (`correctionRound`) y el emparejamiento de cada línea (`lines[].match`). El panel deja cambiar el
+   emparejamiento antes de confirmar, pero es **solo una ayuda para comparar** cantidades y costos contra la
+   orden: no viaja en el `PUT` ni se guarda, y el landed cost lo sigue calculando `PurchaseOrder`, sin IA.
+
+**Seguridad.** El texto de la factura es dato, no órdenes: el system prompt lo dice y las descripciones de las
+líneas viajan delimitadas (`<lineas_de_la_factura>`, con los `<` y `>` reemplazados). Lo que protege de verdad:
+el modelo no escribe nada (no crea proveedores, órdenes ni pagos) y, al emparejar, solo puede elegir entre los
+candidatos de esa línea, que le damos con claves cortas (`i1`…): nunca ve un id, y una clave inventada o de otra
+línea se ignora.
+
+**Consumo y tope.** Una llamada al modelo es una ejecución del gateway (`IInvoiceModel`): cada paso reserva su
+propio peor caso con su propia estimación, así que un escaneo deja **de 1 a 3 ejecuciones** en el consumo (leer,
+corregir, emparejar). Hay un solo reloj por llamada, el de la tarea (120 s): en el peor caso el pedido HTTP puede
+durar hasta tres veces eso. La estimación es por lo alto (`InvoiceTokenEstimate`): 4.500 tokens por página de
+PDF (se cuentan los `/Type /Page`; si no se pueden contar, una página cada 100 KB), 2.000 por imagen, más el
+texto del pedido (caracteres / 3); la corrección cuenta el archivo de nuevo porque viaja otra vez. Un PDF de más
+de **20 páginas** se rechaza antes de llamar a nadie (`Invoice.TooManyPages`).
+
+**El archivo no se guarda**, ni en el storage ni en la base: entra a memoria, viaja al proveedor de IA y sale la
+propuesta. Es la excepción explícita de la spec (la factura viaja entera: son datos de una empresa, no de una
+persona). Lo único que se loguea es la respuesta del modelo recortada a 400 caracteres, si no se pudo leer.
+
+### Probar la lectura con una clave real (pendiente)
+
+Todo corre contra proveedores simulados. Con una clave real conviene: (1) una factura A con una percepción de
+IIBB tiene que cerrar sin segunda lectura; (2) una con un renglón mal sumado tiene que dar un solo control y
+una sola corrección; (3) el mismo PDF en cada proveedor (el esquema estructurado y la lectura de PDF cambian
+entre Anthropic, OpenAI y Google); (4) mirar en el consumo que quedan las ejecuciones esperadas y que la reserva
+del tope no se queda corta con un PDF de varias páginas.
+
 ## Permisos
 
 - Configurar (claves, modelos, tope, consumo, copiar): `ai.config`
@@ -650,6 +711,8 @@ los ids enviados (lo que sugieren los ejemplos de su documentación) o reemplaza
   (`support.chat`) y `POST /ai/contact/{id}/draft` (`messages.read`). Sin
   cuerpo: mandan solo el id. Reemplazan a las rutas viejas de respuesta
   sugerida, que se borraron porque recibían el texto del navegador.
+- `POST /purchasing/purchase-orders/{id}/invoice/scan` (`purchasing.manage`): leer una factura de compra, ver
+  [Lectura de facturas](#lectura-de-facturas).
 - `POST /ai/assistant` (`stats.read`): el asistente de datos, ver
   [Asistente de datos](#asistente-de-datos).
 - Fichas en lote, todo bajo `/ai/catalog` y con `catalog.write` (ver
@@ -687,10 +750,10 @@ que avisá a los dueños. Los pasos están en
 
 - Prueba de punta a punta con una clave real de cada proveedor (hoy todo corre
   contra proveedores simulados).
-- Las funciones A (bandeja de preguntas), B (asistente de datos) y C (fichas en
-  lote) del diseño están hechas. La D (facturas encadenadas) tiene su propio plan
-  en `historial/plan-ia-d-*.md`; esta base ya trae la tarea, los permisos y el tope
-  que usa.
+- Las funciones A (bandeja de preguntas), B (asistente de datos), C (fichas en
+  lote) y D (lectura de facturas encadenada) del diseño están hechas.
+- Probar la lectura de facturas con una clave real (ver
+  [Probar la lectura con una clave real](#probar-la-lectura-con-una-clave-real-pendiente)).
 - Probar las fichas en lote con una clave real y una cuenta de ML real (ver
   [Probar las fichas con una clave real](#probar-las-fichas-con-una-clave-real-pendiente)) y
   confirmar el comportamiento del `PUT` de atributos de ML con una publicación de prueba.
