@@ -34,7 +34,7 @@ export const CATALOGO = {
             type: 'callout',
             tone: 'tip',
             title: 'La descripción, con IA',
-            text: 'Debajo de “Descripción” está “Escribir con IA”: arma un borrador a partir del nombre del producto, que después corregís. Aparece cuando ya escribiste el nombre, y solo si la plataforma tiene cargada la clave de IA.',
+            text: 'Debajo de “Descripción” está “Escribir con IA”: arma un borrador a partir del nombre del producto, que después corregís. Aparece cuando ya escribiste el nombre, y solo si tu tienda cargó la clave de IA. Si tenés muchos productos para mejorar, mirá “Fichas con IA en lote”, más abajo.',
           },
           {
             type: 'callout',
@@ -59,6 +59,31 @@ export const CATALOGO = {
             tone: 'warning',
             title: 'Eliminar todo el catálogo',
             text: 'Solo el dueño de la tienda ve, en el menú ⋮ de arriba de la lista (“Más acciones”), “Eliminar todos los productos”. Pide escribir ELIMINAR para confirmar y no se puede deshacer: antes, bajate una copia con “Exportar e importar”.',
+          },
+        ],
+      },
+      {
+        heading: 'Fichas con IA en lote',
+        paragraphs: [
+          'Si tenés muchos productos sin descripción, con descripciones cortas o sin los datos que pide Mercado Libre, la IA te los puede mejorar de a muchos. Elegí hasta 500 productos con las casillas de la lista (o sin elegir ninguno, filtrando por lo que les falta) y tocá “Mejorar con IA”. Este botón aparece solo si tu tienda ya cargó la clave de IA en Configuración → Inteligencia artificial y tiene una cuenta de Mercado Libre conectada.',
+          'Antes de empezar te dice cuántos productos son, cuánto va a costar (es un estimado, no el cobro final) y cuánto te queda del tope del mes. Si el tope no alcanza para todos, el trabajo se pausa solo al llegar y lo reanudás cuando lo subas o cuando empiece el mes siguiente.',
+          'Para cada producto, la IA escribe la descripción y el texto para Google, y completa los datos de la categoría de Mercado Libre (marca, modelo, medidas, color…) usando solo lo que ya figura en tu producto. Después otro modelo de IA revisa lo que escribió y, si encuentra algo que no figura en tu producto, lo vuelve a escribir una vez.',
+          'Nada cambia hasta que vos lo aprobás. En “Fichas con IA” ves cada ficha con lo que tenés hoy al lado de lo que propone la IA: podés corregir el texto, completar a mano lo que le falta para Mercado Libre y tocar “Aprobar”, o “Descartar” si no te sirve. “Aprobar todos los que pasaron” guarda de una vez las que el evaluador dio por buenas.',
+          'Al aprobar, la descripción y los datos de la ficha se guardan en tu tienda; lo que solo usa Mercado Libre queda aparte, sin llenar la ficha que ve el comprador. Mercado Libre no cambia hasta que vos lo pidas con “Actualizar la ficha en ML” (por producto, o para todos los aprobados), y solo para los productos que ya tienen una publicación vinculada.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Productos', 'Fichas con IA'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Códigos y modelos: la IA no los inventa',
+            text: 'El código de barras (GTIN), el modelo o el número de parte solo se completan si figuran tal cual en tu producto. Si no, aparecen en “Le falta para Mercado Libre” para que los cargues vos; si escribís un código de barras con el dígito verificador mal, no te deja aprobar.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Si hay productos que esperan categoría',
+            text: 'Cuando Mercado Libre no tiene clara la categoría de un producto, queda en “Elegí la categoría” y no se gasta IA hasta que elijas una (entre las sugeridas o buscando). Después sigue solo.',
           },
         ],
       },

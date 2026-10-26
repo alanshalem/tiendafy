@@ -12,7 +12,8 @@ este documento es lo que hay que saber para operarla.
 
 Las funciones de IA de la tienda (hoy: escribir el borrador de respuesta a una consulta de la Bandeja
 —pregunta o mensaje de Mercado Libre, chat posventa o contacto—, redactar un post para redes y la descripción
-de un producto; el escaneo de facturas de compra usa la misma puerta) corren
+de un producto, responder preguntas sobre los datos de la tienda y mejorar las fichas del catálogo en lote
+con los atributos de Mercado Libre; el escaneo de facturas de compra usa la misma puerta) corren
 con **las claves de cada tienda**, no con una de la plataforma. Cada tienda
 carga la suya en Configuración → Inteligencia artificial, elige qué modelo hace
 cada tarea y se pone un tope de gasto por mes. Nada de esto lo paga la
@@ -40,6 +41,8 @@ herramienta que le damos al modelo escribe nada.
 | Consumo del mes | `backend/src/Api/Ai/AiUsageQueries.cs`, `Endpoints/AiUsageEndpoints.cs` |
 | Estado por tarea y por persona, y los textos cortos | `backend/src/Api/Endpoints/AiEndpoints.cs` |
 | Borradores de la bandeja (endpoints, pasos, herramientas, datos personales, avisos) | `backend/src/Api/Ai/Questions/` |
+| Fichas del catálogo en lote (selección, gate, prompts, worker, revisión) | `backend/src/Api/Ai/Catalog/` |
+| Lectura de categorías y atributos de ML, una llamada a la vez por tienda | `backend/src/Api/Meli/MeliCatalogReader.cs`, `MeliTenantGate.cs`, `MeliCategoryResolver.cs`, `MeliListingAttributesPush.cs` |
 | Panel | `admin/src/pages/Settings/AiSettings.tsx` y las tarjetas `Ai*Card.tsx`; `admin/src/lib/useAi.ts` |
 | Aviso de tope en Inicio | `HomeEndpoints.cs` (`AiBudgetNoticeAsync`) |
 
@@ -103,9 +106,9 @@ cumplen y cuyo proveedor tiene clave:
 | `ShortText` | post para redes, descripción de producto | nada | 1 | 600 | 30 s |
 
 (Los valores vigentes son los de `AiTaskSpecs.cs`.) `QuestionClassify` y
-`QuestionDraft` ya las usa la bandeja ([más abajo](#bandeja-de-preguntas)); las
-tareas que todavía no tienen pantalla propia (`DataAssistant`, las de catálogo)
-ya existen para que el panel las asigne cuando se construyan.
+`QuestionDraft` ya las usa la bandeja ([más abajo](#bandeja-de-preguntas)),
+`DataAssistant` el [asistente de datos](#asistente-de-datos) y `CatalogWrite` y
+`CatalogJudge` las [fichas en lote](#fichas-del-catálogo-en-lote).
 
 El catálogo de modelos y sus precios (micro-dólares por millón de tokens) viven
 en `AiModelCatalog.cs`, con la fecha de verificación arriba. Dos cosas que no
@@ -500,6 +503,129 @@ pregunta ni la respuesta se guardan ni se loguean (solo el consumo).
 Costo de referencia (spec): 5 a 15 centavos de dólar por pregunta con un modelo
 medio.
 
+## Fichas del catálogo en lote
+
+"Mejorar con IA", en Productos: la persona elige hasta **500 productos** (a mano o con un
+filtro) y un worker redacta, para cada uno, la descripción, el título y la descripción SEO y
+**los atributos reales de su categoría de Mercado Libre**; los pasa por un gate determinista y
+por un evaluador de otro proveedor (máximo 2 intentos) y deja todo para revisar. Aprobar guarda
+en la tienda y en las tablas de ML; mandarlo a una publicación es otro clic. Código en
+`backend/src/Api/Ai/Catalog/`, lectura y escritura de ML en `backend/src/Api/Meli/`
+(`MeliCatalogReader`, `MeliCategoryResolver`, `MeliTenantGate`, `MeliListingAttributesPush`),
+panel en `admin/src/pages/Products/AiCatalog*.tsx`. Las tareas son `CatalogWrite` (redacta) y
+`CatalogJudge` (evalúa), ambas con JSON y **sin herramientas**, y piden `catalog.write`.
+
+### Cómo se elige y qué cuesta
+
+- `POST /ai/catalog/jobs/preview` cuenta los productos, estima el costo y dice cuánto queda del
+  tope del mes; recién al confirmar (`POST /ai/catalog/jobs`) se crea el trabajo. Los ids de otra
+  tienda se descartan en silencio; más de 500 es un 400. El filtro tiene tres casillas que se
+  suman (sin descripción, descripción de menos de 300 caracteres, sin datos de ML guardados) y
+  una categoría que incluye sus subcategorías; sin ninguna condición es un 400. "Sin datos de ML"
+  significa sin categoría ni atributos guardados: saber qué atributos le faltan a cada producto
+  exigiría llamar a ML por producto, que es justo lo que hace el trabajo.
+- **Costo estimado**: 2.500 tokens de entrada y 700 de salida del redactor más 2.000 y 250 del
+  evaluador por producto, más un 10 % de reintentos (`AiCatalogEstimate`). Con Sonnet 5.5 y
+  Haiku 5.5 son 13.558 micro-dólares por producto, unos US$ 13,6 cada mil. Siempre se muestra como
+  estimado; el costo real sale del consumo, corrida por corrida.
+- No se puede crear sin IA lista (redactor **y** evaluador) ni sin una cuenta de Mercado Libre
+  **real** conectada (la de demostración no cuenta); hay un solo trabajo activo por tienda (409) y
+  el arranque cuenta en el cupo de 5 por hora por tienda.
+
+### Qué se manda al modelo y qué no
+
+Solo datos del producto: nombre, descripción, marca, SKU, códigos de barras, opciones de
+variantes, ficha técnica, categorías de la tienda y los atributos de ML ya guardados, en un
+mensaje delimitado (`<datos_del_producto>`) donde el producto no puede abrir ni cerrar
+etiquetas. **Nunca precios, costos, stock ni datos de personas**: el record que arma el prompt
+(`AiCatalogProductData`) no tiene dónde ponerlos. El system prompt de cada tarea es constante
+(el proveedor lo cachea). Solo se le piden los atributos **que faltan**: los que ya tienen valor
+(spec mapeada que aplica al producto, atributo guardado, `BRAND` si hay marca) van como dato y no
+se pisan; `SELLER_SKU` nunca se pide. De la categoría se piden los obligatorios y los que mejoran
+la publicación, hasta 40, con su tipo, sus valores permitidos (60 en el prompt) y sus unidades.
+
+### Los pasos de cada producto
+
+1. **Categoría de ML**, sin IA: la guardada (`MeliProductCategory`); si no, la de una publicación
+   vinculada (`GET /items/bulk`, campo `category_id`); si no, la predicción
+   (`domain_discovery`). Si la predicción trae categorías con nombres distintos el ítem queda en
+   **"Elegí la categoría"** y no se gasta IA hasta que una persona la elija en la revisión.
+2. **Atributos de la categoría**: `GET /categories/{id}/attributes`, una llamada a la vez por
+   tienda y cacheada 24 h por categoría (datos públicos, iguales para todas).
+3. **Redactar** (`CatalogWrite`): un valor por atributo o `falta_dato`.
+4. **Gate** (`AiCatalogGate`, funciones puras): largos (descripción 200 a 3.000, título SEO hasta
+   60, descripción SEO 70 a 160), sin precios, links ni mails, solo atributos de la lista, valores
+   de lista permitidos, números con unidad válida. **Un identificador (GTIN/EAN, modelo, número de
+   parte) solo vale si aparece textual en los datos del producto y, para GTIN, con dígito
+   verificador válido; si no, queda `falta_dato` y se avisa, no se inventa.** Un gate que falla no
+   gasta evaluador.
+5. **Evaluar** (`CatalogJudge`, conviene que sea de otro proveedor; la pantalla de configuración
+   avisa si no): `inventa_datos`, tono y voseo, claridad, atributos, puntaje de 1 a 5 y motivos.
+   Pasa con puntaje 4 o más y sin datos inventados; si no pasa y hubo menos de 2 redacciones,
+   vuelve a redactar con los motivos como crítica. Después de 2 queda para revisar con las notas.
+
+### El worker
+
+`AiCatalogWorker` (cada 5 s, ver [arquitectura.md](../arquitectura.md#workers)): un trabajo por
+tienda, hasta 3 productos en paralelo, cada uno en su propio scope con la tienda del ítem fijada.
+Reclama cada ítem con un UPDATE condicional sobre su fila (vence a los 10 minutos) y **guarda el
+estado al terminar cada paso**: si la API se reinicia a mitad de un producto, retoma en el
+evaluador sin volver a pagar la redacción.
+
+- **Tope**: antes de reclamar se exige libre el peor caso de un ítem (dos redacciones y dos
+  evaluaciones). Si no entra, el trabajo queda **pausado por presupuesto** y ningún ítem falla por
+  eso; se reanuda a mano (`POST /jobs/{id}/resume`, que se rechaza si sigue sin entrar).
+- **Pausa por falta de IA o de ML**: sin redactor o evaluador, apagada, clave inválida o cuenta de ML
+  desconectada, el trabajo se pausa (`PausedUnavailable`) con el motivo.
+- **Mercado Libre**: las llamadas de una tienda van de a una (`MeliTenantGate`). Ante un 429 se espera
+  1, 2, 4, 8 y 16 segundos dentro del mismo turno; si sigue limitando el ítem se suelta **sin sumar
+  intento ni falla** y se retoma en otra pasada.
+- **Fallas**: una falla pasajera de la IA o de ML suma una en el ítem y a la tercera el ítem falla;
+  un rechazo del proveedor falla el ítem de una; un producto borrado también.
+- **Costo real**: cada corrida suma al trabajo lo que dice el libro de consumo.
+
+### La revisión
+
+`/productos/fichas-ia` lista los trabajos y `/productos/fichas-ia/:jobId` es la revisión:
+lo actual al lado de lo propuesto (leído al pedir), a dónde va cada dato (la ficha de la tienda o
+solo ML) y **lo que le falta a la ficha para ML**, editable ahí mismo con los valores permitidos.
+
+- **Aprobar** (`POST /ai/catalog/items/{id}/approve`, con lo editado si hay): valida contra los
+  atributos que se pidieron al armar la ficha (un GTIN con dígito verificador inválido o un valor
+  fuera de la lista es un 400 y la ficha sigue en revisión), guarda descripción y SEO con
+  `UpdateProductHandler` pasándole **el nombre y la marca actuales** (el handler pisa la marca si
+  llega vacía), suma las specs nuevas a las que ya tenía el producto (`SetSpecs` reemplaza la
+  ficha entera) y deja la categoría y lo que es solo de ML (`GTIN`, "Es kit"…) en
+  `meli_product_categories` y `meli_product_attributes`, no en la ficha que ve el comprador. Una
+  spec de lista solo recibe un valor que sea una de sus opciones; si no, va a ML. **Aprobar no hace
+  ningún pedido a Mercado Libre** y es idempotente si algo falla a mitad.
+- **Aprobar todos los que pasaron**: de a uno, sin cambios; el que falla se informa y el resto sigue.
+- **Elegí la categoría**: las sugerencias de la predicción o una búsqueda (`GET
+  /ai/catalog/categories/search`); elegir una valida que exista en ML, devuelve el ítem a la
+  cola y el worker no la vuelve a adivinar.
+- **Descartar** no guarda nada.
+
+### Actualizar la publicación en ML
+
+Es la **única escritura hacia Mercado Libre** y tiene su propio clic y su propio permiso
+(`meli.publish`, además de `catalog.write`): `POST /ai/catalog/items/{id}/push-to-meli` y
+`POST /ai/catalog/jobs/{id}/push-to-meli` (por tramos con `after`/`next`, 20 por defecto y 50 como
+máximo, para que ningún pedido dure minutos). Manda un `PUT /items/{id}` por publicación con solo
+los atributos: ni la categoría, que ML no deja cambiar con ventas, ni el `SELLER_SKU`. Con la cuenta
+de demostración o sin conexión da 409 sin salir. Al **publicar** un producto nuevo, el payload suma
+los atributos guardados (lo que la tienda ya tiene manda) y el modal de publicar trae preelegida la
+categoría guardada.
+
+### Probar las fichas con una clave real (pendiente)
+
+Ningún test llama a un proveedor ni a ML reales. Para probarlo de punta a punta: una cuenta de ML
+real conectada, claves de dos proveedores, `CatalogWrite` y `CatalogJudge` asignadas (de proveedores
+distintos), y un tope de unos US$ 1 para mirar el consumo de 3 o 4 productos. Mirar en la revisión
+que el GTIN quede en "Le falta" cuando no está en el producto, que un modelo o código inventado no
+llegue a ninguna propuesta, y que aprobar no cambie nada en ML. Después, **con una publicación de
+prueba**, "Actualizar la ficha en ML": falta confirmar si el `PUT` de `attributes` de ML cambia solo
+los ids enviados (lo que sugieren los ejemplos de su documentación) o reemplaza la lista entera.
+
 ## Permisos
 
 - Configurar (claves, modelos, tope, consumo, copiar): `ai.config`
@@ -524,6 +650,14 @@ medio.
   sugerida, que se borraron porque recibían el texto del navegador.
 - `POST /ai/assistant` (`stats.read`): el asistente de datos, ver
   [Asistente de datos](#asistente-de-datos).
+- Fichas en lote, todo bajo `/ai/catalog` y con `catalog.write` (ver
+  [Fichas del catálogo en lote](#fichas-del-catálogo-en-lote)):
+  `POST /jobs/preview`, `POST /jobs` (con el cupo de 5 por hora por tienda), `GET /jobs`,
+  `GET /jobs/{id}`, `POST /jobs/{id}/resume`, `POST /jobs/{id}/cancel`,
+  `GET /jobs/{id}/items?status=&offset=&limit=`, `POST /items/{id}/approve`,
+  `POST /items/{id}/discard`, `POST /jobs/{id}/approve-passed`, `PUT /items/{id}/category`,
+  `GET /categories/search?q=`. Los dos de actualizar la publicación en ML,
+  `POST /items/{id}/push-to-meli` y `POST /jobs/{id}/push-to-meli`, piden además `meli.publish`.
 - `GET /ai/config`, `PUT|DELETE /ai/config/providers/{provider}`,
   `POST /ai/config/providers/{provider}/test`, `PUT /ai/config/assignments`,
   `PUT /ai/config/settings`, `POST /ai/config/copy`, `GET /ai/config/usage`:
@@ -551,10 +685,15 @@ que avisá a los dueños. Los pasos están en
 
 - Prueba de punta a punta con una clave real de cada proveedor (hoy todo corre
   contra proveedores simulados).
-- Las funciones A (bandeja de preguntas) y B (asistente de datos) del diseño
-  están hechas. Las C y D (fichas en lote, facturas encadenadas) tienen su propio
-  plan en `historial/plan-ia-*.md`; esta base ya trae las tareas, los permisos
-  y el tope que usan.
+- Las funciones A (bandeja de preguntas), B (asistente de datos) y C (fichas en
+  lote) del diseño están hechas. La D (facturas encadenadas) tiene su propio plan
+  en `historial/plan-ia-d-*.md`; esta base ya trae la tarea, los permisos y el tope
+  que usa.
+- Probar las fichas en lote con una clave real y una cuenta de ML real (ver
+  [Probar las fichas con una clave real](#probar-las-fichas-con-una-clave-real-pendiente)) y
+  confirmar el comportamiento del `PUT` de atributos de ML con una publicación de prueba.
+- Sin una cuenta de ML conectada no hay fichas en lote (la spec pide los atributos reales de
+  la categoría). Un modo "solo descripción y SEO" para tiendas sin ML queda para después, si se pide.
 - Probar el asistente de datos con una clave real: con un usuario `vendedor`,
   "¿cuánto gané este mes?" tiene que contestar que no puede ver la rentabilidad;
   con el dueño, la cifra tiene que coincidir con Estadísticas → Rentabilidad del

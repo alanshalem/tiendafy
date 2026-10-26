@@ -152,6 +152,7 @@ broker de mensajes; ver [ADR 0005](./adr/0005-segundo-plano-con-polling-a-postgr
 | `FiscalEmissionWorker` | 10 s | Outbox de facturas: pide el CAE a ARCA, con backoff exponencial y dead-letter a los 8 intentos |
 | `MeliNotificationWorker` | 5 s | Inbox de notificaciones de Mercado Libre |
 | `MeliStockSyncWorker` | 5 min | Empuja stock (y precio, si la sincronización está prendida) a las publicaciones vinculadas |
+| `AiCatalogWorker` | 5 s | Fichas del catálogo con IA: un trabajo por tienda, 3 productos en paralelo, claim por fila (vence a los 10 min), estado guardado en cada paso y pausa por tope. Ver [ia.md](./integraciones/ia.md#fichas-del-catálogo-en-lote) |
 | `SocialPublishWorker` | 60 s | Publica los posts programados, red por red, con claim atómico |
 | `CampaignWorker` | 20 s | Envía las campañas de email programadas |
 | `AbandonedCartWorker` | 15 min | Recupero de carritos abandonados |

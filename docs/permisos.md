@@ -67,6 +67,12 @@ excepciones de la persona incluidas: `resumen_ventas` y `productos_mas_vendidos`
 `ordenes_de_compra` (`purchasing.manage`) y `resumen_clientes` (`customers.read`).
 Un vendedor de fábrica recibe cinco; sin `costs.read` no hay rentabilidad.
 
+Las fichas del catálogo con IA (`CatalogWrite` y `CatalogJudge`) piden `catalog.write`
+para elegir productos, crear el trabajo, revisarlo y aprobar. "Actualizar la ficha en ML"
+es la única escritura hacia afuera y pide además `meli.publish`: alguien con `catalog.write`
+y sin `meli.publish` puede aprobar fichas (que se guardan en la tienda) pero no mandarlas a
+las publicaciones.
+
 ## Roles
 
 Fijos (`Roles.All`): lo que se edita es qué puede cada uno.

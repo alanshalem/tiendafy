@@ -120,6 +120,8 @@ Todos bajo `/api/v1`.
 | `GET /admin/meli/items`, `POST/DELETE /admin/meli/items/{itemId}/link` | `meli.publish` | Publicaciones del vendedor y vínculos con variantes. |
 | `PUT /admin/meli/items/{itemId}/sync` | `meli.publish` | Switches de stock y precio de UNA publicación vinculada (`{ meliVariationId, syncStock?, syncPrice? }`). No escribe en ML: vale también en la cuenta de ejemplo. |
 | `GET /admin/meli/categories/predict`, `POST /admin/meli/products/{id}/publish` | `meli.publish` | Sugerir categoría y publicar. |
+| `GET /admin/meli/products/{id}/category` | `meli.publish` | La categoría de ML guardada del producto (`{ categoryId, categoryName, source }`, o `{ categoryId: null }`). Solo lee la base. |
+| `POST /ai/catalog/items/{id}/push-to-meli`, `POST /ai/catalog/jobs/{id}/push-to-meli` | `catalog.write` y `meli.publish` | "Actualizar la ficha en ML": un `PUT /items/{id}` por publicación vinculada con los atributos guardados (no la categoría ni el `SELLER_SKU`). El del trabajo va por tramos (`after`/`next`). 409 con la cuenta de ejemplo, sin salir. Ver [ia.md](./ia.md#actualizar-la-publicación-en-ml). |
 | `POST /webhooks/meli` | público (allowlist en `AdminWriteAuthMiddleware`) | Webhook: solo persiste y responde 200 (también a un cuerpo que no es JSON, ver "Venta nueva"). |
 
 ## Configuración
@@ -244,8 +246,13 @@ responde 400 (`Meli.BufferExceedsStock`) en vez de publicar 1 unidad igual.
 Arma el payload: título hasta 60 caracteres, precio con recargo solo si la
 sincronización de precios está prendida, `available_quantity` = disponible −
 buffer, `condition: new`, `listing_type_id` `gold_special` por
-defecto, hasta 6 fotos, atributos `BRAND`, `SELLER_SKU` y los de la ficha
-técnica que tengan `MeliAttributeId`. La descripción va en un segundo
+defecto, hasta 6 fotos, atributos `BRAND`, `SELLER_SKU`, los de la ficha
+técnica que tengan `MeliAttributeId` y, al final, los que la tienda guardó del
+producto para ML (`meli_product_attributes`: GTIN, "Es kit"…, que completa la
+revisión de fichas con IA; lo que la tienda ya tiene manda y de lo guardado
+solo entran los ids que no estén ya). El modal de publicar trae preelegida la
+categoría guardada del producto (`GET /admin/meli/products/{id}/category`), con
+la predicción de ML como alternativas. La descripción va en un segundo
 `POST /items/{id}/description`. Después auto-vincula, con lo que viajó
 (disponible − buffer y el precio del canal) como último empujado: el worker
 no repite el PUT. v1 no publica variaciones de ML.
@@ -273,6 +280,25 @@ real (ver Pendiente).
 - Las miniaturas vienen por `http://` y el panel corre en https (el navegador
   las bloquea por contenido mixto): `MeliItemSummary.SecureThumbnail` las
   pasa a `https://` en las preguntas, la bandeja y la pestaña Publicaciones.
+- **Categorías y atributos** (confirmado en la documentación oficial el 26-oct-2026;
+  los usa la revisión de fichas con IA, ver [ia.md](./ia.md#fichas-del-catálogo-en-lote)).
+  `GET /categories/{id}/attributes` trae `id`, `name`, `value_type` (`string`, `number`,
+  `number_unit`, `boolean`, `list`), `values` (en `string` y `number` son solo sugeridos),
+  `allowed_units` (una lista de `{ id, name }`), `default_unit`, `value_max_length` y `tags`: un
+  **objeto** de booleanos acá y una **lista** de textos en `/technical_specs`. Es obligatorio con
+  `required`, `new_required` o `conditional_required`; no se carga con `read_only`, `fixed`,
+  `inferred` ni `others`; `hidden` no sale en el flujo del vendedor pero se puede cargar por API.
+  Un identificador trae `"type": "product_identifier"`. El GTIN suele ser `hidden` y
+  `conditional_required` a la vez: ML lo pide igual. `relevance` y `hierarchy` figuran en
+  `/technical_specs/input`, no en este recurso. Un atributo se manda como `{ id, value_id }`
+  (obligatorio en las listas y los sí/no) o `{ id, value_name }`; un número con unidad va como
+  `value_name` "30 cm". La categoría de una publicación sale del multiget (`attributes=body.category_id`)
+  y el nombre de `GET /categories/{id}`. `domain_discovery` acepta `limit` de 1 a 8 (la doc
+  recomienda 3).
+- **Sin confirmar con una cuenta real**: si el `attributes` de un `PUT /items/{id}` cambia solo
+  los ids enviados (los ejemplos de la doc mandan un subconjunto) o reemplaza la lista entera. Los
+  atributos de una categoría se piden de a una llamada por tienda (`MeliTenantGate`) y ante un 429 se
+  espera 1, 2, 4, 8 y 16 s dentro del mismo turno.
 - Mensajes posventa limitados a 350 caracteres. Leer un pack
   (`GET /messages/packs/{pack}/sellers/{seller}?tag=post_sale`) lo marca como
   leído en ML (la doc ofrece `mark_as_read=false`, que no usamos): abrir el
