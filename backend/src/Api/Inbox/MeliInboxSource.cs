@@ -157,38 +157,27 @@ public sealed partial class MeliInboxSource(
         }).Where(q => q.Id != 0)];
     }
 
-    /// <summary>Las publicaciones de las preguntas, de a 20 (el tope del multiget de ML).</summary>
+    /// <summary>Las publicaciones de las preguntas (<c>/items/bulk</c>, de a 20).</summary>
     private async Task<Dictionary<string, MeliListing>> ListingsAsync(
         string token, IEnumerable<string?> itemIds, CancellationToken ct)
     {
         var ids = itemIds.OfType<string>().Where(i => i.Length > 0).Distinct().ToList();
         var result = new Dictionary<string, MeliListing>(StringComparer.Ordinal);
-        foreach (var chunk in ids.Chunk(20))
+        var bodies = await client.GetItemsBulkAsync(token, ids, ct,
+            ["id", "title", "thumbnail", "price", "available_quantity", "permalink"],
+            // Sin la publicación la pregunta igual se puede contestar: no se pierde la lista por esto.
+            ex => logger.LogInformation("Bandeja: no se pudieron leer publicaciones de ML: {Message}", ex.Message));
+        foreach (var body in bodies)
         {
-            try
-            {
-                using var doc = await client.GetAsync(token,
-                    $"/items?ids={string.Join(',', chunk.Select(Uri.EscapeDataString))}&attributes=id,title,thumbnail,price,available_quantity,permalink", ct);
-                if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
-                foreach (var entry in doc.RootElement.EnumerateArray())
-                {
-                    if (!entry.TryGetProperty("body", out var body) || body.ValueKind != JsonValueKind.Object) continue;
-                    var id = JsonRead.GetString(body, "id");
-                    if (id is null) continue;
-                    result[id] = new MeliListing(
-                        id,
-                        JsonRead.GetString(body, "title"),
-                        Api.Endpoints.MeliItemSummary.SecureThumbnail(JsonRead.GetString(body, "thumbnail")),
-                        body.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : null,
-                        body.TryGetProperty("available_quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null,
-                        JsonRead.GetString(body, "permalink"));
-                }
-            }
-            catch (MeliException ex)
-            {
-                // Sin la publicación la pregunta igual se puede contestar: no se pierde la lista por esto.
-                logger.LogInformation("Bandeja: no se pudieron leer publicaciones de ML: {Message}", ex.Message);
-            }
+            var id = JsonRead.GetString(body, "id");
+            if (id is null) continue;
+            result[id] = new MeliListing(
+                id,
+                JsonRead.GetString(body, "title"),
+                Api.Endpoints.MeliItemSummary.SecureThumbnail(JsonRead.GetString(body, "thumbnail")),
+                body.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : null,
+                body.TryGetProperty("available_quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null,
+                JsonRead.GetString(body, "permalink"));
         }
         return result;
     }

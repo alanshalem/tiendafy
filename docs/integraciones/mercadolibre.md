@@ -268,7 +268,7 @@ real (ver Pendiente).
   el descuento de stock es idempotente por orden.
 - Rate limit de ~1500 req/min por vendedor; un 429 se traduce a un mensaje
   amable.
-- Multiget `/items?ids=` de a 20; las búsquedas devuelven hasta 50 por página
+- Publicaciones por `GET /items/bulk?ids=` de a 20 (`MeliClient.GetItemsBulkAsync`). El multiget `/items?ids=` está obsoleto desde oct-2026: el bulk responde `[{status_code, id, body}]` (antes `code`) y, para elegir campos, `attributes=body.id,body.title`. Un ítem con `status_code` no 2xx se omite. Las búsquedas devuelven hasta 50 por página
   y el total en `paging.total`.
 - Las miniaturas vienen por `http://` y el panel corre en https (el navegador
   las bloquea por contenido mixto): `MeliItemSummary.SecureThumbnail` las

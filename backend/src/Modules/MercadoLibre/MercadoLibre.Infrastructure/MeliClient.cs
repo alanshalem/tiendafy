@@ -77,6 +77,55 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
     public Task<JsonDocument> PutAsync(string accessToken, string path, object payload, CancellationToken ct) =>
         SendAsync(accessToken, HttpMethod.Put, path, payload, ct);
 
+    /// <summary>Lo más que se le pide a <c>/items/bulk</c> por pedido.</summary>
+    public const int ItemsBulkChunkSize = 20;
+
+    /// <summary>
+    /// Las publicaciones pedidas, de a <see cref="ItemsBulkChunkSize"/> por
+    /// <c>GET /items/bulk?ids=…</c> (el reemplazo del multiget <c>/items?ids=</c>,
+    /// obsoleto). Devuelve el <c>body</c> de cada publicación que ML encontró,
+    /// en el orden pedido; las que vienen con un <c>status_code</c> que no es 2xx
+    /// (borrada, sin permiso…) se omiten. <paramref name="attributes"/> son los
+    /// campos del <c>body</c> (sin prefijo: el cliente agrega <c>body.</c>, que es
+    /// como el bulk los selecciona); sin ellos, la ficha completa.
+    /// Si un pedido falla (<see cref="MeliException"/>), sin <paramref name="onChunkError"/>
+    /// se propaga; con él se avisa y se sigue con el resto.
+    /// </summary>
+    public async Task<IReadOnlyList<JsonElement>> GetItemsBulkAsync(
+        string accessToken, IEnumerable<string> itemIds, CancellationToken ct,
+        IReadOnlyList<string>? attributes = null, Action<MeliException>? onChunkError = null)
+    {
+        var select = attributes is { Count: > 0 }
+            ? "&attributes=" + string.Join(',', attributes.Select(a => $"body.{a}"))
+            : string.Empty;
+        var bodies = new List<JsonElement>();
+        foreach (var chunk in itemIds.Chunk(ItemsBulkChunkSize))
+        {
+            try
+            {
+                using var doc = await GetAsync(accessToken,
+                    $"/items/bulk?ids={string.Join(',', chunk.Select(Uri.EscapeDataString))}{select}", ct);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
+                foreach (var entry in doc.RootElement.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.Object
+                        || !entry.TryGetProperty("status_code", out var status)
+                        || status.ValueKind != JsonValueKind.Number
+                        || status.GetInt32() is < 200 or > 299
+                        || !entry.TryGetProperty("body", out var body)
+                        || body.ValueKind != JsonValueKind.Object)
+                        continue;
+                    bodies.Add(body.Clone());
+                }
+            }
+            catch (MeliException ex) when (onChunkError is not null)
+            {
+                onChunkError(ex);
+            }
+        }
+        return bodies;
+    }
+
     private async Task<JsonDocument> SendAsync(
         string accessToken, HttpMethod method, string path, object? payload, CancellationToken ct,
         IReadOnlyDictionary<string, string>? headers = null)

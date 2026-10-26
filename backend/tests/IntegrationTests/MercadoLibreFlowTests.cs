@@ -197,16 +197,16 @@ public sealed class MercadoLibreFlowTests
                       answer = (object?)new { text = "Sí", date_created = "2026-10-10" } },
             },
         });
-        // Sin la ficha de la publicación (ML no contesta el multiget), la pregunta sale igual.
+        // Sin la ficha de la publicación (ML no contesta /items/bulk), la pregunta sale igual.
         var questions = await merchant.GetAsync("/api/v1/admin/meli/questions?status=UNANSWERED");
         Assert.Equal(1, questions.GetProperty("total").GetInt32());
         Assert.Contains("status=UNANSWERED", _factory.ExternalHttp.SentTo($"{Api}/questions/search").Last().Uri.Query);
         Assert.Equal(JsonValueKind.Null, questions.GetProperty("questions")[0].GetProperty("item").ValueKind);
 
         // Con la ficha: título, foto (en https), precio y stock al lado de la pregunta.
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items?ids=MLA1", new object[]
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items/bulk?ids=MLA1", new object[]
         {
-            new { code = 200, body = new { id = "MLA1", title = "Remera lisa", thumbnail = "http://http2.mlstatic.com/remera.jpg", price = 15000m, currency_id = "ARS", available_quantity = 4 } },
+            new { status_code = 200, id = "MLA1", body = new { id = "MLA1", title = "Remera lisa", thumbnail = "http://http2.mlstatic.com/remera.jpg", price = 15000m, currency_id = "ARS", available_quantity = 4 } },
         });
         var withItem = (await merchant.GetAsync("/api/v1/admin/meli/questions?status=UNANSWERED")).GetProperty("questions")[0].GetProperty("item");
         Assert.Equal("Remera lisa", withItem.GetProperty("title").GetString());
@@ -260,13 +260,13 @@ public sealed class MercadoLibreFlowTests
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/post-purchase/v1/claims/search", new { message = "not found" }, HttpStatusCode.NotFound);
         Assert.Empty((await merchant.GetAsync("/api/v1/admin/meli/claims")).GetProperty("claims").EnumerateArray());
 
-        // Publicaciones del vendedor (multiget) con su vínculo.
+        // Publicaciones del vendedor (/items/bulk) con su vínculo.
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/users/{userId}/items/search",
             new { results = new[] { "MLA1", "MLA2" }, paging = new { total = 57 } });
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items?ids=", new object[]
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items/bulk?ids=", new object[]
         {
-            new { code = 200, body = new { id = "MLA1", title = "Remera", status = "active", price = 15000m, available_quantity = 4 } },
-            new { code = 404 },
+            new { status_code = 200, id = "MLA1", body = new { id = "MLA1", title = "Remera", status = "active", price = 15000m, available_quantity = 4 } },
+            new { status_code = 404, id = "MLA2", body = new { message = "Item not found", error = "not_found" } },
         });
         var items = await merchant.GetAsync("/api/v1/admin/meli/items?limit=1000");
         Assert.Single(items.GetProperty("items").EnumerateArray());
@@ -902,6 +902,63 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(25_000_00, profitability.GetProperty("meli").GetProperty("revenue").GetInt64());
         var paid = await merchant.GetAsync($"/api/v1/admin/meli/orders?limit=25&estado={MeliOrderFilters.Paid}");
         Assert.Equal(2, paid.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task Las_publicaciones_se_piden_a_items_bulk_de_a_20_con_los_campos_con_prefijo_body()
+    {
+        var (merchant, userId) = await ConnectedAsync("mlb");
+
+        // Pregunta: pide solo los campos de la ficha, cada uno con el prefijo body. que exige /items/bulk.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/questions/search", new
+        {
+            total = 1,
+            questions = new[] { new { id = 321L, text = "¿Hay?", status = "UNANSWERED", item_id = "MLA77", date_created = "2026-10-10" } },
+        });
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items/bulk?ids=MLA77", new object[]
+        {
+            new { status_code = 200, id = "MLA77", body = new { id = "MLA77", title = "Gorra", price = 9000m, currency_id = "ARS", available_quantity = 2 } },
+        });
+        var questions = await merchant.GetAsync("/api/v1/admin/meli/questions?status=UNANSWERED");
+        Assert.Equal("Gorra", questions.GetProperty("questions")[0].GetProperty("item").GetProperty("title").GetString());
+        var one = Assert.Single(_factory.ExternalHttp.SentTo($"{Api}/items/bulk?ids=MLA77"));
+        Assert.Equal(HttpMethod.Get, one.Method);
+        Assert.Null(one.Body);
+        Assert.Equal("/items/bulk", one.Uri.AbsolutePath);
+        Assert.Equal(
+            "?ids=MLA77&attributes=body.id,body.title,body.thumbnail,body.price,body.currency_id,body.available_quantity,body.permalink,body.status",
+            one.Uri.Query);
+        Assert.StartsWith("Bearer ", one.Headers["Authorization"]);
+
+        // Un pedido con más de 20 ids se trocea de a 20, sin tocar el orden.
+        var ids = Enumerable.Range(1, 45).Select(i => $"MLX{i}").ToArray();
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/users/{userId}/items/search",
+            new { results = ids, paging = new { total = 45 } });
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Api}/items/bulk?ids=", (req, _) =>
+        {
+            var asked = HttpUtility.ParseQueryString(req.RequestUri!.Query)["ids"]!.Split(',');
+            return FakeHttp.Json(asked.Select(id => new
+            {
+                status_code = 200,
+                id,
+                body = new { id, title = $"Título {id}", status = "active", price = 100m, available_quantity = 1 },
+            }).ToArray());
+        });
+        var items = await merchant.GetAsync("/api/v1/admin/meli/items?limit=50");
+        Assert.Equal(45, items.GetProperty("items").GetArrayLength());
+        Assert.Equal("MLX45", items.GetProperty("items")[44].GetProperty("id").GetString());
+        var sent = _factory.ExternalHttp.SentTo($"{Api}/items/bulk?ids=MLX").ToList();
+        Assert.Equal(3, sent.Count);
+        Assert.All(sent, r =>
+        {
+            Assert.Equal(HttpMethod.Get, r.Method);
+            Assert.Null(r.Body);
+        });
+        Assert.Equal(
+            [20, 20, 5],
+            sent.Select(r => HttpUtility.ParseQueryString(r.Uri.Query)["ids"]!.Split(',').Length));
+        Assert.Equal("?ids=" + string.Join(',', ids.Take(20)), sent[0].Uri.Query);
+        Assert.Equal("?ids=" + string.Join(',', ids.Skip(40)), sent[2].Uri.Query);
     }
 
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>

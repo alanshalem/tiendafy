@@ -324,7 +324,7 @@ public static class MeliEndpoints
 
                 // Contestar sin ver de qué publicación es obliga a abrir ML en
                 // otra pestaña: se trae título, foto, precio y stock de cada
-                // publicación (de a 20 por pedido, el tope del multiget).
+                // publicación (de a 20 por pedido, el tope de /items/bulk).
                 var items = await ItemSummariesAsync(client, token,
                     raw.Select(q => JsonRead.GetString(q, "item_id")), ct);
 
@@ -627,25 +627,14 @@ public static class MeliEndpoints
         var result = new Dictionary<string, MeliItemSummary>(StringComparer.OrdinalIgnoreCase);
         var ids = itemIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id!)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        foreach (var chunk in ids.Chunk(20))
+        var bodies = await client.GetItemsBulkAsync(token, ids, ct,
+            ["id", "title", "thumbnail", "price", "currency_id", "available_quantity", "permalink", "status"],
+            // Sin la ficha de estas publicaciones; las preguntas siguen.
+            onChunkError: _ => { });
+        foreach (var item in bodies)
         {
-            try
-            {
-                using var doc = await client.GetAsync(token,
-                    $"/items?ids={string.Join(',', chunk)}&attributes=id,title,thumbnail,price,currency_id,available_quantity,permalink,status",
-                    ct);
-                if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
-                foreach (var wrapper in doc.RootElement.EnumerateArray())
-                {
-                    if (!wrapper.TryGetProperty("body", out var item) || item.ValueKind != JsonValueKind.Object) continue;
-                    var summary = MeliItemSummary.From(item);
-                    if (summary is not null) result[summary.Id] = summary;
-                }
-            }
-            catch (MeliException)
-            {
-                // Sin la ficha de estas publicaciones; las preguntas siguen.
-            }
+            var summary = MeliItemSummary.From(item);
+            if (summary is not null) result[summary.Id] = summary;
         }
         return result;
     }
@@ -724,28 +713,22 @@ public static class MeliEndpoints
                 var links = await db.ItemLinks.AsNoTracking().ToListAsync(ct);
                 var result = new List<object>();
 
-                // Multiget de a 20 (límite del endpoint /items?ids=).
-                foreach (var chunk in ids.Chunk(20))
+                // /items/bulk de a 20 (lo trocea el cliente); si ML falla, el error sube al catch de abajo.
+                foreach (var item in await client.GetItemsBulkAsync(token, ids.OfType<string>(), ct))
                 {
-                    using var doc = await client.GetAsync(token, $"/items?ids={string.Join(',', chunk)}", ct);
-                    if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
-                    foreach (var wrapper in doc.RootElement.EnumerateArray())
+                    var itemId = JsonRead.GetString(item, "id") ?? "";
+                    var link = links.FirstOrDefault(l => l.MeliItemId == itemId);
+                    result.Add(new
                     {
-                        if (!wrapper.TryGetProperty("body", out var item)) continue;
-                        var itemId = JsonRead.GetString(item, "id") ?? "";
-                        var link = links.FirstOrDefault(l => l.MeliItemId == itemId);
-                        result.Add(new
-                        {
-                            id = itemId,
-                            title = JsonRead.GetString(item, "title"),
-                            status = JsonRead.GetString(item, "status"),
-                            permalink = JsonRead.GetString(item, "permalink"),
-                            thumbnail = MeliItemSummary.SecureThumbnail(JsonRead.GetString(item, "thumbnail")),
-                            price = JsonRead.GetDecimal(item, "price"),
-                            availableQuantity = JsonRead.GetInt32(item, "available_quantity"),
-                            link = link is null ? null : MeliItemLinkDto.From(link),
-                        });
-                    }
+                        id = itemId,
+                        title = JsonRead.GetString(item, "title"),
+                        status = JsonRead.GetString(item, "status"),
+                        permalink = JsonRead.GetString(item, "permalink"),
+                        thumbnail = MeliItemSummary.SecureThumbnail(JsonRead.GetString(item, "thumbnail")),
+                        price = JsonRead.GetDecimal(item, "price"),
+                        availableQuantity = JsonRead.GetInt32(item, "available_quantity"),
+                        link = link is null ? null : MeliItemLinkDto.From(link),
+                    });
                 }
                 return Results.Ok(new { items = result, total });
             }
