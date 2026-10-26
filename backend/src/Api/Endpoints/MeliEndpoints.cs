@@ -809,14 +809,9 @@ public static class MeliEndpoints
             {
                 using var doc = await client.GetAsync(token,
                     $"/sites/{c.SiteId}/domain_discovery/search?q={Uri.EscapeDataString(title)}&limit=3", ct);
-                var suggestions = doc.RootElement.ValueKind == JsonValueKind.Array
-                    ? doc.RootElement.EnumerateArray().Select(s => (object)new
-                    {
-                        categoryId = JsonRead.GetString(s, "category_id"),
-                        categoryName = JsonRead.GetString(s, "category_name"),
-                        domainName = JsonRead.GetString(s, "domain_name"),
-                    }).ToArray()
-                    : [];
+                var suggestions = MeliCatalogReader.ParseSuggestions(doc.RootElement)
+                    .Select(s => new { categoryId = s.CategoryId, categoryName = s.CategoryName, domainName = s.DomainName })
+                    .ToArray();
                 return Results.Ok(new { suggestions });
             }
             catch (MeliException ex)

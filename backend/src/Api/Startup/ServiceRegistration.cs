@@ -175,6 +175,7 @@ public static class ServiceRegistration
         // De a una llamada por tienda y espera ante el 429 (lo usa el trabajo de fichas con IA).
         services.AddSingleton<Api.Meli.MeliWait>(_ => (delay, ct) => Task.Delay(delay, ct));
         services.AddSingleton<Api.Meli.MeliTenantGate>();
+        services.AddScoped<Api.Meli.MeliCatalogReader>();
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliStockSyncWorker>();

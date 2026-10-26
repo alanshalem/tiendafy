@@ -27,7 +27,7 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class MercadoLibreFlowTests
 {
-    private const string Api = "https://api.mercadolibre.com";
+    private const string Api = MeliAccount.Api;
     private readonly ApiFactory _factory;
 
     public MercadoLibreFlowTests(ApiFactory factory) => _factory = factory;
@@ -68,14 +68,7 @@ public sealed class MercadoLibreFlowTests
         },
         };
 
-    private void StubTokens(long userId, int expiresIn = 21_600) =>
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/oauth/token", new
-        {
-            access_token = "APP_USR-meli",
-            refresh_token = "TG-meli",
-            user_id = userId,
-            expires_in = expiresIn,
-        });
+    private void StubTokens(long userId, int expiresIn = 21_600) => MeliAccount.StubTokens(_factory, userId, expiresIn);
 
     [Fact]
     public async Task Conectar_vender_cancelar_y_sincronizar()
@@ -962,22 +955,7 @@ public sealed class MercadoLibreFlowTests
     }
 
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>
-    private async Task<(Merchant Merchant, long UserId)> ConnectedAsync(string tag)
-    {
-        var merchant = await Merchant.CreateAsync(_factory, tag);
-        var userId = Random.Shared.NextInt64(100_000_000, 900_000_000);
-
-        var connect = await merchant.PostAsync("/api/v1/admin/meli/connect", new { });
-        var state = HttpUtility.ParseQueryString(new Uri(connect.GetProperty("authUrl").GetString()!).Query)["state"]!;
-        StubTokens(userId);
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/users/me", new { id = userId, nickname = "TIENDA_ML", site_id = "MLA" });
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/search", new { results = Array.Empty<object>() });
-
-        var browser = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        var callback = await browser.GetAsync($"/api/v1/meli/oauth/callback?code=c&state={Uri.EscapeDataString(state)}");
-        Assert.EndsWith("meli=connected", callback.Headers.Location!.ToString());
-        return (merchant, userId);
-    }
+    private Task<(Merchant Merchant, long UserId)> ConnectedAsync(string tag) => MeliAccount.ConnectAsync(_factory, tag);
 
     private Task<HttpResponseMessage> NotifyAsync(long userId, string resource) =>
         _factory.CreateClient().PostAsJsonAsync("/api/v1/webhooks/meli",
