@@ -31,7 +31,7 @@ public static class InvoiceValidator
 
     public static IReadOnlyList<InvoiceIssue> Validate(ScannedInvoice invoice, DateOnly todayAr)
     {
-        var issues = new List<InvoiceIssue>();
+        var issues = new List<InvoiceIssue>(invoice.ParseIssues);
 
         // La suma de las líneas contra la base (el neto; sin neto, que es la factura B o C, el total).
         // Solo con todas las líneas completas: sumar una línea a medias daría un falso "no cierra".
@@ -44,7 +44,14 @@ public static class InvoiceValidator
             {
                 var sum = invoice.Lines.Sum(l => Math.Round(l.Quantity!.Value * l.UnitPrice!.Value, 2, MidpointRounding.AwayFromZero));
                 var tolerance = Math.Max(LinesPerLineTolerance * invoice.Lines.Count, LinesRelativeTolerance * Math.Abs(expected));
-                if (Math.Abs(sum - expected) > tolerance)
+
+                // Con neto (factura A), los renglones exentos o no gravados están en las líneas pero no en el neto:
+                // cierra también contra neto + otros. Sin neto (B o C), las percepciones están en el total pero no
+                // en los renglones: cierra también contra total - otros.
+                var other = invoice.OtherAmount ?? 0m;
+                var alternative = invoice.NetAmount is null ? expected - other : expected + other;
+                var closes = Math.Abs(sum - expected) <= tolerance || (other != 0m && Math.Abs(sum - alternative) <= tolerance);
+                if (!closes)
                     issues.Add(new InvoiceIssue(
                         "Invoice.LinesVsNet",
                         $"Las líneas suman {Show(sum)} y {baseLabel} es {Show(expected)}.",

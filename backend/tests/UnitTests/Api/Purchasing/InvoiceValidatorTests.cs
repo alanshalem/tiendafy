@@ -122,4 +122,49 @@ public sealed class InvoiceValidatorTests
 
         Assert.Empty(Check(invoice));
     }
+
+    [Fact]
+    public void Factura_A_con_renglon_exento_cierra_contra_neto_mas_otros()
+    {
+        // Neto 100.000 + IVA 21.000 + exento 10.000 = 131.000; las líneas incluyen el renglón exento.
+        var invoice = Valid() with
+        {
+            NetAmount = 100_000m,
+            VatAmount = 21_000m,
+            OtherAmount = 10_000m,
+            TotalAmount = 131_000m,
+            Lines = [Line(1, 100_000), Line(1, 10_000)],
+        };
+
+        Assert.Empty(Check(invoice));
+        Assert.Equal("Invoice.LinesVsNet", Assert.Single(Check(invoice with { Lines = [Line(1, 100_000), Line(1, 7_000)] })).Code);
+    }
+
+    [Fact]
+    public void Factura_B_con_percepcion_cierra_contra_total_menos_otros()
+    {
+        // Total 105.000 = renglones 100.000 (IVA incluido) + percepción 5.000.
+        var invoice = Valid() with
+        {
+            InvoiceType = "B",
+            NetAmount = null,
+            VatAmount = null,
+            OtherAmount = 5_000m,
+            TotalAmount = 105_000m,
+            Lines = [Line(1, 100_000)],
+        };
+
+        Assert.Empty(Check(invoice));
+        Assert.Equal("Invoice.LinesVsNet", Assert.Single(Check(invoice with { Lines = [Line(1, 90_000)] })).Code);
+    }
+
+    [Fact]
+    public void Los_controles_de_lectura_se_suman_a_los_del_validador()
+    {
+        var read = new InvoiceIssue("Invoice.CuitLength", "CUIT con largo inválido", "supplierTaxId debe tener 11 dígitos");
+
+        var issues = Check(Valid() with { ParseIssues = [read] });
+
+        Assert.Equal("Invoice.CuitLength", Assert.Single(issues).Code);
+    }
 }

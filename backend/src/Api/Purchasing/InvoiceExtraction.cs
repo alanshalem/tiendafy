@@ -40,4 +40,11 @@ public sealed record ScannedInvoice(
     decimal? TotalAmount,
     IReadOnlyList<ScannedInvoiceLine> Lines,
     string Confidence,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings)
+{
+    /// <summary>
+    /// Lo que el modelo leyó y no se pudo normalizar (un CUIT de largo raro, una fecha que no es AAAA-MM-DD):
+    /// el dato queda en null y esto lo vuelve un control visible, que el validador suma a los suyos.
+    /// </summary>
+    public IReadOnlyList<InvoiceIssue> ParseIssues { get; init; } = [];
+}

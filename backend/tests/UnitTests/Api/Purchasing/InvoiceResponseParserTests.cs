@@ -58,7 +58,8 @@ public sealed class InvoiceResponseParserTests
         var strict = Parse(FullInvoice)!;
         var tolerant = Parse($"```json\n{FullInvoice}\n```")!;
 
-        Assert.Equal(strict with { Lines = [], Warnings = [] }, tolerant with { Lines = [], Warnings = [] });
+        Assert.Equal(strict with { Lines = [], Warnings = [], ParseIssues = [] }, tolerant with { Lines = [], Warnings = [], ParseIssues = [] });
+        Assert.True(strict.ParseIssues.SequenceEqual(tolerant.ParseIssues));
         Assert.True(strict.Lines.SequenceEqual(tolerant.Lines));
         Assert.True(strict.Warnings.SequenceEqual(tolerant.Warnings));
     }
@@ -187,5 +188,57 @@ public sealed class InvoiceResponseParserTests
         // Si el modelo no dijo qué tan seguro está, el panel tiene que pedir que
         // se revise, no dar por buena la lectura.
         Assert.Equal("baja", Parse("""{ "currency": "ARS" }""")!.Confidence);
+    }
+
+    [Fact]
+    public void Un_elemento_null_en_las_lineas_se_descarta_en_los_dos_caminos()
+    {
+        var strict = Parse("""{ "lines": [null, { "description": "Remera", "quantity": 1, "unitPrice": 10 }], "currency": "ARS" }""");
+        var onlyNull = Parse("""{ "lines": [null], "currency": "ARS" }""");
+
+        Assert.Equal("Remera", Assert.Single(strict!.Lines).Description);
+        Assert.Empty(onlyNull!.Lines);
+    }
+
+    [Fact]
+    public void Un_CUIT_con_largo_distinto_de_once_deja_un_control_visible()
+    {
+        var parsed = Parse("""{ "supplierTaxId": "3071234", "currency": "ARS" }""")!;
+
+        Assert.Null(parsed.SupplierTaxId);
+        var issue = Assert.Single(parsed.ParseIssues);
+        Assert.Equal("Invoice.CuitLength", issue.Code);
+        Assert.Contains("CUIT con largo inválido", issue.Message);
+        Assert.Contains("3071234", issue.Message);
+    }
+
+    [Fact]
+    public void Sin_CUIT_no_hay_control_de_largo()
+    {
+        Assert.Empty(Parse("""{ "currency": "ARS" }""")!.ParseIssues);
+        Assert.Empty(Parse("""{ "supplierTaxId": "no figura", "currency": "ARS" }""")!.ParseIssues);
+        Assert.Empty(Parse("""{ "supplierTaxId": "30-71234567-1", "currency": "ARS" }""")!.ParseIssues);
+    }
+
+    [Theory]
+    [InlineData("05/10/2026")]
+    [InlineData("10/05/2026")]
+    [InlineData("2026-10-05T00:00:00")]
+    [InlineData("5 de octubre")]
+    public void Una_fecha_que_no_es_AAAA_MM_DD_es_null_con_control(string date)
+    {
+        var parsed = Parse($$"""{ "invoiceDate": "{{date}}", "currency": "ARS" }""")!;
+
+        Assert.Null(parsed.InvoiceDate);
+        Assert.Equal("Invoice.DateFormat", Assert.Single(parsed.ParseIssues).Code);
+    }
+
+    [Fact]
+    public void Una_fecha_AAAA_MM_DD_se_lee_sin_control()
+    {
+        var parsed = Parse("""{ "invoiceDate": "2026-10-05", "currency": "ARS" }""")!;
+
+        Assert.Equal(new DateTime(2026, 10, 5, 0, 0, 0, DateTimeKind.Utc), parsed.InvoiceDate);
+        Assert.Empty(parsed.ParseIssues);
     }
 }

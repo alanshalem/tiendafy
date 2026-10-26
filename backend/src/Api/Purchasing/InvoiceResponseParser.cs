@@ -29,18 +29,26 @@ public static class InvoiceResponseParser
     }
 
     /// <summary>Normaliza lo leído: CUIT a 11 dígitos o null, tipo en mayúsculas, moneda o "ARS", confianza o "baja".</summary>
-    public static ScannedInvoice ToScanned(InvoiceExtraction e) => new(
+    public static ScannedInvoice ToScanned(InvoiceExtraction e)
+    {
+        var issues = new List<InvoiceIssue>();
+        return Build(e, ReadTaxId(e.SupplierTaxId, issues), ReadDate(e.InvoiceDate, issues), issues);
+    }
+
+    private static ScannedInvoice Build(
+        InvoiceExtraction e, string? taxId, DateTime? date, List<InvoiceIssue> issues) => new(
         SupplierName: e.SupplierName,
-        SupplierTaxId: DigitsOrNull(e.SupplierTaxId),
+        SupplierTaxId: taxId,
         InvoiceType: e.InvoiceType?.Trim().ToUpperInvariant(),
         InvoiceNumber: e.InvoiceNumber?.Trim(),
-        InvoiceDate: ParseDate(e.InvoiceDate),
+        InvoiceDate: date,
         Currency: e.Currency?.Trim().ToUpperInvariant() is { Length: > 0 } currency ? currency : "ARS",
         NetAmount: e.NetAmount,
         VatAmount: e.VatAmount,
         OtherAmount: e.OtherAmount,
         TotalAmount: e.TotalAmount,
         Lines: [.. (e.Lines ?? [])
+            .Where(l => l is not null)
             .Select(l => new ScannedInvoiceLine(
                 l.Description?.Trim() ?? "",
                 string.IsNullOrWhiteSpace(l.Code) ? null : l.Code.Trim(),
@@ -52,7 +60,10 @@ public static class InvoiceResponseParser
         Warnings: [.. (e.Warnings ?? [])
             .Select(w => w?.Trim() ?? "")
             .Where(w => w.Length > 0)
-            .Take(10)]);
+            .Take(10)])
+        {
+            ParseIssues = issues,
+        };
 
     /// <summary>
     /// Tolera que el JSON venga envuelto en un bloque de código: pasa, y hacer fallar toda la lectura por
@@ -95,6 +106,17 @@ public static class InvoiceResponseParser
         }
     }
 
+    /// <summary>El texto sin el bloque de código que lo envuelve; null si el bloque está mal cerrado.</summary>
+    internal static string? Unfence(string text)
+    {
+        text = text.Trim();
+        if (!text.StartsWith("```", StringComparison.Ordinal)) return text;
+
+        var start = text.IndexOf('\n');
+        var end = text.LastIndexOf("```", StringComparison.Ordinal);
+        return start < 0 || end <= start ? null : text[(start + 1)..end].Trim();
+    }
+
     private static List<InvoiceExtractionLine> ReadLines(JsonElement root)
     {
         if (!root.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Array) return [];
@@ -133,15 +155,34 @@ public static class InvoiceResponseParser
         };
     }
 
-    private static DateTime? ParseDate(string? value) =>
-        DateTime.TryParse(value, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date)
-            ? date
-            : null;
+    /// <summary>Solo AAAA-MM-DD, que es lo que se le pide al modelo: "05/10/2026" es ambiguo y se descarta con un control.</summary>
+    private static DateTime? ReadDate(string? value, List<InvoiceIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
 
-    private static string? DigitsOrNull(string? value)
+        if (DateTime.TryParseExact(value.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date))
+            return date;
+
+        var shown = Text.Clip(value.Trim(), 20);
+        issues.Add(new InvoiceIssue(
+            "Invoice.DateFormat",
+            $"La fecha leída ({shown}) no se pudo interpretar como fecha: revisala.",
+            $"invoiceDate \"{shown}\" no está en formato AAAA-MM-DD."));
+        return null;
+    }
+
+    /// <summary>11 dígitos o null. Un CUIT con otro largo es un error de lectura: queda un control en vez de desaparecer.</summary>
+    private static string? ReadTaxId(string? value, List<InvoiceIssue> issues)
     {
         var digits = new string((value ?? string.Empty).Where(char.IsAsciiDigit).ToArray());
-        return digits.Length == 11 ? digits : null;
+        if (digits.Length == 11) return digits;
+        if (digits.Length == 0) return null;
+
+        issues.Add(new InvoiceIssue(
+            "Invoice.CuitLength",
+            $"CUIT con largo inválido: se leyó {Text.Clip(digits, 20)} ({digits.Length} dígitos) y tiene que tener 11.",
+            $"supplierTaxId se leyó con {digits.Length} dígitos y un CUIT tiene 11."));
+        return null;
     }
 }
