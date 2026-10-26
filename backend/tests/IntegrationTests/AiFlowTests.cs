@@ -134,31 +134,6 @@ public sealed class AiFlowTests(ApiFactory factory)
         Assert.Single(factory.Ai.Calls(Haiku));
     }
 
-    public static TheoryData<string, object, object> Respuestas() => new()
-    {
-        { "/api/v1/ai/ml-answer", new { question = "¿Sirve para talle L?", itemTitle = "Remera" }, new { question = "" } },
-        { "/api/v1/ai/support-reply", new { message = "¿Cuándo llega?", orderSummary = "Pedido #123, enviado ayer" }, new { message = " " } },
-    };
-
-    [Theory]
-    [MemberData(nameof(Respuestas))]
-    public async Task Las_respuestas_sugeridas_van_al_gateway_con_la_tarea_QuestionDraft(string path, object ok, object empty)
-    {
-        var m = await Merchant.CreateAsync(factory, "aiqd");
-        await ConfigureAsync(m, (AiTask.QuestionDraft, Haiku));
-
-        factory.Ai.Respond(Haiku, Reply(" Sí, hay talle L. "));
-        var suggestion = await m.PostAsync(path, ok);
-        Assert.Equal("Sí, hay talle L.", suggestion.GetProperty("text").GetString());
-        Assert.Null(Assert.Single(factory.Ai.Options(Haiku))!.Tools);
-        Assert.Equal(HttpStatusCode.BadRequest, (await m.SendAsync(HttpMethod.Post, path, empty)).StatusCode);
-
-        using var scope = factory.Services.CreateScope();
-        var row = await scope.ServiceProvider.GetRequiredService<AiDbContext>().Usage
-            .IgnoreQueryFilters().SingleAsync(u => u.TenantId == m.TenantId);
-        Assert.Equal(AiTask.QuestionDraft, row.Task);
-    }
-
     [Fact]
     public async Task Cada_sugerencia_queda_en_el_consumo()
     {

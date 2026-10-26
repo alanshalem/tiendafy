@@ -78,6 +78,18 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Las_rutas_viejas_ya_no_existen()
+    {
+        // Las sugerencias que recibían el texto desde el navegador salieron: el servidor lee la consulta.
+        var (store, _) = await StoreAsync("aiqd3");
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await store.SendAsync(HttpMethod.Post, "/api/v1/ai/ml-answer", new { question = "¿Sirve para talle L?", itemTitle = "Remera" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await store.SendAsync(HttpMethod.Post, "/api/v1/ai/support-reply", new { message = "¿Cuándo llega?", orderSummary = "Pedido #123" })).StatusCode);
+    }
+
+    [Fact]
     public async Task El_modelo_no_elige_la_publicacion()
     {
         var (store, sellerId) = await StoreAsync("aiqd3");

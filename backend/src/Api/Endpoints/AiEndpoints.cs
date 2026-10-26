@@ -9,7 +9,7 @@ using SharedKernel.Common;
 namespace Api.Endpoints;
 
 /// <summary>
-/// Sugerencias con IA: responder preguntas de ML y del chat posventa, redactar posts para redes y
+/// Sugerencias con IA: redactar posts para redes y
 /// describir productos. Los prompts viven ACÁ (server-side); el browser solo manda el contexto y recibe
 /// texto editable — la IA sugiere, el merchant decide. Todo pasa por el gateway: el modelo, la clave y
 /// el tope los pone cada tienda.
@@ -44,45 +44,6 @@ public static class AiEndpoints
 
         // Borradores de la bandeja: la consulta la lee el servidor (ver Api/Ai/Questions).
         ai.MapQuestionDrafts();
-
-        // Respuesta sugerida para una pregunta prevente de Mercado Libre.
-        ai.MapPost("/ml-answer", async (
-            AiMlAnswerRequest request, IAiGateway gateway, CancellationToken ct) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.Question))
-                return Error.Validation("Ai.NoQuestion", "Falta la pregunta.").ToProblem();
-
-            var result = await gateway.CompleteAsync(
-                AiTask.QuestionDraft,
-                "Sos el vendedor de una tienda argentina en Mercado Libre. Respondés preguntas de compradores: " +
-                "cordial, directo, en argentino neutro (vos/tenés), sin inventar datos que no tengas — si no sabés " +
-                "un dato técnico, decí que lo confirmás por mensaje. Máximo 2 oraciones. Sin saludos largos ni firmas. " +
-                "Respondé SOLO con el texto de la respuesta.",
-                $"Publicación: {Text.Clip(request.ItemTitle ?? "(sin título)", 200)}\nPregunta del comprador: {Text.Clip(request.Question, 500)}",
-                ct);
-            return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        }).RequirePermission(Permission.MeliOperate).RequireAiRateLimit(AiRateLimitKind.PerUser);
-
-        // Respuesta sugerida para el chat posventa (con el contexto del pedido).
-        ai.MapPost("/support-reply", async (
-            AiSupportReplyRequest request, IAiGateway gateway, CancellationToken ct) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.Message))
-                return Error.Validation("Ai.NoMessage", "Falta el mensaje del cliente.").ToProblem();
-
-            var context = string.IsNullOrWhiteSpace(request.OrderSummary)
-                ? ""
-                : $"\nContexto del pedido: {Text.Clip(request.OrderSummary!, 600)}";
-            var result = await gateway.CompleteAsync(
-                AiTask.QuestionDraft,
-                "Sos atención al cliente de una tienda online argentina, en el chat posventa de un pedido. " +
-                "Empático y resolutivo, argentino neutro (vos/tenés), máximo 3 oraciones. Usá el contexto del " +
-                "pedido si ayuda, pero NO inventes fechas de entrega, números de seguimiento ni políticas que no " +
-                "estén en el contexto: si falta un dato, ofrecé confirmarlo. Respondé SOLO con el texto.",
-                $"Mensaje del cliente: {Text.Clip(request.Message, 800)}{context}",
-                ct);
-            return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        }).RequirePermission(Permission.SupportChat).RequireAiRateLimit(AiRateLimitKind.PerUser);
 
         // Textos cortos para el comercio: un post para redes o la descripción de un producto. El permiso
         // depende del tipo, así que se mira dentro (la ruta pide cualquiera de los dos).
@@ -142,9 +103,6 @@ public static class AiEndpoints
             ct);
     }
 }
-
-public sealed record AiMlAnswerRequest(string? Question, string? ItemTitle);
-public sealed record AiSupportReplyRequest(string? Message, string? OrderSummary);
 
 /// <summary><c>Kind</c>: <c>social-post</c> (Draft o ProductName) o <c>product-description</c> (Name y Notes).</summary>
 public sealed record AiShortTextRequest(string? Kind, string? Draft, string? ProductName, string? Name, string? Notes);
