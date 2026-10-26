@@ -58,7 +58,9 @@ public static class AiCatalogEndpoints
             Guid jobId, AiCatalogReview review, CancellationToken ct, string? status = null, int? offset = null, int? limit = null) =>
         {
             var page = await review.ListAsync(jobId, status, offset, limit, ct);
-            return page.IsSuccess ? Results.Ok(new { items = page.Value.Items, total = page.Value.Total }) : page.Error.ToProblem();
+            return page.IsSuccess
+                ? Results.Ok(new { items = page.Value.Items, total = page.Value.Total, passed = page.Value.Passed })
+                : page.Error.ToProblem();
         });
 
         // Aprobar guarda en la tienda y no toca Mercado Libre: se avisa al storefront como en cualquier edición del catálogo.

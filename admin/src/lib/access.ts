@@ -106,6 +106,8 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/productos/nuevo': 'catalog.write',
   '/productos/:id/editar': 'catalog.write',
   '/productos/exportar-importar': 'catalog.write',
+  '/productos/fichas-ia': 'catalog.write',
+  '/productos/fichas-ia/:jobId': 'catalog.write',
   '/productos/categorias': 'catalog.write',
   '/productos/kits': 'catalog.write',
   '/productos/inventario': 'inventory.read',

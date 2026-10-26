@@ -46,18 +46,25 @@ public sealed class AiCatalogReview(
 
     // ------------------------------------------------------------------ Lectura
 
-    public async Task<Result<(IReadOnlyList<AiCatalogItemDto> Items, int Total)>> ListAsync(
+    /// <param name="status">Un estado de ficha (sin distinguir mayúsculas) o nada para todas.</param>
+    /// <returns>
+    /// La página, el total y, si se piden las que están para revisar, cuántas de TODAS ellas pasaron el evaluador: es lo que
+    /// aprueba "aprobar todos los que pasaron", y la página sola no lo dice.
+    /// </returns>
+    public async Task<Result<(IReadOnlyList<AiCatalogItemDto> Items, int Total, int Passed)>> ListAsync(
         Guid jobId, string? status, int? offset, int? limit, CancellationToken ct)
     {
         if (!await ai.CatalogJobs.AsNoTracking().AnyAsync(j => j.TenantId == TenantId && j.Id == jobId, ct))
-            return Result.Failure<(IReadOnlyList<AiCatalogItemDto>, int)>(AiCatalogEndpoints.JobNotFound);
+            return Result.Failure<(IReadOnlyList<AiCatalogItemDto>, int, int)>(AiCatalogEndpoints.JobNotFound);
 
         var query = ai.CatalogJobItems.AsNoTracking().Where(i => i.TenantId == TenantId && i.JobId == jobId);
+        AiCatalogItemStatus? filter = null;
         if (!string.IsNullOrWhiteSpace(status))
         {
             if (!Enum.TryParse<AiCatalogItemStatus>(status, ignoreCase: true, out var parsed))
-                return Result.Failure<(IReadOnlyList<AiCatalogItemDto>, int)>(
+                return Result.Failure<(IReadOnlyList<AiCatalogItemDto>, int, int)>(
                     Error.Validation("AiCatalog.BadStatus", "Ese estado de ficha no existe."));
+            filter = parsed;
             query = query.Where(i => i.Status == parsed);
         }
 
@@ -65,7 +72,15 @@ public sealed class AiCatalogReview(
         var page = await query.OrderBy(i => i.UpdatedAtUtc).ThenBy(i => i.Id)
             .Skip(Math.Max(0, offset ?? 0)).Take(Math.Clamp(limit ?? DefaultPageSize, 1, MaxPageSize))
             .ToListAsync(ct);
-        return (await ToDtosAsync(page, ct), total);
+
+        // "Pasó" vive en el estado de cada ficha y no en una columna: se cuenta leyéndolas (un trabajo tiene 500 como mucho).
+        var passed = 0;
+        if (filter == AiCatalogItemStatus.Review)
+        {
+            var states = await query.Select(i => i.ProposalJson).ToListAsync(ct);
+            passed = states.Count(json => AiCatalogItemState.FromJson(json).Passed);
+        }
+        return (await ToDtosAsync(page, ct), total, passed);
     }
 
     // ------------------------------------------------------------------ Aprobar

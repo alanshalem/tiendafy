@@ -51,6 +51,15 @@ describe('qué pide cada pantalla', () => {
     expect(routePerm('/configuracion/roles')).toBe('members.read');
   });
 
+  it('las fichas con IA son de quien escribe el catálogo', () => {
+    for (const path of ['/productos/fichas-ia', '/productos/fichas-ia/:jobId']) {
+      expect(ALL_PATHS).toContain(path);
+      expect(routePerm(path)).toBe('catalog.write');
+      expect(satisfies(can('catalog.write'), routePerm(path))).toBe(true);
+      expect(satisfies(can('inventory.read', 'meli.publish'), routePerm(path))).toBe(false);
+    }
+  });
+
   it('Dominios es del dueño, como en el backend', () => {
     expect(routePerm('/configuracion/dominios')).toBe('tenant.admin');
   });

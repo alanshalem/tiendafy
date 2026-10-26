@@ -41,6 +41,8 @@ const KitsPage = lazyPage(() => import('./pages/Products/Kits'), 'KitsPage');
 const ExportImportPage = lazyPage(() => import('./pages/Products/ExportImport'), 'ExportImportPage');
 const NewProductPage = lazyPage(() => import('./pages/Products/NewProduct'), 'NewProductPage');
 const EditProductPage = lazyPage(() => import('./pages/Products/EditProduct'), 'EditProductPage');
+const AiCatalogJobsPage = lazyPage(() => import('./pages/Products/AiCatalogJobs'), 'AiCatalogJobsPage');
+const AiCatalogReviewPage = lazyPage(() => import('./pages/Products/AiCatalogReview'), 'AiCatalogReviewPage');
 const DiscountsPage = lazyPage(() => import('./pages/Discounts'), 'DiscountsPage');
 const MarketingPage = lazyPage(() => import('./pages/Marketing'), 'MarketingPage');
 const MercadoLibrePage = lazyPage(() => import('./pages/MercadoLibre'), 'MercadoLibrePage');
@@ -105,6 +107,8 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/nuevo', el: <NewProductPage /> },
   { path: '/productos/:id/editar', el: <EditProductPage /> },
   { path: '/productos/exportar-importar', el: <ExportImportPage /> },
+  { path: '/productos/fichas-ia', el: <AiCatalogJobsPage /> },
+  { path: '/productos/fichas-ia/:jobId', el: <AiCatalogReviewPage /> },
   { path: '/productos/categorias', el: <CategoriesPage /> },
   { path: '/productos/inventario', el: <InventoryPage /> },
   { path: '/productos/costos', el: <CostsPage /> },

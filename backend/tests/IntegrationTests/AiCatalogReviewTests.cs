@@ -297,6 +297,12 @@ public sealed class AiCatalogReviewTests(ApiFactory factory)
         var (store, jobId, products, items) = await ArrangeAsync("rv11", 3, i =>
             (AiCatalogItemStatus.Review, Reviewed(passed: i < 2, Value("COLOR", "52049", "Negro"))));
 
+        // Antes de aprobar, la lista dice cuántas pasaron (de todas las que están para revisar, no solo de la página).
+        var page = await store.GetAsync($"{Jobs}/{jobId}/items?status=Review&limit=1");
+        Assert.Equal(1, page.GetProperty("items").GetArrayLength());
+        Assert.Equal(3, page.GetProperty("total").GetInt32());
+        Assert.Equal(2, page.GetProperty("passed").GetInt32());
+
         var result = await store.PostAsync($"{Jobs}/{jobId}/approve-passed", new { });
 
         Assert.Equal(2, result.GetProperty("approved").GetInt32());
