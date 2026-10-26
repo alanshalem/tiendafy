@@ -137,6 +137,92 @@ export const TIENDA = {
     ],
   },
 
+  asistente: {
+    title: 'Preguntale a tu tienda',
+    intro:
+      'Un asistente que contesta preguntas sobre los datos de tu tienda —ventas, stock, compras y clientes— en lenguaje común. Mira, nunca cambia nada.',
+    category: 'Tu tienda online',
+    keywords: [
+      'asistente',
+      'preguntar',
+      'ia',
+      'inteligencia artificial',
+      'chat',
+      'consultar',
+      'datos',
+      'cuánto vendí',
+      'cuánto gané',
+    ],
+    sections: [
+      {
+        heading: 'Qué podés preguntarle',
+        paragraphs: [
+          'Lo mismo que mirarías en Inicio, Estadísticas, Compras y Clientes, pero escrito como se lo preguntarías a una persona. Podés pedir un período («este mes», «la semana pasada», «del 1 al 15 de octubre»); si no decís ninguno, usa los últimos 30 días y te lo aclara.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Inicio o Estadísticas', 'Preguntale a tu tienda'] },
+          {
+            type: 'table',
+            headers: ['Ejemplo', 'De dónde saca la respuesta'],
+            rows: [
+              [
+                '¿Cuánto vendí este mes y cómo vengo contra el anterior?',
+                'Ventas y comparación con el período anterior',
+              ],
+              [
+                '¿Cuáles son mis productos más vendidos? ¿Cuáles no se vendieron?',
+                'Productos más vendidos y sin ventas',
+              ],
+              ['¿Cuántos carritos abandonados tuve y cuánta plata representan?', 'Carritos abandonados'],
+              [
+                '¿Cuánto gané de verdad? ¿Qué producto deja menos margen?',
+                'Rentabilidad (pide el permiso de ver costos)',
+              ],
+              [
+                '¿Qué se me está por agotar? ¿Qué me conviene reponer?',
+                'Stock bajo y sugerencias de reposición',
+              ],
+              ['¿Qué compras a proveedores tengo en camino?', 'Órdenes de compra'],
+              [
+                '¿Cuántos clientes tengo y cuántos compraron más de una vez?',
+                'Resumen de clientes (solo cantidades)',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Qué ve y qué no',
+        paragraphs: [
+          'Ve solo lo que tu usuario ya puede ver en el panel: si no tenés permiso para ver costos, no te va a contar la ganancia, y si no manejás compras, no te va a hablar de proveedores. Por eso a veces contesta «eso no lo puedo ver desde acá»: es mejor que no invente un número.',
+          'Nunca ve datos personales de tus compradores (mails, teléfonos, direcciones, documentos ni nombres): trabaja con cantidades y totales. Y no cambia nada de la tienda: si le pedís que haga algo, te explica en qué pantalla se hace.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Revisá los números importantes en su pantalla antes de decidir algo grande. Debajo de cada respuesta ves «Datos de: …», que dice qué consultó.',
+          },
+        ],
+      },
+      {
+        heading: 'La conversación',
+        paragraphs: [
+          'Podés seguir preguntando sobre lo anterior («¿y el mes pasado?»). La conversación vive solo en tu navegador, en esa pestaña y para esa tienda: se borra al cerrar la pestaña o con «Empezar de nuevo», y no se guarda en ningún servidor. Se manda al asistente solo lo último de la charla.',
+          'Responde una pregunta a la vez. Cada pregunta gasta del tope mensual de inteligencia artificial de tu tienda: suele ser de unos pocos centavos de dólar con un modelo medio.',
+        ],
+      },
+      {
+        heading: 'Dejarlo listo',
+        steps: [
+          'Es de la dueña o el dueño: en Configuración → Inteligencia artificial cargá la clave de un proveedor y elegí un modelo para «Asistente de datos».',
+          'Prendé la inteligencia artificial y poné un tope mensual.',
+          'El botón «Preguntale a tu tienda» aparece en Inicio y Estadísticas para quienes pueden ver estadísticas. Si está gris, al pasar el mouse dice por qué.',
+        ],
+      },
+    ],
+  },
+
   seo: {
     title: 'Aparecer en Google (SEO)',
     intro:

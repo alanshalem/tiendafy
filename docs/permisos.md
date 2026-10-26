@@ -59,6 +59,14 @@ en un solo lugar, `backend/src/Api/Ai/AiTaskPermissions.cs`, y lo usan
 endpoints de cada función. El aviso de tope en Inicio lo ve solo quien tiene
 `ai.config`. Más en [integraciones/ia.md](./integraciones/ia.md).
 
+El asistente de datos ("Preguntale a tu tienda") pide `stats.read` y ofrece al
+modelo solo las herramientas que el permiso de cada una deja ver, con las
+excepciones de la persona incluidas: `resumen_ventas` y `productos_mas_vendidos`
+(`stats.read`), `carritos_abandonados` (`orders.read`), `rentabilidad`
+(`costs.read`), `stock_bajo` (`inventory.read`), `sugerencias_de_reposicion` y
+`ordenes_de_compra` (`purchasing.manage`) y `resumen_clientes` (`customers.read`).
+Un vendedor de fábrica recibe cinco; sin `costs.read` no hay rentabilidad.
+
 ## Roles
 
 Fijos (`Roles.All`): lo que se edita es qué puede cada uno.

@@ -107,6 +107,7 @@ export const HELP_LINKS = {
   paginas: { label: 'Más sobre páginas de contenido' },
   estadisticas: { label: 'Más sobre estadísticas' },
   ia: { label: 'Más sobre la inteligencia artificial' },
+  asistente: { label: 'Más sobre "Preguntale a tu tienda"' },
   users: { label: 'Más sobre roles y permisos' },
   domains: { label: 'Más sobre dominios' },
   fiscal: { label: 'Más sobre facturación electrónica (ARCA)' },

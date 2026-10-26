@@ -430,6 +430,76 @@ pregunta. Tiene que llegar el texto o "Respondé a mano", y en el consumo del
 mes tiene que aparecer una fila por llamada al modelo: una de clasificar y de
 una a tres de redactar (ver [Pasos](#pasos)).
 
+## Asistente de datos
+
+"Preguntale a tu tienda": una pregunta en lenguaje común sobre las ventas, el
+stock, las compras o los clientes de la tienda. El botón está en Inicio y en las
+pantallas de Estadísticas (`AskStoreButton`) y abre un panel lateral. Código en
+`backend/src/Api/Ai/Assistant/`, panel en `admin/src/components/ai/AskStore*.tsx`.
+La tarea es `DataAssistant` (modelo con herramientas, hasta 6 llamadas al modelo,
+1.500 tokens de salida, 60 s) y exige `stats.read`.
+
+### Cómo responde
+
+`POST /api/v1/ai/assistant` con `{ question, history: [{ question, answer }] }`
+devuelve `{ answer, sources, limited }`. Pasa por el gateway como cualquier
+tarea (tope mensual, cupo por usuario, respaldo, una pregunta a la vez por
+usuario con `Ai.Busy`). El modelo recibe un prompt de sistema constante, la
+pregunta con la fecha de hoy y las herramientas que **esa persona** puede usar;
+las pide, el servidor las ejecuta contra la base y el modelo redacta con lo que
+volvió. La respuesta es el texto del **último** mensaje del asistente: lo que dice
+antes de llamar a una herramienta no se muestra. Si se acaban las vueltas o el
+modelo sigue pidiendo herramientas, vuelve `limited: true` con un texto fijo en
+vez de un error. Los errores del gateway (`Ai.Disabled`, `Ai.BudgetExceeded`,
+`Ai.Busy`, `Ai.TimedOut`, `Ai.Failed`…) pasan tal cual. No hay streaming.
+
+### Las ocho herramientas
+
+Todas de **solo lectura**, en este orden (es estable: entra en la clave del caché
+de prompts). La tienda no es parámetro de ninguna: sale del request y se pasa
+explícita a cada consulta.
+
+| Herramienta | Permiso | Qué trae |
+|---|---|---|
+| `resumen_ventas` | `stats.read` | Órdenes, facturación, ticket, comparación con el período anterior, Mercado Libre, clientes nuevos, origen (≤ 6) y productos principales (≤ 5) |
+| `productos_mas_vendidos` | `stats.read` | Por unidades y por facturación (límite ≤ 20), y cuántos publicados no vendieron (muestra ≤ 10) |
+| `carritos_abandonados` | `orders.read` | Cantidad, recuperables y valor; sin mails |
+| `rentabilidad` | `costs.read` | Ganancia real, margen, comparación, mejores 10 y 5 de menor margen, canal ML |
+| `stock_bajo` | `inventory.read` | Variantes bajas (límite ≤ 50) con cobertura y cantidad sugerida; sin valorización a costo |
+| `sugerencias_de_reposicion` | `purchasing.manage` | Lo que se agota antes de que llegue el próximo pedido (límite ≤ 50) |
+| `ordenes_de_compra` | `purchasing.manage` | Por estado (límite ≤ 20), abiertas, en tránsito y FOB comprometido; sin CUIT |
+| `resumen_clientes` | `customers.read` | Solo cantidades y gasto promedio |
+
+Las fechas se leen como `StatsPeriod` (días de Argentina, hasta 366: si piden más
+se acota y el resultado trae `clamped`). Un argumento malo (fecha o estado)
+vuelve como `{ error }` al modelo, sin tocar los datos. Los montos van crudos
+(centavos) **y** formateados (`text`, con `ArgentineNumbers`), y el prompt le
+pide al modelo usar el texto. Las consultas son las mismas que usan las pantallas
+del panel (`Api/Stats/*Query.cs`, `PurchaseOrderQueries`, `CustomerSummaryQuery`),
+así que el asistente y la pantalla no discuten.
+
+### Sin datos personales
+
+Ningún resultado lleva mail, teléfono, DNI/CUIT, dirección ni nombre de
+compradores. Sí nombres de productos y de proveedores. Un test de integración
+(`Ninguna_herramienta_devuelve_datos_personales`) pide las ocho herramientas y
+verifica que no aparezcan. Lo que devuelven las herramientas y la pregunta se
+tratan como datos, no como instrucciones (el prompt lo dice); como el modelo no
+puede escribir nada, lo peor que logra una inyección es una respuesta rara.
+
+### Historial y límites
+
+El historial vive solo en el navegador (`sessionStorage`, por tienda, se borra al
+cerrar la pestaña). El panel manda las últimas 4 vueltas, hasta 4.000
+caracteres, y el servidor las recorta de nuevo. La pregunta tiene hasta 1.000
+caracteres. Las herramientas juntas pueden devolver hasta 24.000 caracteres por
+corrida: pasado eso devuelven un error fijo y el modelo responde con lo que
+tiene. Ese tope entra en la estimación de entrada que reserva el gateway. Ni la
+pregunta ni la respuesta se guardan ni se loguean (solo el consumo).
+
+Costo de referencia (spec): 5 a 15 centavos de dólar por pregunta con un modelo
+medio.
+
 ## Permisos
 
 - Configurar (claves, modelos, tope, consumo, copiar): `ai.config`
@@ -452,6 +522,8 @@ una a tres de redactar (ver [Pasos](#pasos)).
   (`support.chat`) y `POST /ai/contact/{id}/draft` (`messages.read`). Sin
   cuerpo: mandan solo el id. Reemplazan a las rutas viejas de respuesta
   sugerida, que se borraron porque recibían el texto del navegador.
+- `POST /ai/assistant` (`stats.read`): el asistente de datos, ver
+  [Asistente de datos](#asistente-de-datos).
 - `GET /ai/config`, `PUT|DELETE /ai/config/providers/{provider}`,
   `POST /ai/config/providers/{provider}/test`, `PUT /ai/config/assignments`,
   `PUT /ai/config/settings`, `POST /ai/config/copy`, `GET /ai/config/usage`:
@@ -479,10 +551,14 @@ que avisá a los dueños. Los pasos están en
 
 - Prueba de punta a punta con una clave real de cada proveedor (hoy todo corre
   contra proveedores simulados).
-- La función A del diseño (bandeja de preguntas) está hecha. Las B–D
-  (asistente de datos, fichas en lote, facturas encadenadas) tienen su propio
+- Las funciones A (bandeja de preguntas) y B (asistente de datos) del diseño
+  están hechas. Las C y D (fichas en lote, facturas encadenadas) tienen su propio
   plan en `historial/plan-ia-*.md`; esta base ya trae las tareas, los permisos
   y el tope que usan.
+- Probar el asistente de datos con una clave real: con un usuario `vendedor`,
+  "¿cuánto gané este mes?" tiene que contestar que no puede ver la rentabilidad;
+  con el dueño, la cifra tiene que coincidir con Estadísticas → Rentabilidad del
+  mismo período. Hoy solo corrió con proveedores simulados.
 - Probar un borrador de la bandeja con una clave real (ver el final de
   [Bandeja de preguntas](#bandeja-de-preguntas)): hoy solo corrió con
   proveedores simulados.

@@ -4,6 +4,7 @@ import { Button, Modal } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { useAiTask } from '../../lib/useAi';
+import { HelpLink } from '../HelpLink';
 import { AskStorePanel } from './AskStorePanel';
 
 /**
@@ -31,6 +32,7 @@ export function AskStoreButton() {
       <Modal open={open} onClose={() => setOpen(false)} title="Preguntale a tu tienda" placement="right">
         {/* key: al cambiar de tienda la conversación empieza de cero y se lee la suya. */}
         <AskStorePanel key={store.id} storeId={store.id} />
+        <HelpLink id="asistente" className="mt-3" />
       </Modal>
     </>
   );
