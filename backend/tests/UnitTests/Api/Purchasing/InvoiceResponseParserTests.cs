@@ -1,7 +1,6 @@
-using System.Reflection;
 using Api.Purchasing;
 
-namespace UnitTests.Api;
+namespace UnitTests.Api.Purchasing;
 
 /// <summary>
 /// El parseo de lo que devuelve la IA al leer una factura.
@@ -11,16 +10,58 @@ namespace UnitTests.Api;
 /// directamente rota. Nada de eso puede terminar en una excepción ni —peor— en
 /// un importe inventado que entre al libro de IVA.
 /// </summary>
-public sealed class InvoiceScannerTests
+public sealed class InvoiceResponseParserTests
 {
-    /// <summary>
-    /// El parser es privado a propósito (nadie más tiene por qué llamarlo), pero
-    /// es lo único que vale la pena probar sin red: se llega por reflexión.
-    /// </summary>
-    private static ScannedInvoice? Parse(string raw) =>
-        (ScannedInvoice?)typeof(InvoiceScanner)
-            .GetMethod("Parse", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [raw]);
+    private static ScannedInvoice? Parse(string raw) => InvoiceResponseParser.Parse(raw);
+
+    private const string FullInvoice = """
+        {
+          "supplierName": "Importadora del Sur SRL",
+          "supplierTaxId": "30-71234567-8",
+          "invoiceType": "a",
+          "invoiceNumber": "0001-00001234",
+          "invoiceDate": "2026-08-14",
+          "currency": "ARS",
+          "netAmount": 1000000.50,
+          "vatAmount": 210000.11,
+          "totalAmount": 1210000.61,
+          "lines": [
+            { "description": "Mancuerna 10kg", "quantity": 20, "unitPrice": 25000 }
+          ],
+          "confidence": "alta",
+          "warnings": []
+        }
+        """;
+
+    [Fact]
+    public void Lee_otros_importes_y_codigo_de_linea()
+    {
+        var parsed = Parse("""
+            { "otherAmount": 3000, "lines": [{ "description": "Remera", "code": " REM-001 ", "quantity": 1, "unitPrice": 10 }], "currency": "ARS" }
+            """);
+
+        Assert.Equal(3000m, parsed!.OtherAmount);
+        Assert.Equal("REM-001", parsed.Lines[0].Code);
+    }
+
+    [Fact]
+    public void Codigo_vacio_es_null()
+    {
+        var parsed = Parse("""{ "lines": [{ "description": "Remera", "code": "", "quantity": 1 }], "currency": "ARS" }""");
+
+        Assert.Null(parsed!.Lines[0].Code);
+    }
+
+    [Fact]
+    public void El_camino_estricto_y_el_tolerante_dan_lo_mismo()
+    {
+        var strict = Parse(FullInvoice)!;
+        var tolerant = Parse($"```json\n{FullInvoice}\n```")!;
+
+        Assert.Equal(strict with { Lines = [], Warnings = [] }, tolerant with { Lines = [], Warnings = [] });
+        Assert.True(strict.Lines.SequenceEqual(tolerant.Lines));
+        Assert.True(strict.Warnings.SequenceEqual(tolerant.Warnings));
+    }
 
     [Fact]
     public void Lee_una_factura_A_completa()

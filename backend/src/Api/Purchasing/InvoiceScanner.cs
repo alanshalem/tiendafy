@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Ai.Infrastructure;
 using Api.Ai;
@@ -102,7 +100,7 @@ public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceSc
             ct);
         if (response.IsFailure) return Result.Failure<ScannedInvoice>(response.Error);
 
-        var parsed = Parse(response.Value);
+        var parsed = InvoiceResponseParser.Parse(response.Value);
         if (parsed is null)
         {
             logger.LogWarning("Factura: respuesta de la IA no parseable: {Body}", Text.Clip(response.Value, 400));
@@ -134,114 +132,4 @@ public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceSc
 
     [GeneratedRegex(@"/Type\s*/Page(?![s\w])")]
     private static partial Regex PdfPage();
-
-    /// <summary>
-    /// El JSON que vuelve, tolerando que venga envuelto en un bloque de código:
-    /// pasa, y hacer fallar toda la lectura por tres backticks sería absurdo.
-    /// </summary>
-    private static ScannedInvoice? Parse(string raw)
-    {
-        var text = raw.Trim();
-        if (text.StartsWith("```", StringComparison.Ordinal))
-        {
-            var start = text.IndexOf('\n');
-            var end = text.LastIndexOf("```", StringComparison.Ordinal);
-            if (start < 0 || end <= start) return null;
-            text = text[(start + 1)..end].Trim();
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(text);
-            var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return null;
-
-            return new ScannedInvoice(
-                SupplierName: JsonRead.GetString(root, "supplierName"),
-                SupplierTaxId: DigitsOrNull(JsonRead.GetString(root, "supplierTaxId")),
-                InvoiceType: JsonRead.GetString(root, "invoiceType")?.Trim().ToUpperInvariant(),
-                InvoiceNumber: JsonRead.GetString(root, "invoiceNumber")?.Trim(),
-                InvoiceDate: ParseDate(JsonRead.GetString(root, "invoiceDate")),
-                Currency: JsonRead.GetString(root, "currency")?.Trim().ToUpperInvariant() ?? "ARS",
-                NetAmount: GetDecimal(root, "netAmount"),
-                VatAmount: GetDecimal(root, "vatAmount"),
-                TotalAmount: GetDecimal(root, "totalAmount"),
-                Lines: ReadLines(root),
-                Confidence: JsonRead.GetString(root, "confidence")?.Trim().ToLowerInvariant() ?? "baja",
-                Warnings: ReadStrings(root, "warnings"));
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static IReadOnlyList<ScannedInvoiceLine> ReadLines(JsonElement root)
-    {
-        if (!root.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Array) return [];
-
-        return [.. lines.EnumerateArray()
-            .Where(l => l.ValueKind == JsonValueKind.Object)
-            .Select(l => new ScannedInvoiceLine(
-                JsonRead.GetString(l, "description")?.Trim() ?? "",
-                GetDecimal(l, "quantity"),
-                GetDecimal(l, "unitPrice")))
-            .Where(l => l.Description.Length > 0)
-            .Take(200)];
-    }
-
-    private static IReadOnlyList<string> ReadStrings(JsonElement root, string property)
-    {
-        if (!root.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array) return [];
-
-        return [.. array.EnumerateArray()
-            .Where(e => e.ValueKind == JsonValueKind.String)
-            .Select(e => e.GetString()!.Trim())
-            .Where(s => s.Length > 0)
-            .Take(10)];
-    }
-
-    /// <summary>
-    /// El modelo puede mandar el número como número o como texto ("12345.67"):
-    /// las dos formas se aceptan, cualquier otra cosa es null.
-    /// </summary>
-    private static decimal? GetDecimal(JsonElement element, string property)
-    {
-        if (!element.TryGetProperty(property, out var value)) return null;
-        return value.ValueKind switch
-        {
-            JsonValueKind.Number when value.TryGetDecimal(out var n) => n,
-            JsonValueKind.String when decimal.TryParse(
-                value.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var s) => s,
-            _ => null,
-        };
-    }
-
-    private static DateTime? ParseDate(string? value) =>
-        DateTime.TryParse(value, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date)
-            ? date
-            : null;
-
-    private static string? DigitsOrNull(string? value)
-    {
-        var digits = new string((value ?? string.Empty).Where(char.IsAsciiDigit).ToArray());
-        return digits.Length == 11 ? digits : null;
-    }
 }
-
-public sealed record ScannedInvoiceLine(string Description, decimal? Quantity, decimal? UnitPrice);
-
-public sealed record ScannedInvoice(
-    string? SupplierName,
-    string? SupplierTaxId,
-    string? InvoiceType,
-    string? InvoiceNumber,
-    DateTime? InvoiceDate,
-    string Currency,
-    decimal? NetAmount,
-    decimal? VatAmount,
-    decimal? TotalAmount,
-    IReadOnlyList<ScannedInvoiceLine> Lines,
-    string Confidence,
-    IReadOnlyList<string> Warnings);
