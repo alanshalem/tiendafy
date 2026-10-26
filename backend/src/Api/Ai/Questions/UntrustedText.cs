@@ -14,7 +14,9 @@ public static class UntrustedText
     {
         var inner = (Text.Clip(text, MaxChars) ?? "")
             .Replace('<', '‹')
-            .Replace('>', '›');
+            .Replace('＜', '‹')
+            .Replace('>', '›')
+            .Replace('＞', '›');
         return $"<{tag}>\n{inner}\n</{tag}>";
     }
 }

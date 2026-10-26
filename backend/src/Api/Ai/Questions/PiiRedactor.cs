@@ -19,6 +19,7 @@ public static partial class PiiRedactor
 
         var result = EmailPattern().Replace(text, Mask);
         result = DottedCuitPattern().Replace(result, m => IsAmount(result, m) ? m.Value : Mask);
+        result = DottedPhonePattern().Replace(result, Mask);
         result = DottedDniPattern().Replace(result, m => IsAmount(result, m) ? m.Value : Mask);
         result = DigitRunPattern().Replace(result, m => ShouldMask(result, m) ? Mask : m.Value);
         return result;
@@ -28,18 +29,14 @@ public static partial class PiiRedactor
     // (nunca por pedazos) para que un CUIT de 11 dígitos no quede a medias tapado.
     private static bool ShouldMask(string text, Match m)
     {
-        if (IsAmount(text, m))
-        {
-            return false;
-        }
-
+        // Con 10 o más dígitos ya no es un monto: el "$" o el "pesos" de al lado no lo salvan.
         var digits = m.Value.Count(char.IsDigit);
         if (digits >= 10)
         {
             return true;
         }
 
-        return digits is 7 or 8 && !m.Value.Any(char.IsWhiteSpace);
+        return digits is 7 or 8 && !m.Value.Any(char.IsWhiteSpace) && !IsAmount(text, m);
     }
 
     private static bool IsAmount(string text, Match m)
@@ -53,8 +50,13 @@ public static partial class PiiRedactor
         return PesosPattern().IsMatch(text.AsSpan(m.Index + m.Length));
     }
 
-    [GeneratedRegex(@"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")]
+    // juan@gmail.com, "juan @gmail.com", "juan arroba gmail punto com"
+    [GeneratedRegex(@"[\w.+-]+(?:\s*@\s*|\s+arroba\s+)[\w-]+(?:(?:\.|\s+punto\s+)[\w-]+)+", RegexOptions.IgnoreCase)]
     private static partial Regex EmailPattern();
+
+    // 11.5555.1234
+    [GeneratedRegex(@"(?<![\d.,])\d{2,3}\.\d{4}\.\d{4}(?![\d.,]?\d)")]
+    private static partial Regex DottedPhonePattern();
 
     // 20-30.123.456-7
     [GeneratedRegex(@"(?<!\d)\d{2}-?\d{1,2}\.\d{3}\.\d{3}-?\d(?![\d.,]?\d)")]

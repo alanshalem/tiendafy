@@ -55,6 +55,39 @@ public sealed class PiiRedactorTests
         Assert.DoesNotContain(result, c => char.IsDigit(c));
     }
 
+    [Theory]
+    [InlineData("juan @gmail.com")]
+    [InlineData("juan@ gmail.com")]
+    [InlineData("juan arroba gmail punto com")]
+    [InlineData("juan arroba gmail.com")]
+    [InlineData("JUAN ARROBA GMAIL PUNTO COM")]
+    public void Tapa_mails_disfrazados(string mail)
+    {
+        Assert.Equal("escribime a [dato oculto]", PiiRedactor.Redact($"escribime a {mail}"));
+    }
+
+    [Theory]
+    [InlineData("11.5555.1234")]
+    [InlineData("011.4555.1234")]
+    [InlineData("$1500 1155551234")]
+    [InlineData("$ 1155551234")]
+    [InlineData("1155551234 pesos")]
+    public void Tapa_telefonos_con_puntos_o_pegados_a_un_monto(string text)
+    {
+        var result = PiiRedactor.Redact(text);
+
+        Assert.Contains(PiiRedactor.Mask, result);
+        Assert.DoesNotContain(result, c => char.IsDigit(c));
+    }
+
+    [Fact]
+    public void Un_monto_con_puntos_sigue_intacto_junto_a_un_telefono()
+    {
+        var result = PiiRedactor.Redact("$ 1.250.000 y 1.250.000 pesos, llamame al 11.5555.1234");
+
+        Assert.Equal("$ 1.250.000 y 1.250.000 pesos, llamame al [dato oculto]", result);
+    }
+
     [Fact]
     public void Texto_vacio_vuelve_igual()
     {
