@@ -42,67 +42,23 @@ public static class InventoryEndpoints
         // serializado en texto, así que la valorización se suma en memoria sí o sí.
         inventory.MapGet("/summary", async (
             ITenantContext tenant,
-            Catalog.Infrastructure.Persistence.CatalogDbContext catalog,
-            Inventory.Infrastructure.Persistence.InventoryDbContext inventoryDb,
+            Api.Stats.InventorySummaryQuery query,
             int? lowStockThreshold, CancellationToken ct) =>
         {
             var low = Math.Clamp(lowStockThreshold ?? 5, 1, 100);
-
-            var variants = await catalog.Products.AsNoTracking()
-                .Where(p => p.TenantId == tenant.TenantId)
-                .SelectMany(p => p.Variants)
-                .Select(v => new { v.Id, v.Cost })
-                .ToListAsync(ct);
-
-            var stock = await inventoryDb.StockItems.AsNoTracking()
-                .Select(s => new { s.VariantId, s.Available, s.Reserved, s.Unlimited })
-                .ToListAsync(ct);
-            var available = stock
-                .GroupBy(s => s.VariantId)
-                .ToDictionary(g => g.Key, g => g.Sum(s => s.Available));
-            var unlimitedIds = stock.Where(s => s.Unlimited).Select(s => s.VariantId).ToHashSet();
-
-            var units = 0;
-            var outOfStock = 0;
-            var lowStock = 0;
-            var unlimited = 0;
-            long stockValue = 0;
-            var currency = SharedKernel.Common.Money.DefaultCurrency;
-
-            foreach (var v in variants)
-            {
-                // Sin límite no son unidades en depósito ni puede agotarse.
-                if (unlimitedIds.Contains(v.Id))
-                {
-                    unlimited++;
-                    continue;
-                }
-
-                var qty = available.GetValueOrDefault(v.Id, 0);
-                units += qty;
-                if (qty <= 0) outOfStock++;
-                else if (qty <= low) lowStock++;
-
-                // Valorización A COSTO, no a precio de venta: es la plata parada
-                // en el depósito, no lo que se espera facturar por ella.
-                if (v.Cost is { } cost)
-                {
-                    stockValue += cost.AmountInMinorUnits * Math.Max(0, qty);
-                    currency = cost.Currency;
-                }
-            }
+            var s = await query.RunAsync(tenant.TenantId, low, ct);
 
             return Results.Ok(new
             {
-                variants = variants.Count,
-                units,
-                outOfStock,
-                lowStock,
-                unlimited,
-                reserved = stock.Sum(s => s.Reserved),
-                stockValueMinor = stockValue,
-                currency,
-                withoutCost = variants.Count(v => v.Cost is null),
+                variants = s.Variants,
+                units = s.Units,
+                outOfStock = s.OutOfStock,
+                lowStock = s.LowStock,
+                unlimited = s.Unlimited,
+                reserved = s.Reserved,
+                stockValueMinor = s.StockValueMinor,
+                currency = s.Currency,
+                withoutCost = s.WithoutCost,
             });
         });
 

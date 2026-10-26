@@ -14,6 +14,9 @@ public static class StatsQueriesRegistration
         services.AddScoped<TopProductsQuery>();
         services.AddScoped<ProfitabilityQuery>();
         services.AddScoped<AbandonedCartsQuery>();
+        services.AddScoped<InventorySummaryQuery>();
+        services.AddScoped<Api.Purchasing.PurchaseOrderQueries>();
+        services.AddScoped<Api.Crm.CustomerSummaryQuery>();
         return services;
     }
 }

@@ -24,61 +24,34 @@ public static class PurchasingEndpoints
         var purchasing = group.MapGroup("/purchasing").RequireTenant().RequirePermission(Permission.PurchasingManage);
 
         purchasing.MapGet("/purchase-orders", async (
-            PurchasingDbContext db, CancellationToken ct,
+            ITenantContext tenant, Api.Purchasing.PurchaseOrderQueries queries, CancellationToken ct,
             string? status = null, string? q = null, string? group = null,
             int? limit = null, int? offset = null) =>
         {
-            var query = db.PurchaseOrders.AsNoTracking();
-            if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var st))
-                query = query.Where(p => p.Status == st);
+            PurchaseOrderStatus? st = Enum.TryParse<PurchaseOrderStatus>(status, true, out var parsed) ? parsed : null;
+            var filter = new Api.Purchasing.PurchaseOrderFilter(st, Api.Purchasing.PurchaseOrderQueries.ParseGroup(group), q);
 
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = $"%{q.Trim()}%";
-                query = query.Where(p =>
-                    EF.Functions.ILike(p.SupplierName, term)
-                    || (p.Reference != null && EF.Functions.ILike(p.Reference, term)));
-            }
-
-            // Grupos de estados: lo que cuentan las métricas de la pantalla no
-            // es un estado, es un conjunto ("abiertas" son cinco de los siete).
-            // Se repiten acá en vez de usar IsOpen/HasSupplierInvoice porque esos
-            // son propiedades calculadas y no se traducen a SQL.
-            query = group?.Trim().ToLowerInvariant() switch
-            {
-                "open" => query.Where(p =>
-                    p.Status != PurchaseOrderStatus.Received && p.Status != PurchaseOrderStatus.Cancelled),
-                "intransit" => query.Where(p =>
-                    p.Status == PurchaseOrderStatus.InTransit || p.Status == PurchaseOrderStatus.InCustoms),
-                "invoicemissing" => query.Where(p =>
-                    p.Status == PurchaseOrderStatus.Received
-                    && (p.InvoiceNumber == null || p.InvoiceDateUtc == null)),
-                _ => query,
-            };
-
-            var (orders, total) = await query
+            var (orders, total) = await queries.Filtered(tenant.TenantId.Value, filter)
                 .OrderByDescending(p => p.CreatedAtUtc)
                 .PageAsync(offset, limit, ct);
             return Results.Ok(new { items = orders.Select(ToListDto), total });
         });
 
         // Resumen de compras: qué hay en camino y cuánta plata está comprometida.
-        purchasing.MapGet("/summary", async (PurchasingDbContext db, CancellationToken ct) =>
+        purchasing.MapGet("/summary", async (
+            ITenantContext tenant, Api.Purchasing.PurchaseOrderQueries queries, CancellationToken ct) =>
         {
-            var orders = await db.PurchaseOrders.AsNoTracking().ToListAsync(ct);
-            var open = orders.Where(p => p.IsOpen).ToList();
+            var s = await queries.SummaryAsync(tenant.TenantId.Value, ct);
 
             return Results.Ok(new
             {
-                total = orders.Count,
-                open = open.Count,
-                inTransit = orders.Count(p => p.Status is PurchaseOrderStatus.InTransit or PurchaseOrderStatus.InCustoms),
-                received = orders.Count(p => p.Status == PurchaseOrderStatus.Received),
-                // Comprometido: el FOB de todo lo que todavía no llegó. En la
-                // moneda de las OC abiertas (casi siempre USD).
-                committedFob = open.Sum(p => p.TotalFob),
-                currency = open.Count > 0 ? open[0].Currency : "USD",
-                withoutInvoice = orders.Count(p => p.Status == PurchaseOrderStatus.Received && !p.HasSupplierInvoice),
+                total = s.Total,
+                open = s.Open,
+                inTransit = s.InTransit,
+                received = s.Received,
+                committedFob = s.CommittedFob,
+                currency = s.Currency,
+                withoutInvoice = s.WithoutInvoice,
             });
         });
 

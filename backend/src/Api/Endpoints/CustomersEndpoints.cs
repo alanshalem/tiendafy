@@ -247,13 +247,10 @@ public static class CustomersEndpoints
 
         // Segmentos: "compró N veces o más", "no compra hace N días" (solo los que
         // alguna vez compraron: el que nunca compró es otro segmento), "nunca compró".
-        if (filter.MinOrders is int min and > 0) query = query.Where(c => c.OrdersCount >= min);
+        if (filter.MinOrders is int min and > 0) query = CustomerSegments.MinOrders(query, min);
         if (filter.InactiveDays is int days and > 0)
-        {
-            var since = DateTime.UtcNow.AddDays(-days);
-            query = query.Where(c => c.LastOrderAtUtc != null && c.LastOrderAtUtc < since);
-        }
-        if (filter.NeverBought == true) query = query.Where(c => c.OrdersCount == 0);
+            query = CustomerSegments.InactiveSince(query, DateTime.UtcNow.AddDays(-days));
+        if (filter.NeverBought == true) query = CustomerSegments.NeverBought(query);
         if (!string.IsNullOrWhiteSpace(filter.Tag))
         {
             // Las etiquetas se guardan como se escribieron; se filtra sin mayúsculas.
