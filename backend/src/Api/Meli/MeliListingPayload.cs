@@ -41,10 +41,15 @@ public static class MeliListingPayload
     /// unidad igual (lo que se hacía antes) era justo la sobreventa que el
     /// colchón está para evitar.
     /// </returns>
+    /// <param name="savedAttributes">
+    /// Los atributos de ML guardados del producto (<c>MeliProductAttribute</c>), por ejemplo los que completó la IA al armar la ficha. Lo que la
+    /// tienda ya tiene (la marca, el SKU y las specs mapeadas) manda sobre lo guardado.
+    /// </param>
     public static Result<Listing> Build(
         Product product, Variant variant, MeliConnection connection,
         string categoryId, string? listingTypeId, int? available,
-        IReadOnlyDictionary<Guid, string> specAttributeIds)
+        IReadOnlyDictionary<Guid, string> specAttributeIds,
+        IReadOnlyList<MeliProductAttribute>? savedAttributes = null)
     {
         // Mismo cálculo que MeliStockSyncWorker: en ML se publica stock − colchón.
         var quantity = QuantityFor(available, connection);
@@ -72,23 +77,58 @@ public static class MeliListingPayload
             ["pictures"] = product.Images.OrderBy(i => i.Position).Take(6)
                 .Select(i => new { source = i.Url }).ToArray(),
         };
-        var attributes = new List<object>();
-        if (!string.IsNullOrWhiteSpace(product.Brand))
-            attributes.Add(new { id = "BRAND", value_name = product.Brand });
-        if (!string.IsNullOrWhiteSpace(variant.Sku))
-            attributes.Add(new { id = "SELLER_SKU", value_name = variant.Sku });
+        var attributes = Attributes(product, variant.Sku, specAttributeIds, savedAttributes);
+        if (attributes.Count > 0) payload["attributes"] = attributes;
+        return new Listing(payload, priceMinor, quantity);
+    }
 
-        // Ficha técnica: los campos que tienen equivalente declarado en
-        // Mercado Libre viajan como atributos. Una publicación con la ficha
-        // completa posiciona mejor y puede entrar al catálogo; hasta ahora
-        // mandábamos dos atributos de veinte.
+    /// <summary>
+    /// Los atributos de la publicación, en este orden: <c>BRAND</c> (la marca), <c>SELLER_SKU</c> (si se pide), las specs
+    /// mapeadas de la ficha técnica y, al final, los guardados cuyo id no esté ya (sin distinguir mayúsculas).
+    /// </summary>
+    /// <remarks>
+    /// Ficha técnica: los campos que tienen equivalente declarado en Mercado Libre viajan como atributos. Una publicación con la ficha
+    /// completa posiciona mejor y puede entrar al catálogo; hasta ahora mandábamos dos atributos de veinte.
+    /// </remarks>
+    /// <param name="sellerSku">Null para actualizar una publicación que ya existe: el SKU es de la variación y no se toca.</param>
+    public static List<object> Attributes(
+        Product product, string? sellerSku, IReadOnlyDictionary<Guid, string> specAttributeIds,
+        IReadOnlyList<MeliProductAttribute>? savedAttributes)
+    {
+        var attributes = new List<object>();
+        var sent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string id, object attribute)
+        {
+            if (sent.Add(id)) attributes.Add(attribute);
+        }
+
+        if (!string.IsNullOrWhiteSpace(product.Brand))
+            Add("BRAND", new { id = "BRAND", value_name = product.Brand });
+        if (!string.IsNullOrWhiteSpace(sellerSku))
+            Add("SELLER_SKU", new { id = "SELLER_SKU", value_name = sellerSku });
+
         foreach (var spec in product.Specs)
         {
             if (specAttributeIds.TryGetValue(spec.DefinitionId, out var meliId))
                 attributes.Add(new { id = meliId, value_name = spec.Value });
+            if (meliId is not null) sent.Add(meliId);
         }
 
-        if (attributes.Count > 0) payload["attributes"] = attributes;
-        return new Listing(payload, priceMinor, quantity);
+        foreach (var saved in savedAttributes ?? [])
+            Add(saved.AttributeId, AttributeJson(saved));
+        return attributes;
+    }
+
+    /// <summary>
+    /// Un atributo guardado como lo pide Mercado Libre: <c>{ id, value_id }</c> si es un valor de su lista (obligatorio en las listas y los
+    /// sí/no) y, si no, <c>{ id, value_name }</c>; un número con unidad va como "30 cm", que es como lo devuelve ML.
+    /// </summary>
+    public static object AttributeJson(MeliProductAttribute saved)
+    {
+        if (!string.IsNullOrWhiteSpace(saved.ValueId))
+            return new { id = saved.AttributeId, value_id = saved.ValueId };
+        var name = string.IsNullOrWhiteSpace(saved.Unit) ? saved.ValueName : $"{saved.ValueName} {saved.Unit}";
+        return new { id = saved.AttributeId, value_name = name };
     }
 }

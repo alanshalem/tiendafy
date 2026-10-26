@@ -20,7 +20,7 @@ public class MeliListingPayloadTests
         return c;
     }
 
-    private static (Product Product, Variant Variant) Remera(long priceMinor)
+    private static (Product Product, Variant Variant) Remera(long priceMinor)  // marca "Marca", SKU "REM-1"
     {
         var product = Product.Create(TenantId.From(Guid.NewGuid()), "Remera oversize").Value;
         product.SetBrand("Marca");
@@ -96,6 +96,86 @@ public class MeliListingPayloadTests
         Assert.Equal(MeliListingPayload.UnlimitedQuantity, listing.Quantity);
         Assert.Equal(MeliListingPayload.UnlimitedQuantity, MeliListingPayload.QuantityFor(null, Connection(0m, buffer: 3)));
         Assert.Equal(7, MeliListingPayload.QuantityFor(10, Connection(0m, buffer: 3)));
+    }
+
+    private static MeliProductAttribute Saved(string id, string? valueId, string? valueName, string? unit = null) =>
+        MeliProductAttribute.Create(Guid.NewGuid(), Guid.NewGuid(), id, valueId, valueName, unit);
+
+    private static List<object> AttributesOf(MeliListingPayload.Listing listing) =>
+        Assert.IsType<List<object>>(listing.Payload["attributes"]);
+
+    [Fact]
+    public void Suma_los_atributos_guardados()
+    {
+        var (product, variant) = Remera(1_000_00);
+
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5,
+            new Dictionary<Guid, string>(), [Saved("IS_KIT", null, "No")]).Value;
+
+        var attributes = AttributesOf(listing);
+        Assert.Equal(3, attributes.Count); // BRAND, SELLER_SKU y el guardado
+        Assert.Contains(attributes, a => a.ToString() == "{ id = IS_KIT, value_name = No }");
+    }
+
+    [Fact]
+    public void Lo_de_la_tienda_gana_sobre_lo_guardado()
+    {
+        var (product, variant) = Remera(1_000_00);
+
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5,
+            new Dictionary<Guid, string>(), [Saved("brand", null, "Otra"), Saved("SELLER_SKU", null, "OTRO-SKU")]).Value;
+
+        var attributes = AttributesOf(listing);
+        Assert.Equal(2, attributes.Count);
+        Assert.Contains(attributes, a => a.ToString() == "{ id = BRAND, value_name = Marca }");
+        Assert.Contains(attributes, a => a.ToString() == "{ id = SELLER_SKU, value_name = REM-1 }");
+    }
+
+    [Fact]
+    public void Una_spec_mapeada_tambien_gana_sobre_lo_guardado()
+    {
+        var (product, variant) = Remera(1_000_00);
+        var definition = Guid.NewGuid();
+        product.SetSpecs([(definition, "Algodón")]);
+
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5,
+            new Dictionary<Guid, string> { [definition] = "MATERIAL" }, [Saved("MATERIAL", null, "Poliéster")]).Value;
+
+        var attributes = AttributesOf(listing);
+        Assert.Equal(3, attributes.Count);
+        Assert.Contains(attributes, a => a.ToString() == "{ id = MATERIAL, value_name = Algodón }");
+        Assert.DoesNotContain(attributes, a => a.ToString()!.Contains("Poliéster"));
+    }
+
+    [Fact]
+    public void Valor_de_lista_va_por_id_y_un_numero_con_unidad_con_su_unidad()
+    {
+        Assert.Equal("{ id = COLOR, value_id = 242084 }", MeliListingPayload.AttributeJson(Saved("COLOR", "242084", "Negro")).ToString());
+        Assert.Equal("{ id = LENGTH, value_name = 30 cm }", MeliListingPayload.AttributeJson(Saved("LENGTH", null, "30", "cm")).ToString());
+        Assert.Equal("{ id = GTIN, value_name = 7790001000017 }", MeliListingPayload.AttributeJson(Saved("GTIN", null, "7790001000017")).ToString());
+    }
+
+    [Fact]
+    public void Sin_guardados_el_payload_es_el_de_antes()
+    {
+        var (product, variant) = Remera(1_000_00);
+
+        var without = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5, new Dictionary<Guid, string>()).Value;
+        var empty = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5, new Dictionary<Guid, string>(), []).Value;
+
+        Assert.Equal(2, AttributesOf(without).Count);
+        Assert.Equal(AttributesOf(without).Select(a => a.ToString()), AttributesOf(empty).Select(a => a.ToString()));
+    }
+
+    [Fact]
+    public void Para_actualizar_una_publicacion_no_va_el_SKU()
+    {
+        var (product, _) = Remera(1_000_00);
+
+        var attributes = MeliListingPayload.Attributes(product, sellerSku: null, new Dictionary<Guid, string>(), [Saved("GTIN", null, "7790001000017")]);
+
+        Assert.Equal(2, attributes.Count);
+        Assert.DoesNotContain(attributes, a => a.ToString()!.Contains("SELLER_SKU"));
     }
 
     [Theory]

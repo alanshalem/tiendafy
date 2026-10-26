@@ -862,8 +862,11 @@ public static class MeliEndpoints
                     .Select(d => new { d.Id, d.MeliAttributeId })
                     .ToDictionaryAsync(d => d.Id, d => d.MeliAttributeId!, ct)
                 : [];
+            // Lo que Mercado Libre pide y la tienda no tiene como spec (GTIN, "Es kit"…), guardado al aprobar las fichas con IA.
+            var savedAttributes = await db.ProductAttributes.AsNoTracking()
+                .Where(a => a.ProductId == productId).ToListAsync(ct);
             var built = MeliListingPayload.Build(
-                product, variant, c, request.CategoryId, request.ListingTypeId, available, specAttributeIds);
+                product, variant, c, request.CategoryId, request.ListingTypeId, available, specAttributeIds, savedAttributes);
             if (built.IsFailure) return built.Error.ToProblem();
             var listing = built.Value;
 

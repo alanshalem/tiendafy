@@ -1,5 +1,6 @@
 using Api.Ai.Catalog;
 using Api.Endpoints;
+using Api.Meli;
 using Microsoft.AspNetCore.HttpOverrides;
 
 namespace Api.Startup;
@@ -69,6 +70,7 @@ public static class PipelineExtensions
         apiV1.MapPaymentsEndpoints();
         apiV1.MapPaywayEndpoints();
         apiV1.MapMeliEndpoints();
+        apiV1.MapMeliProductDataEndpoints();
         apiV1.MapSocialEndpoints();
         apiV1.MapAiEndpoints();
         apiV1.MapAiCatalogEndpoints();
