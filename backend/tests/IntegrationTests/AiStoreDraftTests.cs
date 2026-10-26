@@ -169,7 +169,121 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, await catalog.StatusAsync(HttpMethod.Post, ContactPath(Guid.NewGuid())));
     }
 
+    [Fact]
+    public async Task Un_seguimiento_manual_con_texto_libre_no_llega_al_modelo()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd8");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        await store.PostAsync($"/api/v1/orders/{orderId}/fulfill", new { tracking = "AB123 - Juan, Av. X 123" });
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "¿Dónde está mi paquete?");
+        factory.Ai.Respond(Haiku, Reply("{\"categoria\":\"envio\",\"motivo\":\"pregunta por el envío\"}"));
+        factory.Ai.Respond(Sonnet, Call("seguimiento"), Reply("Ya salió."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var tracking = ToolResult(factory.Ai.Calls(Sonnet)[1]);
+        Assert.DoesNotContain("Juan", tracking);
+        Assert.DoesNotContain("Av.", tracking);
+        Assert.Contains("seguimiento cargado", tracking);
+    }
+
+    [Fact]
+    public async Task Chat_con_solo_mensajes_del_staff_no_tiene_que_contestar()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd9");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "Te escribimos por tu pedido.", fromStaff: true);
+        factory.Ai.Respond(Haiku, Reply(Other));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal("Ai.NothingToAnswer", await TitleAsync(res));
+        Assert.Empty(factory.Ai.Calls(Haiku));
+    }
+
+    [Fact]
+    public async Task Un_adjunto_sin_texto_entra_como_adjunto()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd10");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "Mirá la foto");
+        await AddAttachmentOnlyAsync(store.TenantId, conversationId);
+        factory.Ai.Respond(Haiku, Reply(Other));
+        factory.Ai.Respond(Sonnet, Reply("Gracias, lo revisamos."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("Comprador: [adjunto]", TextOf(Assert.Single(factory.Ai.Calls(Haiku))));
+    }
+
+    [Fact]
+    public async Task Mencionar_el_total_y_el_envio_reales_no_da_aviso_de_monto()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd11");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync(priceMinor: 50_000_00);
+        await SetShippingAsync(orderId, pickup: false, shippingMinor: 2_500_00);
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "¿Cuánto era el total?");
+        factory.Ai.Respond(Haiku, Reply(AfterSale));
+        factory.Ai.Respond(Sonnet, Reply("El total fue $ 52.500, con $ 2.500 de envío."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.DoesNotContain(body.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "amount");
+    }
+
+    [Theory]
+    [InlineData(true, "retiro en el local", "envío a domicilio")]
+    [InlineData(false, "envío a domicilio", "retiro en el local")]
+    public async Task El_estado_del_pedido_dice_retiro_o_envio_y_no_trae_datos_del_cliente(bool pickup, string expected, string absent)
+    {
+        var store = await Merchant.CreateAsync(factory, pickup ? "aisd12" : "aisd13");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        await SetShippingAsync(orderId, pickup, shippingMinor: 0);
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "¿Cómo viene mi pedido?");
+        factory.Ai.Respond(Haiku, Reply(AfterSale));
+        factory.Ai.Respond(Sonnet, Call("estado_del_pedido"), Reply("Está en camino."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var status = ToolResult(factory.Ai.Calls(Sonnet)[1]);
+        Assert.Contains(expected, status);
+        Assert.DoesNotContain(absent, status);
+        Assert.DoesNotContain("CALLE-SECRETA", status);
+        Assert.DoesNotContain("NOMBRE-SECRETO", status);
+        Assert.DoesNotContain("5555-0000", status);
+    }
+
     // ---- Sembrado -----------------------------------------------------------------------------------
+
+    /// <summary>Envío o retiro, con una dirección, un nombre y un teléfono que nunca tienen que llegar al modelo.</summary>
+    private async Task SetShippingAsync(Guid orderId, bool pickup, long shippingMinor)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
+        var order = await db.Orders.SingleAsync(o => o.Id == orderId);
+        order.SetShippingAndBuyer(new SharedKernel.Common.Money(shippingMinor, order.Currency), "Envío", "CALLE-SECRETA 123",
+            "NOMBRE-SECRETO", "11 5555-0000", null, null, pickup);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task AddAttachmentOnlyAsync(Guid tenantId, Guid conversationId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SupportDbContext>();
+        db.Messages.Add(SupportMessage.Create(conversationId, tenantId, isFromStaff: false, "comprador@test.local", "",
+            "support/foto.png", "foto.png", "image/png"));
+        await db.SaveChangesAsync();
+    }
 
     private static async Task<Guid> SubmitContactAsync(Merchant store, string name, string email, string body)
     {
@@ -180,14 +294,14 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
     }
 
     /// <summary>Un chat posventa con un mensaje del cliente (como si lo hubiera escrito desde la tienda).</summary>
-    private async Task<Guid> OpenConversationAsync(Guid tenantId, Guid orderId, string email, string text)
+    private async Task<Guid> OpenConversationAsync(Guid tenantId, Guid orderId, string email, string text, bool fromStaff = false)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SupportDbContext>();
         var conversation = Conversation.Open(tenantId, orderId, Guid.NewGuid(), email);
         db.Conversations.Add(conversation);
-        db.Messages.Add(SupportMessage.Create(conversation.Id, tenantId, isFromStaff: false, email, text));
-        conversation.RegisterMessage(fromStaff: false);
+        db.Messages.Add(SupportMessage.Create(conversation.Id, tenantId, fromStaff, fromStaff ? "staff@test.local" : email, text));
+        conversation.RegisterMessage(fromStaff);
         await db.SaveChangesAsync();
         return conversation.Id;
     }

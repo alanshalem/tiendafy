@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Api.Orders;
 using Api.Shipping;
 using Checkout.Core.Domain;
@@ -18,7 +19,7 @@ namespace Api.Ai.Questions;
 /// chat (<c>UnreadForStaff</c>) ni el mensaje. Del cliente no entra su mail (el <c>AuthorName</c> de sus
 /// mensajes lo es), ni su nombre, teléfono o dirección; del pedido, solo lo que sirve para contestar.
 /// </summary>
-public sealed class StoreDraftSources(
+public sealed partial class StoreDraftSources(
     SupportDbContext support, OrdersDbContext orders, CheckoutDbContext checkout, CustomersDbContext customers)
 {
     /// <summary>Cuántos mensajes del chat, los últimos, se leen (los que después pasan al modelo).</summary>
@@ -34,8 +35,31 @@ public sealed class StoreDraftSources(
             .FirstOrDefaultAsync(ct);
         if (conversation is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
 
-        var order = await orders.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == conversation.OrderId, ct);
-        if (order is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
+        // Solo los campos que se usan: la dirección, el nombre, el mail y el teléfono del pedido no se cargan.
+        var raw = await orders.Orders.AsNoTracking()
+            .Where(o => o.Id == conversation.OrderId)
+            .Select(o => new
+            {
+                o.Id,
+                o.Number,
+                o.Status,
+                o.IsPickup,
+                o.CreatedAtUtc,
+                o.Currency,
+                o.ShippingCost,
+                o.DiscountAmount,
+                o.RefundedAmount,
+                o.Tracking,
+                o.ShippingMethodName,
+                o.FulfilledAtUtc,
+                Items = o.Items.Select(i => new { i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice }).ToList(),
+            })
+            .FirstOrDefaultAsync(ct);
+        if (raw is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
+        var order = new OrderView(
+            raw.Id, OrderLabel.For(raw.Number, raw.Id), raw.Status, raw.IsPickup, raw.CreatedAtUtc, raw.Currency,
+            raw.ShippingCost, raw.DiscountAmount, raw.RefundedAmount, raw.Tracking, raw.ShippingMethodName, raw.FulfilledAtUtc,
+            [.. raw.Items.Select(i => new ItemView(i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice))]);
 
         // Sin AuthorName: en los mensajes del cliente es su mail.
         var recent = await support.Messages.AsNoTracking()
@@ -86,7 +110,7 @@ public sealed class StoreDraftSources(
     }
 
     /// <summary>Total, envío y precio unitario de cada línea, en centavos.</summary>
-    private static HashSet<long> KnownAmounts(Order order)
+    private static HashSet<long> KnownAmounts(OrderView order)
     {
         var amounts = new HashSet<long>();
         void Add(Money money)
@@ -101,12 +125,12 @@ public sealed class StoreDraftSources(
     }
 
     /// <summary>Estado, retiro o envío, productos y montos. Sin dirección, mail ni teléfono del comprador.</summary>
-    private static string OrderStatusText(Order order)
+    private static string OrderStatusText(OrderView order)
     {
         var lines = new List<string>
         {
             $"Pedido {order.Label}.",
-            $"Estado: {OrderCsv.StatusLabel(order)}.",
+            $"Estado: {OrderCsv.StatusLabel(order.Status, order.IsPickup)}.",
             $"Fecha de la compra: {ArgentinaTime.ToLocal(order.CreatedAtUtc).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}.",
             order.IsPickup ? "Entrega: retiro en el local." : "Entrega: envío a domicilio.",
         };
@@ -121,7 +145,7 @@ public sealed class StoreDraftSources(
         return string.Join("\n", lines);
     }
 
-    private static string Describe(OrderItem item) =>
+    private static string Describe(ItemView item) =>
         string.IsNullOrWhiteSpace(item.VariantDescription) ? item.ProductName : $"{item.ProductName} ({item.VariantDescription})";
 
     private static string Amount(Money money) => OrderTexts.MoneyText(money.ToDecimal(), money.Currency);
@@ -150,7 +174,13 @@ public sealed class StoreDraftSources(
 
         var lines = new List<string>();
         if (tracking?.Carrier is { } carrier) lines.Add($"Transportista: {carrier}.");
-        if (tracking?.Number is { } number) lines.Add($"Número de seguimiento: {number}.");
+        if (tracking?.Number is { } number)
+        {
+            // El número que cargó el comercio a mano es texto libre: solo pasa si es un código.
+            lines.Add(IsTrackingCode(number)
+                ? $"Número de seguimiento: {number}."
+                : "Hay un seguimiento cargado, pero no se puede mostrar acá.");
+        }
         var state = andreani is not null ? AndreaniState(andreani.Status) : zipnova is not null ? ZipnovaState(zipnova.Status) : null;
         if (state is not null) lines.Add($"Estado del envío: {state}.");
         if (shipment.FulfilledAtUtc is { } sent)
@@ -160,6 +190,13 @@ public sealed class StoreDraftSources(
             lines.Count == 0 ? "Todavía no hay datos de seguimiento del envío." : string.Join("\n", lines),
             HasDeliveryEstimate: false);
     }
+
+    /// <summary>Letras, dígitos, guiones y espacios simples, hasta 40 caracteres.</summary>
+    private static bool IsTrackingCode(string number) =>
+        number.Length <= 40 && CodePattern().IsMatch(number);
+
+    [GeneratedRegex(@"^[A-Za-z0-9-]+( [A-Za-z0-9-]+)*$")]
+    private static partial Regex CodePattern();
 
     private static string? AndreaniState(string status) => status switch
     {
@@ -183,6 +220,25 @@ public sealed class StoreDraftSources(
         "cancelled" => "cancelado",
         _ => null,
     };
+
+    private sealed record ItemView(string ProductName, string VariantDescription, int Quantity, Money UnitPrice);
+
+    /// <summary>El pedido, proyectado a lo que se usa. El total sale igual que en <see cref="Order.Total"/>.</summary>
+    private sealed record OrderView(
+        Guid Id, string Label, OrderStatus Status, bool IsPickup, DateTime CreatedAtUtc, string Currency,
+        Money ShippingCost, Money DiscountAmount, Money RefundedAmount, string? Tracking, string? ShippingMethodName,
+        DateTime? FulfilledAtUtc, IReadOnlyList<ItemView> Items)
+    {
+        public Money Total
+        {
+            get
+            {
+                var subtotal = Items.Aggregate(Money.Zero(Currency), (acc, i) => acc + (i.UnitPrice * i.Quantity));
+                return (DiscountAmount.AmountInMinorUnits >= subtotal.AmountInMinorUnits ? Money.Zero(Currency) : subtotal - DiscountAmount)
+                    + ShippingCost;
+            }
+        }
+    }
 
     /// <summary>Lo único del pedido que necesita el lector de seguimiento (corre más tarde, dentro de la herramienta).</summary>
     private sealed record ShipmentInput(

@@ -64,7 +64,9 @@ public static class OrderCsv
         ArgentinaTime.ToLocal(utc).ToString("dd/MM/yyyy HH:mm");
 
     /// <summary>Los mismos nombres que el panel (lib/orderStatus.ts del admin).</summary>
-    internal static string StatusLabel(Order o) => o.Status switch
+    private static string StatusLabel(Order o) => StatusLabel(o.Status, o.IsPickup);
+
+    internal static string StatusLabel(OrderStatus status, bool isPickup) => status switch
     {
         OrderStatus.PendingPayment => "Pendiente",
         OrderStatus.Paid => "Pagada",
@@ -74,7 +76,7 @@ public static class OrderCsv
         OrderStatus.PartiallyRefunded => "Reembolso parcial",
         OrderStatus.ChargedBack => "Contracargo",
         // Despachada, no entregada: el sistema no se entera de la entrega.
-        OrderStatus.Fulfilled => o.IsPickup ? "Lista para retirar" : "Enviada",
-        _ => o.Status.ToString(),
+        OrderStatus.Fulfilled => isPickup ? "Lista para retirar" : "Enviada",
+        _ => status.ToString(),
     };
 }
