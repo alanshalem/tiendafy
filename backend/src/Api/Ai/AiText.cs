@@ -4,7 +4,10 @@ using SharedKernel.Common;
 
 namespace Api.Ai;
 
-/// <summary>Las funciones de "un prompt, un texto" (sugerencias del panel): una sola llamada, sin herramientas.</summary>
+/// <summary>
+/// Las funciones de "un prompt, un texto" (sugerencias del panel): una sola llamada, sin herramientas. Y
+/// <see cref="FinalText"/>, para sacar el texto de una respuesta que pasó por el bucle de herramientas.
+/// </summary>
 public static class AiText
 {
     /// <summary>
@@ -30,4 +33,12 @@ public static class AiText
             ? Result.Failure<string>(AiErrors.Empty)
             : Result.Success(result.Value);
     }
+
+    /// <summary>
+    /// El texto de la respuesta final: el del último mensaje del asistente, recortado. Con herramientas,
+    /// <see cref="ChatResponse.Text"/> junta todos los mensajes de la vuelta, también lo que el modelo dice antes
+    /// de llamar a una herramienta ("Voy a consultar…"), y eso no es parte de la respuesta.
+    /// </summary>
+    public static string FinalText(this ChatResponse response) =>
+        response.Messages.LastOrDefault(m => m.Role == ChatRole.Assistant)?.Text.Trim() ?? "";
 }

@@ -175,20 +175,69 @@ public sealed class QuestionToolsTests
     }
 
     [Fact]
-    public async Task Fecha_conocida_sobrevive_a_una_segunda_llamada_que_falla()
+    public async Task Cada_lector_corre_una_sola_vez_por_corrida()
     {
         var log = new DraftToolLog();
         var calls = 0;
-        var readers = new DraftReaders(Tracking: _ => ++calls == 1
-            ? Task.FromResult(new TrackingInfo("Llega el lunes", true))
-            : throw new HttpRequestException("caído"));
+        var readers = new DraftReaders(Tracking: _ =>
+        {
+            calls++;
+            return Task.FromResult(new TrackingInfo("Llega el lunes", true));
+        });
         var tool = QuestionTools.For(DraftChannel.SupportChat, QuestionCategory.Shipping, readers, log).Single();
 
-        await tool.InvokeAsync();
+        var first = (await tool.InvokeAsync())?.ToString();
+        var second = (await tool.InvokeAsync())?.ToString();
+        var third = (await tool.InvokeAsync())?.ToString();
+
+        Assert.Equal(1, calls);
+        Assert.Contains("Llega el lunes", first);
+        Assert.Equal(QuestionTools.AlreadyGiven, second);
+        Assert.Equal(QuestionTools.AlreadyGiven, third);
+        Assert.True(log.DeliveryEstimateKnown);
+    }
+
+    [Fact]
+    public async Task Un_lector_que_fallo_no_se_reintenta_en_la_misma_corrida()
+    {
+        var log = new DraftToolLog();
+        var calls = 0;
+        var readers = new DraftReaders(OrderStatus: _ =>
+        {
+            calls++;
+            throw new HttpRequestException("caído");
+        });
+        var tool = QuestionTools.For(DraftChannel.SupportChat, QuestionCategory.Other, readers, log).Single();
+
+        Assert.Contains(QuestionTools.Unavailable, (await tool.InvokeAsync())?.ToString());
+        Assert.Equal(QuestionTools.AlreadyGiven, (await tool.InvokeAsync())?.ToString());
+
+        Assert.Equal(1, calls);
+        Assert.Single(log.ReaderFailures);
+    }
+
+    [Fact]
+    public async Task Otra_corrida_vuelve_a_leer()
+    {
+        var calls = 0;
+        var readers = new DraftReaders(StockAndPrice: _ => { calls++; return Task.FromResult("$ 15.000"); });
+
+        foreach (var log in new[] { new DraftToolLog(), new DraftToolLog() })
+            await QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, log).Single().InvokeAsync();
+
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task El_seguimiento_anota_sus_numeros_como_conocidos()
+    {
+        var log = new DraftToolLog();
+        var readers = new DraftReaders(Tracking: _ => Task.FromResult(new TrackingInfo("Número: 123456789012", false, ["123456789012"])));
+        var tool = QuestionTools.For(DraftChannel.MeliMessage, QuestionCategory.Shipping, readers, log).Single();
+
         await tool.InvokeAsync();
 
-        Assert.True(log.DeliveryEstimateKnown);
-        Assert.Single(log.ReaderFailures);
+        Assert.Equal(["123456789012"], log.KnownReferences);
     }
 
     [Fact]

@@ -69,10 +69,11 @@ public static class OrderTexts
 
         lines.Add($"Estado del envío: {ShipmentStatus(status)}.");
         if (Substatus(JsonRead.GetString(shipment, "substatus")) is { } sub) lines.Add($"Detalle: {sub}.");
-        if (Text.Clip(JsonRead.GetString(shipment, "tracking_number")?.ReplaceLineEndings(" "), MaxTrackingChars) is { } number)
-            lines.Add($"Número de seguimiento: {number}.");
+        var number = Text.Clip(JsonRead.GetString(shipment, "tracking_number")?.ReplaceLineEndings(" "), MaxTrackingChars);
+        if (number is not null) lines.Add($"Número de seguimiento: {number}.");
 
-        return new TrackingInfo(string.Join("\n", lines), estimate is not null);
+        // El número que le pasamos al modelo puede volver en el borrador: no es un dato del comprador.
+        return new TrackingInfo(string.Join("\n", lines), estimate is not null, number is null ? [] : [number]);
     }
 
     /// <summary>La promesa de entrega al comprador (<c>lead_time.estimated_delivery_time.date</c>), en hora argentina.</summary>

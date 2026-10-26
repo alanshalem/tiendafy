@@ -5,7 +5,7 @@ namespace UnitTests.Api.Ai.Questions;
 public sealed class DraftGuardrailsTests
 {
     private static DraftFacts Facts(int max = 2000, bool delivery = false, params long[] amounts) =>
-        new(max, amounts, delivery);
+        new(max, amounts, delivery, []);
 
     [Theory]
     [InlineData("mirá www.tienda.com.ar")]
@@ -167,6 +167,9 @@ public sealed class DraftGuardrailsTests
     [InlineData("Atendemos 24/7")]
     [InlineData("Pesa 1/2 kilo")]
     [InlineData("Hoy tenemos stock")]
+    [InlineData("atendemos de 9 a 18 hs")]
+    [InlineData("hasta las 14 hs")]
+    [InlineData("Te llamamos a las 15 horas")]
     public void Sin_promesa_de_entrega_no_avisa(string draft)
     {
         Assert.Empty(DraftGuardrails.Check(draft, Facts()));
@@ -200,6 +203,8 @@ public sealed class DraftGuardrailsTests
     [InlineData("Despachamos dentro de las 24hs")]
     [InlineData("Llega en las próximas 48 hs")]
     [InlineData("Demora 72 horas")]
+    [InlineData("Te llega en 48 hs")]
+    [InlineData("Sale en 96 horas")]
     public void Plazos_en_horas_sueltos_avisan(string draft)
     {
         Assert.Equal("delivery-date", Assert.Single(DraftGuardrails.Check(draft, Facts())).Code);
@@ -213,5 +218,31 @@ public sealed class DraftGuardrailsTests
         var ex = Record.Exception(() => DraftGuardrails.Check(draft, Facts()));
 
         Assert.Null(ex);
+    }
+
+    [Fact]
+    public void El_numero_de_seguimiento_conocido_no_es_un_dato_de_contacto()
+    {
+        var facts = Facts() with { KnownReferences = ["123456789012"] };
+
+        Assert.Empty(DraftGuardrails.Check("Tu número de seguimiento es 123456789012.", facts));
+        Assert.Contains(DraftGuardrails.Check("Tu número de seguimiento es 987654321098.", facts), w => w.Code == "contact-data");
+    }
+
+    [Fact]
+    public void Una_referencia_conocida_no_tapa_un_telefono_al_lado()
+    {
+        var facts = Facts() with { KnownReferences = ["123456789012"] };
+
+        Assert.Contains(DraftGuardrails.Check("Seguimiento 123456789012, llamame al 11 5555-1234", facts), w => w.Code == "contact-data");
+    }
+
+    [Fact]
+    public void Una_referencia_corta_no_parte_un_telefono()
+    {
+        // Un número de pedido corto ("1001") no se saca del texto: partiría el teléfono y lo dejaría pasar.
+        var facts = Facts() with { KnownReferences = ["1001"] };
+
+        Assert.Contains(DraftGuardrails.Check("llamame al 11 1001 2345", facts), w => w.Code == "contact-data");
     }
 }

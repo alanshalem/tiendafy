@@ -15,6 +15,12 @@ public static class QuestionTools
     /// <summary>Lo que ve el modelo cuando el lector falla o tarda: no es una falla del proveedor de IA.</summary>
     public const string Unavailable = "No pude consultar este dato ahora.";
 
+    /// <summary>
+    /// Lo que ve el modelo si vuelve a llamar a una herramienta en la misma corrida: cada lector corre una sola
+    /// vez por <see cref="DraftToolLog"/>, haya traído el dato o fallado. Sin I/O y sin marcar nada.
+    /// </summary>
+    public const string AlreadyGiven = "Ya te pasé este dato más arriba.";
+
     private const string OrderStatusDescription =
         "Devuelve el estado actual del pedido de esta conversación (pago, preparación, envío).";
 
@@ -65,6 +71,7 @@ public static class QuestionTools
         tools.Add(AIFunctionFactory.Create(
             async (CancellationToken ct) =>
             {
+                if (!log.TryStart(name)) return AlreadyGiven;
                 var text = await ReadAsync(reader, name, log, ct);
                 return text is null ? Unavailable : Clip(text);
             },
@@ -77,9 +84,11 @@ public static class QuestionTools
         tools.Add(AIFunctionFactory.Create(
             async (CancellationToken ct) =>
             {
+                if (!log.TryStart("seguimiento")) return AlreadyGiven;
                 var info = await ReadAsync(reader, "seguimiento", log, ct);
                 if (info is null) return Unavailable;
                 if (info.HasDeliveryEstimate) log.MarkDeliveryEstimateKnown();
+                if (info.References is { } references) log.AddReferences(references);
                 return Clip(info.Text);
             },
             "seguimiento", "Devuelve el estado del envío de esta conversación y, si la hay, la fecha estimada de entrega."));

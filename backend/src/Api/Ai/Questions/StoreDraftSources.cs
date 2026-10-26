@@ -53,12 +53,15 @@ public sealed partial class StoreDraftSources(
         if (!thread.Any(l => !l.FromSeller && !string.IsNullOrWhiteSpace(l.Text)))
             return Result.Failure<DraftSubject>(QuestionDraftErrors.NothingToAnswer);
 
+        // El seguimiento se lee acá y no dentro de la herramienta: así la herramienta no toca la base (un lector
+        // que se pasa de su tope dejaría una consulta corriendo en el DbContext del request).
         var statusText = OrderStatusText(order);
-        var shipment = new ShipmentInput(order.Id, order.IsPickup, order.Tracking, order.ShippingMethodName, order.FulfilledAtUtc);
+        var tracking = await TrackingAsync(order, ct);
         var readers = new DraftReaders(
             OrderStatus: _ => Task.FromResult(statusText),
-            Tracking: readerCt => TrackingAsync(shipment, readerCt));
-        return new DraftSubject(DraftChannel.SupportChat, thread, $"Pedido {order.Label}", KnownAmounts(order), readers);
+            Tracking: _ => Task.FromResult(tracking));
+        List<string> references = [order.Label, .. tracking.References ?? []];
+        return new DraftSubject(DraftChannel.SupportChat, thread, $"Pedido {order.Label}", KnownAmounts(order), references, readers);
     }
 
     public async Task<Result<DraftSubject>> ContactAsync(Guid contactMessageId, CancellationToken ct)
@@ -83,7 +86,7 @@ public sealed partial class StoreDraftSources(
         List<ThreadLine> thread = [new(FromSeller: false, message.Body)];
         thread.AddRange(Enumerable.Reverse(replies).Select(body => new ThreadLine(FromSeller: true, body)));
         return new DraftSubject(
-            DraftChannel.Contact, thread, "Mensaje enviado desde el formulario de contacto de la tienda.", [], new DraftReaders());
+            DraftChannel.Contact, thread, "Mensaje enviado desde el formulario de contacto de la tienda.", [], [], new DraftReaders());
     }
 
     /// <summary>
@@ -101,7 +104,7 @@ public sealed partial class StoreDraftSources(
                 [.. order.Items.Select(i => new ItemView(i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice))]);
     }
 
-    /// <summary>Total, envío y precio unitario de cada línea, en centavos.</summary>
+    /// <summary>Total, envío, lo devuelto, y precio unitario y subtotal (unitario × cantidad) de cada línea, en centavos.</summary>
     private static HashSet<long> KnownAmounts(OrderView order)
     {
         var amounts = new HashSet<long>();
@@ -112,7 +115,12 @@ public sealed partial class StoreDraftSources(
 
         Add(order.Total);
         Add(order.ShippingCost);
-        foreach (var item in order.Items) Add(item.UnitPrice);
+        Add(order.RefundedAmount);
+        foreach (var item in order.Items)
+        {
+            Add(item.UnitPrice);
+            Add(item.UnitPrice * item.Quantity);
+        }
         return amounts;
     }
 
@@ -144,43 +152,52 @@ public sealed partial class StoreDraftSources(
 
     /// <summary>
     /// Transportista, número y estado, con lo mismo que lee <see cref="OrderTrackingView"/>. Nunca la URL: el
-    /// aviso de links del borrador la marcaría. No hay fecha estimada de entrega que prometer.
+    /// aviso de links del borrador la marcaría. No hay fecha estimada de entrega que prometer. El número que se
+    /// muestra va también en <see cref="TrackingInfo.References"/>.
     /// </summary>
-    private async Task<TrackingInfo> TrackingAsync(ShipmentInput shipment, CancellationToken ct)
+    private async Task<TrackingInfo> TrackingAsync(OrderView order, CancellationToken ct)
     {
-        if (shipment.IsPickup) return new TrackingInfo("El pedido se retira en el local: no hay envío.", false);
+        if (order.IsPickup) return new TrackingInfo("El pedido se retira en el local: no hay envío.", false);
 
         var andreani = await checkout.AndreaniShipments.AsNoTracking()
-            .Where(s => s.OrderId == shipment.OrderId)
+            .Where(s => s.OrderId == order.Id)
             .Select(s => new { s.TrackingNumber, s.Status })
             .FirstOrDefaultAsync(ct);
         var zipnova = await checkout.ZipnovaShipments.AsNoTracking()
-            .Where(s => s.OrderId == shipment.OrderId)
+            .Where(s => s.OrderId == order.Id)
             .OrderByDescending(s => s.CreatedAtUtc)
             .Select(s => new { s.CarrierName, s.CarrierTrackingId, s.TrackingUrl, s.Status })
             .FirstOrDefaultAsync(ct);
 
         var tracking = CarrierTrackingLink.For(
-            shipment.Tracking, shipment.ShippingMethodName, andreani?.TrackingNumber,
+            order.Tracking, order.ShippingMethodName, andreani?.TrackingNumber,
             zipnova is null ? null : (zipnova.CarrierName, zipnova.CarrierTrackingId, zipnova.TrackingUrl));
 
         var lines = new List<string>();
+        List<string> references = [];
         if (tracking?.Carrier is { } carrier) lines.Add($"Transportista: {carrier}.");
         if (tracking?.Number is { } number)
         {
             // El número que cargó el comercio a mano es texto libre: solo pasa si es un código.
-            lines.Add(IsTrackingCode(number)
-                ? $"Número de seguimiento: {number}."
-                : "Hay un seguimiento cargado, pero no se puede mostrar acá.");
+            if (IsTrackingCode(number))
+            {
+                lines.Add($"Número de seguimiento: {number}.");
+                references.Add(number);
+            }
+            else
+            {
+                lines.Add("Hay un seguimiento cargado, pero no se puede mostrar acá.");
+            }
         }
         var state = andreani is not null ? AndreaniState(andreani.Status) : zipnova is not null ? ZipnovaState(zipnova.Status) : null;
         if (state is not null) lines.Add($"Estado del envío: {state}.");
-        if (shipment.FulfilledAtUtc is { } sent)
+        if (order.FulfilledAtUtc is { } sent)
             lines.Add($"Despachado el {ArgentinaTime.ToLocal(sent).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}.");
 
         return new TrackingInfo(
             lines.Count == 0 ? "Todavía no hay datos de seguimiento del envío." : string.Join("\n", lines),
-            HasDeliveryEstimate: false);
+            HasDeliveryEstimate: false,
+            references);
     }
 
     /// <summary>Letras, dígitos, guiones y espacios simples, hasta 40 caracteres.</summary>
@@ -219,8 +236,4 @@ public sealed partial class StoreDraftSources(
     private sealed record OrderView(
         Guid Id, string Label, OrderStatus Status, bool IsPickup, DateTime CreatedAtUtc, Money ShippingCost, Money Total,
         Money RefundedAmount, string? Tracking, string? ShippingMethodName, DateTime? FulfilledAtUtc, IReadOnlyList<ItemView> Items);
-
-    /// <summary>Lo único del pedido que necesita el lector de seguimiento (corre más tarde, dentro de la herramienta).</summary>
-    private sealed record ShipmentInput(
-        Guid OrderId, bool IsPickup, string? Tracking, string? ShippingMethodName, DateTime? FulfilledAtUtc);
 }

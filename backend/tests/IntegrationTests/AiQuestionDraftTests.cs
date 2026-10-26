@@ -39,6 +39,8 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await res.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("¡Hola! Sí, quedan 3 a $ 15.000.", body.GetProperty("text").GetString());
+        // Lo que el modelo dijo antes de llamar a la herramienta no es parte del borrador.
+        Assert.DoesNotContain(Narration, body.GetProperty("text").GetString());
         Assert.Equal("stock", body.GetProperty("category").GetString());
         Assert.False(body.GetProperty("manual").GetBoolean());
         Assert.Empty(body.GetProperty("warnings").EnumerateArray());
@@ -535,6 +537,112 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
     private const string ToolUnavailable = "No pude consultar este dato ahora.";
 
     [Fact]
+    public async Task Un_hilo_de_mensajes_largos_no_pierde_el_ultimo_del_comprador()
+    {
+        var (store, sellerId) = await StoreAsync("aipmc");
+        var packId = NewPackId();
+        await SeedOrderAsync(store.TenantId, packId);
+        // Seis mensajes de 350 caracteres (el tope de ML) suman más de lo que entra en la etiqueta.
+        var last = Fill("ÚLTIMO-DEL-COMPRADOR ", 'u');
+        object[] messages = [.. Enumerable.Range(0, 5).Select(i =>
+            Msg(i % 2 == 0 ? BuyerId : sellerId, Fill($"Mensaje viejo {(char)('a' + i)} ", 'v'), $"2026-10-24T1{i}:00:00.000Z")),
+            Msg(BuyerId, last, "2026-10-24T18:00:00.000Z")];
+        StubMessages(packId, sellerId, messages);
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Reply("Ya lo estamos viendo."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains($"Comprador: {last}", TextOf(Assert.Single(factory.Ai.Calls(Haiku))));
+        Assert.Contains($"Comprador: {last}", TextOf(Assert.Single(factory.Ai.Calls(Sonnet))));
+    }
+
+    [Fact]
+    public async Task Tres_llamadas_al_seguimiento_leen_el_envio_una_sola_vez()
+    {
+        var (store, sellerId) = await StoreAsync("aipmt");
+        var packId = NewPackId();
+        var shipmentId = Random.Shared.NextInt64(4_100_000_000, 4_900_000_000);
+        await SeedOrderAsync(store.TenantId, packId, shipmentId);
+        StubMessages(packId, sellerId, Msg(BuyerId, "¿Dónde está mi paquete?", "2026-10-24T12:00:00.000Z"));
+        StubShipment(shipmentId, "TRK123456");
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet,
+            new ChatResponse(new ChatMessage(ChatRole.Assistant,
+            [
+                new TextContent(Narration),
+                new FunctionCallContent("call-1", "seguimiento"),
+                new FunctionCallContent("call-2", "seguimiento"),
+                new FunctionCallContent("call-3", "seguimiento"),
+            ])),
+            Reply("Ya está en camino."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Single(factory.ExternalHttp.SentTo($"{Api}/shipments/{shipmentId}"));
+        var results = factory.Ai.Calls(Sonnet)[1].SelectMany(m => m.Contents).OfType<FunctionResultContent>()
+            .Select(r => r.Result?.ToString()).ToList();
+        Assert.Equal(3, results.Count);
+        Assert.Contains("TRK123456", results[0]);
+        Assert.Equal(AlreadyGiven, results[1]);
+        Assert.Equal(AlreadyGiven, results[2]);
+    }
+
+    [Fact]
+    public async Task El_numero_de_seguimiento_real_no_es_un_dato_de_contacto()
+    {
+        var (store, sellerId) = await StoreAsync("aipmr");
+        var packId = NewPackId();
+        var shipmentId = Random.Shared.NextInt64(4_100_000_000, 4_900_000_000);
+        await SeedOrderAsync(store.TenantId, packId, shipmentId);
+        StubMessages(packId, sellerId, Msg(BuyerId, "¿Me pasás el seguimiento?", "2026-10-24T12:00:00.000Z"));
+        StubShipment(shipmentId, "123456789012");
+
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Call("seguimiento"), Reply("Tu número de seguimiento es 123456789012."));
+        var real = await (await store.SendAsync(HttpMethod.Post, PackPath(packId))).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.DoesNotContain(real.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "contact-data");
+
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Call("seguimiento"), Reply("Tu número de seguimiento es 987654321098."));
+        var other = await (await store.SendAsync(HttpMethod.Post, PackPath(packId))).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(other.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "contact-data");
+    }
+
+    [Fact]
+    public async Task El_subtotal_de_una_linea_es_un_monto_conocido()
+    {
+        var (store, sellerId) = await StoreAsync("aipms");
+        var packId = NewPackId();
+        await SeedOrderAsync(store.TenantId, packId);
+        StubMessages(packId, sellerId, Msg(BuyerId, "¿Cuánto salieron las pastillas?", "2026-10-24T12:00:00.000Z"));
+        factory.Ai.Respond(Haiku, Reply(AfterSale));
+        // Dos juegos a $ 15.000: $ 30.000 de productos y $ 31.000 con el envío.
+        factory.Ai.Respond(Sonnet, Call("estado_del_pedido"), Reply("Los 2 juegos salieron $ 30.000 y en total pagaste $ 31.000."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.DoesNotContain(body.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "amount");
+    }
+
+    private const string AlreadyGiven = "Ya te pasé este dato más arriba.";
+
+    /// <summary>Un mensaje de exactamente 350 caracteres (el tope de ML) que empieza con <paramref name="head"/>.</summary>
+    private static string Fill(string head, char filler) => head + new string(filler, 350 - head.Length);
+
+    private void StubShipment(long shipmentId, string trackingNumber) =>
+        factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/shipments/{shipmentId}", new
+        {
+            id = shipmentId,
+            status = "shipped",
+            tracking_number = trackingNumber,
+        });
+
+    [Fact]
     public async Task Un_hilo_largo_trae_tambien_los_ultimos_mensajes()
     {
         var (store, sellerId) = await StoreAsync("aipm7");
@@ -849,8 +957,12 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
             },
         });
 
+    /// <summary>Lo que Claude suele escribir antes de llamar a una herramienta: nunca va al borrador.</summary>
+    private const string Narration = "Voy a consultar el dato.";
+
+    /// <summary>Un turno con herramienta como los de Claude: una frase y después la llamada.</summary>
     private static ChatResponse Call(string tool, IDictionary<string, object?>? arguments = null) =>
-        new(new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", tool, arguments)]))
+        new(new ChatMessage(ChatRole.Assistant, [new TextContent(Narration), new FunctionCallContent("call-1", tool, arguments)]))
         {
             Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5 },
         };

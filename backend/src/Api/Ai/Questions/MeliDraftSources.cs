@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Api.Meli;
@@ -133,16 +134,23 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
         var context = titles.Count == 0
             ? "Venta de Mercado Libre"
             : $"Venta de Mercado Libre. Productos: {string.Join("; ", titles)}.";
-        return new DraftSubject(DraftChannel.MeliMessage, thread, context, KnownAmounts(orders), readers);
+        return new DraftSubject(DraftChannel.MeliMessage, thread, context, KnownAmounts(orders), KnownReferences(orders), readers);
     }
+
+    /// <summary>Números de venta, de pack y de envío: el borrador puede nombrarlos sin que parezcan un dato personal.</summary>
+    private static List<string> KnownReferences(List<MeliOrder> orders) =>
+    [
+        .. orders.SelectMany(o => new[] { o.MeliOrderId, o.PackId ?? 0, o.ShipmentId ?? 0 })
+            .Where(id => id > 0).Distinct().Select(id => id.ToString(CultureInfo.InvariantCulture)),
+    ];
 
     private const int MaxShipments = 3;
 
     private static readonly Dictionary<string, string> NewShipmentFormat = new() { ["x-format-new"] = "true" };
 
     /// <summary>
-    /// Total, pagado, devuelto y precios unitarios en centavos. El costo del envío no se guarda en el cache
-    /// local, así que no es un monto conocido.
+    /// Total, pagado, devuelto, precios unitarios y subtotal de cada línea (unitario × cantidad), en centavos. El
+    /// costo del envío no se guarda en el cache local, así que no es un monto conocido.
     /// </summary>
     private static HashSet<long> KnownAmounts(List<MeliOrder> orders)
     {
@@ -157,7 +165,11 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
             Add(order.TotalAmount, order.CurrencyId);
             Add(order.PaidAmount, order.CurrencyId);
             Add(order.RefundedAmount, order.CurrencyId);
-            foreach (var item in MeliSyncService.ParseSnapshot(order.ItemsJson)) Add(item.UnitPrice, order.CurrencyId);
+            foreach (var item in MeliSyncService.ParseSnapshot(order.ItemsJson))
+            {
+                Add(item.UnitPrice, order.CurrencyId);
+                Add(item.UnitPrice * item.Quantity, order.CurrencyId);
+            }
         }
         // Un pack de varias compras: lo que se cobró en total también puede nombrarse.
         if (orders.Count > 1 && orders.Select(o => o.CurrencyId).Distinct().Count() == 1)
@@ -183,7 +195,8 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
         }
         // Con varios envíos, los que traen fecha estimada van primero.
         var ordered = infos.OrderByDescending(i => i.HasDeliveryEstimate).ToList();
-        return new TrackingInfo(string.Join("\n\n", ordered.Select(i => i.Text)), ordered.Any(i => i.HasDeliveryEstimate));
+        return new TrackingInfo(string.Join("\n\n", ordered.Select(i => i.Text)), ordered.Any(i => i.HasDeliveryEstimate),
+            [.. ordered.SelectMany(i => i.References ?? [])]);
     }
 
     /// <summary>Los mensajes de la conversación, del más viejo al más nuevo, sin marcarlos como leídos.</summary>
@@ -303,6 +316,7 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
             [new ThreadLine(FromSeller: false, text)],
             $"Publicación: {listing.Title ?? "(sin título)"}",
             known,
+            [],
             readers);
     }
 

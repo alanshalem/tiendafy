@@ -80,6 +80,10 @@ public sealed class QuestionClassifierTests
     public void Estima_por_lo_alto() => Assert.Equal(2, QuestionPrompts.EstimateTokens("abcd", "ef"));
 
     [Fact]
+    public void El_system_de_posventa_de_ML_dice_el_tope_de_350() =>
+        Assert.Contains("350 caracteres", QuestionPrompts.DraftSystem(DraftChannel.MeliMessage));
+
+    [Fact]
     public void El_aviso_de_envio_en_ML_remite_al_calculador() =>
         Assert.Contains("calculador de envío",
             QuestionPrompts.CategoryHint(DraftChannel.MeliQuestion, QuestionCategory.Shipping));

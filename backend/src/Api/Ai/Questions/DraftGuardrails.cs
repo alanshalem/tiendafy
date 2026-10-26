@@ -7,8 +7,12 @@ namespace Api.Ai.Questions;
 /// <summary>Un aviso para el panel sobre el borrador. <c>Code</c>: contact-data, link, amount, too-long o delivery-date.</summary>
 public sealed record DraftWarning(string Code, string Message);
 
-/// <summary>Lo que sabemos del pedido o la publicación para contrastar el borrador.</summary>
-public sealed record DraftFacts(int MaxLength, IReadOnlyCollection<long> KnownAmountsMinor, bool DeliveryEstimateKnown);
+/// <summary>
+/// Lo que sabemos del pedido o la publicación para contrastar el borrador. <c>KnownReferences</c>: números de
+/// pedido, envío o seguimiento que conoce nuestro código; nombrarlos no es dar un dato de contacto.
+/// </summary>
+public sealed record DraftFacts(
+    int MaxLength, IReadOnlyCollection<long> KnownAmountsMinor, bool DeliveryEstimateKnown, IReadOnlyCollection<string> KnownReferences);
 
 public static class DraftLimits
 {
@@ -39,7 +43,9 @@ public static partial class DraftGuardrails
             warnings.Add(new("contact-data", "El borrador copió un dato oculto del comprador."));
         }
 
-        if (Safe(() => PiiRedactor.ContainsContactData(draft)) || Safe(() => SocialHandlePattern().IsMatch(draft)))
+        // Un número de pedido o de seguimiento que conoce nuestro código no es un dato del comprador.
+        var withoutReferences = WithoutReferences(draft, facts.KnownReferences);
+        if (Safe(() => PiiRedactor.ContainsContactData(withoutReferences)) || Safe(() => SocialHandlePattern().IsMatch(draft)))
         {
             warnings.Add(new("contact-data", "El borrador tiene datos de contacto o un número que parece personal."));
         }
@@ -57,6 +63,23 @@ public static partial class DraftGuardrails
         }
 
         return warnings;
+    }
+
+    /// <summary>Por debajo de este largo una referencia no se saca: partiría un teléfono que la contiene ("11 1001 2345").</summary>
+    private const int MinReferenceLength = 6;
+
+    /// <summary>
+    /// Saca del texto cada referencia conocida que aparezca como palabra entera (no dentro de otro número o
+    /// código), para que el chequeo de datos de contacto no la tome por un teléfono o un documento.
+    /// </summary>
+    private static string WithoutReferences(string draft, IReadOnlyCollection<string> references)
+    {
+        foreach (var reference in references.Where(r => r.Trim().Length >= MinReferenceLength).OrderByDescending(r => r.Length))
+        {
+            draft = Regex.Replace(draft, $@"(?<![\w-]){Regex.Escape(reference.Trim())}(?![\w-])", "#",
+                RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
+        }
+        return draft;
     }
 
     private static IEnumerable<DraftWarning> CheckAmounts(string draft, IReadOnlyCollection<long> known)
@@ -138,7 +161,7 @@ public static partial class DraftGuardrails
 
     // Fuertes: avisan solas.
     [GeneratedRegex(
-        @"\b(?:en|dentro\s+de)\s+\d+\s*(?:d[ií]as?|horas?|hs?)\b|\b\d+\s*(?:y|a|o|-)\s*\d+\s*d[ií]as\b|\bd[ií]as\s+h[aá]biles\b|\besta\s+semana\b|\bla\s+semana\s+(?:que\s+viene|pr[oó]xima)\b|\ba\s+fin\s+de\s+mes\b|\bel\s+\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\bpasado\s+ma[ñn]ana\b|\b\d{2}\s*(?:hs|horas)\b",
+        @"\b(?:en|dentro\s+de)\s+\d+\s*(?:d[ií]as?|horas?|hs?)\b|\b\d+\s*(?:y|a|o|-)\s*\d+\s*d[ií]as\b|\bd[ií]as\s+h[aá]biles\b|\besta\s+semana\b|\bla\s+semana\s+(?:que\s+viene|pr[oó]xima)\b|\ba\s+fin\s+de\s+mes\b|\bel\s+\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\bpasado\s+ma[ñn]ana\b|\b(?:24|48|72|96)\s*(?:hs|horas)\b",
         RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 250)]
     private static partial Regex StrongDeliveryPattern();
 

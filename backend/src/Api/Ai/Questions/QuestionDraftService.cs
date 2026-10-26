@@ -29,7 +29,7 @@ public sealed class QuestionDraftService(IAiGateway gateway, ILogger<QuestionDra
     {
         var lines = subject.Thread.Where(l => !string.IsNullOrWhiteSpace(l.Text)).TakeLast(ThreadLines).ToList();
         if (!lines.Any(l => !l.FromSeller)) return Result.Failure<DraftResult>(QuestionDraftErrors.NothingToAnswer);
-        var thread = UntrustedText.Wrap(ThreadTag, string.Join("\n", lines.Select(Render)));
+        var thread = UntrustedText.Wrap(ThreadTag, ThreadText(lines));
 
         var classified = await QuestionClassifier.RunAsync(gateway, subject.Channel, thread, ct);
         if (classified.IsFailure) return Result.Failure<DraftResult>(classified.Error);
@@ -68,7 +68,8 @@ public sealed class QuestionDraftService(IAiGateway gateway, ILogger<QuestionDra
 
                 var response = await chat.GetResponseAsync(
                     [ctx.System(system), new ChatMessage(ChatRole.User, user)], options, token);
-                return (Text: response.Text?.Trim() ?? "", Log: log);
+                // Solo la respuesta final: lo que el modelo dijo antes de llamar a una herramienta no va al borrador.
+                return (Text: response.FinalText(), Log: log);
             },
             ct);
 
@@ -78,9 +79,31 @@ public sealed class QuestionDraftService(IAiGateway gateway, ILogger<QuestionDra
         var (text, toolLog) = drafted.Value;
         if (text.Length == 0) return Result.Failure<DraftResult>(QuestionDraftErrors.EmptyDraft);
 
+        // Los números que conoce la fuente más los que trajeron las herramientas en el intento que contestó.
+        IReadOnlyCollection<string> references = [.. subject.KnownReferences.Concat(toolLog.KnownReferences).Distinct()];
         var warnings = DraftGuardrails.Check(text, new DraftFacts(
-            DraftLimits.MaxLength(subject.Channel), subject.KnownAmountsMinor, toolLog.DeliveryEstimateKnown));
+            DraftLimits.MaxLength(subject.Channel), subject.KnownAmountsMinor, toolLog.DeliveryEstimateKnown, references));
         return new DraftResult(text, wire, shownReason, Manual: false, warnings);
+    }
+
+    /// <summary>
+    /// El hilo como va dentro de la etiqueta, sin pasarse de <see cref="UntrustedText.MaxChars"/> (así
+    /// <see cref="UntrustedText.Wrap"/> no recorta nada): se cae lo más viejo primero y el último mensaje del
+    /// comprador, el que se contesta, siempre queda. Si ese mensaje solo ya no entra, se recorta su final.
+    /// </summary>
+    private static string ThreadText(IReadOnlyList<ThreadLine> lines)
+    {
+        var rendered = lines.Select(l => (l.FromSeller, Text: Render(l))).ToList();
+        var answered = rendered.FindLastIndex(l => !l.FromSeller);
+        var kept = Enumerable.Range(0, rendered.Count).ToList();
+
+        int Length() => kept.Sum(i => rendered[i].Text.Length) + kept.Count - 1;
+        while (Length() > UntrustedText.MaxChars && kept.Count > 1)
+            kept.Remove(kept.First(i => i != answered));
+
+        return kept.Count == 1
+            ? Text.Cap(rendered[kept[0]].Text, UntrustedText.MaxChars)
+            : string.Join("\n", kept.Select(i => rendered[i].Text));
     }
 
     /// <summary>

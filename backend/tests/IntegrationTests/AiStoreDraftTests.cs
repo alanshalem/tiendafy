@@ -40,6 +40,7 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await res.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("¡Hola! Tu pedido está en preparación.", body.GetProperty("text").GetString());
+        Assert.DoesNotContain(Narration, body.GetProperty("text").GetString());
         Assert.Equal("postventa", body.GetProperty("category").GetString());
         var label = await OrderLabelAsync(orderId);
         var calls = factory.Ai.Calls(Sonnet);
@@ -263,7 +264,77 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
         Assert.DoesNotContain("5555-0000", status);
     }
 
+    [Fact]
+    public async Task Un_mensaje_viejo_enorme_no_esconde_el_nuevo()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd14");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "VIEJO " + new string('v', 3_994));
+        await AddMessageAsync(store.TenantId, conversationId, "NUEVO-Y-CORTO: ¿ya salió?");
+        factory.Ai.Respond(Haiku, Reply(Other));
+        factory.Ai.Respond(Sonnet, Reply("Te lo confirmamos enseguida."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("Comprador: NUEVO-Y-CORTO: ¿ya salió?", TextOf(Assert.Single(factory.Ai.Calls(Haiku))));
+        Assert.Contains("Comprador: NUEVO-Y-CORTO: ¿ya salió?", TextOf(Assert.Single(factory.Ai.Calls(Sonnet))));
+    }
+
+    [Fact]
+    public async Task El_numero_de_seguimiento_real_no_es_un_dato_de_contacto()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd15");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync();
+        await store.PostAsync($"/api/v1/orders/{orderId}/fulfill", new { tracking = "123456789012" });
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "¿Me pasás el seguimiento?");
+        const string Shipping = "{\"categoria\":\"envio\",\"motivo\":\"pregunta por el envío\"}";
+
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Call("seguimiento"), Reply("Tu número de seguimiento es 123456789012."));
+        var real = await (await store.SendAsync(HttpMethod.Post, ChatPath(conversationId))).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("123456789012", ToolResult(factory.Ai.Calls(Sonnet)[1]));
+        Assert.DoesNotContain(real.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "contact-data");
+
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Call("seguimiento"), Reply("Tu número de seguimiento es 987654321098."));
+        var other = await (await store.SendAsync(HttpMethod.Post, ChatPath(conversationId))).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(other.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "contact-data");
+    }
+
+    [Fact]
+    public async Task Lo_devuelto_y_el_subtotal_de_una_linea_son_montos_conocidos()
+    {
+        var store = await Merchant.CreateAsync(factory, "aisd16");
+        await EnableDraftsAsync(store);
+        var orderId = await store.CreateSaleAsync(priceMinor: 10_000_00, quantity: 3);
+        await SetShippingAsync(orderId, pickup: false, shippingMinor: 2_500_00);
+        await store.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = 5_000m });
+        var conversationId = await OpenConversationAsync(store.TenantId, orderId, "comprador@test.local", "¿Cuánto me devolvieron?");
+        factory.Ai.Respond(Haiku, Reply(AfterSale));
+        factory.Ai.Respond(Sonnet, Call("estado_del_pedido"),
+            Reply("Los 3 productos fueron $ 30.000, el total $ 32.500, y te devolvimos $ 5.000."));
+
+        var res = await store.SendAsync(HttpMethod.Post, ChatPath(conversationId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("Devuelto al comprador: $ 5.000", ToolResult(factory.Ai.Calls(Sonnet)[1]));
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.DoesNotContain(body.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "amount");
+    }
+
     // ---- Sembrado -----------------------------------------------------------------------------------
+
+    /// <summary>Otro mensaje del cliente en el chat, más nuevo que los anteriores.</summary>
+    private async Task AddMessageAsync(Guid tenantId, Guid conversationId, string text)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SupportDbContext>();
+        db.Messages.Add(SupportMessage.Create(conversationId, tenantId, isFromStaff: false, "comprador@test.local", text));
+        await db.SaveChangesAsync();
+    }
 
     /// <summary>Envío o retiro, con una dirección, un nombre y un teléfono que nunca tienen que llegar al modelo.</summary>
     private async Task SetShippingAsync(Guid orderId, bool pickup, long shippingMinor)
@@ -313,8 +384,12 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
         return (await db.Orders.AsNoTracking().SingleAsync(o => o.Id == orderId)).Label;
     }
 
+    /// <summary>Lo que Claude suele escribir antes de llamar a una herramienta: nunca va al borrador.</summary>
+    private const string Narration = "Voy a consultar el dato.";
+
+    /// <summary>Un turno con herramienta como los de Claude: una frase y después la llamada.</summary>
     private static ChatResponse Call(string tool) =>
-        new(new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", tool, null)]))
+        new(new ChatMessage(ChatRole.Assistant, [new TextContent(Narration), new FunctionCallContent("call-1", tool, null)]))
         {
             Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5 },
         };
