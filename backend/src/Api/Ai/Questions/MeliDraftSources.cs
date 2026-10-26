@@ -207,10 +207,28 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
             messages.AddRange(ParseMessages(tail.RootElement, sellerId));
         }
 
-        return [.. messages
-            .GroupBy(m => m.Id ?? Guid.NewGuid().ToString("N")).Select(g => g.First())
-            .OrderBy(m => m.CreatedUtc)
+        return [.. InOrder(messages
+            .GroupBy(m => m.Id ?? Guid.NewGuid().ToString("N")).Select(g => g.First()))
             .Select(m => m.Line)];
+    }
+
+    /// <summary>
+    /// Del más viejo al más nuevo por fecha. Uno sin fecha (o con una ilegible) hereda la del que llegó antes y
+    /// el orden es estable: conserva su lugar relativo en vez de irse al principio y quedar fuera del recorte
+    /// de los últimos mensajes.
+    /// </summary>
+    private static IEnumerable<PackMessage> InOrder(IEnumerable<PackMessage> messages)
+    {
+        var last = DateTime.MinValue;
+        return messages
+            .Select(m =>
+            {
+                if (m.CreatedUtc is { } created) last = created;
+                return (Key: last, Message: m);
+            })
+            .ToList()
+            .OrderBy(x => x.Key)
+            .Select(x => x.Message);
     }
 
     private static IEnumerable<PackMessage> ParseMessages(JsonElement root, long sellerId)
@@ -225,7 +243,7 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
             var created = m.TryGetProperty("message_date", out var dates) && dates.ValueKind == JsonValueKind.Object
                 ? JsonRead.GetDate(dates, "created")
                 : null;
-            yield return new PackMessage(JsonRead.GetString(m, "id"), created ?? DateTime.MinValue, new ThreadLine(fromSeller, text));
+            yield return new PackMessage(JsonRead.GetString(m, "id"), created, new ThreadLine(fromSeller, text));
         }
     }
 
@@ -238,7 +256,7 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
             JsonRead.GetString(m, "text") ?? ""))];
     }
 
-    private sealed record PackMessage(string? Id, DateTime CreatedUtc, ThreadLine Line);
+    private sealed record PackMessage(string? Id, DateTime? CreatedUtc, ThreadLine Line);
 
     /// <summary>
     /// La cuenta de demostración contesta con el ejemplo fijo de <see cref="MeliDemoFeed"/>, sin salir a la red;

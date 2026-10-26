@@ -86,7 +86,14 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (headers is not null)
         {
-            foreach (var (name, value) in headers) request.Headers.TryAddWithoutValidation(name, value);
+            foreach (var (name, value) in headers)
+            {
+                // La autorización y el formato de respuesta son del cliente: una cabecera extra no los pisa.
+                if (name.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("Accept", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException($"La cabecera {name} la fija el cliente de Mercado Libre.", nameof(headers));
+                request.Headers.TryAddWithoutValidation(name, value);
+            }
         }
         if (payload is not null)
             request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonDefaults.Web), Encoding.UTF8, "application/json");

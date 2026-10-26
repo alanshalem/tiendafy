@@ -546,8 +546,78 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("ÚLTIMO-MENSAJE-DEL-HILO", TextOf(Assert.Single(factory.Ai.Calls(Haiku))));
-        Assert.Contains(factory.ExternalHttp.SentTo($"{Api}/messages/packs/{packId}"),
-            r => HttpUtility.ParseQueryString(r.Uri.Query)["offset"] == "2");
+        var reads = factory.ExternalHttp.SentTo($"{Api}/messages/packs/{packId}");
+        Assert.Contains(reads, r => HttpUtility.ParseQueryString(r.Uri.Query)["offset"] == "2");
+        // Ninguna lectura del chat, tampoco la de la cola, lo marca como leído.
+        Assert.All(reads, r => Assert.Equal("false", HttpUtility.ParseQueryString(r.Uri.Query)["mark_as_read"]));
+    }
+
+    [Fact]
+    public async Task Un_mensaje_del_vendedor_con_datos_de_contacto_sale_enmascarado()
+    {
+        var (store, sellerId) = await StoreAsync("aipm9");
+        var packId = NewPackId();
+        await SeedOrderAsync(store.TenantId, packId);
+        StubMessages(packId, sellerId,
+            Msg(BuyerId, "Hola, ¿me confirman el pedido?", "2026-10-24T10:00:00.000Z"),
+            Msg(sellerId, "Escribinos a tienda@x.com o al 11 5555-1234", "2026-10-24T11:00:00.000Z"),
+            Msg(BuyerId, "¿Y cuándo llega?", "2026-10-24T12:00:00.000Z"));
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Reply("Ya lo vemos."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.All(factory.Ai.Calls(Haiku).Concat(factory.Ai.Calls(Sonnet)), call =>
+        {
+            var text = TextOf(call);
+            Assert.Contains("[dato oculto]", text);
+            Assert.DoesNotContain("tienda@x.com", text);
+            Assert.DoesNotContain("5555-1234", text);
+        });
+    }
+
+    [Fact]
+    public async Task Si_ML_devuelve_los_mensajes_del_mas_nuevo_al_mas_viejo_contesta_el_ultimo()
+    {
+        var (store, sellerId) = await StoreAsync("aipma");
+        var packId = NewPackId();
+        await SeedOrderAsync(store.TenantId, packId);
+        StubMessages(packId, sellerId,
+            Msg(BuyerId, "ÚLTIMO-DEL-COMPRADOR", "2026-10-24T12:00:00.000Z"),
+            Msg(sellerId, "Te lo reviso", "2026-10-24T11:00:00.000Z"),
+            Msg(BuyerId, "Primera consulta", "2026-10-24T10:00:00.000Z"));
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Reply("Ya lo vemos."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var thread = TextOf(Assert.Single(factory.Ai.Calls(Haiku)));
+        Assert.True(thread.IndexOf("Primera consulta", StringComparison.Ordinal) < thread.IndexOf("ÚLTIMO-DEL-COMPRADOR", StringComparison.Ordinal));
+        Assert.Contains("ÚLTIMO-DEL-COMPRADOR", TextOf(factory.Ai.Calls(Sonnet)[0]));
+    }
+
+    [Fact]
+    public async Task Un_mensaje_sin_fecha_no_desplaza_al_ultimo_del_comprador()
+    {
+        var (store, sellerId) = await StoreAsync("aipmb");
+        var packId = NewPackId();
+        await SeedOrderAsync(store.TenantId, packId);
+        // Más de seis mensajes y el último, sin fecha: ordenar por fecha lo mandaba al principio y el
+        // recorte a los últimos seis lo dejaba afuera.
+        object[] dated = [.. Enumerable.Range(0, 8).Select(i =>
+            Msg(i % 2 == 0 ? BuyerId : sellerId, $"Mensaje fechado {i}", $"2026-10-24T1{i}:00:00.000Z"))];
+        StubMessages(packId, sellerId, [.. dated, Msg(BuyerId, "ÚLTIMO-SIN-FECHA", null)]);
+        factory.Ai.Respond(Haiku, Reply(Shipping));
+        factory.Ai.Respond(Sonnet, Reply("Ya lo vemos."));
+
+        var res = await store.SendAsync(HttpMethod.Post, PackPath(packId));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var thread = TextOf(Assert.Single(factory.Ai.Calls(Haiku)));
+        Assert.Contains("ÚLTIMO-SIN-FECHA", thread);
+        Assert.True(thread.IndexOf("Mensaje fechado 7", StringComparison.Ordinal) < thread.IndexOf("ÚLTIMO-SIN-FECHA", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -651,14 +721,15 @@ public sealed class AiQuestionDraftTests(ApiFactory factory)
 
     private static long NewPackId() => Random.Shared.NextInt64(2_000_000_000_000_000, 2_999_999_999_999_999);
 
-    private static object Msg(long from, string text, string created) => new
+    /// <summary><paramref name="created"/> null = un mensaje sin fecha (o con una que no se puede leer).</summary>
+    private static object Msg(long from, string text, string? created) => new
     {
         id = Guid.NewGuid().ToString("N"),
         from = new { user_id = from },
         to = new { user_id = from == BuyerId ? 1L : BuyerId },
         status = "available",
         text,
-        message_date = new { created, read = (string?)null },
+        message_date = created is null ? null : (object)new { created, read = (string?)null },
     };
 
     private void StubMessages(long packId, long sellerId, params object[] messages) =>
