@@ -703,9 +703,14 @@ línea se ignora.
 
 **Consumo y tope.** Una llamada al modelo es una ejecución del gateway (`IInvoiceModel`): cada paso reserva su
 propio peor caso con su propia estimación, así que un escaneo deja **de 1 a 3 ejecuciones** en el consumo (leer,
-corregir, emparejar). Hay un solo reloj por llamada, el de la tarea (120 s): en el peor caso el pedido HTTP puede
-durar hasta tres veces eso. La estimación es por lo alto (`InvoiceTokenEstimate`): 4.500 tokens por página de
-PDF (se cuentan los `/Type /Page`; si no se pueden contar, una página cada 100 KB), 2.000 por imagen, más el
+corregir, emparejar). Cada llamada tiene su reloj, el de la tarea (120 s, y otro tanto si pasa al respaldo), pero el
+escaneo entero tiene un **plazo total de 180 s**, que se cuenta desde que terminó la primera lectura: si vence en la
+corrección o en el emparejamiento, se devuelve lo que ya se leyó con un aviso. Si la corrección cayó por la IA
+(`Ai.TimedOut` o `Ai.Unavailable`), tampoco se intenta emparejar con IA. La primera lectura corre con el reloj de la
+tarea, así que el peor caso del pedido es la primera lectura (hasta 2 × 120 s con el respaldo) más esos 180 s. La
+estimación es por lo alto (`InvoiceTokenEstimate`): 4.500 tokens por página de
+PDF (se cuentan los `/Type /Page`, también los que están dentro de object streams comprimidos, que se inflan con un
+tope de 20 MB; si no se pueden contar, una página cada 100 KB), 2.000 por imagen, más el
 texto del pedido (caracteres / 3); la corrección cuenta el archivo de nuevo porque viaja otra vez. Un PDF de más
 de **20 páginas** se rechaza antes de llamar a nadie (`Invoice.TooManyPages`).
 

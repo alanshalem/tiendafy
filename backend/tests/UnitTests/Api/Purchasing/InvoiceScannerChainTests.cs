@@ -1,4 +1,5 @@
 using System.Text;
+using Api.Ai;
 using Api.Purchasing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -227,5 +228,162 @@ public sealed class InvoiceScannerChainTests
 
         Assert.Single(chat.Calls);
         Assert.Equal(LineMatchMethod.None, Assert.Single(result.Value.Matches).Method);
+    }
+
+    // ---- Ronda de arreglos de la revisión final ----
+
+    /// <summary>Un modelo que ejecuta un paso por llamada: sirve para demorar o fallar a pedido.</summary>
+    private sealed class StepModel(params Func<CancellationToken, Task<Result<ChatResponse>>>[] steps) : IInvoiceModel
+    {
+        public int Calls { get; private set; }
+
+        public Task<Result<ChatResponse>> AskAsync(
+            string system, IReadOnlyList<ChatMessage> conversation, ChatResponseFormat format,
+            int estimatedInputTokens, CancellationToken ct) => steps[Calls++](ct);
+    }
+
+    private static Func<CancellationToken, Task<Result<ChatResponse>>> Says(string text) =>
+        _ => Task.FromResult(Result.Success(Reply(text)));
+
+    private static Func<CancellationToken, Task<Result<ChatResponse>>> Fails(Error error) =>
+        _ => Task.FromResult(Result.Failure<ChatResponse>(error));
+
+    private static Func<CancellationToken, Task<Result<ChatResponse>>> Hangs() =>
+        async ct =>
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+            return Result.Success(Reply("nunca"));
+        };
+
+    private static Task<Result<InvoiceProposal>> ScanWith(StepModel model, TimeSpan budget, CancellationToken ct = default) =>
+        new InvoiceScanner(model, NullLogger<InvoiceScanner>.Instance) { Budget = budget }
+            .ScanAsync(Pdf, "application/pdf", Order(), Today, ct);
+
+    [Fact]
+    public async Task Una_linea_null_en_el_array_del_modelo_no_rompe()
+    {
+        var (result, _, _) = await Scan(Order(), null, Invoice("null"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Invoice.Lines);
+    }
+
+    [Fact]
+    public async Task Una_eleccion_null_en_el_emparejamiento_no_rompe()
+    {
+        var (result, chat, _) = await Scan(Order(), null, Ambiguous, """{ "choices": [null] }""");
+
+        Assert.Equal(2, chat.Calls.Count);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Matches[0].VariantId);
+    }
+
+    [Fact]
+    public async Task El_emparejamiento_tolera_un_bloque_de_codigo()
+    {
+        var (result, _, _) = await Scan(Order(), null, Ambiguous, "```json\n{ \"choices\": [{ \"line\": 0, \"candidate\": \"i3\" }] }\n```");
+
+        Assert.Equal(Mancuerna12Id, result.Value.Matches[0].VariantId);
+        Assert.DoesNotContain(result.Value.Warnings, w => w.StartsWith("No se pudieron emparejar", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Si_vence_el_plazo_en_la_correccion_queda_la_primera_lectura_con_aviso()
+    {
+        var model = new StepModel(Says(Bad), Hangs());
+
+        var result = await ScanWith(model, TimeSpan.FromMilliseconds(150));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, model.Calls);
+        Assert.Single(result.Value.Checks);
+        Assert.False(result.Value.CorrectionRound);
+        Assert.Contains(result.Value.Warnings, w => w.Contains("tardó demasiado") && w.Contains("segunda lectura"));
+    }
+
+    [Fact]
+    public async Task Si_vence_el_plazo_en_el_emparejamiento_se_devuelve_lo_leido()
+    {
+        var model = new StepModel(Says(Ambiguous), Hangs());
+
+        var result = await ScanWith(model, TimeSpan.FromMilliseconds(150));
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Matches[0].VariantId);
+        Assert.Contains(result.Value.Warnings, w => w.Contains("tardó demasiado") && w.Contains("emparejamiento"));
+    }
+
+    [Fact]
+    public async Task Cancelar_el_request_no_es_un_plazo_vencido()
+    {
+        using var cts = new CancellationTokenSource();
+        var model = new StepModel(Says(Bad), Hangs());
+
+        var task = ScanWith(model, TimeSpan.FromMinutes(5), cts.Token);
+        await Task.Delay(50);
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+    }
+
+    [Theory]
+    [InlineData("Ai.TimedOut")]
+    [InlineData("Ai.Unavailable")]
+    public async Task Si_la_correccion_cayo_por_la_IA_no_se_intenta_emparejar_con_IA(string code)
+    {
+        var error = code == "Ai.TimedOut" ? AiErrors.TimedOut : AiErrors.Unavailable;
+        var badAmbiguous = Invoice(Line("Mancuerna hexagonal", null, 1, 400_000));
+        var model = new StepModel(Says(badAmbiguous), Fails(error), Says("""{ "choices": [{ "line": 0, "candidate": "i3" }] }"""));
+
+        var result = await ScanWith(model, TimeSpan.FromMinutes(5));
+
+        Assert.Equal(2, model.Calls);
+        Assert.Null(result.Value.Matches[0].VariantId);
+        Assert.Contains(result.Value.Warnings, w => w.Contains("segunda lectura"));
+        Assert.Contains(result.Value.Warnings, w => w.Contains("emparejamiento con IA"));
+    }
+
+    [Fact]
+    public async Task Otro_error_de_la_correccion_si_deja_emparejar_con_IA()
+    {
+        var badAmbiguous = Invoice(Line("Mancuerna hexagonal", null, 1, 400_000));
+        var model = new StepModel(Says(badAmbiguous), Fails(AiErrors.Failed), Says("""{ "choices": [{ "line": 0, "candidate": "i3" }] }"""));
+
+        var result = await ScanWith(model, TimeSpan.FromMinutes(5));
+
+        Assert.Equal(3, model.Calls);
+        Assert.Equal(Mancuerna12Id, result.Value.Matches[0].VariantId);
+    }
+
+    [Fact]
+    public async Task Una_linea_sin_candidatos_no_genera_el_aviso_de_sin_emparejar()
+    {
+        var lines = $"{Line("Flete", null, 1, 100_000)}, {Line("Remera", "REM-001", 1, 100_000)}";
+
+        var (result, _, _) = await Scan(Order(), null, Invoice(lines));
+
+        Assert.DoesNotContain(result.Value.Warnings, w => w.Contains("sin emparejar"));
+        Assert.Null(result.Value.Matches[0].VariantId);
+    }
+
+    [Fact]
+    public async Task Una_linea_con_candidatos_que_la_IA_no_resolvio_si_avisa()
+    {
+        var (result, _, _) = await Scan(Order(), null, Ambiguous, """{ "choices": [] }""");
+
+        Assert.Contains(result.Value.Warnings, w => w.Contains("1 línea sin emparejar"));
+    }
+
+    [Fact]
+    public async Task Respuesta_cortada_por_largo_tiene_mensaje_propio()
+    {
+        var truncated = new ChatResponse(new ChatMessage(ChatRole.Assistant, "{ \"lines\": [{ \"descr")) { FinishReason = ChatFinishReason.Length };
+        var model = new StepModel(_ => Task.FromResult(Result.Success(truncated)));
+
+        var result = await ScanWith(model, TimeSpan.FromMinutes(5));
+
+        Assert.Equal("Invoice.TooLong", result.Error.Code);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Contains("muy larga", result.Error.Message);
     }
 }

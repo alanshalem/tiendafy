@@ -152,4 +152,18 @@ public sealed class InvoiceScanFlowTests(ApiFactory factory)
         Assert.Equal("Ai.TaskNotConfigured", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
         Assert.Empty(factory.Ai.Calls(AiSetup.Sonnet));
     }
+
+    [Fact]
+    public async Task Escanear_la_orden_de_otra_tienda_es_404_y_no_llama_al_modelo()
+    {
+        var (_, orderId, _) = await OrderAsync("invscan6a");
+        var (intruder, _, _) = await OrderAsync("invscan6b");
+        factory.Ai.Respond(AiSetup.Sonnet, AiSetup.Reply(Invoice(5_000m)));
+
+        var response = await ScanAsync(intruder, orderId);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Empty(factory.Ai.Calls(AiSetup.Sonnet));
+        Assert.Empty(await UsageAsync(intruder.TenantId));
+    }
 }

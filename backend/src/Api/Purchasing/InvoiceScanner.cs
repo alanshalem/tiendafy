@@ -24,6 +24,17 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
     /// <summary>10 MB. Una factura escaneada pesa menos de 1; más que esto es una foto sin comprimir.</summary>
     public const long MaxBytes = 10 * 1024 * 1024;
 
+    /// <summary>
+    /// Plazo total del escaneo. Cada llamada tiene su reloj (el de la tarea, 120 s, y otro tanto con el
+    /// respaldo), pero la cadena puede encadenar tres: sin un tope total el pedido quedaría minutos
+    /// abierto con el archivo en memoria. Vale para la corrección y el emparejamiento; la primera lectura
+    /// corre con el reloj de la tarea, que es el que la acota.
+    /// </summary>
+    public static readonly TimeSpan DefaultBudget = TimeSpan.FromSeconds(180);
+
+    /// <summary>Por propiedad y no por parámetro para que el contenedor lo ignore; los tests lo acortan.</summary>
+    internal TimeSpan Budget { get; init; } = DefaultBudget;
+
     public static readonly string[] AllowedMediaTypes =
         ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
@@ -59,11 +70,21 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
             InvoicePrompts.ExtractSystem, [original], InvoicePrompts.ExtractionFormat, firstEstimate, ct);
         if (first.IsFailure) return Result.Failure<InvoiceProposal>(first.Error);
 
+        // El plazo total corre desde que terminó la primera lectura.
+        using var deadlineSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadlineSource.CancelAfter(Budget);
+        var deadline = deadlineSource.Token;
+
         var firstText = first.Value.FinalText();
         var invoice = InvoiceResponseParser.Parse(firstText);
         if (invoice is null)
         {
             logger.LogWarning("Factura: respuesta de la IA no parseable: {Body}", Text.Clip(firstText, 400));
+            // Cortada por el largo de salida: reintentar da lo mismo; hay que partir la factura.
+            if (first.Value.FinishReason == ChatFinishReason.Length)
+                return Result.Failure<InvoiceProposal>(Error.Conflict(
+                    "Invoice.TooLong",
+                    "La factura es muy larga para leerla de una vez. Subí solo las páginas con los renglones, o cargá los datos a mano."));
             // 409 y no 500: el modelo contestó algo que no es la factura; se puede cargar a mano o reintentar.
             return Result.Failure<InvoiceProposal>(Error.Conflict(
                 "Invoice.Unreadable", "No se pudo interpretar la respuesta. Cargá los datos a mano."));
@@ -75,18 +96,26 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
         var correctionRound = false;
 
         // 3. Una sola corrección, diciendo exactamente qué no cierra. Nunca una tercera lectura.
+        var aiDown = false;
         if (issues.Count > 0)
         {
             var correction = InvoicePrompts.CorrectionUser(issues);
-            var second = await model.AskAsync(
+            var second = await AskWithinBudgetAsync(
                 InvoicePrompts.ExtractSystem,
                 [original, new ChatMessage(ChatRole.Assistant, firstText), new ChatMessage(ChatRole.User, correction)],
                 InvoicePrompts.ExtractionFormat,
                 InvoiceTokenEstimate.ForCorrection(firstEstimate, firstText.Length, correction.Length),
-                ct);
+                ct, deadline);
 
-            if (second.IsFailure)
+            if (second is null)
             {
+                aiDown = true;
+                chainWarnings.Add("La lectura tardó demasiado: no se hizo la segunda lectura.");
+            }
+            else if (second.IsFailure)
+            {
+                // Si la IA no respondió, preguntarle de nuevo para emparejar es otra espera larga para nada.
+                aiDown = second.Error.Code is "Ai.TimedOut" or "Ai.Unavailable";
                 chainWarnings.Add($"No se pudo hacer la segunda lectura: {second.Error.Message}");
             }
             else
@@ -116,13 +145,32 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
         }
 
         // 4. Emparejar las líneas con los ítems de la orden.
-        var matches = await MatchAsync(invoice, order, chainWarnings, ct);
+        var matches = await MatchAsync(invoice, order, aiDown, chainWarnings, ct, deadline);
 
         return new InvoiceProposal(invoice, issues, correctionRound, matches, [.. invoice.Warnings, .. chainWarnings]);
     }
 
+    /// <summary>
+    /// Una llamada al modelo dentro del plazo total. Devuelve null si venció ESE plazo; si el que se canceló
+    /// es el request (la persona cerró la pantalla), la excepción sigue de largo como siempre.
+    /// </summary>
+    private async Task<Result<ChatResponse>?> AskWithinBudgetAsync(
+        string system, IReadOnlyList<ChatMessage> conversation, ChatResponseFormat format,
+        int estimatedInputTokens, CancellationToken ct, CancellationToken deadline)
+    {
+        try
+        {
+            return await model.AskAsync(system, conversation, format, estimatedInputTokens, deadline);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested && deadline.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
     private async Task<IReadOnlyList<InvoiceLineMatch>> MatchAsync(
-        ScannedInvoice invoice, PurchaseOrder? order, List<string> warnings, CancellationToken ct)
+        ScannedInvoice invoice, PurchaseOrder? order, bool aiDown, List<string> warnings,
+        CancellationToken ct, CancellationToken deadline)
     {
         if (order is null || invoice.Lines.Count == 0)
             return [.. invoice.Lines.Select((_, i) => new InvoiceLineMatch(i, null, LineMatchMethod.None, "baja", []))];
@@ -131,29 +179,42 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
         var plan = InvoiceLineMatcher.Plan(invoice.Lines, items);
         var matches = plan.Matches.ToList();
 
-        if (plan.AskAi.Count > 0)
+        if (plan.AskAi.Count > 0 && aiDown)
+        {
+            warnings.Add("Se salteó el emparejamiento con IA porque el servicio no respondía: elegí el ítem a mano.");
+        }
+        else if (plan.AskAi.Count > 0)
         {
             var user = InvoicePrompts.MatchUser(invoice.Lines, plan.AskAi, items, matches);
-            var answer = await model.AskAsync(
+            var answer = await AskWithinBudgetAsync(
                 InvoicePrompts.MatchSystem,
                 [new ChatMessage(ChatRole.User, user)],
                 InvoicePrompts.MatchFormat,
                 InvoiceTokenEstimate.ForText(InvoicePrompts.MatchSystem.Length + user.Length),
-                ct);
+                ct, deadline);
 
-            var choices = answer.IsSuccess ? ReadChoices(answer.Value.FinalText()) : null;
-            if (choices is null)
+            if (answer is null)
             {
-                warnings.Add("No se pudieron emparejar con la IA las líneas dudosas: elegí el ítem a mano.");
+                warnings.Add("La lectura tardó demasiado: no se hizo el emparejamiento con IA. Elegí el ítem a mano.");
             }
             else
             {
-                foreach (var choice in choices)
-                    Apply(choice, plan.AskAi, matches, items);
+                var choices = answer.IsSuccess ? ReadChoices(answer.Value.FinalText()) : null;
+                if (choices is null)
+                {
+                    warnings.Add("No se pudieron emparejar con la IA las líneas dudosas: elegí el ítem a mano.");
+                }
+                else
+                {
+                    foreach (var choice in choices.Where(c => c is not null))
+                        Apply(choice, plan.AskAi, matches, items);
+                }
             }
         }
 
-        var unmatched = matches.Count(m => m.VariantId is null);
+        // Solo cuentan las que tenían candidatos y quedaron sin elegir: una línea sin ninguno (un flete) es
+        // lo esperable y el badge de esa línea ya lo dice.
+        var unmatched = matches.Count(m => m.VariantId is null && m.Candidates.Count > 0);
         if (unmatched > 0)
             warnings.Add(unmatched == 1
                 ? "Quedó 1 línea sin emparejar: elegí el ítem a mano."
@@ -185,7 +246,9 @@ public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> 
     {
         try
         {
-            return JsonSerializer.Deserialize<LineChoiceAnswer>(text, JsonSerializerOptions.Web)?.Choices;
+            return InvoiceResponseParser.Unfence(text) is { } json
+                ? JsonSerializer.Deserialize<LineChoiceAnswer>(json, JsonSerializerOptions.Web)?.Choices
+                : null;
         }
         catch (JsonException)
         {
