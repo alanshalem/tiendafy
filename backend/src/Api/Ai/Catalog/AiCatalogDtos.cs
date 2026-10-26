@@ -21,9 +21,10 @@ public sealed record AiCatalogPreviewDto(
 /// <summary>
 /// Lo que la persona cambió al aprobar: el texto y los datos de ML que completó o corrigió. Lo que no manda se aprueba como
 /// lo propuso la IA. Un valor de lista va por <c>ValueId</c> (o por su nombre); un número con unidad, el número y su <c>Unit</c>.
+/// <c>Remove</c> son los ids de atributos propuestos que la persona descartó: no se guardan.
 /// </summary>
 public sealed record AiCatalogApproveRequest(
-    string? Description, string? SeoTitle, string? SeoDescription, AiCatalogAttributeInput[]? Attributes);
+    string? Description, string? SeoTitle, string? SeoDescription, AiCatalogAttributeInput[]? Attributes, string[]? Remove = null);
 
 public sealed record AiCatalogAttributeInput(string Id, string? ValueId, string? ValueName, string? Unit);
 

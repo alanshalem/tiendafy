@@ -39,8 +39,12 @@ public sealed class AiCatalogWorker(
         {
             var ai = scope.ServiceProvider.GetRequiredService<AiDbContext>();
             // De todas las tiendas: acá no hay request, así que se ignora el filtro de tienda a propósito.
+            // Red de seguridad: un trabajo terminado con un ítem todavía pendiente se retoma (lo deja así la carrera de
+            // elegir la categoría justo cuando el trabajo se cierra).
             var active = await ai.CatalogJobs.IgnoreQueryFilters().AsNoTracking()
-                .Where(j => j.Status == AiCatalogJobStatus.Queued || j.Status == AiCatalogJobStatus.Running)
+                .Where(j => j.Status == AiCatalogJobStatus.Queued || j.Status == AiCatalogJobStatus.Running
+                    || (j.Status == AiCatalogJobStatus.Done && ai.CatalogJobItems.IgnoreQueryFilters()
+                        .Any(i => i.TenantId == j.TenantId && i.JobId == j.Id && i.Status == AiCatalogItemStatus.Pending)))
                 .OrderBy(j => j.CreatedAtUtc)
                 .Select(j => new { j.Id, j.TenantId })
                 .ToListAsync(ct);
@@ -69,17 +73,17 @@ public sealed class AiCatalogWorker(
         var sp = scope.ServiceProvider;
         var ai = sp.GetRequiredService<AiDbContext>();
 
-        var job = await ai.CatalogJobs.IgnoreQueryFilters().FirstOrDefaultAsync(j => j.TenantId == tenantId && j.Id == jobId, ct);
-        if (job is null || job.Status is not (AiCatalogJobStatus.Queued or AiCatalogJobStatus.Running)) return;
-        if (job.Status == AiCatalogJobStatus.Queued)
-        {
-            job.Start(Now);
-            await ai.SaveChangesAsync(ct);
-        }
+        var status = await ai.CatalogJobs.IgnoreQueryFilters().AsNoTracking()
+            .Where(j => j.TenantId == tenantId && j.Id == jobId).Select(j => (AiCatalogJobStatus?)j.Status).FirstOrDefaultAsync(ct);
+        if (status is not (AiCatalogJobStatus.Queued or AiCatalogJobStatus.Running or AiCatalogJobStatus.Done)) return;
+        // Arrancar (o retomar uno terminado) es un UPDATE condicional: si la API lo canceló en el medio, no se pisa.
+        if (status != AiCatalogJobStatus.Running
+            && !await AiCatalogQueue.MoveAsync(ai, tenantId, jobId, Now, AiCatalogJobStatus.Running, [status.Value], ct))
+            return;
 
         if (await BudgetBlockAsync(sp, tenantId, ct) is { } block)
         {
-            await MutateAsync(ai, tenantId, jobId, j => { if (block == AiCatalogJobStatus.PausedBudget) j.PauseForBudget(Now); else j.PauseUnavailable(Now); }, ct);
+            await AiCatalogQueue.MoveAsync(ai, tenantId, jobId, Now, block, [AiCatalogJobStatus.Running], ct);
             return;
         }
 
@@ -100,9 +104,9 @@ public sealed class AiCatalogWorker(
         }
 
         if (outcomes.Contains(AiCatalogItemOutcome.PausedBudget))
-            await MutateAsync(ai, tenantId, jobId, j => j.PauseForBudget(Now), ct);
+            await AiCatalogQueue.MoveAsync(ai, tenantId, jobId, Now, AiCatalogJobStatus.PausedBudget, [AiCatalogJobStatus.Running], ct);
         else if (outcomes.Contains(AiCatalogItemOutcome.PausedUnavailable))
-            await MutateAsync(ai, tenantId, jobId, j => j.PauseUnavailable(Now), ct);
+            await AiCatalogQueue.MoveAsync(ai, tenantId, jobId, Now, AiCatalogJobStatus.PausedUnavailable, [AiCatalogJobStatus.Running], ct);
         else
             await FinishIfDoneAsync(ai, tenantId, jobId, ct);
     }
@@ -174,27 +178,8 @@ public sealed class AiCatalogWorker(
     {
         var pending = await ai.CatalogJobItems.IgnoreQueryFilters().AsNoTracking()
             .AnyAsync(i => i.TenantId == tenantId && i.JobId == jobId && i.Status == AiCatalogItemStatus.Pending, ct);
-        if (!pending) await MutateAsync(ai, tenantId, jobId, j => j.Finish(Now), ct);
-    }
-
-    /// <summary>
-    /// Cambia el estado del trabajo sobre la fila de ahora: la API pudo cancelarlo o reanudarlo mientras se procesaba. Si la
-    /// transición ya no es válida, el estado nuevo manda y no se toca.
-    /// </summary>
-    private static async Task MutateAsync(AiDbContext ai, Guid tenantId, Guid jobId, Action<AiCatalogJob> change, CancellationToken ct)
-    {
-        // Se suelta lo que el contexto tenía leído: una consulta no refresca una entidad ya seguida.
-        ai.ChangeTracker.Clear();
-        var job = await ai.CatalogJobs.IgnoreQueryFilters().FirstAsync(j => j.TenantId == tenantId && j.Id == jobId, ct);
-        try
-        {
-            change(job);
-            await ai.SaveChangesAsync(ct);
-        }
-        catch (InvalidOperationException)
-        {
-            ai.ChangeTracker.Clear();
-        }
+        // Solo desde Running: la API pudo cancelarlo o pausarlo mientras se procesaba, y ese estado manda.
+        if (!pending) await AiCatalogQueue.MoveAsync(ai, tenantId, jobId, Now, AiCatalogJobStatus.Done, [AiCatalogJobStatus.Running], ct);
     }
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;

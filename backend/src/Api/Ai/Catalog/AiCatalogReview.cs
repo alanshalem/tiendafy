@@ -36,7 +36,7 @@ public sealed class AiCatalogReview(
 
     private const int MaxMissingValues = 300;
 
-    private static readonly Error ItemNotFound = Error.NotFound("AiCatalog.ItemNotFound", "Esa ficha no existe.");
+    internal static readonly Error ItemNotFound =Error.NotFound("AiCatalog.ItemNotFound", "Esa ficha no existe.");
 
     private static readonly Error NotReviewable = Error.Conflict("AiCatalog.NotReviewable", "Esta ficha ya no está para revisar.");
 
@@ -107,6 +107,9 @@ public sealed class AiCatalogReview(
                 continue;
             attributes[input.Id.Trim()] = new AiCatalogAttributeProposal(input.Id.Trim(), input.ValueId, input.ValueName, input.Unit, false);
         }
+        // Lo que la persona descartó no se guarda, antes de validar. Si un id viene editado y quitado a la vez, manda quitar.
+        foreach (var removed in edits?.Remove ?? [])
+            if (!string.IsNullOrWhiteSpace(removed)) attributes.Remove(removed.Trim());
 
         var cleaned = AiCatalogGate.CleanHumanAttributes([.. attributes.Values], state.Asked);
         var violations = AiCatalogGate.CheckHumanEdit(cleaned.Attributes, state.Asked, description, seoTitle, seoDescription)
@@ -200,8 +203,9 @@ public sealed class AiCatalogReview(
         if (string.IsNullOrWhiteSpace(categoryId))
             return Result.Failure<AiCatalogItemDto>(Error.Validation("AiCatalog.BadCategory", "Elegí una categoría de Mercado Libre."));
 
-        var job = await ai.CatalogJobs.FirstAsync(j => j.TenantId == TenantId && j.Id == item.JobId, ct);
-        if (job.Status == AiCatalogJobStatus.Cancelled)
+        var jobStatus = await ai.CatalogJobs.AsNoTracking()
+            .Where(j => j.TenantId == TenantId && j.Id == item.JobId).Select(j => j.Status).FirstAsync(ct);
+        if (jobStatus == AiCatalogJobStatus.Cancelled)
             return Result.Failure<AiCatalogItemDto>(Error.Conflict("AiCatalog.JobCancelled", "El trabajo está cancelado: no se siguen armando fichas."));
 
         var found = await LookUpCategoryAsync(categoryId.Trim(), ct);
@@ -216,12 +220,24 @@ public sealed class AiCatalogReview(
             TransientFailures = 0,
             FailureReason = null,
         };
+
+        // La consulta a ML de arriba pudo tardar segundos: en el medio el worker pudo cerrar el trabajo. Por eso el trabajo no se
+        // lee antes y se escribe después: se descuenta y se reabre con UPDATEs condicionales sobre el estado de AHORA, y todo
+        // bajo el candado de la tienda (reabrir es lo que puede dejar dos trabajos activos).
+        await using var tx = await ai.Database.BeginTransactionAsync(ct);
+        await AiCatalogQueue.LockTenantAsync(ai, TenantId, ct);
         item.Requeue(state.ToJson(), Now);
-        // El ítem ya se había contado como procesado: vuelve a la cola, así que se descuenta.
-        job.Processed = Math.Max(0, job.Processed - 1);
-        if (job.Status == AiCatalogJobStatus.Done) job.Resume(Now);
         await ai.SaveChangesAsync(ct);
+        await AiCatalogQueue.ReopenForItemAsync(ai, TenantId, item.JobId, Now, ct);
+        await tx.CommitAsync(ct);
         return (await ToDtosAsync([item], ct))[0];
+    }
+
+    /// <summary>Una ficha de esta tienda, como la ve el panel (null si no existe o es de otra).</summary>
+    public async Task<AiCatalogItemDto?> GetItemAsync(Guid itemId, CancellationToken ct)
+    {
+        var item = await ai.CatalogJobItems.AsNoTracking().FirstOrDefaultAsync(i => i.TenantId == TenantId && i.Id == itemId, ct);
+        return item is null ? null : (await ToDtosAsync([item], ct))[0];
     }
 
     /// <summary>Busca categorías con el texto que escribe la persona (la misma predicción que usa el flujo de publicar).</summary>
@@ -310,13 +326,24 @@ public sealed class AiCatalogReview(
     {
         var text = attribute.ValueName?.Trim();
         if (string.IsNullOrEmpty(text) || text.Length > ProductSpec.MaxValueLength) return null;
+        var unit = attribute.Unit?.Trim();
+        var hasUnit = !string.IsNullOrEmpty(unit);
         return definition.Type switch
         {
-            SpecType.Text => text,
-            SpecType.Number => decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _) ? text : null,
+            // Un texto lleva su unidad con él: "300 cm", no "300".
+            SpecType.Text => WithUnit(text, unit),
+            // Un número no tiene dónde llevar la unidad: solo entra si es la de la spec; si no, 300 m se leería como 300 cm.
+            SpecType.Number => decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                && (!hasUnit || string.Equals(unit, definition.Unit?.Trim(), StringComparison.OrdinalIgnoreCase)) ? text : null,
             SpecType.List => definition.Options.FirstOrDefault(o => string.Equals(o, text, StringComparison.OrdinalIgnoreCase)),
             _ => null,
         };
+    }
+
+    private static string? WithUnit(string text, string? unit)
+    {
+        var value = string.IsNullOrEmpty(unit) ? text : $"{text} {unit}";
+        return value.Length <= ProductSpec.MaxValueLength ? value : null;
     }
 
     private void ClearTrackers()

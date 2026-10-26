@@ -277,8 +277,22 @@ public sealed class AiCatalogJobItem
         Settle(AiCatalogItemStatus.Pending, stateJson, nowUtc);
     }
 
+    /// <summary>La persona pidió reintentar un ítem que falló: vuelve a la cola desde cero intentos.</summary>
+    public void Retry(string stateJson, DateTime nowUtc)
+    {
+        Require(AiCatalogItemStatus.Failed);
+        Attempts = 0;
+        Settle(AiCatalogItemStatus.Pending, stateJson, nowUtc);
+    }
+
     /// <summary>Suelta el reclamo sin tocar nada más (límite de ML, tope de IA): otra pasada lo retoma.</summary>
     public void ReleaseClaim() => ClaimedAtUtc = null;
+
+    /// <summary>
+    /// Suelta el reclamo pero lo deja corrido hacia adelante: el ítem no se retoma hasta que pase <paramref name="wait"/>.
+    /// El worker toma los que tienen el reclamo vencido, así que alcanza con fijarlo a <c>ahora + espera - vigencia</c>.
+    /// </summary>
+    public void DeferClaim(DateTime nowUtc, TimeSpan wait, TimeSpan lease) => ClaimedAtUtc = nowUtc + wait - lease;
 
     public void Approve(DateTime nowUtc)
     {

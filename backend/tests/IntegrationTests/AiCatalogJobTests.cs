@@ -290,6 +290,18 @@ public sealed class AiCatalogJobTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Dos_creaciones_a_la_vez_dejan_un_solo_trabajo_activo()
+    {
+        var store = await StoreAsync("ajc");
+        var id = await ProductAsync(store, "Taladro", "x");
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.SendAsync(HttpMethod.Post, Jobs, Ids(id))));
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(3, responses.Count(r => r.StatusCode == HttpStatusCode.Conflict));
+    }
+
+    [Fact]
     public async Task Otra_tienda_no_ve_el_trabajo()
     {
         var store = await StoreAsync("ajv");

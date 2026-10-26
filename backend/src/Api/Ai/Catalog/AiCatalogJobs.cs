@@ -1,6 +1,7 @@
 using Ai.Infrastructure;
 using Api.Meli;
 using Identity.Infrastructure;
+using MercadoLibre.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
@@ -28,7 +29,15 @@ public sealed class AiCatalogJobs(
 
     public const string BudgetPauseReason = "Se alcanzó el tope mensual de IA. Subilo o esperá al mes que viene y reanudá.";
 
-    private const string UnknownName = "Alguien del equipo";
+    /// <summary>
+    /// La pausa sin motivo a la vista: la cuenta de ML sigue conectada pero Mercado Libre (o la IA) rechazó las credenciales (401/403).
+    /// Reanudar sin arreglarlo vuelve a pausar, así que el texto manda a reconectar primero.
+    /// </summary>
+    public const string RejectedConnectionReason =
+        "Mercado Libre o la inteligencia artificial rechazaron la conexión. Reconectá Mercado Libre en Configuración "
+        + "(y revisá la clave de IA) y después reanudá el trabajo.";
+
+    private const string UnknownName ="Alguien del equipo";
 
     private static readonly AiCatalogItemStatus[] AllItemStatuses = Enum.GetValues<AiCatalogItemStatus>();
 
@@ -52,6 +61,9 @@ public sealed class AiCatalogJobs(
         var quote = await QuoteAsync(selected.Value, ct);
         if (quote.Blocked is { } blocked) return Result.Failure<AiCatalogJob>(blocked);
 
+        // El chequeo y la creación van bajo el candado de la tienda: dos pedidos a la vez no pueden dejar dos activos.
+        await using var tx = await ai.Database.BeginTransactionAsync(ct);
+        await AiCatalogQueue.LockTenantAsync(ai, TenantId, ct);
         if (await ai.CatalogJobs.AnyAsync(j => j.TenantId == TenantId && ActiveStatuses.Contains(j.Status), ct))
             return Result.Failure<AiCatalogJob>(Error.Conflict(
                 "AiCatalog.JobActive", "Ya hay un trabajo de fichas en curso en esta tienda."));
@@ -61,7 +73,55 @@ public sealed class AiCatalogJobs(
         ai.CatalogJobs.Add(job);
         ai.CatalogJobItems.AddRange(selected.Value.ProductIds.Select(id => AiCatalogJobItem.Create(TenantId, job.Id, id, now)));
         await ai.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return job;
+    }
+
+    /// <summary>
+    /// Reintenta un ítem que falló: vuelve a la cola desde cero intentos, en el mismo trabajo (que se reabre si había terminado).
+    /// Gasta de nuevo, así que respeta lo mismo que reanudar: la IA y Mercado Libre listos, y que entre un ítem en el tope del mes.
+    /// </summary>
+    public async Task<Result> RetryItemAsync(Guid itemId, CancellationToken ct)
+    {
+        var item = await ai.CatalogJobItems.FirstOrDefaultAsync(i => i.TenantId == TenantId && i.Id == itemId, ct);
+        if (item is null) return Result.Failure(AiCatalogReview.ItemNotFound);
+        if (item.Status != AiCatalogItemStatus.Failed)
+            return Result.Failure(Error.Conflict("AiCatalog.NotFailed", "Solo se reintentan las fichas que fallaron."));
+
+        var job = await ai.CatalogJobs.AsNoTracking().FirstAsync(j => j.TenantId == TenantId && j.Id == item.JobId, ct);
+        if (job.Status == AiCatalogJobStatus.Cancelled)
+            return Result.Failure(Error.Conflict("AiCatalog.JobCancelled", "El trabajo está cancelado: no se siguen armando fichas."));
+
+        if (await BlockedAsync(ct) is { } blocked) return Result.Failure(blocked);
+        if (await FitsOneItemAsync(ct) is false) return Result.Failure(AiErrors.Budget);
+
+        // Lo que se elige a mano se conserva; el resto se rehace (sin IA hasta la redacción). Lo ya gastado sigue en RunIds.
+        var old = AiCatalogItemState.FromJson(item.ProposalJson);
+        var state = AiCatalogItemState.Initial with
+        {
+            Category = old.CategorySource == MeliCategorySource.Manual ? old.Category : null,
+            CategorySource = old.CategorySource == MeliCategorySource.Manual ? old.CategorySource : null,
+            RunIds = old.RunIds,
+        };
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        await using var tx = await ai.Database.BeginTransactionAsync(ct);
+        await AiCatalogQueue.LockTenantAsync(ai, TenantId, ct);
+        item.Retry(state.ToJson(), now);
+        await ai.SaveChangesAsync(ct);
+        await AiCatalogQueue.ReopenForItemAsync(ai, TenantId, item.JobId, now, ct);
+        await tx.CommitAsync(ct);
+        return Result.Success();
+    }
+
+    /// <summary>False si lo que falta del tope del mes no alcanza para un ítem en el peor caso (null = no hay modelos elegidos).</summary>
+    private async Task<bool?> FitsOneItemAsync(CancellationToken ct)
+    {
+        var snapshot = await config.LoadAsync(TenantId, ct);
+        if (AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogWrite) is not { } write
+            || AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogJudge) is not { } judge)
+            return null;
+        return await budget.CommittedMicroUsdAsync(TenantId, ct) + AiCatalogEstimate.WorstCaseItemMicroUsd(write, judge) <= snapshot.MonthlyBudgetMicroUsd;
     }
 
     public async Task<IReadOnlyList<AiCatalogJobDto>> ListAsync(CancellationToken ct)
@@ -131,11 +191,7 @@ public sealed class AiCatalogJobs(
 
         if (await BlockedAsync(ct) is { } blocked) return Result.Failure<AiCatalogJobDto>(blocked);
 
-        var snapshot = await config.LoadAsync(TenantId, ct);
-        if (AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogWrite) is { } write
-            && AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogJudge) is { } judge
-            && await budget.CommittedMicroUsdAsync(TenantId, ct) + AiCatalogEstimate.WorstCaseItemMicroUsd(write, judge) > snapshot.MonthlyBudgetMicroUsd)
-            return Result.Failure<AiCatalogJobDto>(AiErrors.Budget);
+        if (await FitsOneItemAsync(ct) is false) return Result.Failure<AiCatalogJobDto>(AiErrors.Budget);
 
         job.Resume(clock.GetUtcNow().UtcDateTime);
         await ai.SaveChangesAsync(ct);
@@ -176,7 +232,7 @@ public sealed class AiCatalogJobs(
     {
         AiCatalogJobStatus.PausedBudget => BudgetPauseReason,
         AiCatalogJobStatus.PausedUnavailable =>
-            (await BlockedAsync(ct))?.Message ?? "La inteligencia artificial o Mercado Libre no estaban disponibles. Ya podés reanudar.",
+            (await BlockedAsync(ct))?.Message ?? RejectedConnectionReason,
         _ => null,
     };
 }

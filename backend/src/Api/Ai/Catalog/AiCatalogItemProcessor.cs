@@ -30,7 +30,13 @@ public sealed class AiCatalogItemProcessor(
     TimeProvider clock,
     ILogger<AiCatalogItemProcessor> logger)
 {
-    public const int MaxTransientFailures = 3;
+    /// <summary>A la cuarta falla pasajera el ítem falla (o, con una redacción ya paga, queda para revisar a mano).</summary>
+    public const int MaxTransientFailures = 4;
+
+    /// <summary>Lo que espera un ítem antes de volver a probar, según cuántas fallas pasajeras lleva: 1, 5 y 15 minutos.</summary>
+    public static readonly TimeSpan[] RetryWaits = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15)];
+
+    private const string JudgeDownNote = "El evaluador no respondió: la ficha no se pudo controlar, revisala con cuidado.";
 
     private Guid TenantId => tenant.TenantId.Value;
 
@@ -61,8 +67,7 @@ public sealed class AiCatalogItemProcessor(
         {
             // Un bug o una falla inesperada de un ítem no puede repetirse cada 5 segundos para siempre ni frenar a los demás.
             logger.LogError(ex, "Falló la ficha del ítem {ItemId} de la tienda {TenantId}.", itemId, TenantId);
-            return await TransientAsync(work, "No se pudo armar la ficha de este producto.", ct);
-        }
+            return await TransientAsync(work, "No se pudo armar la ficha de este producto.", ct);        }
     }
 
     private async Task<AiCatalogItemOutcome> RunAsync(Work work, AiCatalogJob job, CancellationToken ct)
@@ -142,7 +147,7 @@ public sealed class AiCatalogItemProcessor(
         catch (MeliException ex)
         {
             logger.LogWarning("Mercado Libre falló al leer la categoría del ítem {ItemId}: {Message}", work.Item.Id, ex.Message);
-            return await TransientAsync(work, "Mercado Libre no respondió después de 3 intentos.", ct);
+            return await TransientAsync(work, $"Mercado Libre no respondió después de {MaxTransientFailures} intentos.", ct);
         }
     }
 
@@ -156,11 +161,30 @@ public sealed class AiCatalogItemProcessor(
                 return await ReleaseAsync(work.Item, AiCatalogItemOutcome.PausedUnavailable, ct);
             case "Ai.Rejected":
                 // El proveedor rechazó el pedido (por ejemplo, por largo): repetirlo da lo mismo.
-                return await FailAsync(work, error.Message, ct);
+                return await GiveUpAsync(work, error.Message, ct);
             default:
-                // Unavailable, TimedOut, Failed, Empty…: pasajeras. A la tercera, el ítem falla.
-                return await TransientAsync(work, "La IA no respondió después de 3 intentos.", ct);
+                // Unavailable, TimedOut, Failed, Empty…: pasajeras. Esperan 1, 5 y 15 minutos y a la cuarta se da por perdido.
+                return await TransientAsync(work, $"La IA no respondió después de {MaxTransientFailures} intentos.", ct);
         }
+    }
+
+    /// <summary>
+    /// No hay más que probar. Sin propuesta, el ítem falla con el motivo. Con una redacción ya paga (falló el evaluador, o una
+    /// segunda redacción), esa plata no se tira: queda para revisar a mano, sin el sello de "pasó".
+    /// </summary>
+    private async Task<AiCatalogItemOutcome> GiveUpAsync(Work work, string reason, CancellationToken ct)
+    {
+        if (work.State.Proposal is null) return await FailAsync(work, reason, ct);
+
+        work.State = work.State with
+        {
+            Step = AiCatalogStep.Done,
+            Passed = false,
+            Critiques = [],
+            TransientFailures = 0,
+            GateNotes = [.. work.State.GateNotes, JudgeDownNote],
+        };
+        return await FinishAsync(work, ct);
     }
 
     private async Task<AiCatalogItemOutcome> FinishAsync(Work work, CancellationToken ct)
@@ -184,14 +208,18 @@ public sealed class AiCatalogItemProcessor(
         return AiCatalogItemOutcome.Failed;
     }
 
-    /// <summary>Suma una falla pasajera, la guarda y suelta el reclamo; a la tercera el ítem falla con <paramref name="finalReason"/>.</summary>
+    /// <summary>
+    /// Suma una falla pasajera, la guarda y deja el ítem esperando (<see cref="RetryWaits"/>) en vez de reintentarlo en la pasada
+    /// siguiente; a la cuarta se da por perdido (<see cref="GiveUpAsync"/>) con <paramref name="finalReason"/>.
+    /// </summary>
     private async Task<AiCatalogItemOutcome> TransientAsync(Work work, string finalReason, CancellationToken ct)
     {
         work.State = work.State with { TransientFailures = work.State.TransientFailures + 1 };
-        if (work.State.TransientFailures >= MaxTransientFailures) return await FailAsync(work, finalReason, ct);
+        if (work.State.TransientFailures >= MaxTransientFailures) return await GiveUpAsync(work, finalReason, ct);
 
         work.Item.Checkpoint(work.State.ToJson(), work.Item.Attempts, Now);
-        work.Item.ReleaseClaim();
+        var wait = RetryWaits[Math.Min(work.State.TransientFailures, RetryWaits.Length) - 1];
+        work.Item.DeferClaim(Now, wait, AiCatalogWorker.Lease);
         await ai.SaveChangesAsync(ct);
         return AiCatalogItemOutcome.Requeued;
     }

@@ -409,27 +409,166 @@ public sealed class AiCatalogWorkerTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task La_IA_caida_falla_el_item_a_la_tercera()
+    public async Task La_IA_caida_espera_cada_vez_mas_y_falla_el_item_a_la_cuarta()
     {
         var (store, _) = await StoreAsync("awd");
         var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
         factory.Ai.Throw(Sonnet, new HttpRequestException("caído", null, HttpStatusCode.ServiceUnavailable));
 
-        await RunWorkerAsync(store);
-        var afterFirst = Assert.Single(await ItemsAsync(jobId));
-        Assert.Equal(AiCatalogItemStatus.Pending, afterFirst.Status);
-        Assert.Null(afterFirst.ClaimedAtUtc);
-        Assert.Equal(1, AiCatalogItemState.FromJson(afterFirst.ProposalJson).TransientFailures);
+        // Cada falla corre el reclamo hacia adelante: 1, 5 y 15 minutos de espera, no una pasada de 5 segundos después.
+        var waits = new[] { TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15) };
+        for (var i = 0; i < waits.Length; i++)
+        {
+            await RunWorkerAsync(store);
+            var held = Assert.Single(await ItemsAsync(jobId));
+            Assert.Equal(AiCatalogItemStatus.Pending, held.Status);
+            Assert.Equal(i + 1, AiCatalogItemState.FromJson(held.ProposalJson).TransientFailures);
+            var due = held.ClaimedAtUtc!.Value + AiCatalogWorker.Lease;
+            Assert.InRange(due - DateTime.UtcNow, waits[i] - TimeSpan.FromSeconds(30), waits[i] + TimeSpan.FromSeconds(30));
 
-        await RunWorkerAsync(store);
+            // Mientras espera, otra pasada no llama a la IA ni suma una falla.
+            var calls = factory.Ai.Calls(Sonnet).Count;
+            await RunWorkerAsync(store);
+            Assert.Equal(calls, factory.Ai.Calls(Sonnet).Count);
+            Assert.Equal(i + 1, AiCatalogItemState.FromJson(Assert.Single(await ItemsAsync(jobId)).ProposalJson).TransientFailures);
+
+            await UpdateItemsAsync(jobId, item => item.ClaimedAtUtc = DateTime.UtcNow - AiCatalogWorker.Lease - TimeSpan.FromSeconds(1));
+        }
+
         await RunWorkerAsync(store);
 
         var item = Assert.Single(await ItemsAsync(jobId));
         Assert.Equal(AiCatalogItemStatus.Failed, item.Status);
-        Assert.Equal("La IA no respondió después de 3 intentos.", AiCatalogItemState.FromJson(item.ProposalJson).FailureReason);
+        Assert.Equal("La IA no respondió después de 4 intentos.", AiCatalogItemState.FromJson(item.ProposalJson).FailureReason);
         var job = await store.GetAsync($"{Jobs}/{jobId}");
         Assert.Equal("Done", job.GetProperty("status").GetString());
         Assert.Equal(1, Count(job, "Failed"));
+    }
+
+    [Fact]
+    public async Task Si_el_evaluador_se_cae_con_la_redaccion_ya_paga_el_item_queda_para_revisar()
+    {
+        var (store, _) = await StoreAsync("awj");
+        var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
+        factory.Ai.Respond(Sonnet, Written());
+        factory.Ai.Throw(Luna, new HttpRequestException("caído", null, HttpStatusCode.ServiceUnavailable));
+
+        for (var i = 0; i < 4; i++)
+        {
+            await RunWorkerAsync(store);
+            await UpdateItemsAsync(jobId, item => item.ClaimedAtUtc = item.ClaimedAtUtc is null ? null : DateTime.UtcNow - AiCatalogWorker.Lease - TimeSpan.FromSeconds(1));
+        }
+
+        var item = Assert.Single(await ItemsAsync(jobId));
+        Assert.Equal(AiCatalogItemStatus.Review, item.Status);
+        var state = AiCatalogItemState.FromJson(item.ProposalJson);
+        Assert.False(state.Passed);
+        Assert.NotNull(state.Proposal);
+        Assert.Contains("evaluador", item.JudgeNotes);
+        // La redacción que ya se pagó no se repite.
+        Assert.Single(factory.Ai.Calls(Sonnet));
+        var job = await store.GetAsync($"{Jobs}/{jobId}");
+        Assert.Equal(1, Count(job, "Review"));
+        Assert.Equal(0, Count(job, "Failed"));
+        Assert.Equal("Done", job.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Reintentar_un_item_que_fallo_lo_devuelve_a_la_cola_y_reabre_el_trabajo()
+    {
+        var (store, _) = await StoreAsync("awy");
+        var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
+        // Lo que deja una caída larga: el ítem Failed y el trabajo terminado (se arma directo: el corte por fallas del
+        // proveedor seguiría abierto si se la provocara de verdad).
+        await UpdateItemsAsync(jobId, item =>
+        {
+            item.Status = AiCatalogItemStatus.Failed;
+            item.ProposalJson = (AiCatalogItemState.Initial with
+            {
+                Step = AiCatalogStep.Done,
+                TransientFailures = AiCatalogItemProcessor.MaxTransientFailures,
+                FailureReason = "La IA no respondió después de 4 intentos.",
+            }).ToJson();
+        });
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+            await db.CatalogJobs.IgnoreQueryFilters().Where(j => j.Id == jobId)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, AiCatalogJobStatus.Done).SetProperty(j => j.Processed, 1));
+        }
+        var failed = Assert.Single(await ItemsAsync(jobId));
+        Assert.Equal(AiCatalogItemStatus.Failed, failed.Status);
+        Assert.Equal(1, (await store.GetAsync($"{Jobs}/{jobId}")).GetProperty("processed").GetInt32());
+
+        var retried = await store.PostAsync($"/api/v1/ai/catalog/items/{failed.Id}/retry", new { });
+
+        Assert.Equal("Pending", retried.GetProperty("status").GetString());
+        var job = await store.GetAsync($"{Jobs}/{jobId}");
+        Assert.Equal("Running", job.GetProperty("status").GetString());
+        Assert.Equal(0, job.GetProperty("processed").GetInt32());
+        var queued = Assert.Single(await ItemsAsync(jobId));
+        Assert.Equal(0, queued.Attempts);
+        var state = AiCatalogItemState.FromJson(queued.ProposalJson);
+        Assert.Equal(0, state.TransientFailures);
+        Assert.Null(state.FailureReason);
+
+        RespondDefaults(1);
+        await RunWorkerAsync(store);
+        Assert.Equal(AiCatalogItemStatus.Review, Assert.Single(await ItemsAsync(jobId)).Status);
+    }
+
+    [Fact]
+    public async Task Reintentar_solo_vale_para_los_que_fallaron_y_respeta_el_tope()
+    {
+        var (store, _) = await StoreAsync("awz", budgetUsd: 0.01m);
+        var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
+        await UpdateItemsAsync(jobId, item => item.Status = AiCatalogItemStatus.Review);
+        var item = Assert.Single(await ItemsAsync(jobId));
+
+        var notFailed = await store.SendAsync(HttpMethod.Post, $"/api/v1/ai/catalog/items/{item.Id}/retry");
+        Assert.Equal(HttpStatusCode.Conflict, notFailed.StatusCode);
+
+        await UpdateItemsAsync(jobId, i => i.Status = AiCatalogItemStatus.Failed);
+        var overBudget = await store.SendAsync(HttpMethod.Post, $"/api/v1/ai/catalog/items/{item.Id}/retry");
+        Assert.Equal(HttpStatusCode.Conflict, overBudget.StatusCode);
+        Assert.Equal(AiCatalogItemStatus.Failed, Assert.Single(await ItemsAsync(jobId)).Status);
+    }
+
+    [Fact]
+    public async Task Un_trabajo_terminado_con_un_item_pendiente_se_retoma()
+    {
+        var (store, _) = await StoreAsync("awn");
+        var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
+        // Lo que dejaba la carrera de elegir la categoría mientras el trabajo se cerraba: Done con un ítem Pending.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+            await db.CatalogJobs.IgnoreQueryFilters().Where(j => j.Id == jobId)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, AiCatalogJobStatus.Done));
+        }
+        RespondDefaults(1);
+
+        await RunWorkerAsync(store);
+
+        Assert.Equal(AiCatalogItemStatus.Review, Assert.Single(await ItemsAsync(jobId)).Status);
+        Assert.Equal("Done", (await store.GetAsync($"{Jobs}/{jobId}")).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Un_token_de_ML_revocado_pausa_pidiendo_reconectar()
+    {
+        var (store, category) = await StoreAsync("awu");
+        factory.ExternalHttp.OnJson(HttpMethod.Get, $"{MlApi}/categories/{category}/attributes",
+            new { message = "invalid token" }, HttpStatusCode.Unauthorized);
+        var jobId = await CreateJobAsync(store, await ProductAsync(store, "Taladro"));
+
+        await RunWorkerAsync(store);
+
+        var job = await store.GetAsync($"{Jobs}/{jobId}");
+        Assert.Equal("PausedUnavailable", job.GetProperty("status").GetString());
+        var reason = job.GetProperty("pauseReason").GetString()!;
+        Assert.Contains("Reconectá Mercado Libre", reason);
+        Assert.DoesNotContain("Ya podés reanudar", reason);
     }
 
     [Fact]

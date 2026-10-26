@@ -277,6 +277,92 @@ public sealed class AiCatalogReviewTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Quitar_un_atributo_propuesto_no_lo_guarda()
+    {
+        var (store, _, products, items) = await ArrangeOneAsync("rv9b",
+            Reviewed(true, Value("COLOR", "52049", "Negro"), Value("IS_KIT", "242084", "No")));
+
+        var approved = await store.PostAsync($"{Items}/{items[0]}/approve", new { remove = new[] { "color", "NO_EXISTE" } });
+
+        Assert.Equal("Approved", approved.GetProperty("status").GetString());
+        var saved = Assert.Single(await MeliAttributesAsync(store.TenantId, products[0]));
+        Assert.Equal("IS_KIT", saved.AttributeId);
+    }
+
+    [Fact]
+    public async Task Corregir_un_atributo_propuesto_pisa_el_valor_de_la_IA()
+    {
+        var (store, _, products, items) = await ArrangeOneAsync("rv9c", Reviewed(true, Value("COLOR", "52049", "Negro")));
+
+        await store.PostAsync($"{Items}/{items[0]}/approve", new { attributes = new[] { new { id = "COLOR", valueId = "51993" } } });
+
+        var saved = Assert.Single(await MeliAttributesAsync(store.TenantId, products[0]));
+        Assert.Equal(("COLOR", "51993", "Rojo"), (saved.AttributeId, saved.ValueId, saved.ValueName));
+    }
+
+    private static async Task<Guid> SpecAsync(Merchant store, string name, string type, string? unit)
+    {
+        var created = await store.PostAsync("/api/v1/spec-definitions", new
+        {
+            name,
+            type,
+            unit,
+            meliAttributeId = "LENGTH",
+            showOnProduct = true,
+            filterable = false,
+            sortOrder = 1,
+        });
+        return created.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Dictionary<Guid, string?>> SpecsAsync(Merchant store, Guid productId) =>
+        (await store.GetAsync($"/api/v1/products/{productId}")).GetProperty("specs").EnumerateArray()
+            .ToDictionary(s => s.GetProperty("definitionId").GetGuid(), s => s.GetProperty("value").GetString());
+
+    [Fact]
+    public async Task Una_spec_numerica_en_otra_unidad_manda_el_dato_a_ML_y_no_lo_guarda_sin_unidad()
+    {
+        var (store, _, products, items) = await ArrangeOneAsync("rv9d",
+            Reviewed(true, new AiCatalogAttributeProposal("LENGTH", null, "300", "m", false)));
+        var spec = await SpecAsync(store, "Largo del cable", "NUMBER", "cm");
+
+        var approved = await store.PostAsync($"{Items}/{items[0]}/approve", new { });
+
+        // 300 m no es 300 cm: la spec queda sin tocar y el dato, con su unidad, viaja solo a Mercado Libre.
+        Assert.DoesNotContain(spec, await SpecsAsync(store, products[0]));
+        var saved = Assert.Single(await MeliAttributesAsync(store.TenantId, products[0]));
+        Assert.Equal(("LENGTH", "300", "m"), (saved.AttributeId, saved.ValueName, saved.Unit));
+        Assert.Equal("meli", approved.GetProperty("proposal").GetProperty("attributes")[0].GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task Una_spec_numerica_en_la_misma_unidad_se_guarda_en_la_ficha()
+    {
+        var (store, _, products, items) = await ArrangeOneAsync("rv9e",
+            Reviewed(true, new AiCatalogAttributeProposal("LENGTH", null, "300", "CM", false)));
+        var spec = await SpecAsync(store, "Largo del cable", "NUMBER", "cm");
+
+        var approved = await store.PostAsync($"{Items}/{items[0]}/approve", new { });
+
+        Assert.Equal("300", (await SpecsAsync(store, products[0]))[spec]);
+        Assert.Empty(await MeliAttributesAsync(store.TenantId, products[0]));
+        Assert.Equal("spec", approved.GetProperty("proposal").GetProperty("attributes")[0].GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task Una_spec_de_texto_guarda_el_valor_con_su_unidad()
+    {
+        var (store, _, products, items) = await ArrangeOneAsync("rv9f",
+            Reviewed(true, new AiCatalogAttributeProposal("LENGTH", null, "300", "cm", false)));
+        var spec = await SpecAsync(store, "Largo del cable", "TEXT", null);
+
+        await store.PostAsync($"{Items}/{items[0]}/approve", new { });
+
+        Assert.Equal("300 cm", (await SpecsAsync(store, products[0]))[spec]);
+        Assert.Empty(await MeliAttributesAsync(store.TenantId, products[0]));
+    }
+
+    [Fact]
     public async Task Descartar_no_guarda_nada()
     {
         var (store, _, products, items) = await ArrangeOneAsync("rv10", Reviewed(true, Value("COLOR", "52049", "Negro")));
@@ -400,6 +486,33 @@ public sealed class AiCatalogReviewTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("no existe en Mercado Libre", (await ProblemAsync(response)).GetProperty("detail").GetString());
         Assert.Equal(AiCatalogItemStatus.NeedsCategory, (await ItemAsync(items[0])).Status);
+    }
+
+    [Fact]
+    public async Task Elegir_la_categoria_mientras_el_trabajo_termina_reabre_el_trabajo()
+    {
+        var category = $"MLA{Random.Shared.NextInt64(100_000_000, 999_999_999)}";
+        var (store, jobId, _, items) = await ArrangeAsync("rv13b", 1, _ => (AiCatalogItemStatus.NeedsCategory, AiCatalogItemState.Initial),
+            AiCatalogJobStatus.Running);
+        // La consulta a ML tarda: mientras tanto el worker ve que no quedan pendientes y cierra el trabajo.
+        factory.ExternalHttp.On(HttpMethod.Get, $"{MlApi}/categories/{category}", (_, _) =>
+        {
+            Task.Run(async () =>
+            {
+                using var scope = factory.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+                await db.CatalogJobs.IgnoreQueryFilters().Where(j => j.Id == jobId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, AiCatalogJobStatus.Done));
+            }).GetAwaiter().GetResult();
+            return FakeHttp.Json(new { id = category, name = "Taladros eléctricos" });
+        });
+
+        var updated = await store.PutAsync($"{Items}/{items[0]}/category", new { categoryId = category });
+
+        Assert.Equal("Pending", updated.GetProperty("status").GetString());
+        var job = await store.GetAsync($"{Jobs}/{jobId}");
+        Assert.Equal("Running", job.GetProperty("status").GetString());
+        Assert.Equal(0, job.GetProperty("processed").GetInt32());
     }
 
     [Fact]

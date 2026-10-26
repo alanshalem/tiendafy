@@ -77,6 +77,14 @@ public static class AiCatalogEndpoints
             return discarded.IsSuccess ? Results.Ok(discarded.Value) : discarded.Error.ToProblem();
         });
 
+        // Un ítem que falló vuelve a la cola (gasta de nuevo: respeta el tope y que la IA y ML estén listos).
+        catalog.MapPost("/items/{itemId:guid}/retry", async (
+            Guid itemId, AiCatalogJobs jobs, AiCatalogReview review, CancellationToken ct) =>
+        {
+            var retried = await jobs.RetryItemAsync(itemId, ct);
+            return retried.IsSuccess ? Results.Ok(await review.GetItemAsync(itemId, ct)) : retried.Error.ToProblem();
+        });
+
         catalog.MapPost("/jobs/{jobId:guid}/approve-passed", async (Guid jobId, AiCatalogReview review, CancellationToken ct) =>
         {
             var result = await review.ApprovePassedAsync(jobId, ct);
