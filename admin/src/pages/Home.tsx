@@ -10,6 +10,7 @@ import { formatMoney, formatNumber } from '../lib/format';
 import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
+import { AskStoreButton } from '../components/ai/AskStoreButton';
 import { storefrontHost, storePublicHost } from '../lib/storefront';
 import { InlineSkeleton } from '../components/Skeleton';
 
@@ -115,6 +116,7 @@ export function HomePage() {
             Esto es lo que está pasando en <strong className="text-fg">{store.name}</strong>.
           </>
         }
+        actions={<AskStoreButton />}
       />
 
       <AvisosCard />

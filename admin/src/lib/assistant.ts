@@ -28,8 +28,8 @@ const size = (turns: AssistantTurn[]) =>
 export function clipHistory(turns: AssistantTurn[]): AssistantTurn[] {
   const kept = turns.slice(-ASSISTANT_MAX_TURNS);
   while (kept.length > 1 && size(kept) > ASSISTANT_MAX_CHARS) kept.shift();
-  if (kept.length === 1 && size(kept) > ASSISTANT_MAX_CHARS) {
-    const [only] = kept;
+  const only = kept[0];
+  if (kept.length === 1 && only && size(kept) > ASSISTANT_MAX_CHARS) {
     const room = Math.max(0, ASSISTANT_MAX_CHARS - only.question.length);
     return [{ ...only, answer: only.answer.slice(0, room) }];
   }

@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Calendar, ChevronDown, Clock } from 'lucide-react';
 import { cn, PageHeader } from '@tiendafy/ui';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { AskStoreButton } from '../ai/AskStoreButton';
 
 /* ============================================================
    Rango de fechas REAL de las páginas de estadísticas.
@@ -227,7 +228,7 @@ export function StatsPageHeader({
 }) {
   return (
     <div className="space-y-4">
-      <PageHeader title={title} subtitle={description} />
+      <PageHeader title={title} subtitle={description} actions={<AskStoreButton />} />
       {range && onRangeChange && <StatsToolbar value={range} onChange={onRangeChange} />}
     </div>
   );

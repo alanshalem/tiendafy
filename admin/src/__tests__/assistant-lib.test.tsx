@@ -20,8 +20,9 @@ describe('clipHistory', () => {
   });
 
   it('corta una sola vuelta larga', () => {
-    const [only] = clipHistory([{ question: 'p'.repeat(500), answer: 'r'.repeat(5500) }]);
-    expect(only.question.length + only.answer.length).toBeLessThanOrEqual(4000);
+    const clipped = clipHistory([{ question: 'p'.repeat(500), answer: 'r'.repeat(5500) }]);
+    expect(clipped).toHaveLength(1);
+    expect(clipped[0]!.question.length + clipped[0]!.answer.length).toBeLessThanOrEqual(4000);
   });
 
   it('sin vueltas es vacío', () => {

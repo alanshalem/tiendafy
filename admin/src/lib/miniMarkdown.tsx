@@ -46,17 +46,17 @@ export function MiniMarkdown({ text }: { text: string }) {
   let key = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i] ?? '';
     if (line.trim() === '') {
       i++;
       continue;
     }
 
-    if (isTableRow(line) && i + 1 < lines.length && isTableRule(lines[i + 1])) {
+    if (isTableRow(line) && i + 1 < lines.length && isTableRule(lines[i + 1] ?? '')) {
       const head = cells(line);
       i += 2;
       const rows: string[][] = [];
-      while (i < lines.length && isTableRow(lines[i])) rows.push(cells(lines[i++]));
+      for (let row = lines[i]; row !== undefined && isTableRow(row); row = lines[++i]) rows.push(cells(row));
       blocks.push(
         <table key={key++} className="my-2 w-full border-collapse text-left text-sm">
           <thead>
@@ -88,7 +88,8 @@ export function MiniMarkdown({ text }: { text: string }) {
     if (listKind) {
       const pattern = listKind === 'ul' ? bullet : numbered;
       const items: string[] = [];
-      while (i < lines.length && pattern.test(lines[i])) items.push(lines[i++].replace(pattern, '$1'));
+      for (let item = lines[i]; item !== undefined && pattern.test(item); item = lines[++i])
+        items.push(item.replace(pattern, '$1'));
       const Tag = listKind;
       blocks.push(
         <Tag key={key++} className={`my-1 ml-5 ${listKind === 'ul' ? 'list-disc' : 'list-decimal'}`}>
@@ -104,23 +105,27 @@ export function MiniMarkdown({ text }: { text: string }) {
     if (title) {
       blocks.push(
         <p key={key++} className="my-1 font-semibold">
-          {inline(title[1])}
+          {inline(title[1] ?? '')}
         </p>,
       );
       i++;
       continue;
     }
 
-    const paragraph: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() !== '' &&
-      !bullet.test(lines[i]) &&
-      !numbered.test(lines[i]) &&
-      !heading.test(lines[i]) &&
-      !isTableRow(lines[i])
+    // La primera línea entra siempre (una fila con barras sin su regla no es tabla: es texto).
+    const paragraph: string[] = [line];
+    i++;
+    for (
+      let next = lines[i];
+      next !== undefined &&
+      next.trim() !== '' &&
+      !bullet.test(next) &&
+      !numbered.test(next) &&
+      !heading.test(next) &&
+      !isTableRow(next);
+      next = lines[++i]
     )
-      paragraph.push(lines[i++]);
+      paragraph.push(next);
     blocks.push(
       <p key={key++} className="my-1">
         {paragraph.map((p, n) => (
