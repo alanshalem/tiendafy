@@ -261,8 +261,18 @@ el formato del cable (`stock`, `envio`, `producto`, `precio`, `postventa`,
 `fuera_de_politica`, `otro`). Con `manual: true` no hay `text`: la consulta no
 se puede contestar con IA y el panel muestra "Respondé a mano" con el `reason`
 (una frase que escribió el clasificador; el panel la muestra como texto plano y
-nunca vuelve a un prompt). Las dos tareas (`QuestionClassify` y
-`QuestionDraft`) tienen que estar disponibles para que el botón se vea.
+nunca vuelve a un prompt).
+
+Cuándo se ve el botón (`useAiTask` en el panel, sobre `GET /ai/status`):
+
+- **Se oculta** si la persona no tiene el permiso del canal (en la Bandeja,
+  el mismo de la tabla de arriba) o el de la función (`Ai.Denied`), o si la
+  tienda nunca armó la IA (ninguna tarea tiene modelo).
+- **Se ve deshabilitado**, con el motivo al pasar el mouse, en el resto de los
+  casos en que no se puede usar: la IA de la tienda apagada, falta la clave,
+  una de las dos tareas (`QuestionClassify`, `QuestionDraft`) sin modelo
+  mientras otras sí lo tienen, la palanca global `Ai:Disabled`. El tope del mes
+  no lo muestra el estado: se ve al pedir el borrador (`Ai.BudgetExceeded`).
 
 ### Pasos
 
@@ -274,7 +284,11 @@ nunca vuelve a un prompt). Las dos tareas (`QuestionClassify` y
    comprador no puede inventar un mensaje del vendedor) y el conjunto se
    encierra en `<mensajes_del_comprador>` con `UntrustedText` (hasta 1500
    caracteres; sus `<` y `>` se reemplazan para que el comprador no abra ni
-   cierre etiquetas).
+   cierre etiquetas). Si los mensajes no entran en los 1500, se caen **los
+   más viejos primero**: el último del comprador, el que se contesta, queda
+   siempre (seis mensajes de ML de 350 caracteres no entran). Si ese mensaje
+   solo ya se pasa, se recorta su final. En el contacto el hilo es el mensaje
+   original y hasta 5 respuestas ya enviadas, de la más vieja a la más nueva.
 2. **Clasificar** (`QuestionClassify`, JSON). Devuelve una categoría y un
    motivo. Si la respuesta no es un JSON válido o la categoría no existe, es
    `otro` sin motivo. Con `fuera_de_politica` (pide o da datos de contacto,
@@ -283,14 +297,21 @@ nunca vuelve a un prompt). Las dos tareas (`QuestionClassify` y
 3. **Redactar con herramientas** (`QuestionDraft`). El system prompt es una
    constante por canal (así el proveedor lo cachea); lo que cambia por consulta
    (el criterio de la categoría, el contexto armado por nosotros, el hilo) va
-   en el mensaje de usuario. El motivo del clasificador **no** entra.
+   en el mensaje de usuario. El motivo del clasificador **no** entra. El
+   borrador es el texto del **último mensaje del asistente**
+   (`ChatResponse.FinalText()` en `AiText`): `ChatResponse.Text` junta todos
+   los mensajes de la vuelta, también lo que el modelo dice antes de llamar a
+   una herramienta ("Voy a consultar…"), que no va al borrador.
 4. **Avisos** (`DraftGuardrails`): chequeos deterministas sobre el texto. Solo
    detectan, el borrador no se modifica.
 
-Todo pasa por `IAiGateway.RunAsync`, así que valen el tope, el consumo (una
-fila por llamada: dos por borrador) y el respaldo. Por eso las herramientas se
-arman **dentro** del cuerpo: si corre el respaldo, arranca con herramientas y
-registro nuevos.
+Todo pasa por `IAiGateway.RunAsync`, así que valen el tope, el consumo y el
+respaldo. El consumo tiene una fila por cada llamada al modelo: clasificar es
+una, y redactar de una a tres (una por vuelta con herramientas más la
+respuesta final), así que un borrador deja de una a cuatro filas (una sola si
+es `fuera_de_politica`), más las del respaldo si corre. Por eso las
+herramientas se arman **dentro** del cuerpo: si corre el respaldo, arranca con
+herramientas y registro nuevos.
 
 ### Herramientas por canal y categoría
 
@@ -314,8 +335,14 @@ pedido que ya resolvió el endpoint, el modelo no elige ids.
   [Qué pasa en cada llamada](#qué-pasa-en-cada-llamada)). Se loguea la
   herramienta, el tipo de excepción y si fue por tiempo, nunca el mensaje de la
   excepción (puede traer datos). La cancelación del pedido sí se propaga.
+- **Cada herramienta corre una sola vez por intento** (`DraftToolLog`), haya
+  traído el dato o fallado. Si el modelo la vuelve a pedir, en la misma vuelta
+  o en otra, recibe "Ya te pasé este dato más arriba." sin leer nada:
+  `MaximumIterationsPerRequest` limita las vueltas, no las llamadas por
+  vuelta, y en posventa de ML cada `seguimiento` es un `GET /shipments` por
+  envío.
 - Cada resultado se recorta a 1200 caracteres, y la estimación de entrada para
-  el tope suma ese margen por herramienta.
+  el tope suma ese margen por herramienta (vale porque cada una corre una vez).
 - **No hay herramienta de envío en las preguntas de ML.** El costo y el plazo
   dependen del código postal de quien compra, que no tenemos: el borrador lo
   remite al calculador de envío de la publicación y no los calcula.
@@ -323,9 +350,11 @@ pedido que ya resolvió el endpoint, el modelo no elige ids.
   nunca la URL (dispararía el aviso de links). El número que el comercio cargó
   a mano es texto libre: solo se muestra si parece un código (letras, dígitos,
   guiones y espacios simples, hasta 40 caracteres); si no, el modelo recibe
-  "Hay un seguimiento cargado, pero no se puede mostrar acá." En la tienda
-  propia no hay fecha estimada de entrega que prometer; en ML sale de
-  `lead_time.estimated_delivery_time` y solo si el envío sigue en curso.
+  "Hay un seguimiento cargado, pero no se puede mostrar acá." Se lee al armar
+  el borrador, no dentro de la herramienta: así ninguna herramienta toca la
+  base. En la tienda propia no hay fecha estimada de entrega que prometer; en
+  ML sale de `lead_time.estimated_delivery_time` y solo si el envío sigue en
+  curso.
 - **Leer es leer.** Los mensajes de ML se piden con `mark_as_read=false` (el
   `GET` de mensajes del panel marca leído; este no), el chat de la tienda se
   lee sin marcar la conversación y el contacto sin marcar el mensaje. Pedir un
@@ -357,15 +386,17 @@ salir varios a la vez.
 | `code` | Cuándo salta |
 |---|---|
 | `link` | El borrador trae una URL, un `www.` o un dominio (`.com`, `.ar`, `.shop`…) |
-| `contact-data` | El borrador contiene `[dato oculto]` (copió un dato tapado), o trae un mail, teléfono, DNI/CUIT, un `@usuario` o una red social con un usuario o número |
-| `amount` | Menciona un monto (`$ 15.000`, `14.000 pesos`) que no es ninguno de los conocidos: el de la publicación o los del pedido. Sin ningún monto conocido también avisa |
+| `contact-data` | El borrador contiene `[dato oculto]` (copió un dato tapado), o trae un mail, teléfono, DNI/CUIT, un `@usuario` o una red social con un usuario o número. Los números que conoce nuestro código (pedido, pack, envío y el de seguimiento que devolvió la herramienta, de 6 caracteres o más) no cuentan |
+| `amount` | Menciona un monto (`$ 15.000`, `14.000 pesos`) que no es ninguno de los conocidos: el de la publicación, o los del pedido (total, pagado, envío, lo devuelto, y el unitario y el subtotal de cada línea). Sin ningún monto conocido también avisa |
 | `too-long` | Pasa de 350 caracteres en un mensaje posventa de ML (tope de Mercado Libre) o de 2000 en el resto |
 | `delivery-date` | Promete una fecha de entrega y el seguimiento no trajo una fecha estimada |
 
 Las promesas de fecha tienen dos grados. Las **señales fuertes** avisan solas:
 "en 3 días", "dentro de 48 horas", "3 a 5 días", "días hábiles", "esta
 semana", "la semana que viene", "a fin de mes", "el 12 de noviembre", "pasado
-mañana". Las **señales débiles** (un día de la semana, "mañana", "hoy" o una
+mañana". Un número de horas suelto solo cuenta si es un plazo (24, 48, 72 o
+96: "despachamos en las próximas 24 hs"); "atendemos de 9 a 18 hs" no avisa.
+Las **señales débiles** (un día de la semana, "mañana", "hoy" o una
 fecha `dd/mm`) avisan solo si en la misma oración hay un verbo de entrega
 (llegar, recibir, entregar, despachar, enviar, mandar, salir), para no avisar
 por un "hoy estamos de vacaciones". Si la herramienta `seguimiento` devolvió
@@ -396,7 +427,8 @@ punta: con la API de dev, `POST /dev/demo-seed`, cargar una clave de prueba en
 Configuración → Inteligencia artificial y asignar `QuestionClassify` y
 `QuestionDraft`; en las preguntas de Mercado Libre tocar el destello de una
 pregunta. Tiene que llegar el texto o "Respondé a mano", y en el consumo del
-mes tiene que aparecer una fila por llamada (clasificar y redactar).
+mes tiene que aparecer una fila por llamada al modelo: una de clasificar y de
+una a tres de redactar (ver [Pasos](#pasos)).
 
 ## Permisos
 
