@@ -10,6 +10,7 @@ public static class AiCatalogRegistration
         services.AddScoped<AiCatalogSelection>();
         services.AddScoped<AiCatalogJobs>();
         services.AddScoped<AiCatalogItemProcessor>();
+        services.AddScoped<AiCatalogReview>();
         return services;
     }
 }

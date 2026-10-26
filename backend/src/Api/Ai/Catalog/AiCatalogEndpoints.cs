@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Endpoints;
+using Api.Storefront;
 using Identity.Infrastructure;
 using SharedKernel.Common;
 
@@ -49,6 +50,53 @@ public static class AiCatalogEndpoints
         {
             var cancelled = await jobs.CancelAsync(jobId, ct);
             return cancelled.IsSuccess ? Results.Ok(cancelled.Value) : cancelled.Error.ToProblem();
+        });
+
+        // ---- Revisión
+
+        catalog.MapGet("/jobs/{jobId:guid}/items", async (
+            Guid jobId, AiCatalogReview review, CancellationToken ct, string? status = null, int? offset = null, int? limit = null) =>
+        {
+            var page = await review.ListAsync(jobId, status, offset, limit, ct);
+            return page.IsSuccess ? Results.Ok(new { items = page.Value.Items, total = page.Value.Total }) : page.Error.ToProblem();
+        });
+
+        // Aprobar guarda en la tienda y no toca Mercado Libre: se avisa al storefront como en cualquier edición del catálogo.
+        catalog.MapPost("/items/{itemId:guid}/approve", async (
+            Guid itemId, AiCatalogReview review, CancellationToken ct, AiCatalogApproveRequest? request = null) =>
+        {
+            var approved = await review.ApproveAsync(itemId, request, ct);
+            return approved.IsSuccess ? Results.Ok(approved.Value) : approved.Error.ToProblem();
+        }).RevalidatesStorefront(StorefrontScope.Catalog);
+
+        catalog.MapPost("/items/{itemId:guid}/discard", async (Guid itemId, AiCatalogReview review, CancellationToken ct) =>
+        {
+            var discarded = await review.DiscardAsync(itemId, ct);
+            return discarded.IsSuccess ? Results.Ok(discarded.Value) : discarded.Error.ToProblem();
+        });
+
+        catalog.MapPost("/jobs/{jobId:guid}/approve-passed", async (Guid jobId, AiCatalogReview review, CancellationToken ct) =>
+        {
+            var result = await review.ApprovePassedAsync(jobId, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+        }).RevalidatesStorefront(StorefrontScope.Catalog);
+
+        catalog.MapPut("/items/{itemId:guid}/category", async (
+            Guid itemId, AiCatalogSetCategoryRequest request, AiCatalogReview review, CancellationToken ct) =>
+        {
+            var updated = await review.SetCategoryAsync(itemId, request.CategoryId ?? "", ct);
+            return updated.IsSuccess ? Results.Ok(updated.Value) : updated.Error.ToProblem();
+        });
+
+        catalog.MapGet("/categories/search", async (AiCatalogReview review, CancellationToken ct, string? q = null) =>
+        {
+            var found = await review.SearchCategoriesAsync(q, ct);
+            return found.IsSuccess
+                ? Results.Ok(new
+                {
+                    suggestions = found.Value.Select(s => new { categoryId = s.CategoryId, categoryName = s.CategoryName, domainName = s.DomainName }),
+                })
+                : found.Error.ToProblem();
         });
 
         return apiV1;

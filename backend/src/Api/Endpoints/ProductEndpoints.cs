@@ -439,15 +439,9 @@ public static partial class ProductEndpoints
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             if (product is null) return Results.NotFound();
 
-            // Solo se aceptan campos que existan en esta tienda: un id inventado
-            // dejaría un valor colgado que después nadie sabe leer.
-            var known = await db.SpecDefinitions.AsNoTracking()
-                .Where(d => d.TenantId == tenant.TenantId)
-                .Select(d => d.Id).ToListAsync(ct);
-
-            product.SetSpecs((request.Values ?? [])
-                .Where(v => known.Contains(v.DefinitionId))
-                .Select(v => (v.DefinitionId, v.Value)));
+            // Solo se aceptan campos que existan en esta tienda (ver ProductSpecsSave).
+            var known = await ProductSpecsSave.KnownDefinitionIdsAsync(db, tenant.TenantId, ct);
+            ProductSpecsSave.Apply(product, (request.Values ?? []).Select(v => (v.DefinitionId, v.Value)), known);
 
             await db.SaveChangesAsync(ct);
             return Results.Ok(product.ToDto());
