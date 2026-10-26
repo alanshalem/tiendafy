@@ -37,7 +37,7 @@ public sealed record StatsPeriod(DateOnly From, DateOnly To, DateTime SinceUtc, 
     /// <summary>
     /// Arma el período desde fechas AAAA-MM-DD. Sin <paramref name="desde"/>:
     /// los últimos <paramref name="defaultDays"/> días hasta <paramref name="hasta"/>
-    /// (o hoy). Una fecha futura se corrige a <paramref name="today"/>.
+    /// (o hoy). Una fecha futura, en desde o en hasta, se corrige a <paramref name="today"/>.
     /// <paramref name="today"/> llega de afuera para no leer el reloj.
     /// </summary>
     public static Result<StatsPeriod> Parse(string? desde, string? hasta, DateOnly today, int defaultDays = 30)
@@ -54,6 +54,9 @@ public sealed record StatsPeriod(DateOnly From, DateOnly To, DateTime SinceUtc, 
             from = to.AddDays(1 - Math.Clamp(defaultDays, 1, MaxDays));
         else if (!TryParseDate(desde, out from))
             return Result.Failure<StatsPeriod>(BadDate());
+
+        // Una desde futura tampoco puede dejar el período en el futuro.
+        if (from > today) from = today;
 
         return FromDays(from, to);
     }

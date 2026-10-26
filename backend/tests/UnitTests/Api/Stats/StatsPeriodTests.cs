@@ -31,6 +31,7 @@ public sealed class StatsPeriodTests
         Assert.Equal(366, period.Days);
         Assert.True(period.Clamped);
         Assert.Equal(Today, period.To);
+        Assert.Equal(Today.AddDays(-365), period.From);
     }
 
     [Fact]
@@ -57,6 +58,57 @@ public sealed class StatsPeriodTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Assistant.BadDate", result.Error.Code);
+    }
+
+    [Fact]
+    public void Parse_desde_futura_sin_hasta_no_termina_en_el_futuro()
+    {
+        var period = StatsPeriod.Parse("2026-10-26", null, Today).Value;
+
+        Assert.Equal(Today, period.From);
+        Assert.Equal(Today, period.To);
+        Assert.Equal("el 25/10/2026", period.Text);
+    }
+
+    [Fact]
+    public void Parse_desde_y_hasta_futuros_dan_hoy()
+    {
+        var period = StatsPeriod.Parse("2026-11-01", "2026-12-01", Today).Value;
+
+        Assert.Equal(Today, period.From);
+        Assert.Equal(Today, period.To);
+        Assert.DoesNotContain("2026", period.Text.Replace("25/10/2026", ""));
+    }
+
+    [Theory]
+    [InlineData("2026-1-5", null)]
+    [InlineData(null, "25/10/2026")]
+    [InlineData("2026-10-01", "ayer")]
+    public void Parse_fecha_mal_formada_en_desde_o_hasta_da_BadDate(string? desde, string? hasta)
+    {
+        var result = StatsPeriod.Parse(desde, hasta, Today);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Assistant.BadDate", result.Error.Code);
+    }
+
+    [Fact]
+    public void Parse_usa_defaultDays_cuando_falta_desde()
+    {
+        var period = StatsPeriod.Parse(null, null, Today, defaultDays: 7).Value;
+
+        Assert.Equal(new DateOnly(2026, 10, 19), period.From);
+        Assert.Equal(7, period.Days);
+    }
+
+    [Fact]
+    public void Parse_hasta_sin_desde_cuenta_hacia_atras_desde_hasta()
+    {
+        var period = StatsPeriod.Parse(null, "2026-10-10", Today).Value;
+
+        Assert.Equal(new DateOnly(2026, 9, 11), period.From);
+        Assert.Equal(new DateOnly(2026, 10, 10), period.To);
+        Assert.Equal(30, period.Days);
     }
 
     [Fact]
