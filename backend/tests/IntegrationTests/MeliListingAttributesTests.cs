@@ -225,7 +225,8 @@ public sealed class MeliListingAttributesTests(ApiFactory factory)
         var response = await store.SendAsync(HttpMethod.Post, $"{Catalog}/items/{items[0]}/push-to-meli", new { });
 
         Assert.False(response.IsSuccessStatusCode);
-        Assert.Empty(PutsTo(meliItems[0]));    }
+        Assert.Empty(PutsTo(meliItems[0]));
+    }
 
     [Fact]
     public async Task Sin_MeliPublish_da_403()

@@ -37,7 +37,7 @@ public sealed class AiCatalogJobs(
         "Mercado Libre o la inteligencia artificial rechazaron la conexión. Reconectá Mercado Libre en Configuración "
         + "(y revisá la clave de IA) y después reanudá el trabajo.";
 
-    private const string UnknownName ="Alguien del equipo";
+    private const string UnknownName = "Alguien del equipo";
 
     private static readonly AiCatalogItemStatus[] AllItemStatuses = Enum.GetValues<AiCatalogItemStatus>();
 

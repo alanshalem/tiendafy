@@ -36,7 +36,7 @@ public sealed class AiCatalogReview(
 
     private const int MaxMissingValues = 300;
 
-    internal static readonly Error ItemNotFound =Error.NotFound("AiCatalog.ItemNotFound", "Esa ficha no existe.");
+    internal static readonly Error ItemNotFound = Error.NotFound("AiCatalog.ItemNotFound", "Esa ficha no existe.");
 
     private static readonly Error NotReviewable = Error.Conflict("AiCatalog.NotReviewable", "Esta ficha ya no está para revisar.");
 

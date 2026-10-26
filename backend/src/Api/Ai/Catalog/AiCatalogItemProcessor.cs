@@ -67,7 +67,8 @@ public sealed class AiCatalogItemProcessor(
         {
             // Un bug o una falla inesperada de un ítem no puede repetirse cada 5 segundos para siempre ni frenar a los demás.
             logger.LogError(ex, "Falló la ficha del ítem {ItemId} de la tienda {TenantId}.", itemId, TenantId);
-            return await TransientAsync(work, "No se pudo armar la ficha de este producto.", ct);        }
+            return await TransientAsync(work, "No se pudo armar la ficha de este producto.", ct);
+        }
     }
 
     private async Task<AiCatalogItemOutcome> RunAsync(Work work, AiCatalogJob job, CancellationToken ct)
