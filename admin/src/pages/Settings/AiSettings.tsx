@@ -6,7 +6,7 @@ import type { AiConfig } from '../../lib/ai';
 import { qk } from '../../lib/queryKeys';
 import { useStore } from '../../context/StoreContext';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
-import { SETTINGS_CARD } from '../../lib/styles';
+import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
 import { AiProvidersCard } from './AiProvidersCard';
@@ -39,7 +39,7 @@ export function AiSettingsPage() {
     );
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="space-y-5">
       <SettingsHeader
         title="Inteligencia artificial"
         description="Claves, modelos, tope mensual y consumo de la IA. Las respuestas y los textos que sugiere siempre los revisás vos antes de usarlos."
@@ -50,7 +50,7 @@ export function AiSettingsPage() {
         </p>
       ) : (
         // key: lo que se tipeó y no se guardó (clave, modelos, tope) es de esta tienda; al cambiar de tienda se descarta.
-        <div key={store?.id} className="space-y-5">
+        <div key={store?.id} className={SETTINGS_COLUMNS}>
           <AiProvidersCard providers={config.providers} />
           <AiModelsCard tasks={config.tasks} assignments={config.assignments} />
           <AiBudgetCard settings={config.settings} />
