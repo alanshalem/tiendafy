@@ -35,31 +35,8 @@ public sealed partial class StoreDraftSources(
             .FirstOrDefaultAsync(ct);
         if (conversation is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
 
-        // Solo los campos que se usan: la dirección, el nombre, el mail y el teléfono del pedido no se cargan.
-        var raw = await orders.Orders.AsNoTracking()
-            .Where(o => o.Id == conversation.OrderId)
-            .Select(o => new
-            {
-                o.Id,
-                o.Number,
-                o.Status,
-                o.IsPickup,
-                o.CreatedAtUtc,
-                o.Currency,
-                o.ShippingCost,
-                o.DiscountAmount,
-                o.RefundedAmount,
-                o.Tracking,
-                o.ShippingMethodName,
-                o.FulfilledAtUtc,
-                Items = o.Items.Select(i => new { i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice }).ToList(),
-            })
-            .FirstOrDefaultAsync(ct);
-        if (raw is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
-        var order = new OrderView(
-            raw.Id, OrderLabel.For(raw.Number, raw.Id), raw.Status, raw.IsPickup, raw.CreatedAtUtc, raw.Currency,
-            raw.ShippingCost, raw.DiscountAmount, raw.RefundedAmount, raw.Tracking, raw.ShippingMethodName, raw.FulfilledAtUtc,
-            [.. raw.Items.Select(i => new ItemView(i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice))]);
+        var order = await ReadOrderAsync(conversation.OrderId, ct);
+        if (order is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
 
         // Sin AuthorName: en los mensajes del cliente es su mail.
         var recent = await support.Messages.AsNoTracking()
@@ -107,6 +84,21 @@ public sealed partial class StoreDraftSources(
         thread.AddRange(Enumerable.Reverse(replies).Select(body => new ThreadLine(FromSeller: true, body)));
         return new DraftSubject(
             DraftChannel.Contact, thread, "Mensaje enviado desde el formulario de contacto de la tienda.", [], new DraftReaders());
+    }
+
+    /// <summary>
+    /// Lee el pedido y lo pasa enseguida a <see cref="OrderView"/>: la entidad no sale de acá, así que su dirección,
+    /// nombre, mail y teléfono no llegan a ningún lector. El total es el del dominio (<see cref="Order.Total"/>).
+    /// </summary>
+    private async Task<OrderView?> ReadOrderAsync(Guid orderId, CancellationToken ct)
+    {
+        var order = await orders.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        return order is null
+            ? null
+            : new OrderView(
+                order.Id, order.Label, order.Status, order.IsPickup, order.CreatedAtUtc, order.ShippingCost, order.Total,
+                order.RefundedAmount, order.Tracking, order.ShippingMethodName, order.FulfilledAtUtc,
+                [.. order.Items.Select(i => new ItemView(i.ProductName, i.VariantDescription, i.Quantity, i.UnitPrice))]);
     }
 
     /// <summary>Total, envío y precio unitario de cada línea, en centavos.</summary>
@@ -223,22 +215,10 @@ public sealed partial class StoreDraftSources(
 
     private sealed record ItemView(string ProductName, string VariantDescription, int Quantity, Money UnitPrice);
 
-    /// <summary>El pedido, proyectado a lo que se usa. El total sale igual que en <see cref="Order.Total"/>.</summary>
+    /// <summary>El pedido, reducido a lo que se usa.</summary>
     private sealed record OrderView(
-        Guid Id, string Label, OrderStatus Status, bool IsPickup, DateTime CreatedAtUtc, string Currency,
-        Money ShippingCost, Money DiscountAmount, Money RefundedAmount, string? Tracking, string? ShippingMethodName,
-        DateTime? FulfilledAtUtc, IReadOnlyList<ItemView> Items)
-    {
-        public Money Total
-        {
-            get
-            {
-                var subtotal = Items.Aggregate(Money.Zero(Currency), (acc, i) => acc + (i.UnitPrice * i.Quantity));
-                return (DiscountAmount.AmountInMinorUnits >= subtotal.AmountInMinorUnits ? Money.Zero(Currency) : subtotal - DiscountAmount)
-                    + ShippingCost;
-            }
-        }
-    }
+        Guid Id, string Label, OrderStatus Status, bool IsPickup, DateTime CreatedAtUtc, Money ShippingCost, Money Total,
+        Money RefundedAmount, string? Tracking, string? ShippingMethodName, DateTime? FulfilledAtUtc, IReadOnlyList<ItemView> Items);
 
     /// <summary>Lo único del pedido que necesita el lector de seguimiento (corre más tarde, dentro de la herramienta).</summary>
     private sealed record ShipmentInput(
