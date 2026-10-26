@@ -22,17 +22,14 @@ public sealed class InventorySummaryQuery(CatalogDbContext catalog, InventoryDbC
 {
     public async Task<InventorySummary> RunAsync(TenantId tenant, int lowStockThreshold, CancellationToken ct)
     {
-        var tid = tenant;
-        var low = lowStockThreshold;
-
         var variants = await catalog.Products.AsNoTracking()
-            .Where(p => p.TenantId == tid)
+            .Where(p => p.TenantId == tenant)
             .SelectMany(p => p.Variants)
             .Select(v => new { v.Id, v.Cost })
             .ToListAsync(ct);
 
         var stock = await inventory.StockItems.AsNoTracking()
-            .Where(s => s.TenantId == tid)
+            .Where(s => s.TenantId == tenant)
             .Select(s => new { s.VariantId, s.Available, s.Reserved, s.Unlimited })
             .ToListAsync(ct);
         var available = stock
@@ -59,7 +56,7 @@ public sealed class InventorySummaryQuery(CatalogDbContext catalog, InventoryDbC
             var qty = available.GetValueOrDefault(v.Id, 0);
             units += qty;
             if (qty <= 0) outOfStock++;
-            else if (qty <= low) lowStock++;
+            else if (qty <= lowStockThreshold) lowStock++;
 
             // Valorización A COSTO, no a precio de venta: es la plata parada
             // en el depósito, no lo que se espera facturar por ella.
