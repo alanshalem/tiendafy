@@ -28,7 +28,7 @@
   <ItemGroup>
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
-    <PackageReference Include="AngleSharp" Version="1.8.4" />
+    <PackageReference Include="AngleSharp" Version="1.8.6" />
     <PackageReference Include="Google.Apis.Auth" Version="1.77.0" />
     <PackageReference Include="HtmlSanitizer" Version="9.2.1039" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
