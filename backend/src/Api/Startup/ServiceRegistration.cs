@@ -180,6 +180,8 @@ public static class ServiceRegistration
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliStockSyncWorker>();
+        // Fichas del catálogo con IA: reclamo por fila, tres productos en paralelo por tienda.
+        if (runPollingWorkers) services.AddHostedService<Api.Ai.Catalog.AiCatalogWorker>();
 
         // Redes sociales: OAuth por tienda (Meta, X) + Telegram por bot; posts
         // multi-red programados. Tokens cifrados; el worker publica cada minuto.

@@ -39,6 +39,18 @@ public static class AiCatalogEndpoints
         catalog.MapGet("/jobs/{jobId:guid}", async (Guid jobId, AiCatalogJobs jobs, CancellationToken ct) =>
             await jobs.GetAsync(jobId, ct) is { } job ? Results.Ok(job) : JobNotFound.ToProblem());
 
+        catalog.MapPost("/jobs/{jobId:guid}/resume", async (Guid jobId, AiCatalogJobs jobs, CancellationToken ct) =>
+        {
+            var resumed = await jobs.ResumeAsync(jobId, ct);
+            return resumed.IsSuccess ? Results.Ok(resumed.Value) : resumed.Error.ToProblem();
+        });
+
+        catalog.MapPost("/jobs/{jobId:guid}/cancel", async (Guid jobId, AiCatalogJobs jobs, CancellationToken ct) =>
+        {
+            var cancelled = await jobs.CancelAsync(jobId, ct);
+            return cancelled.IsSuccess ? Results.Ok(cancelled.Value) : cancelled.Error.ToProblem();
+        });
+
         return apiV1;
     }
 

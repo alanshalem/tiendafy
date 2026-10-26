@@ -102,8 +102,8 @@ public sealed class AiCatalogJobs(
     private async Task<Quote> QuoteAsync(AiCatalogSelected selected, CancellationToken ct)
     {
         var snapshot = await config.LoadAsync(TenantId, ct);
-        var write = Model(snapshot, AiTask.CatalogWrite);
-        var judge = Model(snapshot, AiTask.CatalogJudge);
+        var write = AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogWrite);
+        var judge = AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogJudge);
         var blocked = await BlockedAsync(ct);
 
         var estimated = write is not null && judge is not null
@@ -118,8 +118,42 @@ public sealed class AiCatalogJobs(
             write?.Label, judge?.Label, blocked is null, blocked?.Message), blocked);
     }
 
-    private static AiModelInfo? Model(AiTenantConfigSnapshot snapshot, AiTask task) =>
-        snapshot.Assignments.TryGetValue(task, out var assigned) ? AiModelCatalog.Find(assigned.Primary) : null;
+    /// <summary>
+    /// Reanuda un trabajo pausado. Se rechaza (con el motivo) si la IA o Mercado Libre siguen sin estar listos, o si lo que falta
+    /// del tope del mes no alcanza para un ítem: volver a correr solo lo pausaría de nuevo.
+    /// </summary>
+    public async Task<Result<AiCatalogJobDto>> ResumeAsync(Guid jobId, CancellationToken ct)
+    {
+        var job = await ai.CatalogJobs.FirstOrDefaultAsync(j => j.TenantId == TenantId && j.Id == jobId, ct);
+        if (job is null) return Result.Failure<AiCatalogJobDto>(AiCatalogEndpoints.JobNotFound);
+        if (job.Status is not (AiCatalogJobStatus.PausedBudget or AiCatalogJobStatus.PausedUnavailable))
+            return Result.Failure<AiCatalogJobDto>(Error.Conflict("AiCatalog.NotPaused", "El trabajo no está pausado."));
+
+        if (await BlockedAsync(ct) is { } blocked) return Result.Failure<AiCatalogJobDto>(blocked);
+
+        var snapshot = await config.LoadAsync(TenantId, ct);
+        if (AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogWrite) is { } write
+            && AiCatalogEstimate.ModelOf(snapshot, AiTask.CatalogJudge) is { } judge
+            && await budget.CommittedMicroUsdAsync(TenantId, ct) + AiCatalogEstimate.WorstCaseItemMicroUsd(write, judge) > snapshot.MonthlyBudgetMicroUsd)
+            return Result.Failure<AiCatalogJobDto>(AiErrors.Budget);
+
+        job.Resume(clock.GetUtcNow().UtcDateTime);
+        await ai.SaveChangesAsync(ct);
+        return (await GetAsync(jobId, ct))!;
+    }
+
+    /// <summary>Cancela un trabajo activo. Lo que ya se redactó queda a la vista; lo que falta no se procesa.</summary>
+    public async Task<Result<AiCatalogJobDto>> CancelAsync(Guid jobId, CancellationToken ct)
+    {
+        var job = await ai.CatalogJobs.FirstOrDefaultAsync(j => j.TenantId == TenantId && j.Id == jobId, ct);
+        if (job is null) return Result.Failure<AiCatalogJobDto>(AiCatalogEndpoints.JobNotFound);
+        if (!job.IsActive)
+            return Result.Failure<AiCatalogJobDto>(Error.Conflict("AiCatalog.NotActive", "El trabajo ya terminó o está cancelado."));
+
+        job.Cancel(clock.GetUtcNow().UtcDateTime);
+        await ai.SaveChangesAsync(ct);
+        return (await GetAsync(jobId, ct))!;
+    }
 
     private async Task<AiCatalogJobDto> ToDtoAsync(AiCatalogJob job, CancellationToken ct)
     {

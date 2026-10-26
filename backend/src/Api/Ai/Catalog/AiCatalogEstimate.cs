@@ -13,6 +13,10 @@ public static class AiCatalogEstimate
     /// <summary>Un 10 % de más por los reintentos (la mitad de los productos puede necesitar una segunda redacción).</summary>
     private const long RetriesNumerator = 11, RetriesDenominator = 10;
 
+    /// <summary>El modelo principal asignado a la tarea en la tienda, o null si no tiene (o ya no está en el catálogo).</summary>
+    public static AiModelInfo? ModelOf(AiTenantConfigSnapshot snapshot, AiTask task) =>
+        snapshot.Assignments.TryGetValue(task, out var assigned) ? AiModelCatalog.Find(assigned.Primary) : null;
+
     /// <summary>Redacción más evaluación con los tokens promedio, y un 10 % por los reintentos; hacia arriba.</summary>
     public static long PerProductMicroUsd(AiModelInfo write, AiModelInfo judge)
     {
