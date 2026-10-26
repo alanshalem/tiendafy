@@ -221,6 +221,20 @@ public sealed class AssistantEndpointTests(ApiFactory factory)
         Assert.Contains("¿Y ahora?", messages[^1].Text);
     }
 
+    [Theory]
+    [InlineData("[null]")]
+    [InlineData("[{}]")]
+    public async Task Un_historial_con_elementos_nulos_no_es_500(string historyJson)
+    {
+        var store = await StoreAsync("asq9n");
+        factory.Ai.Respond(Sonnet, Reply("Listo."));
+        var history = System.Text.Json.JsonSerializer.Deserialize<object>(historyJson);
+
+        var res = await AskAsync(store, "¿Y ahora?", history);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
+
     [Fact]
     public async Task Responde_con_sus_fuentes()
     {

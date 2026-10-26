@@ -57,6 +57,25 @@ public sealed class AssistantPromptTests
     }
 
     [Fact]
+    public void Clip_corta_tambien_una_pregunta_larga()
+    {
+        var clipped = AssistantHistory.Clip([new AssistantTurn(new string('p', 9_000), new string('r', 100))]);
+
+        var only = Assert.Single(clipped);
+        Assert.Equal(AssistantHistory.MaxChars, AssistantHistory.Chars(clipped));
+        Assert.Equal(AssistantHistory.MaxChars, only.Question.Length);
+        Assert.Empty(only.Answer);
+    }
+
+    [Fact]
+    public void Clip_descarta_turnos_nulos_y_trata_textos_nulos_como_vacios()
+    {
+        var clipped = AssistantHistory.Clip([null, new AssistantTurn(null!, null!), Turn("1")]);
+
+        Assert.Equal([new AssistantTurn("", ""), Turn("1")], clipped);
+    }
+
+    [Fact]
     public void Clip_de_null_es_vacio() => Assert.Empty(AssistantHistory.Clip(null));
 
     [Fact]

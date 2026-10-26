@@ -703,8 +703,11 @@ public sealed class AiGatewayTests
         Assert.True(result.IsSuccess);
         Assert.Equal(spec.MaxIterations, model.Calls.Count);
         Assert.Equal(spec.MaxIterations, h.Recorder.Entries.Count);
-        // La última vuelta va sin herramientas: el modelo contesta con lo que tiene.
-        Assert.Null(model.Options[^1]?.Tools);
+        // La última vuelta lleva las herramientas pero sin poder llamarlas (Anthropic rechaza tool_use sin tools).
+        Assert.All(model.Options[..^1], o => Assert.NotEmpty(o!.Tools!));
+        Assert.NotEmpty(model.Options[^1]!.Tools!);
+        Assert.Equal(ChatToolMode.None, model.Options[^1]!.ToolMode);
+        Assert.NotEqual(ChatToolMode.None, model.Options[0]!.ToolMode);
     }
 
     [Fact]

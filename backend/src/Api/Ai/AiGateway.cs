@@ -78,12 +78,14 @@ public sealed class AiRunContext
     /// <see cref="FunctionInvokingChatClient"/> hace sus N vueltas con herramientas y después una
     /// llamada más sin herramientas para que el modelo conteste con lo que tiene. Por eso N es
     /// <c>MaxIterations - 1</c>: así son <c>MaxIterations</c> llamadas en total, las que reserva el tope.
+    /// Esa última llamada llega sin herramientas, y Anthropic rechaza un historial con <c>tool_use</c> sin
+    /// <c>tools</c>: <see cref="KeepToolsChatClient"/> las vuelve a poner con <c>ToolMode = None</c>.
     /// </remarks>
     public IChatClient WithTools()
     {
         if (Spec.MaxIterations < 2)
             throw new InvalidOperationException($"La tarea {Spec.Task} no usa herramientas (una sola vuelta).");
-        return _withTools ??= new FunctionInvokingChatClient(Chat)
+        return _withTools ??= new FunctionInvokingChatClient(new KeepToolsChatClient(Chat))
         {
             MaximumIterationsPerRequest = Spec.MaxIterations - 1,
             MaximumConsecutiveErrorsPerRequest = 2,
