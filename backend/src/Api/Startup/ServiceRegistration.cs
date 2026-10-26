@@ -172,6 +172,9 @@ public static class ServiceRegistration
         // stock unificado y publicación. Tokens cifrados; refresh serializado.
         // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
         services.AddScoped<Api.Meli.MeliTokenService>();
+        // De a una llamada por tienda y espera ante el 429 (lo usa el trabajo de fichas con IA).
+        services.AddSingleton<Api.Meli.MeliWait>(_ => (delay, ct) => Task.Delay(delay, ct));
+        services.AddSingleton<Api.Meli.MeliTenantGate>();
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliStockSyncWorker>();

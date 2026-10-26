@@ -20,6 +20,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Los modelos de IA: en vez de un proveedor real contestan lo que el test guionizó (ver <see cref="FakeAi"/>).</summary>
     public FakeAi Ai { get; } = new();
 
+    /// <summary>Las esperas que Mercado Libre le habría pedido a la API (un 429), sin que se espere de verdad.</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<TimeSpan> MeliWaits { get; } = new();
+
     /// <summary>Lo que loguea la API, para afirmar que algo no se loguea.</summary>
     public CapturedLogs Logs { get; } = new();
 
@@ -124,6 +127,14 @@ public class ApiFactory : WebApplicationFactory<Program>
                     ?? ActivatorUtilities.CreateInstance(sp, loggerFactory.ImplementationType!))));
             services.RemoveAll<Api.Ai.IAiChatClientFactory>();
             services.AddSingleton<Api.Ai.IAiChatClientFactory>(Ai);
+
+            // La espera ante el 429 de Mercado Libre no espera: se anota para afirmar cuánto habría esperado.
+            services.RemoveAll<Api.Meli.MeliWait>();
+            services.AddSingleton<Api.Meli.MeliWait>((delay, _) =>
+            {
+                MeliWaits.Enqueue(delay);
+                return Task.CompletedTask;
+            });
 
             // El cliente S3 del SDK de AWS no usa IHttpClientFactory: se le da
             // uno propio que también termina en el fake. El resto (firmas,
