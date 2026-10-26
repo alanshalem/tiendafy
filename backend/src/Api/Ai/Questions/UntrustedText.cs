@@ -10,13 +10,13 @@ public static class UntrustedText
 {
     public const int MaxChars = 1_500;
 
-    public static string Wrap(string tag, string text)
-    {
-        var inner = (Text.Clip(text, MaxChars) ?? "")
-            .Replace('<', '‹')
-            .Replace('＜', '‹')
-            .Replace('>', '›')
-            .Replace('＞', '›');
-        return $"<{tag}>\n{inner}\n</{tag}>";
-    }
+    public static string Wrap(string tag, string text) =>
+        $"<{tag}>\n{Defang(Text.Clip(text, MaxChars) ?? "")}\n</{tag}>";
+
+    /// <summary>Reemplaza los '&lt;' y '&gt;' para que el texto no pueda abrir ni cerrar etiquetas.</summary>
+    public static string Defang(string text) => text
+        .Replace('<', '‹')
+        .Replace('＜', '‹')
+        .Replace('>', '›')
+        .Replace('＞', '›');
 }

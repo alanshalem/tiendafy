@@ -222,6 +222,7 @@ public static class ServiceRegistration
         services.AddScoped<Api.Ai.IAiGateway, Api.Ai.AiGateway>();
         services.AddScoped<Api.Ai.AiConfigService>();
         services.AddScoped<Api.Ai.AiUsageQueries>();
+        services.AddScoped<Api.Purchasing.IInvoiceModel, Api.Purchasing.GatewayInvoiceModel>();
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
