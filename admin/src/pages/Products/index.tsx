@@ -2,12 +2,14 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../../lib/queryKeys';
-import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast, SearchInput } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
+import { useAiTask } from '../../lib/useAi';
+import { AiCatalogDialog } from './AiCatalogDialog';
 import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { useListParams, useListSearch } from '../../lib/useListParams';
@@ -128,6 +130,12 @@ export function ProductsPage() {
   const setPage = (p: number) => list.set({ pagina: p });
   const setFilters = (f: ProductFilters) => list.set(paramsFrom(f));
   const [filterOpen, setFilterOpen] = useState(false);
+
+  // "Mejorar con IA": las fichas en lote. El botón existe solo si la tienda armó la IA; si la tarea no
+  // está lista queda deshabilitado con el motivo (una función no deja de andar en silencio).
+  const aiCatalog = useAiTask('CatalogWrite');
+  const [aiCatalogIds, setAiCatalogIds] = useState<string[] | null>(null);
+  const openAiCatalog = (ids: string[]) => setAiCatalogIds(ids);
 
   /**
    * Volver a tocar la misma métrica saca el filtro: es el gesto que espera
@@ -324,6 +332,20 @@ export function ProductsPage() {
         actions={
           canEdit && (
             <>
+              {aiCatalog.visible && (
+                <>
+                  <HeaderBtn
+                    onClick={() => openAiCatalog([])}
+                    disabled={!aiCatalog.available}
+                    title={aiCatalog.available ? undefined : (aiCatalog.reason ?? undefined)}
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden /> Mejorar fichas con IA
+                  </HeaderBtn>
+                  <Link to="/productos/fichas-ia">
+                    <HeaderBtn>Fichas con IA</HeaderBtn>
+                  </Link>
+                </>
+              )}
               <Link to="/productos/exportar-importar">
                 <HeaderBtn>
                   <ArrowUpDown className="h-4 w-4" /> Exportar e importar
@@ -509,6 +531,17 @@ export function ProductsPage() {
             <div className="sticky top-[calc(var(--header-height)+0.5rem)] z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-xl">
               <span className="text-sm font-semibold text-primary">{selected.size} seleccionados</span>
               <div className="flex flex-wrap items-center gap-2">
+                {canEdit && aiCatalog.visible && (
+                  <button
+                    type="button"
+                    disabled={!aiCatalog.available}
+                    title={aiCatalog.available ? undefined : (aiCatalog.reason ?? undefined)}
+                    onClick={() => openAiCatalog([...selected.keys()])}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden /> Mejorar con IA
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={bulkAction.isPending}
@@ -734,6 +767,11 @@ export function ProductsPage() {
           , con sus variantes e imágenes. Esta acción no se puede deshacer.
         </p>
       </Modal>
+      <AiCatalogDialog
+        open={aiCatalogIds !== null}
+        onClose={() => setAiCatalogIds(null)}
+        productIds={aiCatalogIds ?? undefined}
+      />
       <HelpLink id="productos" />
     </div>
   );
@@ -779,12 +817,24 @@ function bulkSummary(action: BulkKind, done: number, failed: number): string {
   return parts.join(' · ');
 }
 
-function HeaderBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+function HeaderBtn({
+  children,
+  onClick,
+  disabled,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted"
+      disabled={disabled}
+      title={title}
+      className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
     >
       {children}
     </button>

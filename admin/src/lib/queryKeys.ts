@@ -30,6 +30,15 @@ export const qk = {
   /** La configuración de IA de la tienda; el consumo cuelga de ella (mismo prefijo). */
   aiConfig: (store: StoreId) => ['ai-config', store] as const,
   aiUsage: (store: StoreId, scope: 'store' | 'owned') => ['ai-config', store, 'usage', scope] as const,
+  /** Fichas del catálogo con IA: todo cuelga de ['ai-catalog', tienda], así un cambio refresca la lista, el trabajo y sus fichas. */
+  aiCatalog: (store: StoreId) => ['ai-catalog', store] as const,
+  aiCatalogJobs: (store: StoreId) => ['ai-catalog', store, 'jobs'] as const,
+  aiCatalogJob: (store: StoreId, id: string | undefined) => ['ai-catalog', store, 'jobs', 'one', id] as const,
+  /** Una página de las fichas de un trabajo; `params` = estado y página. */
+  aiCatalogItems: (store: StoreId, id: string | undefined, params: string) =>
+    ['ai-catalog', store, 'jobs', 'one', id, 'items', params] as const,
+  /** La cuenta previa de "Mejorar con IA" (cuántos son, cuánto cuesta): depende de lo que se eligió. */
+  aiCatalogPreview: (store: StoreId, request: object) => ['ai-catalog', store, 'preview', request] as const,
 
   /* ---------- Catálogo ---------- */
   categories: (store: StoreId) => ['categories', store] as const,
