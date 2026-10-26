@@ -254,27 +254,58 @@ describe('chat posventa: el hilo', () => {
     fireEvent.change(input, { target: { files: [] } });
   });
 
-  it('la IA sugiere un borrador a partir del último mensaje del cliente', async () => {
+  it('la IA sugiere un borrador que pide el servidor por conversación, sin mandar texto', async () => {
+    const draftUrl = `/api/v1/ai/support/conversations/${waiting.id}/draft`;
     const { api, user } = await openChat((a) => {
       a.on('GET', '/api/v1/ai/status', {
-        tasks: [{ task: 'QuestionDraft', available: true, reason: null, code: null }],
+        tasks: [
+          { task: 'QuestionClassify', available: true, reason: null, code: null },
+          { task: 'QuestionDraft', available: true, reason: null, code: null },
+        ],
       });
-      a.on('POST', '/api/v1/ai/support-reply', { detail: 'La IA está saturada.' }, 503);
+      a.on('POST', draftUrl, { detail: 'La IA está saturada.' }, 503);
     });
     const box = await openThread(user);
     await screen.findByText('¿Cuándo llega?');
     await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
     expect(await screen.findByText('La IA está saturada.')).toBeInTheDocument();
 
-    api.on('POST', '/api/v1/ai/support-reply', { text: '¡Hola! Tu pedido sale mañana.' });
+    api.on('POST', draftUrl, {
+      text: '¡Hola! Tu pedido sale mañana.',
+      category: 'shipping',
+      reason: null,
+      manual: false,
+      warnings: [{ code: 'delivery-date', message: 'El borrador promete una fecha de entrega.' }],
+    });
     await user.click(screen.getByRole('button', { name: 'Sugerir con IA' }));
     await waitFor(() => expect(box).toHaveValue('¡Hola! Tu pedido sale mañana.'));
-    // El mensaje del cliente es el último que mandó con texto o adjunto, y el
-    // pedido es el de la conversación (no el id de la conversación), con el
-    // número que ve el comprador.
-    expect(api.calls.filter((c) => c.path === '/api/v1/ai/support-reply').at(-1)!.body).toMatchObject({
-      orderSummary: `Pedido ${saleLabel}`,
+    expect(screen.getByText('El borrador promete una fecha de entrega.')).toBeInTheDocument();
+    // El texto del cliente y el pedido los lee el servidor: el navegador no manda nada.
+    expect(api.calls.filter((c) => c.path === draftUrl).at(-1)!.body).toBeUndefined();
+  });
+
+  it('si la consulta está fuera de política, dice "Respondé a mano" y no toca el campo', async () => {
+    const draftUrl = `/api/v1/ai/support/conversations/${waiting.id}/draft`;
+    const { user } = await openChat((a) => {
+      a.on('GET', '/api/v1/ai/status', {
+        tasks: [
+          { task: 'QuestionClassify', available: true, reason: null, code: null },
+          { task: 'QuestionDraft', available: true, reason: null, code: null },
+        ],
+      });
+      a.on('POST', draftUrl, {
+        text: null,
+        category: 'complaint',
+        reason: 'es un reclamo',
+        manual: true,
+        warnings: [],
+      });
     });
+    const box = await openThread(user);
+    await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+    expect(await screen.findByText('Respondé a mano')).toBeInTheDocument();
+    expect(screen.getByText('es un reclamo')).toBeInTheDocument();
+    expect(box).toHaveValue('');
   });
 
   it('el pedido de cada conversación se muestra con su número de venta', async () => {

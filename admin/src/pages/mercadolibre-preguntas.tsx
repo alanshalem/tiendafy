@@ -2,7 +2,8 @@ import { useId, useState } from 'react';
 import { ExternalLink, ImageOff, Sparkles } from 'lucide-react';
 import { Button, EmptyList, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { useAiTask } from '../lib/useAi';
+import { draftPath, requestDraft, useAiDrafts, type AiDraft } from '../lib/aiDraft';
+import { AiDraftNotice } from '../components/AiDraftNotice';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { useServerLoad } from '../lib/useServerLoad';
 import { useListParams } from '../lib/useListParams';
@@ -48,7 +49,9 @@ export function PreguntasTab() {
   const setSoloSinResponder = (only: boolean) => list.set({ preguntas: only ? 'sin-responder' : 'todas' });
   const [questions, setQuestions] = useState<MeliQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const aiDraft = useAiTask('QuestionDraft');
+  const aiDraft = useAiDrafts();
+  // El último borrador pedido por pregunta: sus avisos o el "Respondé a mano".
+  const [drafts, setDrafts] = useState<Record<number, AiDraft | null>>({});
   const [suggesting, setSuggesting] = useState<number | null>(null);
   const [sendingId, setSendingId] = useState<number | null>(null);
 
@@ -67,16 +70,15 @@ export function PreguntasTab() {
   );
 
   // La IA sugiere, el vendedor decide: llena el campo, editable antes de enviar.
-  // Con el título de la publicación (antes le llegaba el id "MLA123…", con el
-  // que no puede saber de qué producto se habla).
+  // El servidor lee la pregunta y la publicación: el navegador no manda texto.
+  // Si la consulta es para contestar a mano, el campo no se toca.
   const suggest = async (q: MeliQuestion) => {
     setSuggesting(q.id);
+    setDrafts((d) => ({ ...d, [q.id]: null }));
     try {
-      const r = await api.post<{ text: string }>('/api/v1/ai/ml-answer', {
-        question: q.text,
-        itemTitle: q.item?.title ?? q.itemId,
-      });
-      setAnswers((a) => ({ ...a, [q.id]: r.text }));
+      const r = await requestDraft(draftPath.meliQuestion(q.id));
+      setDrafts((d) => ({ ...d, [q.id]: r }));
+      if (!r.manual && r.text) setAnswers((a) => ({ ...a, [q.id]: r.text! }));
     } catch (err) {
       toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
     } finally {
@@ -91,6 +93,7 @@ export function PreguntasTab() {
     try {
       await api.post(`/api/v1/admin/meli/questions/${q.id}/answer`, { text });
       toast('Respuesta publicada en Mercado Libre', { variant: 'success' });
+      setDrafts((d) => ({ ...d, [q.id]: null }));
       load();
     } catch (err) {
       toast(errMsg(err, 'No se pudo responder.'), { variant: 'error' });
@@ -147,6 +150,7 @@ export function PreguntasTab() {
                   onSuggest={aiDraft.visible ? () => suggest(q) : null}
                   suggestOff={aiDraft.available ? null : aiDraft.reason}
                   suggesting={suggesting === q.id}
+                  draft={drafts[q.id] ?? null}
                 />
               )}
             </div>
@@ -227,6 +231,7 @@ function AnswerBox({
   onSuggest,
   suggestOff,
   suggesting,
+  draft,
 }: {
   question: MeliQuestion;
   value: string;
@@ -237,6 +242,8 @@ function AnswerBox({
   /** El motivo por el que la IA no está disponible ahora (deshabilita el botón); null si anda. */
   suggestOff: string | null;
   suggesting: boolean;
+  /** Lo último que devolvió la IA para esta pregunta: avisos o "Respondé a mano". */
+  draft: AiDraft | null;
 }) {
   const hintId = useId();
   return (
@@ -267,6 +274,7 @@ function AnswerBox({
           </Button>
         )}
       </div>
+      <AiDraftNotice draft={draft} />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <p id={hintId} className="text-xs text-fg-subtle">
           Se publica en Mercado Libre y no se puede editar. {SEND_KEYS} para publicar.

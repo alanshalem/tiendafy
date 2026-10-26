@@ -44,6 +44,15 @@ async function open(tab: string, setup?: (api: MockApi) => void) {
 const posted = (api: MockApi, path: string) =>
   api.calls.filter((c) => c.method === 'POST' && c.path === path).at(-1)?.body;
 
+/** /ai/status con las dos tareas que necesita el borrador (los códigos son los del backend). */
+const draftsStatus = (classify: { available: boolean; reason: string | null; code: string | null }) => ({
+  tasks: [
+    { task: 'QuestionClassify', ...classify },
+    { task: 'QuestionDraft', available: true, reason: null, code: null },
+  ],
+});
+const READY = { available: true, reason: null, code: null };
+
 describe('Mercado Libre: ventas', () => {
   it('factura una venta pagada (con confirmación) y queda marcada', async () => {
     const { api, user } = await open('ventas', (a) =>
@@ -139,16 +148,24 @@ describe('Mercado Libre: ventas', () => {
 describe('Mercado Libre: preguntas', () => {
   it('responde a mano y con la sugerencia de la IA; filtra sin responder / todas', async () => {
     const { api, user } = await open('preguntas', (a) => {
-      a.on('GET', '/api/v1/ai/status', {
-        tasks: [{ task: 'QuestionDraft', available: true, reason: null, code: null }],
+      a.on('GET', '/api/v1/ai/status', draftsStatus(READY));
+      a.on('POST', `/api/v1/ai/ml/questions/${question.id}/draft`, {
+        text: 'Sí, es compatible.',
+        category: 'compatibility',
+        reason: null,
+        manual: false,
+        warnings: [],
       });
-      a.on('POST', '/api/v1/ai/ml-answer', { text: 'Sí, es compatible.' });
     });
     expect(await screen.findByText(question.text)).toBeInTheDocument();
 
     const card = screen.getByText(question.text).closest('div.rounded-lg') as HTMLElement;
     await user.click(within(card).getByTitle(/Sugerir una respuesta con IA/));
     await waitFor(() => expect(within(card).getByDisplayValue('Sí, es compatible.')).toBeInTheDocument());
+    // El navegador no manda texto: el servidor lee la consulta.
+    const draftCall = api.calls.find((c) => c.path === `/api/v1/ai/ml/questions/${question.id}/draft`)!;
+    expect(draftCall.method).toBe('POST');
+    expect(draftCall.body).toBeUndefined();
     // Enter solo hace un salto de línea: la respuesta es pública y no se borra.
     await user.type(within(card).getByPlaceholderText('Escribí tu respuesta…'), ' ¡Saludos!{Enter}');
     await settle(1);
@@ -170,12 +187,16 @@ describe('Mercado Libre: preguntas', () => {
 });
 
 describe('Mercado Libre: preguntas con su publicación', () => {
-  it('muestra título, precio y stock, y la IA recibe el título (no el id)', async () => {
+  it('muestra título, precio y stock, y el borrador se pide por id con sus avisos debajo', async () => {
     const { api, user } = await open('preguntas', (a) => {
-      a.on('GET', '/api/v1/ai/status', {
-        tasks: [{ task: 'QuestionDraft', available: true, reason: null, code: null }],
+      a.on('GET', '/api/v1/ai/status', draftsStatus(READY));
+      a.on('POST', '/api/v1/ai/ml/questions/77/draft', {
+        text: 'Sí.',
+        category: 'size',
+        reason: null,
+        manual: false,
+        warnings: [{ code: 'link', message: 'El borrador tiene un link.' }],
       });
-      a.on('POST', '/api/v1/ai/ml-answer', { text: 'Sí.' });
       a.on('GET', '/api/v1/admin/meli/questions', {
         total: 1,
         questions: [
@@ -204,11 +225,46 @@ describe('Mercado Libre: preguntas con su publicación', () => {
     expect(screen.getByText('Sin stock')).toBeInTheDocument();
     expect(screen.getByText(/25\.000/)).toBeInTheDocument();
     await user.click(screen.getByTitle(/Sugerir una respuesta con IA/));
-    await settle(2);
-    expect(posted(api, '/api/v1/ai/ml-answer')).toEqual({
-      question: '¿Viene en talle L?',
-      itemTitle: 'Buzo frisado azul',
+    expect(await screen.findByDisplayValue('Sí.')).toBeInTheDocument();
+    expect(posted(api, '/api/v1/ai/ml/questions/77/draft')).toBeUndefined();
+    expect(screen.getByText('El borrador tiene un link.')).toBeInTheDocument();
+  });
+
+  it('fuera de política: "Respondé a mano" con el motivo y el campo queda vacío', async () => {
+    const { user } = await open('preguntas', (a) => {
+      a.on('GET', '/api/v1/ai/status', draftsStatus(READY));
+      a.on('POST', `/api/v1/ai/ml/questions/${question.id}/draft`, {
+        text: null,
+        category: 'contact-request',
+        reason: 'pide un teléfono',
+        manual: true,
+        warnings: [],
+      });
     });
+    const card = (await screen.findByText(question.text)).closest('div.rounded-lg') as HTMLElement;
+    await user.click(within(card).getByTitle(/Sugerir una respuesta con IA/));
+    expect(await within(card).findByText('Respondé a mano')).toBeInTheDocument();
+    expect(within(card).getByText('pide un teléfono')).toBeInTheDocument();
+    expect(within(card).getByPlaceholderText('Escribí tu respuesta…')).toHaveValue('');
+  });
+
+  it('si falta el modelo de clasificar, el botón queda deshabilitado con el motivo', async () => {
+    const reason = 'La inteligencia artificial está apagada en esta tienda.';
+    await open('preguntas', (a) => {
+      a.on('GET', '/api/v1/ai/status', draftsStatus({ available: false, reason, code: 'Ai.Disabled' }));
+    });
+    const buttons = await screen.findAllByTitle(reason);
+    for (const button of buttons) expect(button).toBeDisabled();
+  });
+
+  it('un error del servidor se muestra como siempre', async () => {
+    const { user } = await open('preguntas', (a) => {
+      a.on('GET', '/api/v1/ai/status', draftsStatus(READY));
+      a.on('POST', `/api/v1/ai/ml/questions/${question.id}/draft`, { detail: 'La IA está saturada.' }, 503);
+    });
+    const card = (await screen.findByText(question.text)).closest('div.rounded-lg') as HTMLElement;
+    await user.click(within(card).getByTitle(/Sugerir una respuesta con IA/));
+    expect(await screen.findByText('La IA está saturada.')).toBeInTheDocument();
   });
 });
 

@@ -18,9 +18,11 @@ import { Badge, Button, cn, Select, Textarea, useToast, Spinner } from '@tiendaf
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
-import { useAiTask } from '../lib/useAi';
+import { draftPathFor, requestDraft, useAiDrafts, type AiDraft } from '../lib/aiDraft';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { useStore } from '../context/StoreContext';
+import { AiDraftNotice } from '../components/AiDraftNotice';
 import { ERROR_SHOWN } from '../components/LoadError';
 import {
   CHANNELS,
@@ -512,9 +514,13 @@ function replySpec(thread: InboxThread): {
 function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const aiDraft = useAiTask('QuestionDraft');
+  const aiDraft = useAiDrafts();
+  const { can } = usePermissions();
   // Un borrador por conversación: cambiar de hilo no arrastra lo escrito.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Lo que acompaña al último borrador de cada conversación (avisos o "Respondé a mano").
+  const [notices, setNotices] = useState<Record<string, AiDraft | null>>({});
+  const setNotice = (key: string, value: AiDraft | null) => setNotices((n) => ({ ...n, [key]: value }));
   const [sending, setSending] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const text = drafts[thread.key] ?? '';
@@ -533,6 +539,7 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
     try {
       await spec.send(text.trim());
       setText('');
+      setNotice(thread.key, null);
       // Respondido es leído; para ML además le avisa al servidor que pregunte de nuevo.
       await api.post(`${threadPath(thread)}/read`, {}).catch(() => undefined);
       toast(thread.channel === 'ml-pregunta' ? 'Respuesta publicada en Mercado Libre' : 'Enviado', {
@@ -552,20 +559,15 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
     }
   };
 
+  // El servidor lee la consulta: el navegador no manda texto. Si es para
+  // contestar a mano, el campo no se toca.
   const suggest = async () => {
     setSuggesting(true);
+    setNotice(thread.key, null);
     try {
-      const r =
-        thread.channel === 'ml-pregunta'
-          ? await api.post<{ text: string }>('/api/v1/ai/ml-answer', {
-              question: thread.context.text,
-              itemTitle: thread.context.listing?.title ?? thread.title,
-            })
-          : await api.post<{ text: string }>('/api/v1/ai/support-reply', {
-              message: thread.preview,
-              orderSummary: thread.channel === 'posventa' ? `Pedido ${thread.context.orderNumber}` : null,
-            });
-      setText(r.text);
+      const r = await requestDraft(draftPathFor(thread));
+      setNotice(thread.key, r);
+      if (!r.manual && r.text) setText(r.text);
     } catch (err) {
       toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
     } finally {
@@ -589,12 +591,13 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
         }}
         error={tooLong}
       />
+      <AiDraftNotice draft={notices[thread.key] ?? null} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={cn('min-w-0 flex-1 text-xs', tooLong ? 'text-danger' : 'text-fg-subtle')}>
           {spec.hint}
           {spec.max !== undefined && ` · ${text.length}/${spec.max}`}
         </span>
-        {aiDraft.visible && (thread.channel === 'ml-pregunta' || thread.channel === 'posventa') && (
+        {aiDraft.visible && can(CHANNELS[thread.channel].perm) && (
           <Button
             size="sm"
             variant="secondary"

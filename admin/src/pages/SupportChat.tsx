@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Archive, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast, Spinner, PageHeader, Button } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { useAiTask } from '../lib/useAi';
+import { draftPath, requestDraft, useAiDrafts, type AiDraft } from '../lib/aiDraft';
+import { AiDraftNotice } from '../components/AiDraftNotice';
 import { useStore } from '../context/StoreContext';
 import { LoadError } from '../components/LoadError';
 import { HelpLink } from '../components/HelpLink';
@@ -95,7 +96,8 @@ export function SupportChatPage() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const aiDraft = useAiTask('QuestionDraft');
+  const aiDraft = useAiDrafts();
+  const [draftNotice, setDraftNotice] = useState<AiDraft | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -173,6 +175,7 @@ export function SupportChatPage() {
 
   const open = (id: string) => {
     setSelected(id);
+    setDraftNotice(null);
     setThread(EMPTY_THREAD);
     loadMessages(id);
   };
@@ -202,21 +205,18 @@ export function SupportChatPage() {
     }
   };
 
-  // La IA redacta con el contexto del pedido; el operador edita y manda.
+  // La IA redacta con el contexto del pedido; el operador edita y manda. El
+  // servidor lee la conversación y su pedido: el navegador no manda texto.
   const suggestReply = async () => {
-    const lastFromCustomer = [...messages].reverse().find((m) => !m.isFromStaff);
-    if (!lastFromCustomer) return;
+    const conversation = selected;
+    if (!conversation) return;
     setSuggesting(true);
-    // El pedido de la conversación, con el mismo número que ve el comprador.
-    // Antes se mandaba el principio del id de la CONVERSACIÓN como si fuera
-    // el del pedido.
-    const conv = convs.find((c) => c.id === selected);
+    setDraftNotice(null);
     try {
-      const r = await api.post<{ text: string }>('/api/v1/ai/support-reply', {
-        message: lastFromCustomer.body,
-        orderSummary: conv ? `Pedido ${orderLabel({ id: conv.orderId, number: conv.orderNumber })}` : null,
-      });
-      setText(r.text);
+      const r = await requestDraft(draftPath.support(conversation));
+      if (selectedRef.current !== conversation) return;
+      setDraftNotice(r);
+      if (!r.manual && r.text) setText(r.text);
     } catch (err) {
       toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
     } finally {
@@ -230,6 +230,7 @@ export function SupportChatPage() {
     try {
       await api.post(`/api/v1/support/conversations/${selected}/messages`, { body: text });
       setText('');
+      setDraftNotice(null);
       await loadMessages(selected);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo enviar.', { variant: 'error' });
@@ -517,50 +518,53 @@ export function SupportChatPage() {
                   />
                 </div>
               )}
-              <div className="flex items-center gap-2 border-t border-border px-3 py-2.5">
-                {attachPicker.input}
-                <button
-                  onClick={attachPicker.open}
-                  disabled={attachments.busy}
-                  className="rounded-md p-2 text-fg-muted hover:bg-bg-muted disabled:opacity-40"
-                  aria-label="Adjuntar"
-                  title={`Adjuntar ${attachSpec.formats} · ${attachSpec.weight}`}
-                >
-                  <Paperclip className="h-5 w-5" />
-                </button>
-                <input
-                  aria-label="Respuesta al cliente"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      send();
-                    }
-                  }}
-                  placeholder="Respondé al cliente…"
-                  className="h-10 flex-1 rounded-full border border-border-strong bg-surface px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                {aiDraft.visible && (
+              <div className="border-t border-border px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  {attachPicker.input}
                   <button
-                    type="button"
-                    onClick={suggestReply}
-                    disabled={suggesting || !aiDraft.available}
-                    title={aiDraft.reason ?? 'Sugerir una respuesta con IA (después la editás)'}
-                    className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
-                    aria-label="Sugerir con IA"
+                    onClick={attachPicker.open}
+                    disabled={attachments.busy}
+                    className="rounded-md p-2 text-fg-muted hover:bg-bg-muted disabled:opacity-40"
+                    aria-label="Adjuntar"
+                    title={`Adjuntar ${attachSpec.formats} · ${attachSpec.weight}`}
                   >
-                    {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
+                    <Paperclip className="h-5 w-5" />
                   </button>
-                )}
-                <button
-                  onClick={send}
-                  disabled={!text.trim() || sending}
-                  className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40"
-                  aria-label="Enviar"
-                >
-                  {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
-                </button>
+                  <input
+                    aria-label="Respuesta al cliente"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        send();
+                      }
+                    }}
+                    placeholder="Respondé al cliente…"
+                    className="h-10 flex-1 rounded-full border border-border-strong bg-surface px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  {aiDraft.visible && (
+                    <button
+                      type="button"
+                      onClick={suggestReply}
+                      disabled={suggesting || !aiDraft.available}
+                      title={aiDraft.reason ?? 'Sugerir una respuesta con IA (después la editás)'}
+                      className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
+                      aria-label="Sugerir con IA"
+                    >
+                      {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
+                    </button>
+                  )}
+                  <button
+                    onClick={send}
+                    disabled={!text.trim() || sending}
+                    className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40"
+                    aria-label="Enviar"
+                  >
+                    {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
+                  </button>
+                </div>
+                <AiDraftNotice draft={draftNotice} />
               </div>
             </>
           )}
