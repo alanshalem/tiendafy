@@ -45,4 +45,38 @@ describe('AiDraftNotice', () => {
     expect(screen.getByText('Respondé a mano')).toBeInTheDocument();
     expect(screen.getByText('pide un teléfono')).toBeInTheDocument();
   });
+
+  it('manual sin motivo: solo "Respondé a mano"', () => {
+    render(<AiDraftNotice draft={draft({ text: null, manual: true, reason: null })} />);
+    expect(screen.getByText('Respondé a mano')).toBeInTheDocument();
+  });
+
+  it('manual con avisos: gana manual y los avisos no se listan', () => {
+    render(
+      <AiDraftNotice
+        draft={draft({
+          manual: true,
+          reason: 'pide un teléfono',
+          warnings: [{ code: 'link', message: 'El borrador tiene un link.' }],
+        })}
+      />,
+    );
+    expect(screen.getByText('Respondé a mano')).toBeInTheDocument();
+    expect(screen.queryByText('El borrador tiene un link.')).not.toBeInTheDocument();
+  });
+
+  it('dos avisos del mismo código se listan los dos', () => {
+    render(
+      <AiDraftNotice
+        draft={draft({
+          warnings: [
+            { code: 'amount', message: 'Menciona $ 100.' },
+            { code: 'amount', message: 'Menciona $ 200.' },
+          ],
+        })}
+      />,
+    );
+    expect(screen.getByText('Menciona $ 100.')).toBeInTheDocument();
+    expect(screen.getByText('Menciona $ 200.')).toBeInTheDocument();
+  });
 });

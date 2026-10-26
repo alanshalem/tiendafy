@@ -226,7 +226,9 @@ describe('Mercado Libre: preguntas con su publicación', () => {
     expect(screen.getByText(/25\.000/)).toBeInTheDocument();
     await user.click(screen.getByTitle(/Sugerir una respuesta con IA/));
     expect(await screen.findByDisplayValue('Sí.')).toBeInTheDocument();
-    expect(posted(api, '/api/v1/ai/ml/questions/77/draft')).toBeUndefined();
+    const call = api.calls.find((c) => c.method === 'POST' && c.path === '/api/v1/ai/ml/questions/77/draft');
+    expect(call).toBeDefined();
+    expect(call!.body).toBeUndefined();
     expect(screen.getByText('El borrador tiene un link.')).toBeInTheDocument();
   });
 

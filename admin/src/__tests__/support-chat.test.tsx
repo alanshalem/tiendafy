@@ -308,6 +308,83 @@ describe('chat posventa: el hilo', () => {
     expect(box).toHaveValue('');
   });
 
+  describe('cambiar de conversación con el borrador a medio pedir', () => {
+    const draftUrl = `/api/v1/ai/support/conversations/${waiting.id}/draft`;
+    const READY = {
+      tasks: [
+        { task: 'QuestionClassify', available: true, reason: null, code: null },
+        { task: 'QuestionDraft', available: true, reason: null, code: null },
+      ],
+    };
+    const withDrafts = (a: MockApi, draft: unknown, status = 200) => {
+      a.on('GET', '/api/v1/ai/status', READY);
+      a.on('GET', `${CONVS}/${answered.id}/messages`, { conversation: answered, items: [] });
+      a.on('POST', draftUrl, draft as never, status);
+    };
+    /** Retiene las respuestas de /draft hasta que el test las suelte (una promesa diferida). */
+    function holdDrafts() {
+      const inner = globalThis.fetch;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+          if (url.includes('/draft')) await gate;
+          return inner(input, init);
+        }),
+      );
+      return release;
+    }
+    const ok = {
+      text: 'Borrador de la primera.',
+      category: 'shipping',
+      reason: null,
+      manual: false,
+      warnings: [{ code: 'link', message: 'El borrador tiene un link.' }],
+    };
+
+    it('abrir otra conversación limpia el aviso', async () => {
+      const { user } = await openChat((a) => withDrafts(a, ok));
+      await openThread(user);
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      expect(await screen.findByText('El borrador tiene un link.')).toBeInTheDocument();
+      await user.click(conversation(answered.customerEmail));
+      await settle(3);
+      expect(screen.queryByText('El borrador tiene un link.')).not.toBeInTheDocument();
+    });
+
+    it('un borrador que llega tarde no llena el campo de la conversación nueva, ni deja el botón en spinner', async () => {
+      const { user } = await openChat((a) => withDrafts(a, ok));
+      const release = holdDrafts();
+      await openThread(user);
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      expect(screen.getByRole('button', { name: 'Sugerir con IA' })).toBeDisabled();
+
+      await user.click(conversation(answered.customerEmail));
+      await settle(3);
+      // El pedido de la otra conversación sigue en vuelo: este botón no queda en spinner.
+      expect(screen.getByRole('button', { name: 'Sugerir con IA' })).toBeEnabled();
+
+      release();
+      await settle(4);
+      expect(screen.getByPlaceholderText('Respondé al cliente…')).toHaveValue('');
+      expect(screen.queryByText('El borrador tiene un link.')).not.toBeInTheDocument();
+    });
+
+    it('un error que llega tarde no se muestra en la conversación nueva', async () => {
+      const { user } = await openChat((a) => withDrafts(a, { detail: 'La IA está saturada.' }, 503));
+      const release = holdDrafts();
+      await openThread(user);
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      await user.click(conversation(answered.customerEmail));
+      await settle(3);
+      release();
+      await settle(4);
+      expect(screen.queryByText('La IA está saturada.')).not.toBeInTheDocument();
+    });
+  });
+
   it('el pedido de cada conversación se muestra con su número de venta', async () => {
     const { user } = await openChat();
     // El correlativo de la tienda (#1042), no el principio del id.

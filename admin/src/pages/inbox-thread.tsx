@@ -522,7 +522,17 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
   const [notices, setNotices] = useState<Record<string, AiDraft | null>>({});
   const setNotice = (key: string, value: AiDraft | null) => setNotices((n) => ({ ...n, [key]: value }));
   const [sending, setSending] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
+  // Qué hilos tienen un pedido de borrador en vuelo: el spinner es de cada uno.
+  const [suggestingKeys, setSuggestingKeys] = useState<Record<string, boolean>>({});
+  const suggesting = suggestingKeys[thread.key] === true;
+  // La bandeja monta un ReplyBox por conversación: si ya se desmontó, el hilo no está a la vista.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const text = drafts[thread.key] ?? '';
   const setText = (value: string) => setDrafts((d) => ({ ...d, [thread.key]: value }));
 
@@ -562,16 +572,20 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
   // El servidor lee la consulta: el navegador no manda texto. Si es para
   // contestar a mano, el campo no se toca.
   const suggest = async () => {
-    setSuggesting(true);
-    setNotice(thread.key, null);
+    const key = thread.key;
+    setSuggestingKeys((s) => ({ ...s, [key]: true }));
+    setNotice(key, null);
     try {
       const r = await requestDraft(draftPathFor(thread));
-      setNotice(thread.key, r);
-      if (!r.manual && r.text) setText(r.text);
+      setNotice(key, r);
+      if (!r.manual && r.text) setDrafts((d) => ({ ...d, [key]: r.text! }));
     } catch (err) {
-      toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+      // Un error de un hilo que ya no está abierto no se muestra en el actual.
+      if (mounted.current) {
+        toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+      }
     } finally {
-      setSuggesting(false);
+      setSuggestingKeys((s) => ({ ...s, [key]: false }));
     }
   };
 

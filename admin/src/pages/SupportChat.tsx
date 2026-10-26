@@ -98,7 +98,9 @@ export function SupportChatPage() {
   const [sending, setSending] = useState(false);
   const aiDraft = useAiDrafts();
   const [draftNotice, setDraftNotice] = useState<AiDraft | null>(null);
-  const [suggesting, setSuggesting] = useState(false);
+  // La conversación con un pedido de borrador en vuelo: el spinner es solo de esa.
+  const [suggestingFor, setSuggestingFor] = useState<string | null>(null);
+  const suggesting = suggestingFor !== null && suggestingFor === selected;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Un pedido fallido ya no devuelve una bandeja vacía: con el polling cada
@@ -210,7 +212,7 @@ export function SupportChatPage() {
   const suggestReply = async () => {
     const conversation = selected;
     if (!conversation) return;
-    setSuggesting(true);
+    setSuggestingFor(conversation);
     setDraftNotice(null);
     try {
       const r = await requestDraft(draftPath.support(conversation));
@@ -218,9 +220,12 @@ export function SupportChatPage() {
       setDraftNotice(r);
       if (!r.manual && r.text) setText(r.text);
     } catch (err) {
-      toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+      // Un error de una conversación que ya no está abierta no se muestra en la actual.
+      if (selectedRef.current === conversation) {
+        toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+      }
     } finally {
-      setSuggesting(false);
+      setSuggestingFor((cur) => (cur === conversation ? null : cur));
     }
   };
 

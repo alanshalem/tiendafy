@@ -22,8 +22,8 @@ export function AiDraftNotice({ draft }: { draft: AiDraft | null }) {
   if (draft.warnings.length === 0) return null;
   return (
     <ul role="status" className="mt-2 space-y-1 rounded-md bg-warning-bg px-3 py-2 text-xs text-warning">
-      {draft.warnings.map((w) => (
-        <li key={w.code}>{w.message}</li>
+      {draft.warnings.map((w, i) => (
+        <li key={`${w.code}-${i}`}>{w.message}</li>
       ))}
     </ul>
   );

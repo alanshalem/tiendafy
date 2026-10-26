@@ -6,7 +6,7 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
@@ -276,6 +276,76 @@ describe('bandeja: borrador de IA', () => {
     expect(await screen.findByText('Respondé a mano')).toBeInTheDocument();
     expect(screen.getByText('es un reclamo legal')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Respuesta' })).toHaveValue('');
+  });
+
+  describe('cambiar de hilo con el borrador a medio pedir', () => {
+    const questionPath = '/api/v1/ai/ml/questions/123456789/draft';
+    const QUESTION_URL = '/bandeja?conversacion=' + encodeURIComponent(question.key);
+    const withBoth = (a: MockApi, response: unknown = draft, status = 200) => {
+      a.on('GET', '/api/v1/ai/status', ready);
+      a.on('POST', questionPath, response as never, status);
+    };
+    const toChat = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('button', { name: /beto@mail.com/ }));
+      await settle(3);
+    };
+    /** Retiene las respuestas de /draft hasta que el test las suelte (una promesa diferida). */
+    function holdDrafts() {
+      const inner = globalThis.fetch;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+          if (url.includes('/draft')) await gate;
+          return inner(input, init);
+        }),
+      );
+      return release;
+    }
+
+    it('el borrador y el aviso de un hilo no aparecen en el otro', async () => {
+      const { user } = await open(QUESTION_URL, (a) => withBoth(a));
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      expect(await screen.findByDisplayValue('Borrador del servidor.')).toBeInTheDocument();
+      expect(screen.getByText('El borrador menciona un importe.')).toBeInTheDocument();
+
+      await toChat(user);
+      expect(screen.getByRole('textbox', { name: 'Respuesta' })).toHaveValue('');
+      expect(screen.queryByText('El borrador menciona un importe.')).not.toBeInTheDocument();
+    });
+
+    it('la respuesta tardía de un hilo no pisa al otro, ni deja su botón en spinner', async () => {
+      const { user } = await open(QUESTION_URL, (a) => withBoth(a));
+      const release = holdDrafts();
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      await toChat(user);
+      expect(screen.getByRole('button', { name: 'Sugerir con IA' })).toBeEnabled();
+
+      release();
+      await settle(4);
+      expect(screen.getByRole('textbox', { name: 'Respuesta' })).toHaveValue('');
+      expect(screen.queryByText('El borrador menciona un importe.')).not.toBeInTheDocument();
+    });
+
+    it('un error tardío de otro hilo no se muestra en el actual', async () => {
+      const { user } = await open(QUESTION_URL, (a) => withBoth(a, { detail: 'La IA está saturada.' }, 503));
+      const release = holdDrafts();
+      await user.click(await screen.findByRole('button', { name: 'Sugerir con IA' }));
+      await toChat(user);
+      release();
+      await settle(4);
+      expect(screen.queryByText('La IA está saturada.')).not.toBeInTheDocument();
+    });
+  });
+
+  it('con el permiso del canal, el botón se muestra', async () => {
+    await open('/bandeja?conversacion=' + encodeURIComponent(question.key), (a) => {
+      a.on('GET', '/api/v1/me/permissions', { role: 'staff', permissions: ['meli.operate'] });
+      a.on('GET', '/api/v1/ai/status', ready);
+    });
+    expect(await screen.findByRole('button', { name: 'Sugerir con IA' })).toBeEnabled();
   });
 
   it('sin el permiso del canal, el botón no se muestra', async () => {
