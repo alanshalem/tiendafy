@@ -97,4 +97,92 @@ public sealed class DraftGuardrailsTests
     {
         Assert.Empty(DraftGuardrails.Check("Hola, sí, lo tenemos en stock.", Facts()));
     }
+
+    [Theory]
+    [InlineData("escribime por wa.me/5491155551234")]
+    [InlineData("mirá bit.ly/x")]
+    [InlineData("entrá a t.me/canal")]
+    [InlineData("linktr.ee/tienda")]
+    [InlineData("la web es tienda.io")]
+    public void Links_acortados_y_dominios_sueltos_avisan(string draft)
+    {
+        Assert.Contains(DraftGuardrails.Check(draft, Facts()), w => w.Code == "link");
+    }
+
+    [Fact]
+    public void Un_mail_solo_no_es_un_link()
+    {
+        Assert.DoesNotContain(DraftGuardrails.Check("a@b.com", Facts()), w => w.Code == "link");
+    }
+
+    [Theory]
+    [InlineData("seguinos en @tienda_ok")]
+    [InlineData("mi instagram: tienda_ok")]
+    [InlineData("mi whatsapp es 11 5555 1234")]
+    [InlineData("agregame a telegram @juan")]
+    [InlineData("wsp 1155551234")]
+    public void Usuarios_de_redes_avisan_como_contacto(string draft)
+    {
+        Assert.Contains(DraftGuardrails.Check(draft, Facts()), w => w.Code == "contact-data");
+    }
+
+    [Fact]
+    public void Un_mail_no_se_toma_por_usuario_y_el_arroba_suelto_no_avisa()
+    {
+        Assert.DoesNotContain(DraftGuardrails.Check("nos vemos @ la tarde", Facts()), w => w.Message.Contains("copió"));
+        Assert.Empty(DraftGuardrails.Check("Te respondemos por whatsapp de la tienda.", Facts()));
+    }
+
+    [Fact]
+    public void Copiar_la_mascara_avisa_con_su_propio_mensaje()
+    {
+        var warnings = DraftGuardrails.Check($"Te escribo a {PiiRedactor.Mask}", Facts());
+
+        var warning = Assert.Single(warnings);
+        Assert.Equal("contact-data", warning.Code);
+        Assert.Equal("El borrador copió un dato oculto del comprador.", warning.Message);
+    }
+
+    [Theory]
+    [InlineData("Te llega pasado mañana")]
+    [InlineData("Sale esta semana")]
+    [InlineData("Lo recibís el 3 de noviembre")]
+    [InlineData("Llega en 24hs")]
+    [InlineData("Llega dentro de 3 días")]
+    [InlineData("Demora entre 3 y 5 días hábiles")]
+    [InlineData("Demora 3 o 4 días")]
+    [InlineData("Llega la semana que viene")]
+    [InlineData("Llega a fin de mes")]
+    [InlineData("Te lo despacho hoy")]
+    [InlineData("Llega el 3/11")]
+    [InlineData("Te llega el lunes")]
+    public void Promesas_de_fecha_avisan(string draft)
+    {
+        Assert.Equal("delivery-date", Assert.Single(DraftGuardrails.Check(draft, Facts())).Code);
+    }
+
+    [Theory]
+    [InlineData("mañana a la mañana te confirmo")]
+    [InlineData("atendemos de lunes a viernes")]
+    [InlineData("Atendemos 24/7")]
+    [InlineData("Pesa 1/2 kilo")]
+    [InlineData("Hoy tenemos stock")]
+    public void Sin_promesa_de_entrega_no_avisa(string draft)
+    {
+        Assert.Empty(DraftGuardrails.Check(draft, Facts()));
+    }
+
+    [Fact]
+    public void Texto_nulo_no_explota()
+    {
+        Assert.Empty(DraftGuardrails.Check(null!, Facts()));
+    }
+
+    [Fact]
+    public void Montos_conocidos_repetidos_se_nombran_una_vez_y_en_orden()
+    {
+        var warning = Assert.Single(DraftGuardrails.Check("$ 1.000", Facts(amounts: [1_500_000, 1_200_000, 1_500_000])));
+
+        Assert.Contains("$ 12.000 o $ 15.000.", warning.Message);
+    }
 }

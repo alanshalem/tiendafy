@@ -34,9 +34,14 @@ public static partial class DraftGuardrails
             warnings.Add(new("link", "El borrador incluye un link. Revisá que sea correcto antes de enviarlo."));
         }
 
-        if (PiiRedactor.ContainsContactData(draft))
+        if (draft.Contains(PiiRedactor.Mask, StringComparison.Ordinal))
         {
-            warnings.Add(new("contact-data", "El borrador incluye un mail o un teléfono. Sacalo: no se pueden pasar datos de contacto."));
+            warnings.Add(new("contact-data", "El borrador copió un dato oculto del comprador."));
+        }
+
+        if (PiiRedactor.ContainsContactData(draft) || SocialHandlePattern().IsMatch(draft))
+        {
+            warnings.Add(new("contact-data", "El borrador tiene datos de contacto o un número que parece personal."));
         }
 
         warnings.AddRange(CheckAmounts(draft, facts.KnownAmountsMinor));
@@ -46,7 +51,7 @@ public static partial class DraftGuardrails
             warnings.Add(new("too-long", $"El borrador tiene {draft.Length} caracteres y el máximo es {facts.MaxLength}."));
         }
 
-        if (!facts.DeliveryEstimateKnown && DeliveryPromisePattern().IsMatch(draft))
+        if (!facts.DeliveryEstimateKnown && (HasStrongDeliveryPromise(draft) || HasWeakDeliveryPromise(draft)))
         {
             warnings.Add(new("delivery-date", "El borrador promete una fecha de entrega y no hay un seguimiento que la respalde."));
         }
@@ -56,7 +61,7 @@ public static partial class DraftGuardrails
 
     private static IEnumerable<DraftWarning> CheckAmounts(string draft, IReadOnlyCollection<long> known)
     {
-        var knownText = string.Join(" o ", known.Select(FormatMinor));
+        var knownText = string.Join(" o ", known.Distinct().Order().Select(FormatMinor));
         foreach (var minor in AmountsIn(draft).Distinct())
         {
             if (known.Contains(minor))
@@ -92,12 +97,36 @@ public static partial class DraftGuardrails
     [GeneratedRegex(@"\$\s*(?<a>" + AmountNumber + @")|(?<![\d.,])(?<b>" + AmountNumber + @")\s*pesos\b", RegexOptions.IgnoreCase)]
     private static partial Regex AmountPattern();
 
-    [GeneratedRegex(@"https?://\S+|\bwww\.\S+|(?<![@\w.-])[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|ar|app|shop|store)\b(?!@)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"https?://\S+|\bwww\.\S+|(?<![@\w.-])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2})?/\S+|(?<![@\w.-])[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|ar|app|shop|store|me|ly|io|co|ee|gl|link|info|xyz)\b(?!@)", RegexOptions.IgnoreCase)]
     private static partial Regex LinkPattern();
 
-    // "te llega el…", "sale el…", día de la semana, mañana, "en 3 días", 12/10
+    // @usuario, o una red social seguida de un usuario (@x, con ":" o con algún número/guion bajo/punto) o un teléfono
     [GeneratedRegex(
-        @"\b(?:te\s+lleg(?:a|aría|aria)|lleg(?:aría|aria)|sale)\s+(?:el|mañana|hoy|en)\b|\b(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mañana)\b|\ben\s+\d+\s+(?:d[ií]as?|horas?|hs)\b|(?<![\d/])\d{1,2}/\d{1,2}(?![\d/])",
+        @"(?<![\w.@])@[\w.]{3,}|\b(?:instagram|insta|whatsapp|wsp|telegram)\b(?:\s*:\s*[\w.]{3,}|\s+(?:es\s+)?(?:@[\w.]{3,}|\+?\d[\d\s-]{5,}|[\w]*[\d_.][\w.]*))",
         RegexOptions.IgnoreCase)]
-    private static partial Regex DeliveryPromisePattern();
+    private static partial Regex SocialHandlePattern();
+
+    private static bool HasStrongDeliveryPromise(string draft) => StrongDeliveryPattern().IsMatch(draft);
+
+    private static bool HasWeakDeliveryPromise(string draft) =>
+        SentenceSplit().Split(draft).Any(sentence =>
+            WeakDeliveryPattern().IsMatch(sentence) && DeliveryVerbPattern().IsMatch(sentence));
+
+    // Fuertes: avisan solas.
+    [GeneratedRegex(
+        @"\b(?:en|dentro\s+de)\s+\d+\s*(?:d[ií]as?|horas?|hs?)\b|\b\d+\s*(?:y|a|o|-)\s*\d+\s*d[ií]as\b|\bd[ií]as\s+h[aá]biles\b|\besta\s+semana\b|\bla\s+semana\s+(?:que\s+viene|pr[oó]xima)\b|\ba\s+fin\s+de\s+mes\b|\bel\s+\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\bpasado\s+ma[ñn]ana\b",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex StrongDeliveryPattern();
+
+    // Débiles: avisan solo con un verbo de entrega en la misma oración.
+    [GeneratedRegex(
+        @"\b(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[ñn]ana|hoy)\b|(?<![\d/])(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])(?![\d/])",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex WeakDeliveryPattern();
+
+    [GeneratedRegex(@"\b(?:lleg|recib|entreg|despach|envi|mand)\w*|\bsal(?:e|dr)\w*", RegexOptions.IgnoreCase)]
+    private static partial Regex DeliveryVerbPattern();
+
+    [GeneratedRegex(@"[.!?;\n]+")]
+    private static partial Regex SentenceSplit();
 }
