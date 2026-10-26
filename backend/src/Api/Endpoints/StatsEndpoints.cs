@@ -159,122 +159,68 @@ public static class StatsEndpoints
         // El envío cobrado se muestra aparte (pass-through al carrier, no margen).
         // Órdenes sin costo cargado quedan fuera del margen: `coverage` lo expone.
         costs.MapGet("/profitability", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, CatalogDbContext catalogDb,
-            MercadoLibre.Infrastructure.MeliDbContext meliDb,
+            ITenantContext tenant, ProfitabilityQuery profitQuery,
             int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
         {
-            var tid = tenant.TenantId;
             var (since, until) = StatsRanges.Range(from, to, days ?? 30);
-            var previousSince = since - (until - since);
-
-            var paid = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since && o.CreatedAtUtc < until)
-                .ToListAsync(ct);
-
-            var currency = paid.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
-            long ItemsNet(Order o) => o.NetRevenue.AmountInMinorUnits - o.ShippingCost.AmountInMinorUnits;
-
-            var withCost = paid.Where(o => o.ProductCost is not null).ToList();
-            var revenue = paid.Sum(ItemsNet);
-            var revenueWithCost = withCost.Sum(ItemsNet);
-            var productCost = withCost.Sum(o => o.ProductCost!.Value.AmountInMinorUnits);
-            var mpFees = paid.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
-            var mpFeesWithCost = withCost.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
-            var discounts = paid.Sum(o => o.DiscountAmount.AmountInMinorUnits);
-            var shippingCharged = paid.Sum(o => o.ShippingCost.AmountInMinorUnits);
-            var profit = revenueWithCost - productCost - mpFeesWithCost;
-
-            var series = withCost
-                .GroupBy(o => StatsRanges.LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
-                .Select(g => new
-                {
-                    date = g.Key,
-                    profit = g.Sum(o => ItemsNet(o) - o.ProductCost!.Value.AmountInMinorUnits - (o.MpFeeAmount?.AmountInMinorUnits ?? 0)),
-                    revenue = g.Sum(ItemsNet),
-                })
-                .OrderBy(x => x.date).ToList();
-
-            // Por canal de adquisición (utm_source de la sesión del comprador):
-            // cierra el triángulo redes/campaña → tráfico → PLATA.
-            var byChannel = paid
-                .GroupBy(o => o.UtmSource ?? "directo")
-                .Select(g =>
-                {
-                    var gWithCost = g.Where(o => o.ProductCost is not null).ToList();
-                    return new
-                    {
-                        source = g.Key,
-                        orders = g.Count(),
-                        revenue = g.Sum(ItemsNet),
-                        profit = gWithCost.Sum(o =>
-                            ItemsNet(o) - o.ProductCost!.Value.AmountInMinorUnits - (o.MpFeeAmount?.AmountInMinorUnits ?? 0)),
-                        ordersWithCost = gWithCost.Count,
-                    };
-                })
-                .OrderByDescending(x => x.revenue)
-                .ToList();
-
-            // Por producto: solo ítems CON costo (margen honesto, no inventado).
-            var byProduct = paid.SelectMany(o => o.Items)
-                .Where(i => i.UnitCost is not null)
-                .GroupBy(i => i.ProductName)
-                .Select(g =>
-                {
-                    var rev = g.Sum(i => i.LineTotal.AmountInMinorUnits);
-                    var cost = g.Sum(i => i.UnitCost!.Value.AmountInMinorUnits * i.Quantity);
-                    return new
-                    {
-                        product = g.Key,
-                        units = g.Sum(i => i.Quantity),
-                        revenue = rev,
-                        cost,
-                        profit = rev - cost,
-                        marginPct = rev > 0 ? Math.Round((rev - cost) * 100m / rev, 1) : 0m,
-                    };
-                })
-                .OrderByDescending(x => x.profit).ToList();
-
-            var meli = await MeliChannelProfitAsync(meliDb, catalogDb, tid, since, until, ct);
-
-            // Mismo cálculo sobre el período anterior de igual duración: el
-            // margen sin contra qué compararlo no dice si vas mejorando.
-            var beforePaid = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
-                    && o.CreatedAtUtc >= previousSince && o.CreatedAtUtc < since)
-                .ToListAsync(ct);
-            var beforeWithCost = beforePaid.Where(o => o.ProductCost is not null).ToList();
-            var beforeRevenueWithCost = beforeWithCost.Sum(ItemsNet);
-            var beforeProfit = beforeRevenueWithCost
-                - beforeWithCost.Sum(o => o.ProductCost!.Value.AmountInMinorUnits)
-                - beforeWithCost.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
+            var result = await profitQuery.RunAsync(tenant.TenantId, since, until, ct);
 
             return Results.Ok(new
             {
-                currency,
-                revenue,
-                productCost,
-                mpFees,
-                discounts,
-                shippingCharged,
-                profit,
-                marginPct = revenueWithCost > 0 ? Math.Round(profit * 100m / revenueWithCost, 1) : 0m,
+                currency = result.Currency,
+                revenue = result.RevenueMinor,
+                productCost = result.ProductCostMinor,
+                mpFees = result.MpFeesMinor,
+                discounts = result.DiscountsMinor,
+                shippingCharged = result.ShippingChargedMinor,
+                profit = result.ProfitMinor,
+                marginPct = result.MarginPct,
                 previous = new
                 {
-                    revenue = beforePaid.Sum(ItemsNet),
-                    profit = beforeProfit,
-                    marginPct = beforeRevenueWithCost > 0
-                        ? Math.Round(beforeProfit * 100m / beforeRevenueWithCost, 1)
-                        : 0m,
+                    revenue = result.Previous.RevenueMinor,
+                    profit = result.Previous.ProfitMinor,
+                    marginPct = result.Previous.MarginPct,
                 },
-                coverage = new { ordersWithCost = withCost.Count, ordersTotal = paid.Count },
-                series,
-                productsTotal = byProduct.Count,
-                byProduct = byProduct
+                coverage = new { ordersWithCost = result.OrdersWithCost, ordersTotal = result.OrdersTotal },
+                series = result.Series.Select(x => new { date = x.Date, profit = x.ProfitMinor, revenue = x.RevenueMinor }).ToList(),
+                productsTotal = result.ByProduct.Count,
+                byProduct = result.ByProduct
+                    .Select(x => new
+                    {
+                        product = x.Product,
+                        units = x.Units,
+                        revenue = x.RevenueMinor,
+                        cost = x.CostMinor,
+                        profit = x.ProfitMinor,
+                        marginPct = x.MarginPct,
+                    })
                     .Skip(Math.Max(0, offset ?? 0))
                     .Take(Math.Clamp(limit ?? 20, 1, 100))
                     .ToList(),
-                byChannel,
-                meli,
+                byChannel = result.ByChannel
+                    .Select(x => new
+                    {
+                        source = x.Source,
+                        orders = x.Orders,
+                        revenue = x.RevenueMinor,
+                        profit = x.ProfitMinor,
+                        ordersWithCost = x.OrdersWithCost,
+                    })
+                    .ToList(),
+                meli = result.Meli is { } m
+                    ? new
+                    {
+                        orders = m.Orders,
+                        revenue = m.RevenueMinor,
+                        productCost = m.ProductCostMinor,
+                        mlFees = m.MlFeesMinor,
+                        grossProfit = m.GrossProfitMinor,
+                        netProfit = m.NetProfitMinor,
+                        unitsLinked = m.UnitsLinked,
+                        unitsTotal = m.UnitsTotal,
+                        unitsWithFee = m.UnitsWithFee,
+                    }
+                    : null,
             });
         });
 
@@ -529,73 +475,5 @@ public static class StatsEndpoints
         });
 
         return group;
-    }
-
-    /// <summary>
-    /// Canal Mercado Libre del dashboard de rentabilidad: margen BRUTO (antes
-    /// de la comisión de ML, que la API no persiste en el cache local) con el
-    /// costo ACTUAL de las variantes vinculadas — no hay snapshot porque la
-    /// venta no es nuestra. null = sin ventas ML en el rango.
-    /// </summary>
-    private static async Task<object?> MeliChannelProfitAsync(
-        MercadoLibre.Infrastructure.MeliDbContext meliDb, CatalogDbContext catalogDb,
-        TenantId tid, DateTime since, DateTime until, CancellationToken ct)
-    {
-        var meliOrders = await meliDb.Orders.AsNoTracking()
-            .Where(o => o.TenantId == tid.Value && MercadoLibre.Infrastructure.MeliOrder.EarningStatuses.Contains(o.Status)
-                && o.DateCreatedUtc >= since && o.DateCreatedUtc < until)
-            .ToListAsync(ct);
-        if (meliOrders.Count == 0) return null;
-
-        var links = await meliDb.ItemLinks.AsNoTracking()
-            .Where(l => l.TenantId == tid.Value).ToListAsync(ct);
-        var resolver = MercadoLibre.Infrastructure.MeliLinkResolver.From(links);
-        var variantIds = links.Select(l => l.VariantId).Distinct().ToList();
-        var costByVariant = variantIds.Count == 0
-            ? []
-            : (await catalogDb.Products.AsNoTracking()
-                .Where(p => p.TenantId == tid && p.Variants.Any(v => variantIds.Contains(v.Id)))
-                .ToListAsync(ct))
-                .SelectMany(p => p.Variants)
-                .Where(v => v.Cost is not null)
-                .ToDictionary(v => v.Id, v => v.Cost!.Value.AmountInMinorUnits);
-
-        long meliRevenue = 0, meliCost = 0, meliFees = 0;
-        int unitsLinked = 0, unitsTotal = 0, unitsWithFee = 0;
-        foreach (var o in meliOrders)
-        {
-            // Lo cobrado, no el total de la venta: con una devolución parcial
-            // cuenta lo que quedó, igual que en los ingresos del canal.
-            meliRevenue += o.BillableMinorUnits;
-            foreach (var it in Api.Meli.MeliSyncService.ParseSnapshot(o.ItemsJson))
-            {
-                unitsTotal += it.Quantity;
-                if (it.SaleFee is { } fee)
-                {
-                    meliFees += (long)Math.Round(fee * it.Quantity * 100m);
-                    unitsWithFee += it.Quantity;
-                }
-                if (resolver.TryResolve(it.ItemId, it.VariationId, out var vid)
-                    && costByVariant.TryGetValue(vid, out var unitCost))
-                {
-                    meliCost += unitCost * it.Quantity;
-                    unitsLinked += it.Quantity;
-                }
-            }
-        }
-        return new
-        {
-            orders = meliOrders.Count,
-            revenue = meliRevenue,
-            productCost = meliCost,
-            // Comisión real de ML (sale_fee por ítem). Cero en snapshots
-            // viejos sin el campo: unitsWithFee lo delata.
-            mlFees = meliFees,
-            grossProfit = meliRevenue - meliCost,
-            netProfit = meliRevenue - meliCost - meliFees,
-            unitsLinked,
-            unitsTotal,
-            unitsWithFee,
-        };
     }
 }

@@ -12,6 +12,7 @@ public static class StatsQueriesRegistration
     {
         services.AddScoped<SalesOverviewQuery>();
         services.AddScoped<TopProductsQuery>();
+        services.AddScoped<ProfitabilityQuery>();
         return services;
     }
 }
