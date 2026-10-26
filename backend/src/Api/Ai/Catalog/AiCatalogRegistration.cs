@@ -11,6 +11,7 @@ public static class AiCatalogRegistration
         services.AddScoped<AiCatalogJobs>();
         services.AddScoped<AiCatalogItemProcessor>();
         services.AddScoped<AiCatalogReview>();
+        services.AddScoped<AiCatalogMeliPush>();
         return services;
     }
 }

@@ -99,6 +99,23 @@ public static class AiCatalogEndpoints
                 : found.Error.ToProblem();
         });
 
+        // ---- Actualizar la ficha en Mercado Libre: la única escritura hacia afuera, con su clic y su permiso.
+
+        catalog.MapPost("/items/{itemId:guid}/push-to-meli", async (Guid itemId, AiCatalogMeliPush push, CancellationToken ct) =>
+        {
+            var pushed = await push.PushItemAsync(itemId, ct);
+            return pushed.IsSuccess ? Results.Ok(new { updatedListings = pushed.Value }) : pushed.Error.ToProblem();
+        }).RequirePermission(Permission.MeliPublish);
+
+        catalog.MapPost("/jobs/{jobId:guid}/push-to-meli", async (
+            Guid jobId, AiCatalogMeliPush push, CancellationToken ct, AiCatalogPushRequest? request = null) =>
+        {
+            var pushed = await push.PushJobAsync(jobId, request, ct);
+            return pushed.IsSuccess
+                ? Results.Ok(new { updated = pushed.Value.Updated, failed = pushed.Value.Failed, next = pushed.Value.Next })
+                : pushed.Error.ToProblem();
+        }).RequirePermission(Permission.MeliPublish);
+
         return apiV1;
     }
 
