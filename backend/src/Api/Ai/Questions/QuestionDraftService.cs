@@ -47,14 +47,16 @@ public sealed class QuestionDraftService(IAiGateway gateway, ILogger<QuestionDra
         var toolCount = QuestionTools.For(subject.Channel, category, subject.Readers, new DraftToolLog()).Count;
         var estimate = QuestionPrompts.EstimateTokens(system, user) + QuestionTools.AllowanceTokens(toolCount);
 
-        DraftToolLog? lastLog = null;
+        // Un registro por intento (principal y respaldo): las fallas de todos se loguean, no solo las del último.
+        var logs = new List<DraftToolLog>();
         var drafted = await gateway.RunAsync(
             AiTask.QuestionDraft,
             new AiRunOptions(estimate),
             async (ctx, token) =>
             {
                 // Herramientas nuevas por intento: si corre el respaldo, arranca con su propio registro.
-                var log = lastLog = NewToolLog();
+                var log = NewToolLog();
+                logs.Add(log);
                 var tools = QuestionTools.For(subject.Channel, category, subject.Readers, log);
                 var options = ctx.NewOptions();
                 var chat = ctx.Chat;
@@ -70,7 +72,7 @@ public sealed class QuestionDraftService(IAiGateway gateway, ILogger<QuestionDra
             },
             ct);
 
-        if (lastLog is not null) LogReaderFailures(lastLog);
+        foreach (var log in logs) LogReaderFailures(log);
         if (drafted.IsFailure) return Result.Failure<DraftResult>(drafted.Error);
 
         var (text, toolLog) = drafted.Value;

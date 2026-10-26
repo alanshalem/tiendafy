@@ -92,6 +92,23 @@ public sealed class QuestionDraftServiceTests
         Assert.Empty(gateway.Ran);
     }
 
+    [Fact]
+    public async Task Se_loguean_las_fallas_de_todos_los_intentos()
+    {
+        var logger = new CapturingLogger();
+        // El principal llama a la herramienta (que falla) y después se cae; el respaldo la vuelve a llamar.
+        var gateway = new TaskGateway(
+            new FakeChatClient(Reply(Shipping)),
+            new FakeChatClient(Call("seguimiento")),
+            new FakeChatClient(Call("seguimiento"), Reply("Ya salió, te avisamos cuando se mueva.")));
+        var readers = new DraftReaders(Tracking: _ => throw new InvalidOperationException("sin servicio"));
+
+        var result = await new QuestionDraftService(gateway, logger).DraftAsync(Subject(readers), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, logger.Lines.Count(l => l.Contains("seguimiento")));
+    }
+
     private static DraftSubject Subject(DraftReaders readers) =>
         new(DraftChannel.SupportChat, [new ThreadLine(false, "¿Cuándo me llega?")], "Pedido #1001, pagado.", [], readers);
 
@@ -101,7 +118,7 @@ public sealed class QuestionDraftServiceTests
         new(new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", tool)]));
 
     /// <summary>Corre el cuerpo de cada tarea contra su propio <see cref="FakeChatClient"/>.</summary>
-    private sealed class TaskGateway(FakeChatClient classify, FakeChatClient draft) : IAiGateway
+    private sealed class TaskGateway(FakeChatClient classify, FakeChatClient draft, FakeChatClient? draftFallback = null) : IAiGateway
     {
         public TaskGateway(ChatResponse classify, ChatResponse[] draft) : this(new FakeChatClient(classify), new FakeChatClient(draft)) { }
 
@@ -118,7 +135,15 @@ public sealed class QuestionDraftServiceTests
             Ran.Add(task);
             if (task == AiTask.QuestionDraft) DraftEstimate = options.EstimatedInputTokens;
             var client = task == AiTask.QuestionClassify ? classify : draft;
-            return Result.Success(await body(AiRunContexts.For(client, task), ct));
+            try
+            {
+                return Result.Success(await body(AiRunContexts.For(client, task), ct));
+            }
+            catch (InvalidOperationException) when (task == AiTask.QuestionDraft && draftFallback is not null)
+            {
+                // Como el gateway: el principal se cayó y el cuerpo entero corre de nuevo con el respaldo.
+                return Result.Success(await body(AiRunContexts.For(draftFallback, task), ct));
+            }
         }
     }
 

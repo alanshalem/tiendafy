@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Api.Meli;
 using Catalog.Infrastructure.Persistence;
+using Checkout.Infrastructure.Carriers;
 using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Common;
@@ -28,12 +29,13 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
         if (connection is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
         if (connection.IsDemo) return await DemoQuestionAsync(questionId, ct);
 
+        string text, itemId;
+        Listing listing;
         try
         {
             var token = await tokens.GetValidTokenAsync(connection.TenantId, ct);
             if (token is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
 
-            string text, itemId;
             using (var question = await client.GetAsync(token, $"/questions/{questionId}?api_version=4", ct))
             {
                 var q = question.RootElement;
@@ -49,17 +51,26 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
 
             using var item = await client.GetAsync(token,
                 $"/items/{Uri.EscapeDataString(itemId)}?attributes={ItemFields}", ct);
-            var listing = Listing.From(item.RootElement);
-            return await SubjectAsync(text, itemId, listing, ct);
+            listing = Listing.From(item.RootElement);
         }
-        catch (MeliException ex) when (ex.Status == HttpStatusCode.NotFound)
+        // 403: lo que esta cuenta no puede ver es, para esta tienda, algo que no existe.
+        catch (MeliException ex) when (ex.Status is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
         {
             return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
         }
-        catch (MeliException)
+        // 401: el acceso a la cuenta ya no vale; hay que volver a conectarla.
+        catch (MeliException ex) when (ex.Status == HttpStatusCode.Unauthorized)
+        {
+            return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
+        }
+        // Cualquier otro error, la red, un timeout o una respuesta que no se puede leer: ML no respondió.
+        // La cancelación del request (cerró la página) no entra acá y se propaga.
+        catch (Exception ex) when (ex is MeliException or FormatException || CarrierNoAnswer.Is(ex, ct))
         {
             return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliUnavailable);
         }
+
+        return await SubjectAsync(text, itemId, listing, ct);
     }
 
     /// <summary>
@@ -115,6 +126,8 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
     {
         var productId = await db.ItemLinks.AsNoTracking()
             .Where(l => l.MeliItemId == itemId)
+            // Una publicación con variaciones tiene un vínculo por variación: siempre el mismo, el más viejo.
+            .OrderBy(l => l.CreatedAtUtc).ThenBy(l => l.Id)
             .Select(l => (Guid?)l.ProductId)
             .FirstOrDefaultAsync(ct);
         if (productId is null) return [];
@@ -178,9 +191,9 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
     {
         public static Listing From(JsonElement item) => new(
             JsonRead.GetString(item, "title"),
-            item.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : null,
+            item.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetDecimal(out var price) ? price : null,
             JsonRead.GetString(item, "currency_id"),
-            item.TryGetProperty("available_quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null,
+            item.TryGetProperty("available_quantity", out var q) && q.ValueKind == JsonValueKind.Number && q.TryGetInt32(out var available) ? available : null,
             JsonRead.GetString(item, "status"),
             item.TryGetProperty("attributes", out var attrs) && attrs.ValueKind == JsonValueKind.Array
                 ? [.. attrs.EnumerateArray()
