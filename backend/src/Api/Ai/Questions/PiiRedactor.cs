@@ -1,0 +1,72 @@
+using System.Text.RegularExpressions;
+
+namespace Api.Ai.Questions;
+
+/// <summary>
+/// Tapa los datos personales del texto de un comprador antes de que llegue a un modelo:
+/// mails, teléfonos, DNI y CUIT/CUIL. Un monto (<c>$ 1.250.000</c>, "1250000 pesos") no se toca.
+/// </summary>
+public static partial class PiiRedactor
+{
+    public const string Mask = "[dato oculto]";
+
+    public static string Redact(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        var result = EmailPattern().Replace(text, Mask);
+        result = DottedCuitPattern().Replace(result, m => IsAmount(result, m) ? m.Value : Mask);
+        result = DottedDniPattern().Replace(result, m => IsAmount(result, m) ? m.Value : Mask);
+        result = DigitRunPattern().Replace(result, m => ShouldMask(result, m) ? Mask : m.Value);
+        return result;
+    }
+
+    // Una corrida de dígitos, con espacios o guiones sueltos entre medio. Se evalúa entera
+    // (nunca por pedazos) para que un CUIT de 11 dígitos no quede a medias tapado.
+    private static bool ShouldMask(string text, Match m)
+    {
+        if (IsAmount(text, m))
+        {
+            return false;
+        }
+
+        var digits = m.Value.Count(char.IsDigit);
+        if (digits >= 10)
+        {
+            return true;
+        }
+
+        return digits is 7 or 8 && !m.Value.Any(char.IsWhiteSpace);
+    }
+
+    private static bool IsAmount(string text, Match m)
+    {
+        var before = text.AsSpan(0, m.Index).TrimEnd();
+        if (before.EndsWith("$", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return PesosPattern().IsMatch(text.AsSpan(m.Index + m.Length));
+    }
+
+    [GeneratedRegex(@"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")]
+    private static partial Regex EmailPattern();
+
+    // 20-30.123.456-7
+    [GeneratedRegex(@"(?<!\d)\d{2}-?\d{1,2}\.\d{3}\.\d{3}-?\d(?![\d.,]?\d)")]
+    private static partial Regex DottedCuitPattern();
+
+    // 30.123.456
+    [GeneratedRegex(@"(?<![\d.,])\d{2}\.\d{3}\.\d{3}(?![\d.,]?\d)")]
+    private static partial Regex DottedDniPattern();
+
+    [GeneratedRegex(@"(?<!\d|\d[.,])\+?\d(?:[\s-]?\d)*(?![.,]?\d)")]
+    private static partial Regex DigitRunPattern();
+
+    [GeneratedRegex(@"^\s*pesos\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PesosPattern();
+}
