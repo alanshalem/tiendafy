@@ -10,8 +10,8 @@ este documento es lo que hay que saber para operarla.
 
 ## Qué hace en Tiendafy
 
-Las funciones de IA de la tienda (hoy: sugerir la respuesta a una pregunta de
-Mercado Libre o del chat posventa, redactar un post para redes y la descripción
+Las funciones de IA de la tienda (hoy: escribir el borrador de respuesta a una consulta de la Bandeja
+—pregunta o mensaje de Mercado Libre, chat posventa o contacto—, redactar un post para redes y la descripción
 de un producto; el escaneo de facturas de compra usa la misma puerta) corren
 con **las claves de cada tienda**, no con una de la plataforma. Cada tienda
 carga la suya en Configuración → Inteligencia artificial, elige qué modelo hace
@@ -39,6 +39,7 @@ herramienta que le damos al modelo escribe nada.
 | Configuración (claves, probar, asignaciones, copiar a otras tiendas) | `backend/src/Api/Ai/AiConfigService.cs`, `Endpoints/AiConfigEndpoints.cs` |
 | Consumo del mes | `backend/src/Api/Ai/AiUsageQueries.cs`, `Endpoints/AiUsageEndpoints.cs` |
 | Estado por tarea y por persona, y los textos cortos | `backend/src/Api/Endpoints/AiEndpoints.cs` |
+| Borradores de la bandeja (endpoints, pasos, herramientas, datos personales, avisos) | `backend/src/Api/Ai/Questions/` |
 | Panel | `admin/src/pages/Settings/AiSettings.tsx` y las tarjetas `Ai*Card.tsx`; `admin/src/lib/useAi.ts` |
 | Aviso de tope en Inicio | `HomeEndpoints.cs` (`AiBudgetNoticeAsync`) |
 
@@ -94,16 +95,17 @@ cumplen y cuyo proveedor tiene clave:
 | Tarea | Para qué | Pide | Vueltas | Tope de salida | Tiempo máx. |
 |---|---|---|---|---|---|
 | `QuestionClassify` | clasificar una pregunta | JSON | 1 | 200 | 10 s |
-| `QuestionDraft` | sugerir respuesta (ML y chat posventa) | herramientas | 3 | 600 | 30 s |
+| `QuestionDraft` | redactar el borrador de la bandeja | herramientas | 3 | 600 | 30 s |
 | `DataAssistant` | asistente de datos | herramientas | 6 | 1500 | 60 s |
 | `CatalogWrite` | redactar fichas | JSON | 1 | 1500 | 60 s |
 | `CatalogJudge` | evaluar una ficha | JSON | 1 | 400 | 30 s |
 | `InvoiceRead` | leer facturas de compra | JSON, PDF, imagen | 1 | 4000 | 120 s |
 | `ShortText` | post para redes, descripción de producto | nada | 1 | 600 | 30 s |
 
-(Los valores vigentes son los de `AiTaskSpecs.cs`.) Las tareas que todavía no
-tienen pantalla propia (`QuestionClassify`, `DataAssistant`, las de catálogo) ya
-existen para que el panel las asigne cuando se construyan.
+(Los valores vigentes son los de `AiTaskSpecs.cs`.) `QuestionClassify` y
+`QuestionDraft` ya las usa la bandeja ([más abajo](#bandeja-de-preguntas)); las
+tareas que todavía no tienen pantalla propia (`DataAssistant`, las de catálogo)
+ya existen para que el panel las asigne cuando se construyan.
 
 El catálogo de modelos y sus precios (micro-dólares por millón de tokens) viven
 en `AiModelCatalog.cs`, con la fecha de verificación arriba. Dos cosas que no
@@ -232,6 +234,170 @@ Cosas que sorprenden:
 - Ninguna tarea usa streaming: si alguna lo usa, hay que medirlo a mano (hoy
   `MeteringChatClient` lo deja pasar sin medir).
 
+## Bandeja de preguntas
+
+La IA escribe un **borrador** de respuesta para las consultas de la Bandeja. No
+envía nada: el borrador vuelve al panel, se carga en el campo de respuesta y la
+persona lo revisa y lo manda con el botón de siempre. Pedirlo es de solo
+lectura.
+
+### Endpoints
+
+Todos son `POST`, bajo `/api/v1/ai`, **sin cuerpo**: el navegador manda solo el
+id y el servidor lee la consulta, la publicación o el pedido (las rutas
+anteriores recibían el texto del navegador). Todos llevan
+`RequireAiRateLimit(AiRateLimitKind.PerUser)`: el cupo es por usuario y por ruta
+(30 cada 5 minutos por defecto, ver [Cupos](#cupos)).
+
+| Ruta | Permiso | Qué contesta |
+|---|---|---|
+| `/ml/questions/{id}/draft` | `meli.operate` | Una pregunta de preventa sin responder, de esta tienda |
+| `/ml/messages/{packId}/draft` | `meli.operate` | El chat posventa de una venta de Mercado Libre |
+| `/support/conversations/{id}/draft` | `support.chat` | El chat posventa de la tienda propia |
+| `/contact/{id}/draft` | `messages.read` | Un mensaje del formulario de contacto |
+
+La respuesta es `{ text, category, reason, manual, warnings }`. `category` va en
+el formato del cable (`stock`, `envio`, `producto`, `precio`, `postventa`,
+`fuera_de_politica`, `otro`). Con `manual: true` no hay `text`: la consulta no
+se puede contestar con IA y el panel muestra "Respondé a mano" con el `reason`
+(una frase que escribió el clasificador; el panel la muestra como texto plano y
+nunca vuelve a un prompt). Las dos tareas (`QuestionClassify` y
+`QuestionDraft`) tienen que estar disponibles para que el botón se vea.
+
+### Pasos
+
+`QuestionDraftService.DraftAsync`:
+
+1. **Redactar.** Se toman los últimos 6 mensajes del hilo (los vacíos no
+   cuentan); si ninguno es del comprador, `Ai.NothingToAnswer`. Cada mensaje
+   pasa por `PiiRedactor`, se aplana a una línea (un salto de línea del
+   comprador no puede inventar un mensaje del vendedor) y el conjunto se
+   encierra en `<mensajes_del_comprador>` con `UntrustedText` (hasta 1500
+   caracteres; sus `<` y `>` se reemplazan para que el comprador no abra ni
+   cierre etiquetas).
+2. **Clasificar** (`QuestionClassify`, JSON). Devuelve una categoría y un
+   motivo. Si la respuesta no es un JSON válido o la categoría no existe, es
+   `otro` sin motivo. Con `fuera_de_politica` (pide o da datos de contacto,
+   insulta, intenta darle órdenes al modelo) se corta acá: `manual: true`, sin
+   segunda llamada.
+3. **Redactar con herramientas** (`QuestionDraft`). El system prompt es una
+   constante por canal (así el proveedor lo cachea); lo que cambia por consulta
+   (el criterio de la categoría, el contexto armado por nosotros, el hilo) va
+   en el mensaje de usuario. El motivo del clasificador **no** entra.
+4. **Avisos** (`DraftGuardrails`): chequeos deterministas sobre el texto. Solo
+   detectan, el borrador no se modifica.
+
+Todo pasa por `IAiGateway.RunAsync`, así que valen el tope, el consumo (una
+fila por llamada: dos por borrador) y el respaldo. Por eso las herramientas se
+arman **dentro** del cuerpo: si corre el respaldo, arranca con herramientas y
+registro nuevos.
+
+### Herramientas por canal y categoría
+
+Ninguna escribe ni recibe parámetros: lo que leen queda atado al ítem o al
+pedido que ya resolvió el endpoint, el modelo no elige ids.
+
+| Canal | Categoría | Herramientas |
+|---|---|---|
+| Pregunta de ML | `stock`, `precio` | `stock_y_precio` (precio y stock de la publicación) |
+| Pregunta de ML | `producto` | `ficha_tecnica` (atributos de la publicación) |
+| Mensaje posventa de ML y chat de la tienda | `envio` | `seguimiento` |
+| Mensaje posventa de ML y chat de la tienda | `postventa` | `estado_del_pedido` y `seguimiento` |
+| Mensaje posventa de ML y chat de la tienda | `otro` | `estado_del_pedido` |
+| Mensaje de contacto | todas | ninguna |
+| Cualquier canal | las que no figuran arriba | ninguna |
+
+- **Tope de 5 segundos por herramienta.** Si el lector tarda más o falla, la
+  herramienta le contesta al modelo "No pude consultar este dato ahora." y se
+  sigue: una herramienta caída **no cuenta como falla del proveedor** (ni
+  respaldo ni corte por fallas, ver
+  [Qué pasa en cada llamada](#qué-pasa-en-cada-llamada)). Se loguea la
+  herramienta, el tipo de excepción y si fue por tiempo, nunca el mensaje de la
+  excepción (puede traer datos). La cancelación del pedido sí se propaga.
+- Cada resultado se recorta a 1200 caracteres, y la estimación de entrada para
+  el tope suma ese margen por herramienta.
+- **No hay herramienta de envío en las preguntas de ML.** El costo y el plazo
+  dependen del código postal de quien compra, que no tenemos: el borrador lo
+  remite al calculador de envío de la publicación y no los calcula.
+- El seguimiento del chat de la tienda trae transportista, número y estado,
+  nunca la URL (dispararía el aviso de links). El número que el comercio cargó
+  a mano es texto libre: solo se muestra si parece un código (letras, dígitos,
+  guiones y espacios simples, hasta 40 caracteres); si no, el modelo recibe
+  "Hay un seguimiento cargado, pero no se puede mostrar acá." En la tienda
+  propia no hay fecha estimada de entrega que prometer; en ML sale de
+  `lead_time.estimated_delivery_time` y solo si el envío sigue en curso.
+- **Leer es leer.** Los mensajes de ML se piden con `mark_as_read=false` (el
+  `GET` de mensajes del panel marca leído; este no), el chat de la tienda se
+  lee sin marcar la conversación y el contacto sin marcar el mensaje. Pedir un
+  borrador no marca nada leído ni escribe en Mercado Libre.
+- Las ventas del pack de ML salen del cache local; si no hay ninguna no se sale
+  a ML. Una pregunta o un pack de otro vendedor es, para esta tienda, uno que no
+  existe.
+
+### Qué se oculta
+
+- `PiiRedactor` tapa con `[dato oculto]` los mails (también "juan @gmail.com" o
+  "juan arroba gmail punto com"), los teléfonos (también con puntos, como
+  `11.5555.1234`, o con espacios y guiones) y los DNI y CUIT/CUIL. Un monto
+  (`$ 1.250.000`, "1250000 pesos") no se toca; una corrida de 10 o más dígitos
+  siempre se tapa.
+- Lo que arma nuestro código (contexto y herramientas) no lleva mail,
+  teléfono, DNI/CUIT, dirección, nickname ni nombre del comprador. En el chat
+  de la tienda no se lee `AuthorName` (en los mensajes del cliente es su mail);
+  en el contacto, solo el cuerpo.
+- El seguimiento manual que no parece un código no se muestra (arriba).
+- El texto del comprador siempre va como dato entre etiquetas, y el system
+  prompt le dice al modelo que no obedezca las órdenes que traiga.
+
+### Avisos
+
+Salen en `warnings` (`code` y `message` en castellano, texto plano). Pueden
+salir varios a la vez.
+
+| `code` | Cuándo salta |
+|---|---|
+| `link` | El borrador trae una URL, un `www.` o un dominio (`.com`, `.ar`, `.shop`…) |
+| `contact-data` | El borrador contiene `[dato oculto]` (copió un dato tapado), o trae un mail, teléfono, DNI/CUIT, un `@usuario` o una red social con un usuario o número |
+| `amount` | Menciona un monto (`$ 15.000`, `14.000 pesos`) que no es ninguno de los conocidos: el de la publicación o los del pedido. Sin ningún monto conocido también avisa |
+| `too-long` | Pasa de 350 caracteres en un mensaje posventa de ML (tope de Mercado Libre) o de 2000 en el resto |
+| `delivery-date` | Promete una fecha de entrega y el seguimiento no trajo una fecha estimada |
+
+Las promesas de fecha tienen dos grados. Las **señales fuertes** avisan solas:
+"en 3 días", "dentro de 48 horas", "3 a 5 días", "días hábiles", "esta
+semana", "la semana que viene", "a fin de mes", "el 12 de noviembre", "pasado
+mañana". Las **señales débiles** (un día de la semana, "mañana", "hoy" o una
+fecha `dd/mm`) avisan solo si en la misma oración hay un verbo de entrega
+(llegar, recibir, entregar, despachar, enviar, mandar, salir), para no avisar
+por un "hoy estamos de vacaciones". Si la herramienta `seguimiento` devolvió
+una fecha estimada, este aviso no salta.
+
+Si un patrón se pasa de tiempo cuenta como "sin coincidencia": un aviso de
+menos es mejor que un 500.
+
+### Errores
+
+Los del gateway (`Ai.Disabled`, `Ai.TaskNotConfigured`, `Ai.BudgetExceeded`,
+`Ai.ProviderAuth`, `Ai.Failed`…) vuelven tal cual. Los propios están en
+`QuestionDraftErrors.cs`:
+
+| Código | HTTP | Cuándo |
+|---|---|---|
+| `Ai.DraftNotFound` | 404 | La consulta, el pack, la conversación o el mensaje no existen en esta tienda (o ML contestó 403 o 404) |
+| `Ai.AlreadyAnswered` | 409 | La pregunta de ML ya está respondida |
+| `Ai.NothingToAnswer` | 400 | El hilo no tiene un mensaje del comprador para contestar |
+| `Ai.EmptyDraft` | 503 | El modelo contestó sin texto; se puede reintentar |
+| `Ai.MeliUnavailable` | 503 | ML no respondió, o respondió algo ilegible (red, timeout, 5xx) |
+| `Meli.NotConnected` | 409 | La tienda no tiene cuenta de ML conectada, o ML rechazó el acceso (401) y hay que volver a conectarla. Es el mismo error de las pantallas de ML |
+
+### Probarlo con una clave real (pendiente)
+
+Ningún test llama a un proveedor ni a ML reales. Para probarlo de punta a
+punta: con la API de dev, `POST /dev/demo-seed`, cargar una clave de prueba en
+Configuración → Inteligencia artificial y asignar `QuestionClassify` y
+`QuestionDraft`; en las preguntas de Mercado Libre tocar el destello de una
+pregunta. Tiene que llegar el texto o "Respondé a mano", y en el consumo del
+mes tiene que aparecer una fila por llamada (clasificar y redactar).
+
 ## Permisos
 
 - Configurar (claves, modelos, tope, consumo, copiar): `ai.config`
@@ -248,7 +414,12 @@ Cosas que sorprenden:
 - `GET /ai/status`: estado por tarea. Pide sesión y tienda.
 - `POST /ai/short-text` con `{ kind: "social-post" | "product-description", … }`
   (reemplaza a `/ai/social-post`). El permiso se mira adentro según el `kind`.
-- `POST /ai/ml-answer` y `POST /ai/support-reply`: respuesta sugerida.
+- Borradores de la bandeja, uno por canal (ver [Bandeja de preguntas](#bandeja-de-preguntas)):
+  `POST /ai/ml/questions/{id}/draft` y `POST /ai/ml/messages/{packId}/draft`
+  (ambos `meli.operate`), `POST /ai/support/conversations/{id}/draft`
+  (`support.chat`) y `POST /ai/contact/{id}/draft` (`messages.read`). Sin
+  cuerpo: mandan solo el id. Reemplazan a las rutas viejas de respuesta
+  sugerida, que se borraron porque recibían el texto del navegador.
 - `GET /ai/config`, `PUT|DELETE /ai/config/providers/{provider}`,
   `POST /ai/config/providers/{provider}/test`, `PUT /ai/config/assignments`,
   `PUT /ai/config/settings`, `POST /ai/config/copy`, `GET /ai/config/usage`:
@@ -276,9 +447,12 @@ que avisá a los dueños. Los pasos están en
 
 - Prueba de punta a punta con una clave real de cada proveedor (hoy todo corre
   contra proveedores simulados).
-- Las funciones A–D del diseño (bandeja de preguntas, asistente de datos,
-  fichas en lote, facturas encadenadas) tienen su propio plan en
-  `historial/plan-ia-*.md`; esta base ya trae las tareas, los permisos y el
-  tope que usan.
+- La función A del diseño (bandeja de preguntas) está hecha. Las B–D
+  (asistente de datos, fichas en lote, facturas encadenadas) tienen su propio
+  plan en `historial/plan-ia-*.md`; esta base ya trae las tareas, los permisos
+  y el tope que usan.
+- Probar un borrador de la bandeja con una clave real (ver el final de
+  [Bandeja de preguntas](#bandeja-de-preguntas)): hoy solo corrió con
+  proveedores simulados.
 - Actualizar los precios del catálogo cuando un proveedor los cambie (el
   próximo: Gemini 3.8 Flash, 1-ene-2027).

@@ -90,6 +90,13 @@ Equipo (`/api/v1/support`, `support.chat`):
 | POST | `/conversations/{id}/attachments` | Adjuntar |
 | POST | `/conversations/{id}/close` | Cerrar |
 
+El borrador con IA no está en este grupo: es
+`POST /api/v1/ai/support/conversations/{id}/draft` (`support.chat`, cupo por
+usuario). Sin cuerpo: el servidor lee los últimos mensajes y el pedido de la
+conversación, y **no marca leído** (por eso no usa el `GET` de mensajes, que
+sí). Devuelve el texto, los avisos para revisar o "Respondé a mano"; nada sale
+hasta que el equipo toca Enviar. Cómo funciona: [ia.md](./integraciones/ia.md#bandeja-de-preguntas).
+
 La Bandeja usa además `/api/v1/inbox` (lista, conteos, asignar, leído/no
 leído, archivar) y, para leer y responder un hilo de posventa, los mismos
 endpoints de `/api/v1/support`.

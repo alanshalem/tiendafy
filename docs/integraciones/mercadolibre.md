@@ -113,6 +113,7 @@ Todos bajo `/api/v1`.
 | `GET /admin/meli/questions`, `POST /admin/meli/questions/{id}/answer` | `meli.operate` | Preguntas (con ficha de la publicación) y respuesta. |
 | `GET/POST /admin/meli/packs/{packId}/messages` | `meli.operate` | Mensajería posventa (máx. 350 caracteres; el comprador sale del cache, nunca del request). |
 | `GET /admin/meli/claims` | `meli.operate` | Reclamos paginados. |
+| `POST /ai/ml/questions/{id}/draft`, `POST /ai/ml/messages/{packId}/draft` | `meli.operate` | Borrador de respuesta con IA para una pregunta o un chat posventa. Solo lee: no escribe en Mercado Libre y los mensajes se piden con `mark_as_read=false`, así que no marca leído. Ver [ia.md](./ia.md#bandeja-de-preguntas). |
 | `POST /admin/meli/orders/{id}/invoice` | `fiscal.emit` | Factura ARCA de una venta cobrada. |
 | `GET /admin/meli/orders/{id}/credit` | `fiscal.emit` | La factura del ambiente actual y la cuenta de sus NC frente a lo devuelto (centavos); 409 sin factura. |
 | `POST /admin/meli/orders/{id}/credit-notes` | `fiscal.emit` | Nota de crédito a mano (`{ amount, reason?, idempotencyKey }`), con el tope de lo que queda de la factura. |

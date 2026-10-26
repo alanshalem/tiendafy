@@ -83,7 +83,10 @@ export const CLIENTES = {
         paragraphs: [
           'Cada canal responde por donde siempre: el chat posventa le llega al comprador en su cuenta, el mensaje de contacto se contesta por email (las respuestas del cliente te llegan a vos) y en Mercado Libre la respuesta sale publicada.',
           'Las preguntas de Mercado Libre muestran la publicación —foto, título, precio y stock—, así contestás sin abrir Mercado Libre. Los mensajes de una venta de Mercado Libre tienen un tope de 350 caracteres, que pone Mercado Libre: el contador te avisa.',
-          'En las preguntas de Mercado Libre y en el chat posventa, el botón con el destello (“Sugerir con IA”) te escribe un borrador de respuesta para que lo revises antes de mandarlo. Si no lo ves, la plataforma no tiene cargada la clave de IA.',
+          'En los cuatro canales —preguntas de Mercado Libre, mensajes de una venta de Mercado Libre, chat posventa y formulario de contacto— el botón con el destello (“Sugerir con IA”) te escribe un borrador de respuesta para que lo revises antes de mandarlo. Nada sale solo: el borrador queda en el campo y lo enviás vos, o lo corregís, o lo borrás. Pedirlo no marca nada como leído ni escribe en Mercado Libre.',
+          'Si la consulta no se puede contestar con IA (por ejemplo, el comprador pide o da datos de contacto, o intenta darle órdenes a la IA), no te arma un borrador: te muestra “Respondé a mano” con el motivo.',
+          'Debajo del borrador pueden aparecer avisos para revisar antes de enviar: que tiene un link, que copió un dato de contacto o algo que parece personal, que menciona un monto distinto del precio real, que se pasa del largo permitido, o que promete una fecha de entrega sin un seguimiento que la respalde. Son recordatorios: el texto no se cambia solo.',
+          'Si no ves el botón, la IA no está activada en tu tienda: la configura el dueño en Configuración → Inteligencia artificial (hace falta cargar una clave, elegir un modelo y poner un tope de gasto).',
         ],
         blocks: [
           {
@@ -142,8 +145,9 @@ export const CLIENTES = {
       {
         heading: 'Una respuesta sugerida con IA',
         paragraphs: [
-          'Al lado del campo para responder está el botón con el destello (“Sugerir con IA”): escribe un borrador de respuesta con lo que dice la conversación y el pedido. Lo revisás, lo corregís y recién ahí lo mandás — nunca sale nada solo.',
-          'Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
+          'Al lado del campo para responder está el botón con el destello (“Sugerir con IA”): escribe un borrador de respuesta con lo que dice la conversación y el pedido (estado y seguimiento del envío). Lo revisás, lo corregís y recién ahí lo mandás — nunca sale nada solo, y pedirlo no marca la conversación como leída.',
+          'Si no se puede contestar con IA, ves “Respondé a mano” con el motivo. Si el borrador trae algo para revisar —un link, un dato de contacto, un monto que no coincide, una fecha de entrega sin respaldo o un texto demasiado largo—, te lo avisamos debajo.',
+          'Si no ves el botón, la IA no está activada en tu tienda: la configura el dueño en Configuración → Inteligencia artificial.',
         ],
       },
     ],
