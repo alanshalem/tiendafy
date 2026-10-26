@@ -2,6 +2,7 @@ using System.Globalization;
 using Analytics.Infrastructure;
 using Api.Auth;
 using Api.Notifications;
+using Api.Stats;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Core.Domain;
@@ -59,7 +60,7 @@ public static class StatsEndpoints
             // mandaba la cantidad de días del período elegido y la API contaba
             // siempre hasta ahora, así que un rango personalizado mostraba otras
             // fechas y "Hoy" eran las últimas 24 horas.
-            var (firstDay, lastDay) = OverviewDays(from, to, days);
+            var (firstDay, lastDay) = StatsRanges.OverviewDays(from, to, days);
             var since = ArgentinaTime.StartOfDayUtc(firstDay);
             var until = ArgentinaTime.StartOfDayUtc(lastDay.AddDays(1));
             var prevSince = since - (until - since);
@@ -168,7 +169,7 @@ public static class StatsEndpoints
             ITenantContext tenant, OrdersDbContext ordersDb, CustomersDbContext customers, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var (since, until) = Range(from, to, days ?? 30);
+            var (since, until) = StatsRanges.Range(from, to, days ?? 30);
 
             var orders = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
             var paid = orders.Where(o => OrderStatuses.Earning.Contains(o.Status)).ToList();
@@ -176,7 +177,7 @@ public static class StatsEndpoints
             var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
 
             var series = paid
-                .GroupBy(o => LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
+                .GroupBy(o => StatsRanges.LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .Select(g => new { date = g.Key, revenue = g.Sum(o => o.NetRevenue.AmountInMinorUnits), orders = g.Count() })
                 .OrderBy(x => x.date).ToList();
 
@@ -203,7 +204,7 @@ public static class StatsEndpoints
             int? days, int? limit, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var (since, until) = Range(from, to, days ?? 30);
+            var (since, until) = StatsRanges.Range(from, to, days ?? 30);
             var take = Math.Clamp(limit ?? 10, 1, 50);
 
             var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
@@ -248,7 +249,7 @@ public static class StatsEndpoints
             int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var (since, until) = Range(from, to, days ?? 30);
+            var (since, until) = StatsRanges.Range(from, to, days ?? 30);
             var previousSince = since - (until - since);
 
             var paid = await ordersDb.Orders
@@ -269,7 +270,7 @@ public static class StatsEndpoints
             var profit = revenueWithCost - productCost - mpFeesWithCost;
 
             var series = withCost
-                .GroupBy(o => LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
+                .GroupBy(o => StatsRanges.LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .Select(g => new
                 {
                     date = g.Key,
@@ -368,7 +369,7 @@ public static class StatsEndpoints
             int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var (since, until) = Range(from, to, days ?? 90);
+            var (since, until) = StatsRanges.Range(from, to, days ?? 90);
             var previousSince = since - (until - since);
 
             var window = await ordersDb.Orders
@@ -430,7 +431,7 @@ public static class StatsEndpoints
         {
             var tid = tenant.TenantId;
             var tidGuid = tid.Value;
-            var (since, until) = Range(from, to, days ?? 14);
+            var (since, until) = StatsRanges.Range(from, to, days ?? 14);
             var previousSince = since - (until - since);
 
             // Todo se cuenta en la base: una tienda con tráfico real tiene
@@ -681,50 +682,5 @@ public static class StatsEndpoints
             unitsTotal,
             unitsWithFee,
         };
-    }
-
-    /// <summary>
-    /// El día de Argentina de un instante, para las series diarias. Medianoche
-    /// con Kind Utc a propósito: el JSON sale igual que antes
-    /// ("2026-10-15T00:00:00Z") y el panel lee solo la parte de la fecha.
-    /// </summary>
-    private static DateTime LocalDay(DateTime utc) =>
-        DateTime.SpecifyKind(ArgentinaTime.DateOf(utc).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-
-    /// <summary>
-    /// Ventana [since, until) del reporte: si viene from (y opcionalmente to),
-    /// manda el rango explícito (días completos de Argentina, como el filtro
-    /// del listado de ventas; tope 366); si no, los
-    /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
-    /// </summary>
-    /// <summary>
-    /// Primer y último día (de Argentina) de la visión general: from/to si
-    /// vienen, si no los últimos <paramref name="days"/> días hasta hoy. Hasta
-    /// 366 días, como el resto de las estadísticas ("Este año" en un bisiesto).
-    /// </summary>
-    internal static (DateOnly First, DateOnly Last) OverviewDays(DateOnly? from, DateOnly? to, int? days)
-    {
-        var today = ArgentinaTime.Today;
-        if (from is not { } f)
-            return (today.AddDays(1 - Math.Clamp(days ?? 30, 1, 366)), today);
-
-        var t = to ?? today;
-        if (t < f) (f, t) = (t, f);
-        if (t.DayNumber - f.DayNumber + 1 > 366) f = t.AddDays(-365);
-        return (f, t);
-    }
-
-    private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
-    {
-        if (from is { } f)
-        {
-            var t = to ?? ArgentinaTime.Today;
-            if (t < f) (f, t) = (t, f);
-            var until = ArgentinaTime.StartOfDayUtc(t.AddDays(1));
-            var since = ArgentinaTime.StartOfDayUtc(f);
-            if ((until - since).TotalDays > 366) since = until.AddDays(-366);
-            return (since, until);
-        }
-        return (DateTime.UtcNow.AddDays(-Math.Clamp(fallbackDays, 1, 366)), DateTime.UtcNow.AddDays(1));
     }
 }
