@@ -95,8 +95,7 @@ public sealed class QuestionToolsTests
 
         var result = (await tool.InvokeAsync())?.ToString() ?? "";
 
-        Assert.InRange(result.Length, 1, QuestionTools.MaxResultChars + 2); // + comillas del JSON
-        Assert.DoesNotContain(new string('x', QuestionTools.MaxResultChars + 1), result);
+        Assert.InRange(result.Length, 1, QuestionTools.MaxResultChars);
     }
 
     [Theory]
@@ -119,51 +118,93 @@ public sealed class QuestionToolsTests
 
     // ---- Timeout y fallas del lector ----
 
+    private static readonly TimeSpan Fast = TimeSpan.FromMilliseconds(50);
+
     [Fact]
-    public async Task Lector_que_excede_el_timeout_da_texto_neutro_y_no_marca_fecha()
+    public async Task Lector_que_excede_el_timeout_da_texto_neutro_lo_registra_y_no_marca_fecha()
     {
-        var log = new DraftToolLog();
+        var log = new DraftToolLog(Fast);
         var readers = new DraftReaders(Tracking: async ct =>
         {
             await Task.Delay(Timeout.Infinite, ct);
             return new TrackingInfo("nunca", true);
         });
         var tool = QuestionTools.For(DraftChannel.SupportChat, QuestionCategory.Shipping, readers, log).Single();
-        var previous = QuestionTools.ReaderTimeout;
-        QuestionTools.ReaderTimeout = TimeSpan.FromMilliseconds(50);
-        try
-        {
-            var result = await tool.InvokeAsync();
-
-            Assert.Contains(QuestionTools.Unavailable, result?.ToString());
-            Assert.False(log.DeliveryEstimateKnown);
-        }
-        finally { QuestionTools.ReaderTimeout = previous; }
-    }
-
-    [Fact]
-    public async Task Lector_que_lanza_da_texto_neutro()
-    {
-        var readers = new DraftReaders(StockAndPrice: _ => throw new HttpRequestException("ML caído"));
-        var tool = QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, new DraftToolLog()).Single();
 
         var result = await tool.InvokeAsync();
 
         Assert.Contains(QuestionTools.Unavailable, result?.ToString());
+        Assert.False(log.DeliveryEstimateKnown);
+        var failure = Assert.Single(log.ReaderFailures);
+        Assert.Equal("seguimiento", failure.Tool);
+        Assert.True(failure.TimedOut);
     }
 
     [Fact]
-    public async Task Cancelacion_externa_se_propaga()
+    public async Task Lector_que_ignora_el_token_igual_se_corta_por_el_tope()
     {
+        var log = new DraftToolLog(Fast);
+        var readers = new DraftReaders(StockAndPrice: async _ =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+            return "tarde";
+        });
+        var tool = QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, log).Single();
+
+        var result = await tool.InvokeAsync();
+
+        Assert.Contains(QuestionTools.Unavailable, result?.ToString());
+        Assert.True(Assert.Single(log.ReaderFailures).TimedOut);
+    }
+
+    [Fact]
+    public async Task Lector_que_lanza_da_texto_neutro_y_registra_herramienta_y_tipo_sin_mensaje()
+    {
+        var log = new DraftToolLog();
+        var readers = new DraftReaders(StockAndPrice: _ => throw new HttpRequestException("ML caído para juan@mail.com"));
+        var tool = QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, log).Single();
+
+        var result = await tool.InvokeAsync();
+
+        Assert.Contains(QuestionTools.Unavailable, result?.ToString());
+        var failure = Assert.Single(log.ReaderFailures);
+        Assert.Equal("stock_y_precio", failure.Tool);
+        Assert.Equal(nameof(HttpRequestException), failure.ExceptionType);
+        Assert.False(failure.TimedOut);
+        Assert.DoesNotContain("juan", failure.ToString());
+    }
+
+    [Fact]
+    public async Task Fecha_conocida_sobrevive_a_una_segunda_llamada_que_falla()
+    {
+        var log = new DraftToolLog();
+        var calls = 0;
+        var readers = new DraftReaders(Tracking: _ => ++calls == 1
+            ? Task.FromResult(new TrackingInfo("Llega el lunes", true))
+            : throw new HttpRequestException("caído"));
+        var tool = QuestionTools.For(DraftChannel.SupportChat, QuestionCategory.Shipping, readers, log).Single();
+
+        await tool.InvokeAsync();
+        await tool.InvokeAsync();
+
+        Assert.True(log.DeliveryEstimateKnown);
+        Assert.Single(log.ReaderFailures);
+    }
+
+    [Fact]
+    public async Task Cancelacion_externa_se_propaga_y_no_es_una_falla()
+    {
+        var log = new DraftToolLog();
         var readers = new DraftReaders(StockAndPrice: async ct =>
         {
             await Task.Delay(Timeout.Infinite, ct);
             return "nunca";
         });
-        var tool = QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, new DraftToolLog()).Single();
+        var tool = QuestionTools.For(DraftChannel.MeliQuestion, QuestionCategory.Stock, readers, log).Single();
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(50);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await tool.InvokeAsync(null, cts.Token));
+        Assert.Empty(log.ReaderFailures);
     }
 }

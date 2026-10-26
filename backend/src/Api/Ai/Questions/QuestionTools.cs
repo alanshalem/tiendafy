@@ -15,9 +15,6 @@ public static class QuestionTools
     /// <summary>Lo que ve el modelo cuando el lector falla o tarda: no es una falla del proveedor de IA.</summary>
     public const string Unavailable = "No pude consultar este dato ahora.";
 
-    /// <summary>Tope por lector. Interno y mutable solo para que los tests no esperen 5 segundos.</summary>
-    internal static TimeSpan ReaderTimeout { get; set; } = TimeSpan.FromSeconds(5);
-
     private const string OrderStatusDescription =
         "Devuelve el estado actual del pedido de esta conversación (pago, preparación, envío).";
 
@@ -30,11 +27,11 @@ public static class QuestionTools
             switch (category)
             {
                 case QuestionCategory.Stock or QuestionCategory.Price:
-                    AddText(tools, readers.StockAndPrice, "stock_y_precio",
+                    AddText(tools, log, readers.StockAndPrice, "stock_y_precio",
                         "Devuelve el precio y el stock actuales de la publicación por la que preguntan.");
                     break;
                 case QuestionCategory.Product:
-                    AddText(tools, readers.TechSheet, "ficha_tecnica",
+                    AddText(tools, log, readers.TechSheet, "ficha_tecnica",
                         "Devuelve la ficha técnica (atributos) de la publicación por la que preguntan.");
                     break;
             }
@@ -47,11 +44,11 @@ public static class QuestionTools
                     AddTracking(tools, readers.Tracking, log);
                     break;
                 case QuestionCategory.AfterSale:
-                    AddText(tools, readers.OrderStatus, "estado_del_pedido", OrderStatusDescription);
+                    AddText(tools, log, readers.OrderStatus, "estado_del_pedido", OrderStatusDescription);
                     AddTracking(tools, readers.Tracking, log);
                     break;
                 case QuestionCategory.Other:
-                    AddText(tools, readers.OrderStatus, "estado_del_pedido", OrderStatusDescription);
+                    AddText(tools, log, readers.OrderStatus, "estado_del_pedido", OrderStatusDescription);
                     break;
             }
         }
@@ -62,13 +59,13 @@ public static class QuestionTools
     /// <summary>Margen de tokens de entrada que suman las herramientas: cada resultado puede llegar a <see cref="MaxResultChars"/>.</summary>
     public static int AllowanceTokens(int toolCount) => toolCount * MaxResultChars / 3;
 
-    private static void AddText(List<AIFunction> tools, Func<CancellationToken, Task<string>>? reader, string name, string description)
+    private static void AddText(List<AIFunction> tools, DraftToolLog log, Func<CancellationToken, Task<string>>? reader, string name, string description)
     {
         if (reader is null) return;
         tools.Add(AIFunctionFactory.Create(
             async (CancellationToken ct) =>
             {
-                var text = await ReadAsync(reader, ct);
+                var text = await ReadAsync(reader, name, log, ct);
                 return text is null ? Unavailable : Clip(text);
             },
             name, description));
@@ -80,7 +77,7 @@ public static class QuestionTools
         tools.Add(AIFunctionFactory.Create(
             async (CancellationToken ct) =>
             {
-                var info = await ReadAsync(reader, ct);
+                var info = await ReadAsync(reader, "seguimiento", log, ct);
                 if (info is null) return Unavailable;
                 if (info.HasDeliveryEstimate) log.MarkDeliveryEstimateKnown();
                 return Clip(info.Text);
@@ -92,20 +89,22 @@ public static class QuestionTools
     /// Corre el lector con un tope propio. Si lo excede o falla devuelve null (la herramienta responde un texto
     /// neutro): una herramienta lenta o rota no cuenta como falla del proveedor. La cancelación externa se propaga.
     /// </summary>
-    private static async Task<T?> ReadAsync<T>(Func<CancellationToken, Task<T>> reader, CancellationToken ct) where T : class
+    private static async Task<T?> ReadAsync<T>(Func<CancellationToken, Task<T>> reader, string tool, DraftToolLog log, CancellationToken ct) where T : class
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(ReaderTimeout);
+        cts.CancelAfter(log.ReaderTimeout);
         try
         {
-            return await reader(cts.Token);
+            // WaitAsync corta por el tope aunque el lector ignore el token.
+            return await reader(cts.Token).WaitAsync(cts.Token);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            log.RecordReaderFailure(tool, ex);
             return null;
         }
     }
