@@ -114,7 +114,7 @@ public sealed class PurchasingFlowTests
         _factory.Ai.Respond(AiSetup.Sonnet, AiSetup.Reply("```json\n" + JsonSerializer.Serialize(new
         {
             supplierName = "SHENZHEN TRADING CO",
-            supplierTaxId = "30-71234567-8",
+            supplierTaxId = "30-71234567-1",
             invoiceType = "a",
             invoiceNumber = "0003-00001234",
             invoiceDate = "2026-10-05",
@@ -122,15 +122,16 @@ public sealed class PurchasingFlowTests
             netAmount = 500000.00m,
             vatAmount = 105000.00m,
             totalAmount = 605000.00m,
-            lines = new[] { new { description = "Remeras", quantity = 100, unitPrice = 4000m } },
+            lines = new[] { new { description = "Remeras", quantity = 100, unitPrice = 5000m } },
             confidence = "alta",
             warnings = new[] { "El CUIT tiene un dígito borroso" },
         }) + "\n```"));
         var scanned = await ScanAsync(merchant, poId, "application/pdf", "%PDF-1.4 factura"u8.ToArray());
         Assert.Equal(HttpStatusCode.OK, scanned.StatusCode);
         var proposal = await scanned.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("30712345678", proposal.GetProperty("supplierTaxId").GetString());
+        Assert.Equal("30712345671", proposal.GetProperty("supplierTaxId").GetString());
         Assert.Equal("A", proposal.GetProperty("invoiceType").GetString());
+        Assert.Empty(proposal.GetProperty("checks").EnumerateArray()); // la factura cierra: una sola llamada
         Assert.False(proposal.GetProperty("currencyMismatch").GetBoolean());
         var sent = Assert.Single(_factory.Ai.Calls(AiSetup.Sonnet)).Single(m => m.Role == ChatRole.User);
         Assert.Equal("application/pdf", sent.Contents.OfType<DataContent>().Single().MediaType); // el PDF viaja como documento
