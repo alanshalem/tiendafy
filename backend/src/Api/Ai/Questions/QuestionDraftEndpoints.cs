@@ -33,6 +33,26 @@ public static class QuestionDraftEndpoints
             return draft.IsSuccess ? Results.Ok(draft.Value) : draft.Error.ToProblem();
         }).RequirePermission(Permission.MeliOperate).RequireAiRateLimit(AiRateLimitKind.PerUser);
 
+        // Chat posventa de la tienda: la conversación y su pedido los lee el servidor, sin marcarla leída.
+        ai.MapPost("/support/conversations/{id:guid}/draft", async (
+            Guid id, StoreDraftSources sources, QuestionDraftService drafts, CancellationToken ct) =>
+        {
+            var subject = await sources.SupportConversationAsync(id, ct);
+            if (subject.IsFailure) return subject.Error.ToProblem();
+            var draft = await drafts.DraftAsync(subject.Value, ct);
+            return draft.IsSuccess ? Results.Ok(draft.Value) : draft.Error.ToProblem();
+        }).RequirePermission(Permission.SupportChat).RequireAiRateLimit(AiRateLimitKind.PerUser);
+
+        // Mensaje del formulario de contacto: el mismo permiso que hoy pide contestarlo.
+        ai.MapPost("/contact/{id:guid}/draft", async (
+            Guid id, StoreDraftSources sources, QuestionDraftService drafts, CancellationToken ct) =>
+        {
+            var subject = await sources.ContactAsync(id, ct);
+            if (subject.IsFailure) return subject.Error.ToProblem();
+            var draft = await drafts.DraftAsync(subject.Value, ct);
+            return draft.IsSuccess ? Results.Ok(draft.Value) : draft.Error.ToProblem();
+        }).RequirePermission(Permission.MessagesRead).RequireAiRateLimit(AiRateLimitKind.PerUser);
+
         return ai;
     }
 }

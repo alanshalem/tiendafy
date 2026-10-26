@@ -7,6 +7,7 @@ public static class QuestionDraftsRegistration
     {
         services.AddScoped<QuestionDraftService>();
         services.AddScoped<MeliDraftSources>();
+        services.AddScoped<StoreDraftSources>();
         return services;
     }
 }

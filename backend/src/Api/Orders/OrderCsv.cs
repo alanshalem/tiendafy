@@ -64,7 +64,7 @@ public static class OrderCsv
         ArgentinaTime.ToLocal(utc).ToString("dd/MM/yyyy HH:mm");
 
     /// <summary>Los mismos nombres que el panel (lib/orderStatus.ts del admin).</summary>
-    private static string StatusLabel(Order o) => o.Status switch
+    internal static string StatusLabel(Order o) => o.Status switch
     {
         OrderStatus.PendingPayment => "Pendiente",
         OrderStatus.Paid => "Pagada",
