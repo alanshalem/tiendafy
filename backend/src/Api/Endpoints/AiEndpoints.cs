@@ -1,5 +1,6 @@
 using Ai.Infrastructure;
 using Api.Ai;
+using Api.Ai.Questions;
 using Api.Auth;
 using Identity.Infrastructure;
 using SharedKernel.Abstractions;
@@ -40,6 +41,9 @@ public static class AiEndpoints
                     : new { task = t.Task.ToString(), available = false, reason = (string?)AiTaskPermissions.Denied, code = (string?)AiTaskPermissions.DeniedCode }),
             });
         }).RequireAuthorization();
+
+        // Borradores de la bandeja: la consulta la lee el servidor (ver Api/Ai/Questions).
+        ai.MapQuestionDrafts();
 
         // Respuesta sugerida para una pregunta prevente de Mercado Libre.
         ai.MapPost("/ml-answer", async (

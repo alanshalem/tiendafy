@@ -219,6 +219,7 @@ public static class ServiceRegistration
         // del menú se refrescan solos desde cada panel abierto.
         services.AddMemoryCache();
         services.AddScoped<Api.Inbox.MeliInboxSource>();
+        Api.Ai.Questions.QuestionDraftsRegistration.AddQuestionDrafts(services);
         services.AddScoped<Api.Inbox.InboxService>();
 
         // Despacho: cola de pedidos, lista de picking, etiquetas en lote y

@@ -20,6 +20,10 @@ public static class AiSetup
         await merchant.ExpectOkAsync(HttpMethod.Put, $"{Config}/settings", new { enabled = true, monthlyBudgetUsd = 20, alertThresholdPct = 80 });
     }
 
+    /// <summary>Los borradores de la bandeja: Haiku clasifica y Sonnet redacta.</summary>
+    public static Task EnableDraftsAsync(Merchant merchant) =>
+        ConfigureAsync(merchant, (AiTask.QuestionClassify, Haiku), (AiTask.QuestionDraft, Sonnet));
+
     public static ChatResponse Reply(string text, long input = 10, long output = 5) =>
         new(new ChatMessage(ChatRole.Assistant, text)) { Usage = new UsageDetails { InputTokenCount = input, OutputTokenCount = output } };
 }
