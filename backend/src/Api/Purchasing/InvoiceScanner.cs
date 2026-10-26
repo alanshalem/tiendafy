@@ -1,5 +1,4 @@
-using System.Text.RegularExpressions;
-using Ai.Infrastructure;
+using System.Text.Json;
 using Api.Ai;
 using Microsoft.Extensions.AI;
 using Purchasing.Infrastructure;
@@ -8,21 +7,19 @@ using SharedKernel.Common;
 namespace Api.Purchasing;
 
 /// <summary>
-/// Lee la factura del proveedor —PDF o foto— y PROPONE los datos del
-/// comprobante.
+/// Lee la factura del proveedor —PDF o foto— y PROPONE los datos del comprobante, con una cadena corta:
+/// extraer con salida estructurada, validar en código, a lo sumo UNA corrección y emparejar las líneas con
+/// los ítems de la orden (primero en código; solo las ambiguas, una sola vez, con la IA). Son de una a tres
+/// llamadas al modelo, cada una su propia ejecución del gateway, que reserva el peor caso del tope.
 ///
-/// Cargar a mano tipo, número, fecha, neto e IVA de cada factura es el trabajo
-/// más repetitivo del circuito de compras y el que más errores de tipeo mete en
-/// el libro de IVA. La AI ya está en el sistema para otras cosas, así que esto
-/// es de lo más barato que se puede agregar.
+/// Propone y no guarda, a propósito. Un número de factura mal leído entra derecho al libro de IVA y a la
+/// cuenta corriente del proveedor: que alguien mire la pantalla antes de confirmar cuesta cinco segundos y
+/// evita corregirlo tres meses después. El archivo tampoco se guarda: entra, sale la propuesta.
 ///
-/// Propone y no guarda, a propósito. Un número de factura mal leído entra
-/// derecho al libro de IVA y a la cuenta corriente del proveedor: que alguien
-/// mire la pantalla antes de confirmar cuesta cinco segundos y evita corregirlo
-/// tres meses después. El archivo tampoco se guarda: entra, sale la propuesta,
-/// y lo que queda registrado es lo que la persona confirmó.
+/// Lo que viene del archivo es dato, no órdenes. El modelo solo propone, y al emparejar solo puede elegir
+/// entre los candidatos que le damos; el código nunca "arregla" un número para que cierre.
 /// </summary>
-public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceScanner> logger)
+public sealed class InvoiceScanner(IInvoiceModel model, ILogger<InvoiceScanner> logger)
 {
     /// <summary>10 MB. Una factura escaneada pesa menos de 1; más que esto es una foto sin comprimir.</summary>
     public const long MaxBytes = 10 * 1024 * 1024;
@@ -30,106 +27,169 @@ public sealed partial class InvoiceScanner(IAiGateway gateway, ILogger<InvoiceSc
     public static readonly string[] AllowedMediaTypes =
         ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
-    private const string SystemPrompt = """
-        Sos un asistente que lee facturas de compra argentinas y extrae sus datos.
-        Respondés SIEMPRE con un único objeto JSON, sin texto alrededor y sin bloques de código.
+    public Task<Result<InvoiceProposal>> ScanAsync(
+        byte[] file, string mediaType, PurchaseOrder? order, CancellationToken ct) =>
+        ScanAsync(file, mediaType, order, ArgentinaTime.Today, ct);
 
-        Campos:
-        - supplierName: razón social de quien EMITE la factura (el proveedor), o null.
-        - supplierTaxId: CUIT del emisor, solo dígitos, sin guiones, o null.
-        - invoiceType: "A", "B", "C", "E" o "M" según la letra del comprobante, o null.
-        - invoiceNumber: punto de venta y número como figura, formato "0001-00001234", o null.
-        - invoiceDate: fecha de emisión en formato AAAA-MM-DD, o null.
-        - currency: "ARS" o "USD".
-        - netAmount: neto gravado (sin IVA) como número decimal, o null.
-        - vatAmount: suma de TODAS las alícuotas de IVA como número decimal, o null.
-        - totalAmount: total del comprobante como número decimal, o null.
-        - lines: array de { description, quantity, unitPrice } con las líneas del detalle. Vacío si no se leen.
-        - confidence: "alta", "media" o "baja" según qué tan legible está el comprobante.
-        - warnings: array de textos cortos en castellano con lo que no pudiste leer o te resultó ambiguo.
-
-        Reglas:
-        - Los números van SIN separador de miles y con punto decimal: 12345.67.
-        - Si un dato no está o no se lee con seguridad, poné null y explicá por qué en warnings.
-          Nunca inventes un número ni completes con un valor aproximado.
-        - En Argentina la factura B no discrimina IVA: en ese caso netAmount y vatAmount van en null
-          y totalAmount lleva el total.
-        - Si el archivo no es una factura, devolvé todos los campos en null, confidence "baja"
-          y un warning diciendo qué es.
-        """;
-
-    public async Task<Result<ScannedInvoice>> ScanAsync(
-        byte[] file, string mediaType, PurchaseOrder? order, CancellationToken ct)
+    /// <param name="todayAr">"Hoy" para el control de fecha futura; por parámetro para probar sin reloj.</param>
+    internal async Task<Result<InvoiceProposal>> ScanAsync(
+        byte[] file, string mediaType, PurchaseOrder? order, DateOnly todayAr, CancellationToken ct)
     {
         if (file.Length == 0)
-            return Result.Failure<ScannedInvoice>(Error.Validation("Invoice.Empty", "El archivo está vacío."));
+            return Result.Failure<InvoiceProposal>(Error.Validation("Invoice.Empty", "El archivo está vacío."));
 
         if (file.LongLength > MaxBytes)
-            return Result.Failure<ScannedInvoice>(Error.Validation(
+            return Result.Failure<InvoiceProposal>(Error.Validation(
                 "Invoice.TooLarge", "El archivo supera los 10 MB. Probá con un escaneo de menor resolución."));
 
         if (!AllowedMediaTypes.Contains(mediaType))
-            return Result.Failure<ScannedInvoice>(Error.Validation(
+            return Result.Failure<InvoiceProposal>(Error.Validation(
                 "Invoice.BadType", "Subí la factura en PDF o como imagen (JPG, PNG o WEBP)."));
 
-        // Lo que ya sabemos de la orden entra como contexto: con el proveedor y
-        // el total esperado delante, el modelo corrige mejor un dígito borroso
-        // que leyendo la factura sola.
-        var prompt = order is null
-            ? "Leé esta factura de compra y devolvé el JSON."
-            : $"""
-               Leé esta factura de compra y devolvé el JSON.
+        if (mediaType == "application/pdf" && InvoiceTokenEstimate.PdfPages(file) > InvoiceTokenEstimate.MaxPdfPages)
+            return Result.Failure<InvoiceProposal>(Error.Validation(
+                "Invoice.TooManyPages", "La factura tiene más de 20 páginas: subí solo las del comprobante."));
 
-               Contexto de la orden de compra con la que se va a asociar (puede no coincidir,
-               es solo referencia — NO completes con estos datos lo que no puedas leer):
-               - Proveedor esperado: {order.SupplierName}
-               - Referencia: {order.Reference ?? "sin referencia"}
-               - Moneda de la orden: {order.Currency}
-               - Ítems: {order.Items.Count}
-               """;
+        // 1. Extraer. El archivo primero: el modelo lee mejor la consigna sabiendo ya qué tiene delante.
+        // Los bytes viajan al proveedor y no se guardan en ningún lado.
+        var prompt = InvoicePrompts.ExtractUser(order);
+        var original = new ChatMessage(ChatRole.User, [new DataContent(file, mediaType), new TextContent(prompt)]);
+        var firstEstimate = InvoiceTokenEstimate.ForFile(file, mediaType, InvoicePrompts.ExtractSystem.Length + prompt.Length);
+        var first = await model.AskAsync(
+            InvoicePrompts.ExtractSystem, [original], InvoicePrompts.ExtractionFormat, firstEstimate, ct);
+        if (first.IsFailure) return Result.Failure<InvoiceProposal>(first.Error);
 
-        // El archivo primero: el modelo lee mejor la consigna sabiendo ya qué tiene delante. Los bytes
-        // viajan al proveedor y no se guardan en ningún lado.
-        var message = new ChatMessage(ChatRole.User, [new DataContent(file, mediaType), new TextContent(prompt)]);
-        var options = new AiRunOptions(EstimateInputTokens(file, mediaType) + (SystemPrompt.Length + prompt.Length) / 3);
-        var response = await gateway.RunAsync(
-            AiTask.InvoiceRead,
-            options,
-            async (run, token) =>
-                (await run.Chat.GetResponseAsync([run.System(SystemPrompt), message], run.NewOptions(), token)).Text,
-            ct);
-        if (response.IsFailure) return Result.Failure<ScannedInvoice>(response.Error);
-
-        var parsed = InvoiceResponseParser.Parse(response.Value);
-        if (parsed is null)
+        var firstText = first.Value.FinalText();
+        var invoice = InvoiceResponseParser.Parse(firstText);
+        if (invoice is null)
         {
-            logger.LogWarning("Factura: respuesta de la IA no parseable: {Body}", Text.Clip(response.Value, 400));
+            logger.LogWarning("Factura: respuesta de la IA no parseable: {Body}", Text.Clip(firstText, 400));
             // 409 y no 500: el modelo contestó algo que no es la factura; se puede cargar a mano o reintentar.
-            return Result.Failure<ScannedInvoice>(Error.Conflict(
+            return Result.Failure<InvoiceProposal>(Error.Conflict(
                 "Invoice.Unreadable", "No se pudo interpretar la respuesta. Cargá los datos a mano."));
         }
 
-        return parsed;
+        // 2. Validar en código.
+        var issues = InvoiceValidator.Validate(invoice, todayAr);
+        var chainWarnings = new List<string>();
+        var correctionRound = false;
+
+        // 3. Una sola corrección, diciendo exactamente qué no cierra. Nunca una tercera lectura.
+        if (issues.Count > 0)
+        {
+            var correction = InvoicePrompts.CorrectionUser(issues);
+            var second = await model.AskAsync(
+                InvoicePrompts.ExtractSystem,
+                [original, new ChatMessage(ChatRole.Assistant, firstText), new ChatMessage(ChatRole.User, correction)],
+                InvoicePrompts.ExtractionFormat,
+                InvoiceTokenEstimate.ForCorrection(firstEstimate, firstText.Length, correction.Length),
+                ct);
+
+            if (second.IsFailure)
+            {
+                chainWarnings.Add($"No se pudo hacer la segunda lectura: {second.Error.Message}");
+            }
+            else
+            {
+                correctionRound = true;
+                var secondText = second.Value.FinalText();
+                var reread = InvoiceResponseParser.Parse(secondText);
+                if (reread is null)
+                {
+                    logger.LogWarning("Factura: segunda lectura no parseable: {Body}", Text.Clip(secondText, 400));
+                    chainWarnings.Add("La segunda lectura no se pudo interpretar: queda la primera.");
+                }
+                else
+                {
+                    var rereadIssues = InvoiceValidator.Validate(reread, todayAr);
+                    if (rereadIssues.Count > issues.Count)
+                    {
+                        chainWarnings.Add("La segunda lectura cerraba peor que la primera: queda la primera.");
+                    }
+                    else
+                    {
+                        invoice = reread;
+                        issues = rereadIssues;
+                    }
+                }
+            }
+        }
+
+        // 4. Emparejar las líneas con los ítems de la orden.
+        var matches = await MatchAsync(invoice, order, chainWarnings, ct);
+
+        return new InvoiceProposal(invoice, issues, correctionRound, matches, [.. invoice.Warnings, .. chainWarnings]);
+    }
+
+    private async Task<IReadOnlyList<InvoiceLineMatch>> MatchAsync(
+        ScannedInvoice invoice, PurchaseOrder? order, List<string> warnings, CancellationToken ct)
+    {
+        if (order is null || invoice.Lines.Count == 0)
+            return [.. invoice.Lines.Select((_, i) => new InvoiceLineMatch(i, null, LineMatchMethod.None, "baja", []))];
+
+        var items = InvoiceLineMatcher.ItemsOf(order);
+        var plan = InvoiceLineMatcher.Plan(invoice.Lines, items);
+        var matches = plan.Matches.ToList();
+
+        if (plan.AskAi.Count > 0)
+        {
+            var user = InvoicePrompts.MatchUser(invoice.Lines, plan.AskAi, items, matches);
+            var answer = await model.AskAsync(
+                InvoicePrompts.MatchSystem,
+                [new ChatMessage(ChatRole.User, user)],
+                InvoicePrompts.MatchFormat,
+                InvoiceTokenEstimate.ForText(InvoicePrompts.MatchSystem.Length + user.Length),
+                ct);
+
+            var choices = answer.IsSuccess ? ReadChoices(answer.Value.FinalText()) : null;
+            if (choices is null)
+            {
+                warnings.Add("No se pudieron emparejar con la IA las líneas dudosas: elegí el ítem a mano.");
+            }
+            else
+            {
+                foreach (var choice in choices)
+                    Apply(choice, plan.AskAi, matches, items);
+            }
+        }
+
+        var unmatched = matches.Count(m => m.VariantId is null);
+        if (unmatched > 0)
+            warnings.Add(unmatched == 1
+                ? "Quedó 1 línea sin emparejar: elegí el ítem a mano."
+                : $"Quedaron {unmatched} líneas sin emparejar: elegí el ítem a mano.");
+
+        return matches;
     }
 
     /// <summary>
-    /// Tokens que cuesta el archivo, por lo alto (con eso se reserva el peor caso del tope; lo real se
-    /// descuenta al terminar). Un PDF cuesta unos 1500 por página: se cuentan los objetos /Type /Page
-    /// (barato, sin abrir el PDF). Si no se pueden contar (páginas dentro de flujos comprimidos) o es una
-    /// imagen, 1500 por cada 100 KB: bytes / 3 sería muy alto para un PDF, que casi todo es compresión.
+    /// Una elección vale solo si la línea era una de las que se preguntaron y la clave es una de sus candidatos:
+    /// cualquier otra cosa que invente el modelo se ignora y la línea queda sin emparejar.
     /// </summary>
-    internal static int EstimateInputTokens(byte[] file, string mediaType)
+    private static void Apply(
+        LineChoice choice, IReadOnlyList<int> asked, List<InvoiceLineMatch> matches, IReadOnlyList<OrderItemRef> items)
     {
-        const int TokensPerUnit = 1500;
-        if (mediaType == "application/pdf")
-        {
-            var pages = PdfPage().Count(System.Text.Encoding.Latin1.GetString(file));
-            if (pages > 0) return pages * TokensPerUnit;
-        }
+        if (choice.Candidate is null || !asked.Contains(choice.Line)) return;
+        var current = matches[choice.Line];
+        if (current.VariantId is not null) return;
 
-        return Math.Max(1, (int)Math.Ceiling(file.Length / 102_400d)) * TokensPerUnit;
+        var chosen = current.Candidates
+            .Select(id => items.Select((item, index) => (item, index)).First(x => x.item.VariantId == id))
+            .FirstOrDefault(x => string.Equals(InvoicePrompts.ItemKey(x.index), choice.Candidate.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (chosen.item is null) return;
+
+        matches[choice.Line] = current with { VariantId = chosen.item.VariantId, Method = LineMatchMethod.Ai, Confidence = "media" };
     }
 
-    [GeneratedRegex(@"/Type\s*/Page(?![s\w])")]
-    private static partial Regex PdfPage();
+    private static IReadOnlyList<LineChoice>? ReadChoices(string text)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<LineChoiceAnswer>(text, JsonSerializerOptions.Web)?.Choices;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }

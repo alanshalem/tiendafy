@@ -243,7 +243,8 @@ public static class PurchasingEndpoints
             var scanned = await scanner.ScanAsync(buffer.ToArray(), file.ContentType, po, ct);
             if (scanned.IsFailure) return scanned.Error.ToProblem();
 
-            var s = scanned.Value;
+            var proposal = scanned.Value;
+            var s = proposal.Invoice;
             return Results.Ok(new
             {
                 supplierName = s.SupplierName,
@@ -254,10 +255,32 @@ public static class PurchasingEndpoints
                 currency = s.Currency,
                 netAmount = s.NetAmount,
                 vatAmount = s.VatAmount,
+                otherAmount = s.OtherAmount,
                 totalAmount = s.TotalAmount,
                 confidence = s.Confidence,
-                warnings = s.Warnings,
-                lines = s.Lines.Select(l => new { l.Description, l.Quantity, l.UnitPrice }),
+                warnings = proposal.Warnings,
+                // Lo que no cierra después de la corrección, con los números tal cual se leyeron.
+                checks = proposal.Checks.Select(c => new { c.Code, c.Message }),
+                correctionRound = proposal.CorrectionRound,
+                // El emparejamiento es una ayuda para revisar: no viaja en el PUT ni se guarda.
+                lines = s.Lines.Select((l, i) =>
+                {
+                    var m = proposal.Matches[i];
+                    return new
+                    {
+                        l.Description,
+                        l.Code,
+                        l.Quantity,
+                        l.UnitPrice,
+                        match = new
+                        {
+                            m.VariantId,
+                            method = m.Method.ToString().ToLowerInvariant(),
+                            m.Confidence,
+                            m.Candidates,
+                        },
+                    };
+                }),
                 // Si la factura está en otra moneda que la orden, los importes
                 // del comprobante van en pesos igual (es lo que pide el libro de
                 // IVA) y hay que convertir a mano: mejor decirlo que suponerlo.
