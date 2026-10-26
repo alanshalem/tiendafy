@@ -18,11 +18,24 @@ interface Entry extends AssistantTurn {
 
 const storageKey = (storeId: string) => `tiendafy:asistente:${storeId}`;
 
+/** Lo guardado puede venir viejo o tocado a mano: si una entrada no tiene la forma, se empieza vacío. */
+function isEntry(value: unknown): value is Entry {
+  if (typeof value !== 'object' || value === null) return false;
+  const e = value as Record<string, unknown>;
+  return (
+    typeof e.question === 'string' &&
+    typeof e.answer === 'string' &&
+    Array.isArray(e.sources) &&
+    e.sources.every((s) => typeof s === 'string')
+  );
+}
+
 function load(storeId: string): Entry[] {
   try {
     const raw = sessionStorage.getItem(storageKey(storeId));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as Entry[]) : [];
+    if (!Array.isArray(parsed) || !parsed.every(isEntry)) return [];
+    return parsed.map((e) => ({ ...e, limited: e.limited === true }));
   } catch {
     return [];
   }

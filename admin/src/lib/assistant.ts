@@ -23,15 +23,16 @@ const size = (turns: AssistantTurn[]) =>
 
 /**
  * Las últimas vueltas que entran en el tope: se tiran las más viejas, y si la última sola no entra
- * se corta su respuesta. Mismas reglas que `AssistantHistory.Clip` del servidor.
+ * se corta su respuesta y, si ni así, también su pregunta. Mismas reglas que `AssistantHistory.Clip`
+ * del servidor.
  */
 export function clipHistory(turns: AssistantTurn[]): AssistantTurn[] {
   const kept = turns.slice(-ASSISTANT_MAX_TURNS);
   while (kept.length > 1 && size(kept) > ASSISTANT_MAX_CHARS) kept.shift();
   const only = kept[0];
   if (kept.length === 1 && only && size(kept) > ASSISTANT_MAX_CHARS) {
-    const room = Math.max(0, ASSISTANT_MAX_CHARS - only.question.length);
-    return [{ ...only, answer: only.answer.slice(0, room) }];
+    const question = only.question.slice(0, ASSISTANT_MAX_CHARS);
+    return [{ question, answer: only.answer.slice(0, ASSISTANT_MAX_CHARS - question.length) }];
   }
   return kept;
 }

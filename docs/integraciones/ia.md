@@ -478,8 +478,9 @@ se acota y el resultado trae `clamped`). Un argumento malo (fecha o estado)
 vuelve como `{ error }` al modelo, sin tocar los datos. Los montos van crudos
 (centavos) **y** formateados (`text`, con `ArgentineNumbers`), y el prompt le
 pide al modelo usar el texto. Las consultas son las mismas que usan las pantallas
-del panel (`Api/Stats/*Query.cs`, `PurchaseOrderQueries`, `CustomerSummaryQuery`),
-así que el asistente y la pantalla no discuten.
+del panel (`Api/Stats/*Query.cs`, `PurchaseOrderQueries`), así que el asistente y
+la pantalla no discuten. La excepción es `CustomerSummaryQuery`, que no usa
+ninguna pantalla: solo comparte `CustomerSegments` con la de clientes.
 
 ### Sin datos personales
 
@@ -495,9 +496,10 @@ puede escribir nada, lo peor que logra una inyección es una respuesta rara.
 El historial vive solo en el navegador (`sessionStorage`, por tienda, se borra al
 cerrar la pestaña). El panel manda las últimas 4 vueltas, hasta 4.000
 caracteres, y el servidor las recorta de nuevo. La pregunta tiene hasta 1.000
-caracteres. Las herramientas juntas pueden devolver hasta 24.000 caracteres por
-corrida: pasado eso devuelven un error fijo y el modelo responde con lo que
-tiene. Ese tope entra en la estimación de entrada que reserva el gateway. Ni la
+caracteres. Las herramientas juntas devuelven hasta 24.000 caracteres por corrida
+más el último resultado (el tope se mira antes de cada llamada, no después):
+pasado eso, las siguientes devuelven un error fijo y el modelo responde con lo
+que tiene. Ese tope entra en la estimación de entrada que reserva el gateway. Ni la
 pregunta ni la respuesta se guardan ni se loguean (solo el consumo).
 
 Costo de referencia (spec): 5 a 15 centavos de dólar por pregunta con un modelo

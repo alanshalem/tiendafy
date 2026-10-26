@@ -25,6 +25,11 @@ describe('clipHistory', () => {
     expect(clipped[0]!.question.length + clipped[0]!.answer.length).toBeLessThanOrEqual(4000);
   });
 
+  it('corta también una pregunta larga', () => {
+    const clipped = clipHistory([{ question: 'p'.repeat(9000), answer: 'r'.repeat(100) }]);
+    expect(clipped).toEqual([{ question: 'p'.repeat(4000), answer: '' }]);
+  });
+
   it('sin vueltas es vacío', () => {
     expect(clipHistory([])).toEqual([]);
   });
@@ -62,6 +67,12 @@ describe('MiniMarkdown', () => {
     const { container } = render(<MiniMarkdown text="[acá](https://evil.test)" />);
     expect(container.querySelector('a')).toBeNull();
     expect(container.textContent).toBe('acá');
+  });
+
+  it('una fila de tabla sin regla termina y se ve como texto', () => {
+    const { container } = render(<MiniMarkdown text={'| x |'} />);
+    expect(container.querySelector('table')).toBeNull();
+    expect(container.textContent).toContain('| x |');
   });
 
   it('un script no entra al DOM', () => {

@@ -4,7 +4,7 @@
  */
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fixtureTenantId } from '../../../test-fixtures/mock-api';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
@@ -195,5 +195,45 @@ describe('Preguntale a tu tienda', () => {
     await user.click(await screen.findByRole('button', BUTTON));
     await screen.findByRole('textbox', { name: 'Tu pregunta' });
     expect(screen.queryByText('Lo de la otra tienda.')).toBeNull();
+  });
+
+  it.each([
+    ['JSON roto', '{no es json'],
+    ['una entrada sin fuentes', JSON.stringify([{ question: 'Antes', answer: 'Sin fuentes.' }])],
+    ['algo que no es una lista', JSON.stringify({ question: 'Antes' })],
+  ])('lo guardado con mala forma (%s) empieza vacío', async (_name, raw) => {
+    sessionStorage.setItem(`tiendafy:asistente:${fixtureTenantId}`, raw);
+    const { user } = await open('/');
+    await user.click(await screen.findByRole('button', BUTTON));
+    expect(await screen.findByRole('textbox', { name: 'Tu pregunta' })).toBeInTheDocument();
+    expect(screen.queryByText('Sin fuentes.')).toBeNull();
+  });
+
+  describe('con el almacenamiento roto', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('si sessionStorage tira, la conversación empieza vacía y se puede preguntar', async () => {
+      const getItem = Storage.prototype.getItem;
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+        if (key.startsWith('tiendafy:asistente:')) throw new Error('SecurityError');
+        return getItem.call(this, key);
+      });
+      const setItem = Storage.prototype.setItem;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+        this: Storage,
+        key: string,
+        value: string,
+      ) {
+        if (key.startsWith('tiendafy:asistente:')) throw new Error('QuotaExceededError');
+        setItem.call(this, key, value);
+      });
+      const { api, user } = await open('/', {
+        setup: (a) => a.on('POST', ASK, { answer: 'Sin guardar.', sources: [], limited: false }),
+      });
+      await user.click(await screen.findByRole('button', BUTTON));
+      await ask(user, '¿Cuánto vendí?');
+      expect(await screen.findByText('Sin guardar.')).toBeInTheDocument();
+      expect(asks(api)).toHaveLength(1);
+    });
   });
 });
