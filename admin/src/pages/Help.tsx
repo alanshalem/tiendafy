@@ -38,6 +38,7 @@ import {
   Settings2,
   ShoppingBag,
   SlidersHorizontal,
+  Sparkles,
   Store,
   Terminal,
   TrendingUp,
@@ -94,6 +95,8 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   fichaTecnica: Package,
   ajustesAvanzados: SlidersHorizontal,
   presupuestos: FileText,
+  ia: Sparkles,
+  asistente: Sparkles,
   // Finanzas y compras: la plata y con quién se gasta.
   tesoreria: Wallet,
   cuentasCorrientes: Handshake,

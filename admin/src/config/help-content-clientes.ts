@@ -660,7 +660,7 @@ export const CLIENTES = {
       {
         heading: 'Mejorar el texto con IA, y medir lo que vende',
         paragraphs: [
-          '“Mejorar con IA” reescribe tu borrador con tono vendedor, sin perder el link ni el cupón que hayas puesto. Es un punto de partida: lo revisás antes de programar. Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
+          '“Mejorar con IA” reescribe tu borrador con tono vendedor, sin perder el link ni el cupón que hayas puesto. Es un punto de partida: lo revisás antes de programar. Si no ves el botón, la IA todavía no se configuró en tu tienda (la configura el dueño en Configuración → Inteligencia artificial); si está apagado, pasá el mouse por encima para ver por qué.',
           'Cuando sumás la foto de un producto del catálogo, el post suma también el link a ese producto con una marca de origen, así que las visitas y las ventas que traen aparecen como “Redes sociales” en Estadísticas (Visión general → De dónde llegan tus ventas, y Visitas → Fuentes de tráfico). Si además le ponés un cupón al post (“Cupón para medir ventas”), arriba de Redes sociales “Ventas atribuidas” suma lo vendido con los cupones de los posts del mes, y el Reporte de cupones lo detalla.',
         ],
       },

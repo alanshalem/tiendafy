@@ -582,12 +582,6 @@ export const PLATAFORMA = {
                 'Servidor',
                 'Que los compradores entren con Google',
               ],
-              [
-                'Clave de IA',
-                'console.anthropic.com',
-                'Servidor',
-                'Sugerir descripciones de productos, respuestas (Mercado Libre y chat posventa) y textos de posts, y leer las facturas de proveedores',
-              ],
             ],
           },
         ],
@@ -615,6 +609,11 @@ export const PLATAFORMA = {
               ['Facebook, Instagram y X', 'Su propia cuenta (un click)', 'Redes sociales → Cuentas'],
               ['Telegram', 'Bot creado con @BotFather', 'Redes sociales → Cuentas'],
               ['Meta Ads', 'Su cuenta publicitaria (un click)', 'Estadísticas → Rentabilidad'],
+              [
+                'Claves de IA',
+                'Consola de Anthropic, OpenAI, Google o Groq',
+                'Configuración → Inteligencia artificial',
+              ],
             ],
           },
           {
@@ -636,7 +635,7 @@ export const PLATAFORMA = {
             type: 'callout',
             tone: 'warning',
             title: 'Lo que más duele perder',
-            text: 'Todos los secretos de cada tienda —certificados de ARCA, tokens de Mercado Pago y Mercado Libre, WhatsApp, MiCorreo, Zipnova, Payway, Andreani— y los teléfonos y direcciones de los clientes están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero y esos datos de los clientes no se recuperan. El backup diario lo copia junto con la base: verificá que esos archivos se estén generando.',
+            text: 'Todos los secretos de cada tienda —certificados de ARCA, tokens de Mercado Pago y Mercado Libre, WhatsApp, MiCorreo, Zipnova, Payway, Andreani, claves de IA— y los teléfonos y direcciones de los clientes están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero y esos datos de los clientes no se recuperan. El backup diario lo copia junto con la base: verificá que esos archivos se estén generando.',
           },
           {
             type: 'callout',

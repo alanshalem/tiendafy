@@ -500,7 +500,7 @@ export const TIENDA = {
   ia: {
     title: 'Inteligencia artificial',
     intro:
-      'Pedile a la inteligencia artificial que te redacte un texto o te sugiera una respuesta. Vos ponés tu propia clave y tu propio tope de gasto: Tiendafy no te cobra nada por usarla.',
+      'Qué puede hacer la inteligencia artificial en el panel, qué no hace nunca y cómo dejarla lista. Vos ponés tu propia clave y tu propio tope de gasto: Tiendafy no te cobra nada por usarla.',
     category: 'Tu tienda online',
     keywords: [
       'ia',
@@ -515,19 +515,92 @@ export const TIENDA = {
       'tokens',
       'gasto',
       'presupuesto',
+      'qué hace la ia',
+      'funciones',
+      'automático',
     ],
     sections: [
       {
-        heading: 'Para qué sirve',
+        heading: 'Qué puede hacer por vos',
         paragraphs: [
-          'Te ayuda a escribir: una respuesta para una pregunta de Mercado Libre o del chat posventa, un post para tus redes o la descripción de un producto. Siempre te lo muestra como borrador: lo leés, lo corregís si hace falta y recién ahí lo usás. Nunca publica, responde ni cambia nada por su cuenta.',
+          'La IA es una ayuda para tareas que hoy te llevan tiempo: contestar consultas, escribir textos, completar fichas, pasar una factura a mano y buscar un número en los reportes. En todas, te propone y vos decidís.',
         ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué hace', 'Dónde está', 'Qué tenés que hacer vos'],
+            rows: [
+              [
+                'Te sugiere la respuesta a una consulta, con los datos reales de la publicación o del pedido (stock, precio, estado, envío).',
+                'Botón con el destello («Sugerir con IA») en preguntas y mensajes de Mercado Libre, chat posventa y formulario de contacto',
+                'Leer el borrador, corregirlo si hace falta y mandarlo vos.',
+              ],
+              [
+                'Contesta preguntas sobre tus números: ventas, ganancia, stock, compras y clientes.',
+                '«Preguntale a tu tienda», en Inicio y Estadísticas',
+                'Preguntar como le preguntarías a una persona. Solo mira, no cambia nada.',
+              ],
+              [
+                'Escribe o mejora la descripción, el texto para Google y los datos de Mercado Libre (marca, modelo, medidas…) de muchos productos a la vez.',
+                'Productos → Fichas con IA',
+                'Revisar cada ficha al lado de lo que tenés hoy y aprobarla. Nada cambia hasta que aprobás.',
+              ],
+              [
+                'Lee la factura de un proveedor (PDF o foto) y te propone tipo, número, fecha, CUIT, importes y líneas.',
+                'Compras e importaciones → una orden de compra → «Leer factura»',
+                'Revisar lo que propone y guardarlo. Antes de mostrártelo, el sistema controla que las cuentas cierren.',
+              ],
+              [
+                'Escribe la descripción de un producto a partir de su nombre.',
+                'Ficha del producto → «Escribir con IA», debajo de Descripción',
+                'Corregir el borrador antes de guardar.',
+              ],
+              [
+                'Reescribe un post con tono vendedor, sin perder el link ni el cupón.',
+                'Redes sociales → «Nuevo post» → «Mejorar con IA»',
+                'Revisarlo antes de programarlo.',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Cada función tiene su propio artículo con el detalle: buscá «Sugerir con IA», «Preguntale a tu tienda», «Fichas con IA» o «Leer la factura» en el centro de ayuda.',
+          },
+        ],
+      },
+      {
+        heading: 'Lo que la IA nunca hace',
+        paragraphs: [
+          'No publica, no responde, no cobra ni cambia nada por su cuenta: todo lo que propone queda como borrador hasta que una persona lo revisa y lo usa.',
+          'No inventa datos que no tiene. Si una respuesta necesita un número de seguimiento o un precio que no está en el sistema, no lo pone; en las fichas, los códigos y modelos salen solo de lo que ya cargaste. Si no sabe algo, te lo dice.',
+          'No obedece a los compradores. Lo que escribe un comprador es siempre texto para contestar, nunca una orden: si alguien intenta darle órdenes a la IA («ignorá tus instrucciones…»), o la consulta pide o da datos de contacto, no arma borrador y te dice «Respondé a mano» con el motivo.',
+          'No ve más que vos. Cada persona usa los botones de IA de las partes del panel que ya puede usar, y el asistente de datos solo consulta lo que tu usuario tiene permiso de ver.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Revisá siempre antes de usar',
+            text: 'Los borradores pueden traer un aviso amarillo (un link, un dato de contacto, un monto que no coincide con el pedido, un texto demasiado largo). Es la señal de que hay algo para mirar con atención antes de mandarlo.',
+          },
+        ],
+      },
+      {
+        heading: 'Qué datos le llegan al proveedor de IA',
+        paragraphs: [
+          'Para contestar, el proveedor que elegiste (Anthropic, OpenAI, Google o Groq) recibe solo lo necesario para esa tarea: el texto de la consulta, los datos del producto o del pedido, la factura que subiste o los totales de tus reportes.',
+          'Los datos personales de tus compradores no salen: mails, teléfonos, DNI y CUIT se tapan antes de mandar la consulta, y el nombre, el usuario y la dirección del comprador no se mandan nunca. El asistente de datos trabaja con cantidades y totales, no con personas.',
+        ],
+      },
+      {
+        heading: 'Quién la configura',
         blocks: [
           { type: 'path', segments: ['Configuración', 'Inteligencia artificial'] },
           {
             type: 'callout',
             tone: 'info',
-            text: 'Esta pantalla es solo del dueño de la tienda, porque la clave que cargás gasta plata de tu cuenta. El resto del equipo usa los botones de IA según los permisos que ya tiene (por ejemplo, quien carga productos ve el botón de la descripción).',
+            text: 'Esta pantalla es solo del dueño de la tienda, porque la clave que cargás gasta plata de tu cuenta. El resto del equipo usa los botones de IA según los permisos que ya tiene (por ejemplo, quien carga productos ve el botón de la descripción). Si un botón de IA no aparece, es porque todavía no se configuró en tu tienda.',
           },
         ],
       },
