@@ -10,10 +10,11 @@ using SharedKernel.Common;
 namespace Api.Ai.Questions;
 
 /// <summary>
-/// Arma el <see cref="DraftSubject"/> de una consulta de Mercado Libre leyéndola en el servidor: el navegador
-/// solo manda el id, así lo que ve el modelo y lo que leen las herramientas lo fija la consulta real. Todo es
-/// lectura: no marca nada como leído ni escribe en ML. Nada de lo que arma lleva datos del comprador
-/// (<c>from</c> de la pregunta trae nombre, teléfono y mail: no se lee).
+/// Arma el <see cref="DraftSubject"/> de una consulta o un chat posventa de Mercado Libre leyéndolo en el
+/// servidor: el navegador solo manda el id, así lo que ve el modelo y lo que leen las herramientas lo fija la
+/// consulta real. Todo es lectura: no marca nada como leído ni escribe en ML. Nada de lo que arma lleva datos
+/// del comprador (<c>from</c> de la pregunta trae nombre, teléfono y mail: no se lee; de la venta no entran
+/// el nickname ni la dirección).
 /// </summary>
 public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, MeliClient client, CatalogDbContext catalog)
 {
@@ -53,25 +54,191 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
                 $"/items/{Uri.EscapeDataString(itemId)}?attributes={ItemFields}", ct);
             listing = Listing.From(item.RootElement);
         }
-        // 403: lo que esta cuenta no puede ver es, para esta tienda, algo que no existe.
-        catch (MeliException ex) when (ex.Status is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+        catch (Exception ex) when (IsMeliFailure(ex, ct))
         {
-            return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
-        }
-        // 401: el acceso a la cuenta ya no vale; hay que volver a conectarla.
-        catch (MeliException ex) when (ex.Status == HttpStatusCode.Unauthorized)
-        {
-            return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
-        }
-        // Cualquier otro error, la red, un timeout o una respuesta que no se puede leer: ML no respondió.
-        // La cancelación del request (cerró la página) no entra acá y se propaga.
-        catch (Exception ex) when (ex is MeliException or FormatException || CarrierNoAnswer.Is(ex, ct))
-        {
-            return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliUnavailable);
+            return Result.Failure<DraftSubject>(Translate(ex));
         }
 
         return await SubjectAsync(text, itemId, listing, ct);
     }
+
+    /// <summary>
+    /// Lo que falla al hablar con ML: su error, una respuesta que no se puede leer, la red o un timeout.
+    /// La cancelación del request (cerró la página) no entra y se propaga.
+    /// </summary>
+    private static bool IsMeliFailure(Exception ex, CancellationToken ct) =>
+        ex is MeliException or FormatException || CarrierNoAnswer.Is(ex, ct);
+
+    /// <summary>
+    /// 403 y 404: lo que esta cuenta no puede ver es, para esta tienda, algo que no existe. 401: el acceso a la
+    /// cuenta ya no vale y hay que volver a conectarla. Cualquier otra cosa: ML no respondió.
+    /// </summary>
+    private static Error Translate(Exception ex) => ex is MeliException { Status: { } status }
+        ? status switch
+        {
+            HttpStatusCode.NotFound or HttpStatusCode.Forbidden => QuestionDraftErrors.NotFound,
+            HttpStatusCode.Unauthorized => QuestionDraftErrors.MeliNotConnected,
+            _ => QuestionDraftErrors.MeliUnavailable,
+        }
+        : QuestionDraftErrors.MeliUnavailable;
+
+    /// <summary>
+    /// El chat posventa de una venta de este vendedor. Las ventas salen del cache local y, sin ninguna, no se
+    /// sale a ML. Los mensajes se leen con <c>mark_as_read=false</c>: pedir un borrador no marca leído el chat.
+    /// </summary>
+    public async Task<Result<DraftSubject>> PackAsync(long packId, CancellationToken ct)
+    {
+        var connection = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (connection is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
+
+        // Un pack ajeno es, para esta tienda, un pack que no existe: se decide antes de salir a ML.
+        var orders = await db.Orders.AsNoTracking()
+            .Where(o => o.PackId == packId || o.MeliOrderId == packId)
+            .OrderBy(o => o.DateCreatedUtc).ThenBy(o => o.MeliOrderId)
+            .ToListAsync(ct);
+        if (orders.Count == 0) return Result.Failure<DraftSubject>(QuestionDraftErrors.NotFound);
+
+        string? token = null;
+        IReadOnlyList<ThreadLine> thread;
+        if (connection.IsDemo)
+        {
+            thread = DemoThread();
+        }
+        else
+        {
+            try
+            {
+                token = await tokens.GetValidTokenAsync(connection.TenantId, ct);
+                if (token is null) return Result.Failure<DraftSubject>(QuestionDraftErrors.MeliNotConnected);
+                thread = await ThreadAsync(token, packId, connection.MeliUserId, ct);
+            }
+            catch (Exception ex) when (IsMeliFailure(ex, ct))
+            {
+                return Result.Failure<DraftSubject>(Translate(ex));
+            }
+        }
+
+        var statusText = OrderTexts.OrderStatus(orders);
+        // Un pack comparte envío; si hubiera más de uno, se leen unos pocos.
+        var shipmentIds = orders.Where(o => o.ShipmentId is > 0).Select(o => o.ShipmentId!.Value)
+            .Distinct().Take(MaxShipments).ToList();
+        var readers = new DraftReaders(
+            OrderStatus: _ => Task.FromResult(statusText),
+            Tracking: token is null || shipmentIds.Count == 0
+                ? _ => Task.FromResult(new TrackingInfo(OrderTexts.NoShipment, false))
+                : readerCt => ShipmentsAsync(token, shipmentIds, readerCt));
+
+        var titles = orders.SelectMany(o => MeliSyncService.ParseSnapshot(o.ItemsJson))
+            .Select(i => OrderTexts.Title(i.Title)).Distinct().ToList();
+        var context = titles.Count == 0
+            ? "Venta de Mercado Libre"
+            : $"Venta de Mercado Libre. Productos: {string.Join("; ", titles)}.";
+        return new DraftSubject(DraftChannel.MeliMessage, thread, context, KnownAmounts(orders), readers);
+    }
+
+    private const int MaxShipments = 3;
+
+    private static readonly Dictionary<string, string> NewShipmentFormat = new() { ["x-format-new"] = "true" };
+
+    /// <summary>
+    /// Total, pagado, devuelto y precios unitarios en centavos. El costo del envío no se guarda en el cache
+    /// local, así que no es un monto conocido.
+    /// </summary>
+    private static HashSet<long> KnownAmounts(List<MeliOrder> orders)
+    {
+        var amounts = new HashSet<long>();
+        void Add(decimal amount, string currency)
+        {
+            if (amount > 0) amounts.Add(Money.FromDecimal(amount, currency).AmountInMinorUnits);
+        }
+
+        foreach (var order in orders)
+        {
+            Add(order.TotalAmount, order.CurrencyId);
+            Add(order.PaidAmount, order.CurrencyId);
+            Add(order.RefundedAmount, order.CurrencyId);
+            foreach (var item in MeliSyncService.ParseSnapshot(order.ItemsJson)) Add(item.UnitPrice, order.CurrencyId);
+        }
+        // Un pack de varias compras: lo que se cobró en total también puede nombrarse.
+        if (orders.Count > 1 && orders.Select(o => o.CurrencyId).Distinct().Count() == 1)
+        {
+            Add(orders.Sum(o => o.TotalAmount), orders[0].CurrencyId);
+            Add(orders.Sum(o => o.PaidAmount), orders[0].CurrencyId);
+        }
+        return amounts;
+    }
+
+    /// <summary>
+    /// Lee el seguimiento de cada envío. Acá NO se traducen los errores: si ML falla, el lector lanza y
+    /// <see cref="QuestionTools"/> lo convierte en un texto neutro para el modelo y lo registra.
+    /// </summary>
+    private async Task<TrackingInfo> ShipmentsAsync(string token, IReadOnlyList<long> shipmentIds, CancellationToken ct)
+    {
+        var infos = new List<TrackingInfo>();
+        foreach (var shipmentId in shipmentIds)
+        {
+            // El formato nuevo del recurso es obligatorio (documentación de ML, "Gestionar envíos").
+            using var shipment = await client.GetAsync(token, $"/shipments/{shipmentId}", ct, NewShipmentFormat);
+            infos.Add(OrderTexts.Tracking(shipment.RootElement));
+        }
+        // Con varios envíos, los que traen fecha estimada van primero.
+        var ordered = infos.OrderByDescending(i => i.HasDeliveryEstimate).ToList();
+        return new TrackingInfo(string.Join("\n\n", ordered.Select(i => i.Text)), ordered.Any(i => i.HasDeliveryEstimate));
+    }
+
+    /// <summary>Los mensajes de la conversación, del más viejo al más nuevo, sin marcarlos como leídos.</summary>
+    private async Task<IReadOnlyList<ThreadLine>> ThreadAsync(string token, long packId, long sellerId, CancellationToken ct)
+    {
+        var path = $"/messages/packs/{packId}/sellers/{sellerId}?tag=post_sale&mark_as_read=false";
+        var messages = new List<PackMessage>();
+        long total;
+        using (var page = await client.GetAsync(token, path, ct))
+        {
+            total = page.RootElement.TryGetProperty("paging", out var paging) && paging.ValueKind == JsonValueKind.Object
+                ? JsonRead.GetLong(paging, "total")
+                : 0;
+            messages.AddRange(ParseMessages(page.RootElement, sellerId));
+        }
+
+        // ML pagina de a pocos mensajes: si hay más, la cola de la conversación está en la última página.
+        if (messages.Count > 0 && total > messages.Count)
+        {
+            using var tail = await client.GetAsync(token, $"{path}&offset={total - messages.Count}", ct);
+            messages.AddRange(ParseMessages(tail.RootElement, sellerId));
+        }
+
+        return [.. messages
+            .GroupBy(m => m.Id ?? Guid.NewGuid().ToString("N")).Select(g => g.First())
+            .OrderBy(m => m.CreatedUtc)
+            .Select(m => m.Line)];
+    }
+
+    private static IEnumerable<PackMessage> ParseMessages(JsonElement root, long sellerId)
+    {
+        if (!root.TryGetProperty("messages", out var list) || list.ValueKind != JsonValueKind.Array) yield break;
+        foreach (var m in list.EnumerateArray())
+        {
+            var text = JsonRead.GetString(m, "text");
+            if (string.IsNullOrWhiteSpace(text)) continue;
+            var fromSeller = m.TryGetProperty("from", out var from) && from.ValueKind == JsonValueKind.Object
+                && JsonRead.GetLongFlexible(from, "user_id") == sellerId;
+            var created = m.TryGetProperty("message_date", out var dates) && dates.ValueKind == JsonValueKind.Object
+                ? JsonRead.GetDate(dates, "created")
+                : null;
+            yield return new PackMessage(JsonRead.GetString(m, "id"), created ?? DateTime.MinValue, new ThreadLine(fromSeller, text));
+        }
+    }
+
+    /// <summary>La conversación de ejemplo de <see cref="MeliDemoFeed"/>: la misma para cualquier pack.</summary>
+    private static IReadOnlyList<ThreadLine> DemoThread()
+    {
+        var payload = JsonSerializer.SerializeToElement(MeliDemoFeed.Messages(), Web);
+        return [.. payload.GetProperty("messages").EnumerateArray().Select(m => new ThreadLine(
+            m.TryGetProperty("fromSeller", out var f) && f.ValueKind == JsonValueKind.True,
+            JsonRead.GetString(m, "text") ?? ""))];
+    }
+
+    private sealed record PackMessage(string? Id, DateTime CreatedUtc, ThreadLine Line);
 
     /// <summary>
     /// La cuenta de demostración contesta con el ejemplo fijo de <see cref="MeliDemoFeed"/>, sin salir a la red;
@@ -157,8 +324,7 @@ public sealed class MeliDraftSources(MeliDbContext db, MeliTokenService tokens, 
         var parts = new List<string>();
         if (listing.Price is { } price)
         {
-            var amount = ArgentineNumbers.Number(price, price % 1 == 0 ? 0 : 2);
-            parts.Add(listing.Currency is null or Money.DefaultCurrency ? $"Precio: $ {amount}." : $"Precio: {listing.Currency} {amount}.");
+            parts.Add($"Precio: {OrderTexts.MoneyText(price, listing.Currency)}.");
         }
         else
         {

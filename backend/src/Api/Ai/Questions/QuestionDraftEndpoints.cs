@@ -23,6 +23,16 @@ public static class QuestionDraftEndpoints
             return draft.IsSuccess ? Results.Ok(draft.Value) : draft.Error.ToProblem();
         }).RequirePermission(Permission.MeliOperate).RequireAiRateLimit(AiRateLimitKind.PerUser);
 
+        // Chat posventa de una venta de Mercado Libre: el pack sale del cache local de esta tienda.
+        ai.MapPost("/ml/messages/{packId:long}/draft", async (
+            long packId, MeliDraftSources sources, QuestionDraftService drafts, CancellationToken ct) =>
+        {
+            var subject = await sources.PackAsync(packId, ct);
+            if (subject.IsFailure) return subject.Error.ToProblem();
+            var draft = await drafts.DraftAsync(subject.Value, ct);
+            return draft.IsSuccess ? Results.Ok(draft.Value) : draft.Error.ToProblem();
+        }).RequirePermission(Permission.MeliOperate).RequireAiRateLimit(AiRateLimitKind.PerUser);
+
         return ai;
     }
 }

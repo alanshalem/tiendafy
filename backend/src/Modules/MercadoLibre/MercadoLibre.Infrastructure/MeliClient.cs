@@ -66,8 +66,10 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
             ExpiresInSeconds: root.TryGetProperty("expires_in", out var ex) && ex.ValueKind == JsonValueKind.Number ? ex.GetInt32() : 21600);
     }
 
-    public Task<JsonDocument> GetAsync(string accessToken, string path, CancellationToken ct) =>
-        SendAsync(accessToken, HttpMethod.Get, path, null, ct);
+    /// <param name="headers">Cabeceras extra del pedido (p. ej. <c>x-format-new</c> de <c>/shipments</c>).</param>
+    public Task<JsonDocument> GetAsync(
+        string accessToken, string path, CancellationToken ct, IReadOnlyDictionary<string, string>? headers = null) =>
+        SendAsync(accessToken, HttpMethod.Get, path, null, ct, headers);
 
     public Task<JsonDocument> PostAsync(string accessToken, string path, object payload, CancellationToken ct) =>
         SendAsync(accessToken, HttpMethod.Post, path, payload, ct);
@@ -76,11 +78,16 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         SendAsync(accessToken, HttpMethod.Put, path, payload, ct);
 
     private async Task<JsonDocument> SendAsync(
-        string accessToken, HttpMethod method, string path, object? payload, CancellationToken ct)
+        string accessToken, HttpMethod method, string path, object? payload, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? headers = null)
     {
         using var request = new HttpRequestMessage(method, $"{_o.ApiBaseUrl.TrimEnd('/')}{path}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        if (headers is not null)
+        {
+            foreach (var (name, value) in headers) request.Headers.TryAddWithoutValidation(name, value);
+        }
         if (payload is not null)
             request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonDefaults.Web), Encoding.UTF8, "application/json");
 
