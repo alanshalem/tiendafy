@@ -1,9 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using Api.Orders;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
+using SharedKernel.Common;
 
 namespace IntegrationTests;
 
@@ -193,5 +196,65 @@ public sealed class CouponUsageTests(ApiFactory factory)
         Assert.Equal("rejected", paid.GetProperty("status").GetString());
 
         Assert.Equal(0, await UsedCountAsync(merchant, code));
+    }
+
+    /// <summary>
+    /// La venta no llega a nacer por una excepción (la base se cae a mitad, un
+    /// bug), no por un rechazo: el uso que se tomó para ella tiene que volver.
+    /// Antes solo volvía con un Failure, y un cupón de un uso quedaba agotado
+    /// sin ninguna venta.
+    /// </summary>
+    [Fact]
+    public async Task Si_crear_la_venta_tira_una_excepcion_el_uso_vuelve()
+    {
+        const string code = "EXCEPCION";
+        var merchant = await StoreWithCouponAsync(factory, "cpx", code, maxUses: 1);
+        var (_, variantId) = await merchant.CreateProductAsync("Mate", priceMinor: 10_000_00, stock: 5);
+        var shopper = new Shopper(merchant);
+        var checkoutId = await shopper.CheckoutAsync(variantId);
+
+        // La misma API, con la base de ventas rota justo al guardar la venta nueva.
+        await using (var broken = factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
+        {
+            services.AddScoped<OrderRepository>();
+            services.AddScoped<IOrderRepository>(sp => new SaveFails(sp.GetRequiredService<OrderRepository>()));
+        })))
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-offline")
+            {
+                Content = JsonContent.Create(new { method = "transfer", couponCode = code }),
+            };
+            req.Headers.Add("X-Tenant-Id", merchant.TenantId.ToString());
+            req.Headers.Add("Origin", shopper.ReturnUrl);
+            var res = await broken.CreateClient().SendAsync(req);
+            Assert.Equal(HttpStatusCode.InternalServerError, res.StatusCode);
+        }
+
+        Assert.Equal(0, await UsedCountAsync(merchant, code));
+
+        // Y la misma compra, ya sin la falla, lo toma y paga con el descuento.
+        var orderId = await OrderIdAsync(await PayByTransferAsync(shopper, checkoutId, code));
+        Assert.Equal(1_000_00, (await merchant.GetAsync($"/api/v1/orders/{orderId}"))
+            .GetProperty("discount").GetProperty("amount").GetInt64());
+        Assert.Equal(1, await UsedCountAsync(merchant, code));
+    }
+
+    /// <summary>El repositorio de ventas de verdad, salvo que guardar la venta de un checkout falla.</summary>
+    private sealed class SaveFails(OrderRepository inner) : IOrderRepository
+    {
+        public Task<(Order Order, bool IsNew)> AddOncePerCheckoutAsync(Order order, CancellationToken ct = default) =>
+            throw new InvalidOperationException("La base se cayó a mitad de la venta.");
+
+        public Task<Order?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) => inner.GetByIdAsync(tenantId, id, ct);
+        public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) => inner.GetByIdAnyTenantAsync(id, ct);
+        public Task<Order?> GetByNumberAsync(TenantId tenantId, int number, CancellationToken ct = default) => inner.GetByNumberAsync(tenantId, number, ct);
+        public Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default) => inner.ListAsync(tenantId, limit, afterId, ct);
+        public Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(TenantId tenantId, int limit, int offset, OrderListFilter filter, CancellationToken ct = default) => inner.ListPageAsync(tenantId, limit, offset, filter, ct);
+        public IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, OrderListFilter filter) => inner.StreamAsync(tenantId, filter);
+        public Task<int> CountAsync(TenantId tenantId, OrderListFilter filter, CancellationToken ct = default) => inner.CountAsync(tenantId, filter, ct);
+        public Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default) => inner.ListByBuyerEmailAsync(tenantId, email, ct);
+        public Task<Order?> GetByCheckoutSessionAsync(TenantId tenantId, Guid checkoutSessionId, CancellationToken ct = default) => inner.GetByCheckoutSessionAsync(tenantId, checkoutSessionId, ct);
+        public Task AddAsync(Order order, CancellationToken ct = default) => inner.AddAsync(order, ct);
+        public Task SaveChangesAsync(CancellationToken ct = default) => inner.SaveChangesAsync(ct);
     }
 }
