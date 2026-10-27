@@ -98,6 +98,11 @@ internal static class SvgSanitizer
     private static readonly Regex AnyUrl = new(
         @"url\s*\(", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
 
+    /// <summary>image-set(, src(, image(, cross-fade(, element( (con o sin prefijo de navegador).</summary>
+    private static readonly Regex ResourceFunction = new(
+        @"(?<![A-Za-z0-9_])(?:-[a-z]+-)?(?:image-set|src|image|cross-fade|element)\s*\(",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+
     private static readonly Regex LocalUrl = new(
         @"url\s*\(\s*(['""]?)#[A-Za-z_][A-Za-z0-9_\-.:]*\1\s*\)",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
@@ -153,6 +158,10 @@ internal static class SvgSanitizer
             // SVG, solo lo que está en ese namespace.
             var rootNs = reader.NamespaceURI;
             var open = new Stack<string>();
+            // El id más cercano de cada elemento abierto (el propio, o el de un
+            // ancestro): de ahí salen las aristas <use> → destino del grafo.
+            var ids = new Stack<string>();
+            var uses = new UseGraph();
             var wroteRoot = false;
 
             while (!reader.EOF)
@@ -186,15 +195,27 @@ internal static class SvgSanitizer
                         foreach (var a in attributes)
                             writer.WriteAttributeString(a.LocalName, a.Namespace, a.Value);
 
+                        var ownId = attributes.FirstOrDefault(a => a.LocalName == "id" && a.Namespace is null)?.Value;
+                        var nearestId = ownId ?? (ids.Count > 0 ? ids.Peek() : "");
+                        if (name == "use")
+                        {
+                            var target = attributes.FirstOrDefault(a => a.LocalName == "href")?.Value;
+                            uses.Add(nearestId, target is { Length: > 1 } && target[0] == '#' ? target[1..] : null);
+                        }
+
                         if (reader.IsEmptyElement)
                             writer.WriteEndElement();
                         else
+                        {
                             open.Push(name);
+                            ids.Push(nearestId);
+                        }
                         break;
 
                     case XmlNodeType.EndElement:
                         writer.WriteEndElement();
                         open.Pop();
+                        ids.Pop();
                         break;
 
                     case XmlNodeType.Text:
@@ -211,9 +232,70 @@ internal static class SvgSanitizer
 
                 reader.Read();
             }
+
+            // Antes de dar el archivo por bueno: las referencias <use> no pueden
+            // multiplicarse (ver UseGraph).
+            uses.Validate();
         }
 
         return output.ToArray();
+    }
+
+    /// <summary>Cuántos &lt;use&gt; admite un archivo: un logo no usa decenas.</summary>
+    internal const int MaxUseElements = 50;
+
+    /// <summary>Cuántas veces se dibuja algo, contando lo que cada &lt;use&gt; vuelve a dibujar.</summary>
+    internal const long MaxUseExpansions = 500;
+
+    /// <summary>
+    /// Un &lt;use&gt; dibuja de nuevo el elemento al que apunta, y si ese contiene
+    /// otros &lt;use&gt;, también esos: 10 niveles de 10 usos son 10^10 dibujos y le
+    /// cuelgan el navegador a quien vea el logo. Se arma el grafo "elemento con
+    /// id → ids que usa" y se rechaza si hay ciclos o si la cuenta total de
+    /// dibujos pasa <see cref="MaxUseExpansions"/>.
+    /// </summary>
+    private sealed class UseGraph
+    {
+        private readonly Dictionary<string, List<string?>> _edges = new(StringComparer.Ordinal);
+        private int _count;
+
+        public void Add(string from, string? target)
+        {
+            if (++_count > MaxUseElements)
+                throw new XmlException("Demasiados <use>.");
+            if (!_edges.TryGetValue(from, out var list)) _edges[from] = list = [];
+            list.Add(target);
+        }
+
+        public void Validate()
+        {
+            var memo = new Dictionary<string, long>(StringComparer.Ordinal);
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            // Todos los nodos, no solo desde la raíz: un patrón o una máscara en
+            // <defs> se dibuja cuando un fill o un mask lo referencia, sin <use>.
+            foreach (var node in _edges.Keys)
+                if (Expansions(node, memo, visiting) > MaxUseExpansions)
+                    throw new XmlException("Los <use> se multiplican demasiado.");
+        }
+
+        private long Expansions(string node, Dictionary<string, long> memo, HashSet<string> visiting)
+        {
+            if (memo.TryGetValue(node, out var known)) return known;
+            if (!visiting.Add(node)) throw new XmlException("Un <use> se referencia a sí mismo.");
+
+            long total = 0;
+            if (_edges.TryGetValue(node, out var targets))
+                foreach (var target in targets)
+                {
+                    total++;
+                    if (target is not null) total += Expansions(target, memo, visiting);
+                    if (total > MaxUseExpansions * 2) break; // ya se pasó: no seguir sumando
+                }
+
+            visiting.Remove(node);
+            memo[node] = total;
+            return total;
+        }
     }
 
     private sealed record SafeAttribute(string LocalName, string? Namespace, string Value);
@@ -268,6 +350,10 @@ internal static class SvgSanitizer
                 || value.Contains("binding", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("behavior", StringComparison.OrdinalIgnoreCase)))
             return false;
+
+        // Funciones de CSS que piden un recurso sin escribir url(…) (image-set,
+        // src, image, cross-fade, element): un pedido de rastreo a otro lado.
+        if (ResourceFunction.IsMatch(value)) return false;
 
         // Cada url(…) tiene que ser un url(#id): sin pedidos a otro lado.
         return AnyUrl.Count(value) == LocalUrl.Count(value);

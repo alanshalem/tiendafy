@@ -230,6 +230,76 @@ public sealed class SvgSanitizerTests
         Assert.All(root.DescendantsAndSelf(), e => Assert.Equal(Svg, e.Name.NamespaceName));
     }
 
+    [Theory]
+    [InlineData("cursor:image-set('https://evil.example/t.gif' 1x)")]
+    [InlineData("background:-webkit-image-set('https://evil.example/t.gif' 1x)")]
+    [InlineData("fill:src('https://evil.example/t.gif')")]
+    [InlineData("cursor: IMAGE-SET('x' 1x)")]
+    [InlineData("background:image('https://evil.example/t.gif')")]
+    [InlineData("background:cross-fade(url(#a), 50%)")]
+    public void Las_funciones_css_que_piden_un_recurso_sin_url_se_descartan(string style)
+    {
+        var root = Parse(Clean($"""<svg xmlns="{Svg}"><rect width="1" height="1" style="{style}"/></svg>"""));
+        Assert.DoesNotContain(Attributes(root), a => a.Name.LocalName == "style");
+    }
+
+    [Fact]
+    public void Un_style_sin_funciones_de_recurso_se_conserva()
+    {
+        var root = Parse(Clean($"""<svg xmlns="{Svg}"><rect width="1" height="1" style="fill:#f00;stroke:url(#g)"/></svg>"""));
+        Assert.Contains(Attributes(root), a => a.Name.LocalName == "style");
+    }
+
+    [Fact]
+    public void Un_use_encadenado_que_se_multiplica_se_rechaza()
+    {
+        // 10 niveles de 10 usos: 10^10 dibujos que le cuelgan el navegador al que ve el logo.
+        var xml = new StringBuilder($"""<svg xmlns="{Svg}"><defs><rect id="l0" width="1" height="1"/>""");
+        for (var level = 1; level <= 10; level++)
+        {
+            xml.Append($"""<g id="l{level}">""");
+            for (var i = 0; i < 10; i++) xml.Append($"""<use href="#l{level - 1}"/>""");
+            xml.Append("</g>");
+        }
+        xml.Append("""</defs><use href="#l10"/></svg>""");
+        AssertRejected(xml.ToString());
+    }
+
+    [Fact]
+    public void Dos_usos_por_nivel_en_quince_niveles_tambien_se_rechazan()
+    {
+        var xml = new StringBuilder($"""<svg xmlns="{Svg}"><defs><rect id="l0" width="1" height="1"/>""");
+        for (var level = 1; level <= 15; level++)
+            xml.Append($"""<g id="l{level}"><use href="#l{level - 1}"/><use href="#l{level - 1}"/></g>""");
+        xml.Append("""</defs><use href="#l15"/></svg>""");
+        AssertRejected(xml.ToString());
+    }
+
+    [Fact]
+    public void Mas_usos_de_los_que_admite_un_logo_se_rechaza()
+    {
+        var xml = new StringBuilder($"""<svg xmlns="{Svg}"><defs><rect id="a" width="1" height="1"/></defs>""");
+        for (var i = 0; i <= SvgSanitizer.MaxUseElements; i++) xml.Append("""<use href="#a"/>""");
+        xml.Append("</svg>");
+        AssertRejected(xml.ToString());
+    }
+
+    [Fact]
+    public void Un_use_que_se_referencia_a_si_mismo_se_rechaza()
+    {
+        AssertRejected($"""<svg xmlns="{Svg}"><g id="a"><use href="#a"/></g><use href="#a"/></svg>""");
+    }
+
+    [Fact]
+    public void Los_usos_de_un_logo_normal_pasan()
+    {
+        var root = Parse(Clean($"""
+            <svg xmlns="{Svg}"><defs><path id="p" d="M0 0L5 5"/><g id="dos"><use href="#p"/><use href="#p" x="3"/></g></defs>
+            <use href="#dos"/><use href="#dos" x="10"/><use href="#p"/></svg>
+            """));
+        Assert.Equal(5, Names(root).Count(n => n == "use"));
+    }
+
     [Fact]
     public void Un_anidamiento_absurdo_se_rechaza_sin_romper_la_pila()
     {

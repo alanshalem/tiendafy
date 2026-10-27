@@ -197,6 +197,81 @@ public sealed class MediaModuleTests
         }
     }
 
+    /// <summary>Un stream que solo avanza (como el cuerpo de una respuesta o una tubería).</summary>
+    private sealed class ForwardOnly(byte[] data) : Stream
+    {
+        private readonly MemoryStream _inner = new(data);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private static (S3MediaStorage Storage, HeaderRecorder Recorder) HttpsStorage()
+    {
+        var recorder = new HeaderRecorder();
+        var s3 = new AmazonS3Client(new BasicAWSCredentials("k", "s"), new AmazonS3Config
+        {
+            ServiceURL = "https://cuenta.r2.cloudflarestorage.com",
+            ForcePathStyle = true,
+            AuthenticationRegion = "auto",
+            HttpClientFactory = new StubFactory(recorder),
+        });
+        return (new S3MediaStorage(s3, new MediaOptions
+        {
+            Endpoint = "https://cuenta.r2.cloudflarestorage.com",
+            PublicBaseUrl = "https://img.tienda.com",
+            AccessKey = "k",
+            SecretKey = "s",
+        }), recorder);
+    }
+
+    /// <summary>
+    /// La verificación de magic bytes se salteaba si el stream no se podía
+    /// rebobinar (fallaba abierto): un HTML disfrazado de PNG subía. Ahora el
+    /// stream se pasa a memoria y se verifica igual.
+    /// </summary>
+    [Fact]
+    public async Task Un_stream_que_no_se_rebobina_tambien_se_verifica()
+    {
+        var (storage, recorder) = HttpsStorage();
+        var html = "<html><script>alert(1)</script></html>"u8.ToArray();
+
+        var fake = await storage.UploadAsync(Guid.NewGuid(), new ForwardOnly(html), "image/png", html.Length);
+        var fakePrivate = await storage.UploadPrivateAsync(Guid.NewGuid(), "chat", new ForwardOnly(html), "image/png", html.Length);
+        var real = await storage.UploadAsync(Guid.NewGuid(), new ForwardOnly(Png), "image/png", Png.Length);
+        var realPrivate = await storage.UploadPrivateAsync(Guid.NewGuid(), "chat", new ForwardOnly(Png), "image/png", Png.Length);
+
+        Assert.True(fake.IsFailure);
+        Assert.Equal("Media.TypeMismatch", fake.Error.Code);
+        Assert.True(fakePrivate.IsFailure);
+        Assert.Equal("Media.TypeMismatch", fakePrivate.Error.Code);
+        Assert.True(real.IsSuccess);
+        Assert.True(realPrivate.IsSuccess);
+        Assert.Equal(2, recorder.Puts.Count);
+    }
+
+    [Fact]
+    public async Task Un_stream_que_no_se_rebobina_no_puede_pasar_el_largo_declarado()
+    {
+        var (storage, recorder) = HttpsStorage();
+        // Declara 3 bytes pero trae más que el máximo de una imagen.
+        var big = new byte[(int)S3MediaStorage.MaxImageBytes + 10];
+        Png.CopyTo(big, 0);
+
+        var result = await storage.UploadAsync(Guid.NewGuid(), new ForwardOnly(big), "image/png", 3);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Media.TooLarge", result.Error.Code);
+        Assert.Empty(recorder.Puts);
+    }
+
     /// <summary>
     /// Por http (el MinIO de desarrollo) el SDK no deja subir sin firmar el
     /// contenido: tira "the request must be sent over HTTPS". Ahí sigue firmando.
