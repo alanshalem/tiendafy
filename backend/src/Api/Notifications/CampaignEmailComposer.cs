@@ -74,6 +74,18 @@ public static partial class CampaignEmailComposer
         HrefRegex().Replace(html, m =>
             $"href=\"{trackClickBaseUrl}&u={Uri.EscapeDataString(m.Groups[1].Value)}\"");
 
+    /// <summary>
+    /// Los destinos que <see cref="RewriteLinks"/> manda por el redirect de
+    /// tracking en esta campaña (cuerpo y cards de productos), tal como viajan
+    /// en el parámetro <c>u</c>. El redirect solo lleva a estos (o a la tienda):
+    /// así no sirve de redirector abierto con un token de campaña cualquiera.
+    /// </summary>
+    public static IReadOnlySet<string> TrackedLinks(
+        string bodyHtml, IReadOnlyList<CampaignProduct> products, string storeBaseUrl) =>
+        HrefRegex().Matches(bodyHtml + ProductCards(products, storeBaseUrl))
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
     private static string ProductCards(IReadOnlyList<CampaignProduct> products, string storeBaseUrl)
     {
         if (products.Count == 0) return string.Empty;
