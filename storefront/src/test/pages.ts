@@ -71,6 +71,10 @@ export const PAGES: Record<
     url: '/resenas/escribir?t=token',
     load: () => import('../app/resenas/escribir/page'),
   },
+  '/suscripcion/confirmar': {
+    url: '/suscripcion/confirmar?token=abc',
+    load: () => import('../app/suscripcion/confirmar/page'),
+  },
 };
 
 /**
