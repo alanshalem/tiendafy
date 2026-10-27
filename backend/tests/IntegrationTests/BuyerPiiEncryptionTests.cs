@@ -61,7 +61,7 @@ public sealed class BuyerPiiEncryptionTests(ApiFactory factory)
         Assert.True(invoice.GetProperty("authorized").GetBoolean(), invoice.ToString());
         await using var scope = factory.Services.CreateAsyncScope();
         var fiscal = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        var document = await fiscal.Documents.AsNoTracking().SingleAsync(d => d.OrderId == id);
+        var document = await fiscal.Documents.IgnoreQueryFilters().AsNoTracking().SingleAsync(d => d.OrderId == id);
         Assert.Equal(long.Parse(Doc), document.DocNro);
         Assert.Contains(factory.ExternalHttp.SentTo(FakeArca.Wsfe), r => r.Body!.Contains(Doc, StringComparison.Ordinal));
     }
@@ -86,7 +86,7 @@ public sealed class BuyerPiiEncryptionTests(ApiFactory factory)
         var session = await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/checkout/{id}");
         Assert.Equal(Address, session.GetProperty("shippingAddress").GetString());
         await using var scope = factory.Services.CreateAsyncScope();
-        var read = await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Sessions.AsNoTracking().SingleAsync(s => s.Id == id);
+        var read = await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Sessions.IgnoreQueryFilters().AsNoTracking().SingleAsync(s => s.Id == id);
         Assert.Equal("1155556666", read.Phone);
         Assert.Equal(Doc, read.DocNumber);
     }
@@ -150,7 +150,7 @@ public sealed class BuyerPiiEncryptionTests(ApiFactory factory)
         Assert.Equal("Calle Vieja 123", detail.GetProperty("shippingAddress").GetString());
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var session = await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Sessions.AsNoTracking()
+        var session = await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Sessions.IgnoreQueryFilters().AsNoTracking()
             .SingleAsync(s => s.Id == sessionId);
         Assert.Equal("1144443333", session.Phone);
         Assert.Equal("27999888", session.DocNumber);

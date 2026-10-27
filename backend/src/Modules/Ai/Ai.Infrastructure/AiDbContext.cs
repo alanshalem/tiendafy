@@ -5,13 +5,18 @@ namespace Ai.Infrastructure;
 
 public sealed class AiDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public AiDbContext(DbContextOptions<AiDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<AiProviderCredential> Credentials => Set<AiProviderCredential>();
@@ -27,7 +32,7 @@ public sealed class AiDbContext : DbContext
         c.ToTable("ai_provider_credentials");
         c.HasKey(x => x.Id);
         c.Property(x => x.Id).ValueGeneratedNever();
-        c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        c.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         c.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20);
         c.Property(x => x.KeyEncrypted).IsRequired();
         c.Property(x => x.Last4).HasMaxLength(8).IsRequired();
@@ -36,7 +41,7 @@ public sealed class AiDbContext : DbContext
         var a = modelBuilder.Entity<AiTaskAssignment>();
         a.ToTable("ai_task_assignments");
         a.HasKey(x => new { x.TenantId, x.Task });
-        a.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        a.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         a.Property(x => x.Task).HasConversion<string>().HasMaxLength(30);
         a.Property(x => x.PrimaryModel).HasMaxLength(100).IsRequired();
         a.Property(x => x.FallbackModel).HasMaxLength(100);
@@ -45,13 +50,13 @@ public sealed class AiDbContext : DbContext
         s.ToTable("ai_settings");
         s.HasKey(x => x.TenantId);
         s.Property(x => x.TenantId).ValueGeneratedNever();
-        s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        s.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var u = modelBuilder.Entity<AiUsage>();
         u.ToTable("ai_usage");
         u.HasKey(x => x.Id);
         u.Property(x => x.Id).ValueGeneratedNever();
-        u.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        u.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         u.Property(x => x.Task).HasConversion<string>().HasMaxLength(30);
         u.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20);
         u.Property(x => x.Outcome).HasConversion<string>().HasMaxLength(20);
@@ -63,7 +68,7 @@ public sealed class AiDbContext : DbContext
         j.ToTable("ai_catalog_jobs");
         j.HasKey(x => x.Id);
         j.Property(x => x.Id).ValueGeneratedNever();
-        j.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        j.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         j.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         j.HasIndex(x => new { x.TenantId, x.Status });
 
@@ -71,7 +76,7 @@ public sealed class AiDbContext : DbContext
         i.ToTable("ai_catalog_job_items");
         i.HasKey(x => x.Id);
         i.Property(x => x.Id).ValueGeneratedNever();
-        i.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        i.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         i.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         i.Property(x => x.ProposalJson).HasColumnType("jsonb");
         i.Property(x => x.JudgeNotes).HasMaxLength(2000);

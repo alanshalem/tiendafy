@@ -7,13 +7,18 @@ namespace Catalog.Infrastructure.Persistence;
 
 public sealed class CatalogDbContext : DbContext, IUnitOfWork
 {
-    private readonly bool _filterByTenant;
-    private readonly TenantId _currentTenant;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private TenantId CurrentTenant => FilterByTenant ? _tenant!.TenantId : default;
 
     public CatalogDbContext(DbContextOptions<CatalogDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+        _tenant = tenant;
     }
 
     public DbSet<Product> Products => Set<Product>();
@@ -34,8 +39,8 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
         // Filtro multi-tenant global (las configs viven en clases aparte sin acceso
         // al contexto, así que se agrega acá tras aplicarlas).
-        modelBuilder.Entity<Product>().HasQueryFilter(p => !_filterByTenant || p.TenantId == _currentTenant);
-        modelBuilder.Entity<Category>().HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
+        modelBuilder.Entity<Product>().HasQueryFilter(p => FilterByTenant && p.TenantId == CurrentTenant);
+        modelBuilder.Entity<Category>().HasQueryFilter(c => FilterByTenant && c.TenantId == CurrentTenant);
 
         var kit = modelBuilder.Entity<KitComponent>();
         var spec = modelBuilder.Entity<SpecDefinition>();
@@ -43,7 +48,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         spec.HasKey(d => d.Id);
         spec.Property(d => d.Id).ValueGeneratedNever();
         spec.Property(d => d.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        spec.HasQueryFilter(d => !_filterByTenant || d.TenantId == _currentTenant);
+        spec.HasQueryFilter(d => FilterByTenant && d.TenantId == CurrentTenant);
         spec.Property(d => d.Name).HasMaxLength(60).IsRequired();
         spec.Property(d => d.Key).HasMaxLength(80).IsRequired();
         spec.Property(d => d.Unit).HasMaxLength(12);
@@ -59,14 +64,14 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         kit.ToTable("kit_components");
         kit.HasKey(k => k.Id);
         kit.Property(k => k.Id).ValueGeneratedNever();
-        kit.HasQueryFilter(k => !_filterByTenant || k.TenantId == _currentTenant.Value);
+        kit.HasQueryFilter(k => FilterByTenant && k.TenantId == CurrentTenant.Value);
         kit.HasIndex(k => new { k.TenantId, k.KitVariantId, k.ComponentVariantId }).IsUnique();
 
         var priceList = modelBuilder.Entity<PriceList>();
         priceList.ToTable("price_lists");
         priceList.HasKey(l => l.Id);
         priceList.Property(l => l.Id).ValueGeneratedNever();
-        priceList.HasQueryFilter(l => !_filterByTenant || l.TenantId == _currentTenant);
+        priceList.HasQueryFilter(l => FilterByTenant && l.TenantId == CurrentTenant);
         priceList.Property(l => l.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         priceList.Property(l => l.Name).HasMaxLength(60).IsRequired();
         priceList.Property(l => l.Currency).HasMaxLength(3).IsRequired();
@@ -81,7 +86,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         priceItem.ToTable("price_list_items");
         priceItem.HasKey(i => i.Id);
         priceItem.Property(i => i.Id).ValueGeneratedNever();
-        priceItem.HasQueryFilter(i => !_filterByTenant || i.TenantId == _currentTenant);
+        priceItem.HasQueryFilter(i => FilterByTenant && i.TenantId == CurrentTenant);
         priceItem.Property(i => i.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         // Un precio a mano por variante y lista: sin esto, dos guardados
         // simultáneos dejan dos filas y gana la que devuelva primero la base.
@@ -91,7 +96,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         search.ToTable("search_settings");
         search.HasKey(s => s.TenantId);
         search.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        search.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
+        search.HasQueryFilter(s => FilterByTenant && s.TenantId == CurrentTenant);
         search.Property<List<string>>("_synonymGroups").HasColumnName("synonym_groups");
         search.Ignore(s => s.SynonymGroups);
 
@@ -99,7 +104,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         query.ToTable("search_queries");
         query.HasKey(q => new { q.TenantId, q.Term });
         query.Property(q => q.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        query.HasQueryFilter(q => !_filterByTenant || q.TenantId == _currentTenant);
+        query.HasQueryFilter(q => FilterByTenant && q.TenantId == CurrentTenant);
         query.Property(q => q.Term).HasMaxLength(SearchQueryStat.MaxTermLength);
         // "Lo más buscado" de la tienda: ordena por cantidad dentro de cada tienda.
         query.HasIndex(q => new { q.TenantId, q.Count });

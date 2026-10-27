@@ -42,7 +42,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        return await db.EmissionJobs.AsNoTracking().SingleAsync(j => j.OrderId == orderId && j.Kind == FiscalJobKind.Invoice);
+        return await db.EmissionJobs.IgnoreQueryFilters().AsNoTracking().SingleAsync(j => j.OrderId == orderId && j.Kind == FiscalJobKind.Invoice);
     }
 
     /// <summary>Deja el job listo para la próxima pasada, con esos intentos ya hechos.</summary>
@@ -85,7 +85,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
         Assert.Equal(1, arca.CaeRequests);
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        var doc = await db.Documents.AsNoTracking().SingleAsync(d => d.OrderId == order);
+        var doc = await db.Documents.IgnoreQueryFilters().AsNoTracking().SingleAsync(d => d.OrderId == order);
         Assert.Equal(FiscalResult.Authorized, doc.Result);
         Assert.Equal(1, doc.Number);
         Assert.Equal(done.FiscalDocumentId, doc.Id);
@@ -197,7 +197,7 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-            var docs = await db.Documents.AsNoTracking().Where(d => d.OrderId == order).ToListAsync();
+            var docs = await db.Documents.IgnoreQueryFilters().AsNoTracking().Where(d => d.OrderId == order).ToListAsync();
             Assert.Equal(2, docs.Count);
             Assert.All(docs, d => Assert.Null(d.BuyerNotifiedAtUtc));
         }

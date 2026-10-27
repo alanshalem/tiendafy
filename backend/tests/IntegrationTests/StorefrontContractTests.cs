@@ -79,4 +79,17 @@ public sealed class StorefrontContractTests
         var res = await new Shopper(store).SendAsync(HttpMethod.Post, "/api/v1/products", new { name = "spam" });
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
+
+    [Theory]
+    [InlineData("/api/v1/checkout-settings")]
+    [InlineData("/api/v1/reviews-admin")]
+    [InlineData("/api/v1/newsletter-export")]
+    public async Task La_lista_blanca_no_exime_rutas_que_solo_empiezan_igual(string path)
+    {
+        // Antes la comparación era StartsWith sin límite de segmento: estas
+        // rutas pasaban la barrera (y llegaban a un 404) en vez de cortarse.
+        var store = await SeededStore.GetAsync(_factory);
+        var res = await new Shopper(store).SendAsync(HttpMethod.Post, path, new { });
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
 }

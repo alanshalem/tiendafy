@@ -299,6 +299,9 @@ public static class ShopAuthEndpoints
                 return Problem("ShopAuth.GoogleError", "El ingreso con Google no se empezó en este navegador. Probá de nuevo.", 400);
             // La tienda pudo cerrarse (o borrarse) entre el arranque y la vuelta.
             if (!await IsActiveStoreAsync(tenancy, tid, ct)) return NoStore();
+            // La vuelta de Google no trae el header de la tienda: es la del state
+            // firmado (sin ella, la cuenta existente no se encontraría).
+            http.RequestServices.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(SharedKernel.Common.TenantId.From(tid));
 
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
             var client = httpFactory.CreateClient();

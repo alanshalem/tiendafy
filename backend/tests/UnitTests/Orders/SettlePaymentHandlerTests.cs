@@ -332,4 +332,85 @@ public class SettlePaymentHandlerTests
         var result = await handler.HandleAsync(Guid.NewGuid(), "approved", "x");
         Assert.False(result.IsSuccess);
     }
+
+    [Theory]
+    [InlineData("approved")]
+    [InlineData("refunded")]
+    [InlineData("rejected")]
+    public async Task Un_pago_informado_por_la_cuenta_de_otra_tienda_no_toca_la_venta(string status)
+    {
+        // Otro comercio crea en SU cuenta un pago con el id de esta venta como
+        // external_reference: la venta se busca en todas las tiendas, así que
+        // sin este control quedaba pagada (o reembolsada) con su pago.
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out var repo, out var inv);
+
+        var result = await handler.HandleAsync(order.Id, status, "pay-ajeno",
+            origin: new PaymentOrigin(TenantId.New(), 1_000m, "ARS"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Payment.ForeignOrder", result.Error.Code);
+        Assert.Equal(OrderStatus.PendingPayment, order.Status);
+        Assert.Equal(0, repo.Saves);
+        Assert.Empty(inv.Confirmed);
+        Assert.Empty(inv.Released);
+    }
+
+    [Theory]
+    [InlineData(999.99, "ARS")] // un centavo menos
+    [InlineData(1, "ARS")]
+    [InlineData(1_000, "USD")] // otra moneda
+    [InlineData(1_000, null)]  // sin moneda informada
+    public async Task Un_pago_que_no_cubre_el_total_no_la_da_por_cobrada(double amount, string? currency)
+    {
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out var repo, out var inv);
+        var origin = new PaymentOrigin(Tenant, (decimal)amount, currency);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-corto", origin: origin);
+
+        Assert.Equal(SettleOutcome.NoChange, result.Value.Outcome);
+        Assert.Equal(OrderStatus.PendingPayment, order.Status);
+        Assert.Null(order.PaidAtUtc);
+        Assert.Empty(inv.Confirmed);
+        Assert.Contains("(#pay-corto)", order.ReviewNote);
+        Assert.Contains("no cubre el total", order.ReviewNote);
+        Assert.Equal(1, repo.Saves);
+
+        // El aviso repetido no repite la nota.
+        await handler.HandleAsync(order.Id, "approved", "pay-corto", origin: origin);
+        Assert.Equal(1, repo.Saves);
+    }
+
+    [Fact]
+    public async Task Un_pago_corto_tampoco_revive_una_venta_rechazada()
+    {
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out _, out var inv);
+        await handler.HandleAsync(order.Id, "rejected", "pay-rechazado");
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-corto",
+            origin: new PaymentOrigin(Tenant, 10m, "ARS"));
+
+        Assert.Equal(SettleOutcome.NoChange, result.Value.Outcome);
+        Assert.Equal(OrderStatus.Failed, order.Status);
+        Assert.Empty(inv.Deducted);
+    }
+
+    [Theory]
+    [InlineData(1_000, "ARS")]
+    [InlineData(1_000, "ars")]
+    [InlineData(1_200, "ARS")] // con interés de cuotas a cargo del comprador
+    public async Task Un_pago_de_la_misma_tienda_que_cubre_el_total_la_cobra(double amount, string currency)
+    {
+        var order = Orden(Guid.NewGuid());
+        var handler = Handler(order, out _, out _);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-ok",
+            origin: new PaymentOrigin(Tenant, (decimal)amount, currency));
+
+        Assert.Equal(SettleOutcome.JustPaid, result.Value.Outcome);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Null(order.ReviewNote);
+    }
 }

@@ -59,7 +59,7 @@ public sealed class FiscalEmissionTests
         Assert.False(r.Value.Authorized);
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        var doc = await db.Documents.AsNoTracking().SingleAsync(d => d.Id == r.Value.DocumentId);
+        var doc = await db.Documents.IgnoreQueryFilters().AsNoTracking().SingleAsync(d => d.Id == r.Value.DocumentId);
         Assert.Contains("10242", doc.Observations);
     }
 
@@ -380,7 +380,7 @@ public sealed class FiscalEmissionTests
 
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        var doc = await db.Documents.AsNoTracking().SingleAsync(d => d.Id == r.Value.DocumentId);
+        var doc = await db.Documents.IgnoreQueryFilters().AsNoTracking().SingleAsync(d => d.Id == r.Value.DocumentId);
         Assert.Equal(CondicionIvaReceptor.Monotributo, doc.ReceptorCondicion);
     }
 
@@ -398,12 +398,12 @@ public sealed class FiscalEmissionTests
         return tenantId;
     }
 
-    /// <summary>Cada intento con su propio scope, como cada vuelta del worker.</summary>
+    /// <summary>Cada intento con su propio scope y la tienda fijada, como cada vuelta del worker.</summary>
     private async Task<Result<EmitInvoiceResult>> EmitAsync(
         Guid tenantId, FakeArca arca, Guid orderId, long grossMinor = 12_100, string? buyerDoc = null,
         CondicionIvaReceptor? declared = null, bool creditNote = false)
     {
-        await using var scope = _factory.Services.CreateAsyncScope();
+        await using var scope = _factory.Services.CreateTenantScope(tenantId);
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
         var handler = new EmitInvoiceHandler(db, arca, new FakeAuthenticator(), NullLogger<EmitInvoiceHandler>.Instance);
         return await handler.EmitAsync(new EmitInvoiceCommand(

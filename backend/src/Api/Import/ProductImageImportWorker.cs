@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Api.Storefront;
+using Api.Workers;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Media.Infrastructure;
@@ -85,7 +86,7 @@ public sealed partial class ProductImageImportWorker(
             ct.ThrowIfCancellationRequested();
             try
             {
-                using var scope = scopeFactory.CreateScope();
+                using var scope = scopeFactory.CreateTenantScope(tenant);
                 var repo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
                 var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
                 var added = await AttachImagesAsync(tenant, productId, items, repo, db, ct);
@@ -147,7 +148,7 @@ public sealed partial class ProductImageImportWorker(
         var bySlug = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         var bySku = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
-        using var scope = scopeFactory.CreateScope();
+        using var scope = scopeFactory.CreateTenantScope(tenant);
         var repo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
         Guid? after = null;

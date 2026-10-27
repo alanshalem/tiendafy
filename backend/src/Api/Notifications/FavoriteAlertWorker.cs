@@ -40,8 +40,12 @@ public sealed class FavoriteAlertWorker(
             .Distinct()
             .ToListAsync(ct);
 
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var tenantId in tenantIds)
         {
+            // Cada tienda con su tienda fijada en el scope (plantillas, bajas,
+            // stock): sin ella, los filtros no devuelven nada.
+            tenant.Set(TenantId.From(tenantId));
             try { await RunTenantAsync(sp, customersDb, tenantId, ct); }
             catch (Exception ex)
             {

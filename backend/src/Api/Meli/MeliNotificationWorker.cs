@@ -48,6 +48,9 @@ public sealed class MeliNotificationWorker(
             return;
         }
 
+        // La venta es de la tienda de esa conexión: se fija en el scope del
+        // worker, que no tiene una (sin ella, los filtros no devuelven nada).
+        sp.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(SharedKernel.Common.TenantId.From(connection.TenantId));
         var sync = sp.GetRequiredService<MeliSyncService>();
         await sync.UpsertOrderAsync(connection.TenantId, orderId.Value, ct);
     }

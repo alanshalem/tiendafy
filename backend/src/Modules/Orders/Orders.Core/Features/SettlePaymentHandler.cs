@@ -21,6 +21,15 @@ public sealed record SettleResult(
     SettleOutcome Outcome, Order? Order, Money? RefundedNow = null, long? RefundedBeforeMinor = null);
 
 /// <summary>
+/// Lo que la pasarela dice del pago, para no aplicarle a una venta un pago que
+/// no es suyo: la tienda dueña de la cuenta que lo informó y lo que se aprobó.
+/// </summary>
+/// <param name="TenantId">La tienda de la conexión con la que se consultó el pago.</param>
+/// <param name="ApprovedAmount">Lo aprobado (<c>transaction_amount</c>); null = no se controla el monto.</param>
+/// <param name="ApprovedCurrency">La moneda de lo aprobado; distinta de la de la venta (o sin informar) no cubre el total.</param>
+public sealed record PaymentOrigin(TenantId TenantId, decimal? ApprovedAmount = null, string? ApprovedCurrency = null);
+
+/// <summary>
 /// Aplica el resultado de un pago a la orden. Idempotente: si la orden ya está
 /// en estado final no reprocesa (no doble-confirma stock ni reenvía emails).
 ///
@@ -38,11 +47,27 @@ public sealed class SettlePaymentHandler(
     /// <param name="mpStatus">approved | pending | in_process | rejected | cancelled | refunded | charged_back ...</param>
     /// <param name="amountRefunded">transaction_amount_refunded del pago en MP: si supera lo
     /// registrado localmente, sincroniza reembolsos parciales hechos fuera del sistema.</param>
-    public async Task<Result<SettleResult>> HandleAsync(Guid orderId, string mpStatus, string? paymentId, decimal? amountRefunded = null, decimal? mpFee = null, CancellationToken ct = default)
+    /// <param name="origin">
+    /// De qué tienda es la cuenta que informó el pago y cuánto se aprobó. La venta
+    /// se busca por id en todas las tiendas (el <c>external_reference</c> lo pone
+    /// quien crea el pago): sin este control, un comercio con su propia cuenta
+    /// podía crear un pago chico con el id de una venta ajena y dejarla pagada.
+    /// </param>
+    public async Task<Result<SettleResult>> HandleAsync(
+        Guid orderId, string mpStatus, string? paymentId, decimal? amountRefunded = null, decimal? mpFee = null,
+        PaymentOrigin? origin = null, CancellationToken ct = default)
     {
         var order = await repository.GetByIdAnyTenantAsync(orderId, ct);
         if (order is null)
             return Result.Failure<SettleResult>(Error.NotFound("Order", orderId));
+
+        if (origin is not null && origin.TenantId != order.TenantId)
+        {
+            logger.LogWarning(
+                "Pago {PaymentId} SOSPECHOSO: lo informó la cuenta de la tienda {PaymentTenantId} y la venta {OrderId} es de la tienda {OrderTenantId}. No se aplica.",
+                paymentId, origin.TenantId.Value, orderId, order.TenantId.Value);
+            return Result.Failure<SettleResult>(Error.Conflict("Payment.ForeignOrder", "El pago no es de la tienda de la venta."));
+        }
 
         var status = mpStatus.ToLowerInvariant();
 
@@ -53,7 +78,11 @@ public sealed class SettlePaymentHandler(
             // el mismo external_reference); o un pago en efectivo que se acredita
             // después de que la venta venció. El comprador pagó: queda pagada.
             if (order.Status is OrderStatus.Failed or OrderStatus.Cancelled && order.PaidAtUtc is null)
+            {
+                if (await IsShortPaymentAsync(order, paymentId, origin, ct))
+                    return new SettleResult(SettleOutcome.NoChange, order);
                 return await ReviveAsync(order, paymentId, mpFee, ct);
+            }
 
             if (!order.IsPending)
             {
@@ -112,6 +141,9 @@ public sealed class SettlePaymentHandler(
                 logger.LogInformation("Order {OrderId} ya {Status}; webhook ignorado (idempotente).", orderId, order.Status);
                 return new SettleResult(SettleOutcome.NoChange, order);
             }
+
+            if (await IsShortPaymentAsync(order, paymentId, origin, ct))
+                return new SettleResult(SettleOutcome.NoChange, order);
 
             order.MarkPaid(paymentId ?? string.Empty);
             // Comisión real de MP (transaction − neto acreditado): rentabilidad.
@@ -201,6 +233,32 @@ public sealed class SettlePaymentHandler(
         logger.LogWarning("Order {OrderId} estaba {Status} y entró el pago aprobado {PaymentId}: queda PAGADA y para revisar.",
             order.Id, was, paymentId);
         return new SettleResult(SettleOutcome.JustPaid, order);
+    }
+
+    /// <summary>
+    /// Un pago aprobado que no cubre el total de la venta (o en otra moneda) no
+    /// la deja pagada: queda pendiente, para revisar con el número del pago, y
+    /// en el log como sospechoso. Una vez por pago: los reintentos del aviso no
+    /// repiten la nota.
+    /// </summary>
+    private async Task<bool> IsShortPaymentAsync(Order order, string? paymentId, PaymentOrigin? origin, CancellationToken ct)
+    {
+        if (origin?.ApprovedAmount is not { } amount) return false;
+        var sameCurrency = string.Equals(origin.ApprovedCurrency, order.Currency, StringComparison.OrdinalIgnoreCase);
+        if (sameCurrency && Money.FromDecimal(amount, order.Currency) >= order.Total) return false;
+
+        logger.LogWarning(
+            "Pago {PaymentId} SOSPECHOSO: aprobado por {Currency} {Amount} y la venta {OrderId} es de {Total}. No se da por cobrada.",
+            paymentId, origin.ApprovedCurrency, amount, order.Id, order.Total);
+
+        var paid = $"{origin.ApprovedCurrency ?? "?"} {ArgentineNumbers.Number(amount, 2)}";
+        if (order.ReviewNote?.Contains($"#{paymentId})", StringComparison.Ordinal) != true)
+        {
+            order.AddReviewNote(
+                $"Entró un pago aprobado (#{paymentId}) por {paid}, que no cubre el total de la venta ({ArgentineNumbers.Money(order.Total)}): no se dio por cobrada. Revisá el pago en la cuenta de la pasarela.");
+            await repository.SaveChangesAsync(ct);
+        }
+        return true;
     }
 
     /// <summary>Un pago que no es el que cobró la venta (la venta se cobró y con otro).</summary>

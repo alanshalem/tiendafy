@@ -280,12 +280,15 @@ public static class CampaignEndpoints
         });
 
         group.MapPost("/marketing/unsubscribe", async (
-            string? token, IDataProtectionProvider dp, NotificationsDbContext db, CancellationToken ct) =>
+            string? token, IDataProtectionProvider dp, NotificationsDbContext db,
+            Api.Middleware.TenantContextHolder tenantScope, CancellationToken ct) =>
         {
             var payload = token is null ? null : UnsubscribeToken.Unprotect(dp, token);
             if (payload is null)
                 return Results.Content(PublicPage.Render("Link inválido",
                     "<p>El link de baja no es válido o está incompleto.</p>"), "text/html");
+            // El link del email no trae el header de la tienda: es la del token firmado.
+            tenantScope.Set(TenantId.From(payload.TenantId));
 
             var exists = await db.EmailSuppressions
                 .AnyAsync(s => s.TenantId == payload.TenantId && s.Email == payload.Email, ct);
@@ -307,7 +310,9 @@ public static class CampaignEndpoints
             var payload = t is null ? null : TrackToken.Unprotect(dp, t);
             if (payload is not null)
             {
-                var recipient = await db.CampaignRecipients.FirstOrDefaultAsync(
+                // Sin header de tienda (lo pide el cliente de correo): la
+                // campaña sale del token firmado, por id.
+                var recipient = await db.CampaignRecipients.IgnoreQueryFilters().FirstOrDefaultAsync(
                     r => r.CampaignId == payload.CampaignId && r.Email == payload.Email, ct);
                 if (recipient is not null && recipient.OpenedAtUtc is null)
                 {
@@ -334,11 +339,13 @@ public static class CampaignEndpoints
 
             var payload = t is null ? null : TrackToken.Unprotect(dp, t);
             if (payload is null) return Results.BadRequest();
-            var campaign = await db.EmailCampaigns.AsNoTracking()
+            // Sin header de tienda (es un link de un email): la campaña sale del
+            // token firmado, por id.
+            var campaign = await db.EmailCampaigns.IgnoreQueryFilters().AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == payload.CampaignId, ct);
             if (campaign is null) return Results.BadRequest();
 
-            var recipient = await db.CampaignRecipients.FirstOrDefaultAsync(
+            var recipient = await db.CampaignRecipients.IgnoreQueryFilters().FirstOrDefaultAsync(
                 r => r.CampaignId == payload.CampaignId && r.Email == payload.Email, ct);
             if (recipient is not null && recipient.ClickedAtUtc is null)
             {
@@ -358,7 +365,7 @@ public static class CampaignEndpoints
         // Firma svix (secret whsec_ en Email:WebhookSecret); sin secret, 404.
         group.MapPost("/webhooks/resend", async (
             HttpRequest http, IConfiguration cfg, NotificationsDbContext db,
-            ILoggerFactory lf, CancellationToken ct) =>
+            Api.Middleware.TenantContextHolder tenantScope, ILoggerFactory lf, CancellationToken ct) =>
         {
             var secret = cfg["Email:WebhookSecret"];
             if (string.IsNullOrEmpty(secret)) return Results.NotFound();
@@ -381,6 +388,7 @@ public static class CampaignEndpoints
                 var data = doc.RootElement.GetProperty("data");
                 var tenantId = ResendWebhook.ExtractTenantTag(data);
                 if (tenantId is null) return Results.Ok(); // email viejo sin tag: no se puede atribuir
+                tenantScope.Set(TenantId.From(tenantId.Value));
 
                 var reason = type == "email.bounced" ? "bounce" : "complaint";
                 if (data.TryGetProperty("to", out var toProp))

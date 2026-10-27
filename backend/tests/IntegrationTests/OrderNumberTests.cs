@@ -68,7 +68,7 @@ public sealed class OrderNumberTests(ApiFactory factory)
         // Un número dado no se pisa al volver a guardar.
         first.AssignNumber(5);
         await db.SaveChangesAsync();
-        Assert.Equal(1001, (await db.Orders.AsNoTracking().SingleAsync(o => o.Id == first.Id)).Number);
+        Assert.Equal(1001, (await db.Orders.IgnoreQueryFilters().AsNoTracking().SingleAsync(o => o.Id == first.Id)).Number);
     }
 
     [Fact]

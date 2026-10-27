@@ -11,9 +11,10 @@ namespace IntegrationTests;
 
 /// <summary>
 /// Las consultas de inventario, compras y clientes que comparten el panel y el
-/// asistente filtran por tienda con el <c>Where(TenantId)</c> explícito: acá
-/// corren en un scope SIN tienda (el filtro global de EF apagado, como el worker
-/// de alertas), así que si el filtro explícito faltara, verían las dos tiendas.
+/// asistente filtran por tienda: corren en un scope con la tienda fijada (como un
+/// request del panel o el worker de alertas, que fija la de cada tienda) y con
+/// datos de otra tienda al lado, que no tienen que sumar. Un scope sin tienda
+/// no ve filas de ninguna (el filtro global está cerrado por defecto).
 /// </summary>
 [Collection("api")]
 public sealed class StatsQueriesTenantTests(ApiFactory factory)
@@ -28,7 +29,7 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
     {
         var (a, _) = await TwoStoresAsync();
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateTenantScope(a.TenantId);
         var queries = scope.ServiceProvider.GetRequiredService<PurchaseOrderQueries>();
 
         Assert.Equal(2, queries.Filtered(a.TenantId, All).Count());
@@ -40,7 +41,7 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
     {
         var (a, _) = await TwoStoresAsync();
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateTenantScope(a.TenantId);
         var summary = await scope.ServiceProvider.GetRequiredService<InventorySummaryQuery>()
             .RunAsync(SharedKernel.Common.TenantId.From(a.TenantId), 5, CancellationToken.None);
 
@@ -54,7 +55,7 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
     {
         var (a, _) = await TwoStoresAsync();
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateTenantScope(a.TenantId);
         var summary = await RunCustomersAsync(scope, a.TenantId);
 
         Assert.Equal(6, summary.Total);
@@ -65,7 +66,7 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
     {
         var (a, _) = await TwoStoresAsync();
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateTenantScope(a.TenantId);
         var summary = await RunCustomersAsync(scope, a.TenantId);
 
         Assert.Equal(5, summary.WithPurchases);
@@ -91,12 +92,14 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
         var cartB = await new Shopper(b).SaveContactAsync(variantB, shared); // más nuevo, mismo mail, OTRA tienda
 
         var since = DateTime.UtcNow.AddDays(-1);
-        await using var scope = factory.Services.CreateAsyncScope();
-        var query = scope.ServiceProvider.GetRequiredService<AbandonedCartsQuery>();
-
-        // Sin tienda en el scope, el filtro global está apagado: lo que cuenta es el Where explícito.
-        var pendingA = await query.PendingAsync(SharedKernel.Common.TenantId.From(a.TenantId), since, null, CancellationToken.None);
-        var pendingB = await query.PendingAsync(SharedKernel.Common.TenantId.From(b.TenantId), since, null, CancellationToken.None);
+        // Cada tienda con la suya fijada, como el panel de cada una.
+        IReadOnlyList<Checkout.Core.Domain.CheckoutSession> pendingA, pendingB;
+        await using (var scope = factory.Services.CreateTenantScope(a.TenantId))
+            pendingA = await scope.ServiceProvider.GetRequiredService<AbandonedCartsQuery>()
+                .PendingAsync(SharedKernel.Common.TenantId.From(a.TenantId), since, null, CancellationToken.None);
+        await using (var scope = factory.Services.CreateTenantScope(b.TenantId))
+            pendingB = await scope.ServiceProvider.GetRequiredService<AbandonedCartsQuery>()
+                .PendingAsync(SharedKernel.Common.TenantId.From(b.TenantId), since, null, CancellationToken.None);
 
         // La compra posterior de B no reemplaza el carrito de A: son tiendas distintas.
         Assert.Equal(cartA, Assert.Single(pendingA).Id);
@@ -133,7 +136,7 @@ public sealed class StatsQueriesTenantTests(ApiFactory factory)
         await purchasing.SaveChangesAsync();
 
         // Reservado de B: si el stock no filtrara por tienda, el resumen de A lo sumaría.
-        await scope.ServiceProvider.GetRequiredService<InventoryDbContext>().StockItems
+        await scope.ServiceProvider.GetRequiredService<InventoryDbContext>().StockItems.IgnoreQueryFilters()
             .Where(s => s.VariantId == variantB)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Reserved, 3));
 

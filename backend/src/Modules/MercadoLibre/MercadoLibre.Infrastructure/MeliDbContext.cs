@@ -5,13 +5,18 @@ namespace MercadoLibre.Infrastructure;
 
 public sealed class MeliDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public MeliDbContext(DbContextOptions<MeliDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<MeliConnection> Connections => Set<MeliConnection>();
@@ -27,7 +32,7 @@ public sealed class MeliDbContext : DbContext
         connection.ToTable("meli_connections");
         connection.HasKey(c => c.Id);
         connection.Property(c => c.Id).ValueGeneratedNever();
-        connection.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        connection.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         connection.HasIndex(c => c.TenantId).IsUnique();
         // El webhook resuelve el tenant por el user_id de ML (sin header de tenant).
         connection.HasIndex(c => c.MeliUserId);
@@ -40,7 +45,7 @@ public sealed class MeliDbContext : DbContext
         order.ToTable("meli_orders");
         order.HasKey(o => o.Id);
         order.Property(o => o.Id).ValueGeneratedNever();
-        order.HasQueryFilter(o => !_filterByTenant || o.TenantId == _tenantGuid);
+        order.HasQueryFilter(o => FilterByTenant && o.TenantId == TenantGuid);
         order.HasIndex(o => new { o.TenantId, o.MeliOrderId }).IsUnique();
         order.HasIndex(o => new { o.TenantId, o.DateCreatedUtc });
         order.Property(o => o.Status).HasMaxLength(40);
@@ -55,7 +60,7 @@ public sealed class MeliDbContext : DbContext
         link.ToTable("meli_item_links");
         link.HasKey(l => l.Id);
         link.Property(l => l.Id).ValueGeneratedNever();
-        link.HasQueryFilter(l => !_filterByTenant || l.TenantId == _tenantGuid);
+        link.HasQueryFilter(l => FilterByTenant && l.TenantId == TenantGuid);
         link.HasIndex(l => new { l.TenantId, l.MeliItemId, l.MeliVariationId }).IsUnique();
         link.HasIndex(l => new { l.TenantId, l.VariantId });
         link.Property(l => l.MeliItemId).HasMaxLength(30);
@@ -64,7 +69,7 @@ public sealed class MeliDbContext : DbContext
         var productCategory = modelBuilder.Entity<MeliProductCategory>();
         productCategory.ToTable("meli_product_categories");
         productCategory.HasKey(c => new { c.TenantId, c.ProductId });
-        productCategory.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        productCategory.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         productCategory.Property(c => c.CategoryId).HasMaxLength(30);
         productCategory.Property(c => c.CategoryName).HasMaxLength(200);
         productCategory.Property(c => c.Source).HasConversion<string>().HasMaxLength(20);
@@ -73,7 +78,7 @@ public sealed class MeliDbContext : DbContext
         productAttribute.ToTable("meli_product_attributes");
         productAttribute.HasKey(a => a.Id);
         productAttribute.Property(a => a.Id).ValueGeneratedNever();
-        productAttribute.HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
+        productAttribute.HasQueryFilter(a => FilterByTenant && a.TenantId == TenantGuid);
         productAttribute.HasIndex(a => new { a.TenantId, a.ProductId, a.AttributeId }).IsUnique();
         productAttribute.Property(a => a.AttributeId).HasMaxLength(60);
         productAttribute.Property(a => a.ValueId).HasMaxLength(60);

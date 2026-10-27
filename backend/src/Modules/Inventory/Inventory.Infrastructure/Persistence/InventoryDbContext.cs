@@ -7,15 +7,18 @@ namespace Inventory.Infrastructure.Persistence;
 
 public sealed class InventoryDbContext : DbContext
 {
-    // Filtro multi-tenant global. Bypass sin tenant en scope: el job de expiración
-    // de reservas escanea todas las tiendas y corre sin tenant.
-    private readonly bool _filterByTenant;
-    private readonly TenantId _currentTenant;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private TenantId CurrentTenant => FilterByTenant ? _tenant!.TenantId : default;
 
     public InventoryDbContext(DbContextOptions<InventoryDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+        _tenant = tenant;
     }
 
     public DbSet<StockItem> StockItems => Set<StockItem>();
@@ -29,7 +32,7 @@ public sealed class InventoryDbContext : DbContext
         stock.HasKey(s => s.Id);
         stock.Property(s => s.Id).ValueGeneratedNever();
         stock.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        stock.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
+        stock.HasQueryFilter(s => FilterByTenant && s.TenantId == CurrentTenant);
         stock.HasIndex(s => new { s.TenantId, s.VariantId }).IsUnique();
         stock.Property(s => s.Location).HasMaxLength(60);
         // El motor garantiza lo que el código promete: nunca negativos.
@@ -42,7 +45,7 @@ public sealed class InventoryDbContext : DbContext
         movement.Property(m => m.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         movement.Property(m => m.Type).HasConversion<string>().HasMaxLength(20);
         movement.Property(m => m.Reason).HasMaxLength(200);
-        movement.HasQueryFilter(m => !_filterByTenant || m.TenantId == _currentTenant);
+        movement.HasQueryFilter(m => FilterByTenant && m.TenantId == CurrentTenant);
         movement.HasIndex(m => new { m.TenantId, m.VariantId, m.OccurredAtUtc });
 
         var reservation = modelBuilder.Entity<Reservation>();
@@ -51,7 +54,7 @@ public sealed class InventoryDbContext : DbContext
         reservation.Property(r => r.Id).ValueGeneratedNever();
         reservation.Property(r => r.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         reservation.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
-        reservation.HasQueryFilter(r => !_filterByTenant || r.TenantId == _currentTenant);
+        reservation.HasQueryFilter(r => FilterByTenant && r.TenantId == CurrentTenant);
         // El job de expiración escanea por (status, expires_at).
         reservation.HasIndex(r => new { r.Status, r.ExpiresAtUtc });
     }

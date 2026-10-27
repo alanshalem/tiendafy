@@ -23,11 +23,12 @@ public sealed class ThemeScheduleWorker(
     protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
-        // Sin tenant en scope el filtro global no aplica: el worker mira todas las tiendas.
+        // Sin tienda en el scope los filtros no devuelven nada: el worker mira
+        // todas las tiendas a propósito, con IgnoreQueryFilters.
         var db = scope.ServiceProvider.GetRequiredService<ThemesDbContext>();
 
         var now = DateTime.UtcNow;
-        var due = await db.Themes
+        var due = await db.Themes.IgnoreQueryFilters()
             .Where(t => t.ScheduledAtUtc != null && t.ScheduledAtUtc <= now && t.ScheduledConfig != null)
             .OrderBy(t => t.ScheduledAtUtc)
             .Take(20)

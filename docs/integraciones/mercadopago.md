@@ -171,7 +171,18 @@ cola la fila ya procesada, y una que sigue pendiente queda como está (el
 worker va a leer el estado nuevo). Hasta el 16-oct-2026 se descartaba y esos
 cambios no llegaban nunca. El worker (cada 5 s) busca la tienda por el `user_id` de
 Mercado Pago, consulta `GET /v1/payments/{id}` (nunca confía en el body ni en
-el redirect) y llama a `SettlePaymentHandler`, que es idempotente:
+el redirect) y llama a `SettlePaymentHandler`, que es idempotente.
+
+Antes de aplicar nada, el pago tiene que ser de la venta (`PaymentOrigin`): el
+`external_reference` lo pone quien crea el pago y el `user_id` del aviso no lo
+cubre la firma, así que otro comercio podía crear en su cuenta un pago chico
+con el id de una venta ajena. Si la venta no es de la tienda de la conexión que
+informó el pago, no se toca (queda en el log como sospechoso). Y un `approved`
+que no cubre el total de la venta (`transaction_amount` menor, u otra
+`currency_id`) no la da por cobrada: sigue pendiente y queda "para revisar" con
+el número del pago. La búsqueda de pagos de las ventas abandonadas aplica el
+mismo control; en Payway (sin avisos, el cobro lo armamos nosotros) se controla
+la tienda.
 
 | `status` de MP | Qué pasa |
 |---|---|

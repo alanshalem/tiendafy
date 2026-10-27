@@ -17,7 +17,7 @@ namespace Fiscal.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -244,8 +244,9 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
-                    b.Property<long>("DocNro")
-                        .HasColumnType("bigint")
+                    b.Property<string>("DocNro")
+                        .IsRequired()
+                        .HasColumnType("text")
                         .HasColumnName("doc_nro");
 
                     b.Property<int>("DocTipo")
@@ -346,8 +347,7 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasColumnName("attempts");
 
                     b.Property<string>("BuyerDoc")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("buyer_doc");
 
                     b.Property<DateTime>("CreatedAtUtc")

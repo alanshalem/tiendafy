@@ -22,6 +22,7 @@ public sealed class StockAdjustTests
         using var scope = _factory.Services.CreateScope();
         var stock = scope.ServiceProvider.GetRequiredService<IStockRepository>();
         var tenant = TenantId.From(Guid.NewGuid());
+        scope.ServiceProvider.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(tenant); // como un request de esa tienda
         var variant = Guid.NewGuid();
 
         // Sobre variante sin fila de stock: crea, y un delta negativo queda en 0.

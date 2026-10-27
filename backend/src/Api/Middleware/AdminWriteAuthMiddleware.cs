@@ -17,16 +17,16 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
 {
     private static readonly string[] PublicWritePrefixes =
     {
-        "/api/v1/auth/",
+        "/api/v1/auth",
         "/api/v1/tenants",
         "/api/v1/checkout",
         "/api/v1/track",
         // Una búsqueda hecha en la tienda (para "búsquedas populares"). Exacta:
         // el resto de /search (los sinónimos) es del panel.
         "/api/v1/search/log",
-        "/api/v1/shop/",
+        "/api/v1/shop",
         "/api/v1/coupons/validate",
-        "/api/v1/payments/webhook",
+        "/api/v1/payments/webhooks/mercadopago",
         "/api/v1/contact/submit",
         // Suscripción a novedades desde la tienda (anónima): lo único que
         // cuelga de /newsletter.
@@ -63,7 +63,7 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         var path = ctx.Request.Path.Value ?? string.Empty;
 
         var isApi = path.StartsWith("/api/v1/", StringComparison.OrdinalIgnoreCase);
-        var isPublic = PublicWritePrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+        var isPublic = IsPublicWrite(path);
 
         if (isWrite && isApi && !isPublic)
         {
@@ -90,5 +90,18 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         }
 
         await next(ctx);
+    }
+
+    /// <summary>
+    /// Cada entrada cubre la ruta exacta y lo que cuelga de ella, nunca un
+    /// segmento que solo empiece igual: <c>/api/v1/checkout</c> exime
+    /// <c>/api/v1/checkout/{id}/submit</c> pero no <c>/api/v1/checkout-settings</c>.
+    /// </summary>
+    internal static bool IsPublicWrite(string path)
+    {
+        path = path.TrimEnd('/');
+        return PublicWritePrefixes.Any(p =>
+            path.Equals(p, StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
     }
 }

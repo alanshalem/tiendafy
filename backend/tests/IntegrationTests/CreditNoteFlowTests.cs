@@ -152,7 +152,7 @@ public sealed class CreditNoteFlowTests
             await Workers.RunOnceAsync<FiscalEmissionWorker>(_factory);
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-            docs = await db.Documents.AsNoTracking().Where(d => d.OrderId == orderId).ToListAsync();
+            docs = await db.Documents.IgnoreQueryFilters().AsNoTracking().Where(d => d.OrderId == orderId).ToListAsync();
             if (done(docs)) return docs;
         }
         Assert.Fail($"Los comprobantes de la venta {orderId} no llegaron: [{string.Join("; ", docs.Select(d => $"{d.CbteTipo} {d.Result} {d.ImpTotal}"))}]");

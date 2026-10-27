@@ -28,6 +28,10 @@ namespace Api.Orders;
 /// Así cada sesión llega a un estado final y el barrido no vuelve a mirar
 /// siempre las mismas.
 /// </para>
+/// <para>
+/// Recorre las compras de todas las tiendas (sin tienda en el scope): cada
+/// consulta lo pide explícito con IgnoreQueryFilters y va por id.
+/// </para>
 /// </summary>
 public sealed class ExpiredCheckoutWorker(
     IServiceScopeFactory scopeFactory,
@@ -58,7 +62,7 @@ public sealed class ExpiredCheckoutWorker(
 
         for (var page = 0; page < MaxPages; page++)
         {
-            var sessions = await checkoutDb.Sessions
+            var sessions = await checkoutDb.Sessions.IgnoreQueryFilters()
                 .Where(s => (s.Status == CheckoutStatus.Open || s.Status == CheckoutStatus.Submitted)
                     && s.ExpiresAtUtc <= now)
                 .OrderBy(s => s.ExpiresAtUtc).ThenBy(s => s.Id)
@@ -75,7 +79,7 @@ public sealed class ExpiredCheckoutWorker(
                 .ToList();
             var active = reservationIds.Count == 0
                 ? []
-                : (await inventoryDb.Reservations.AsNoTracking()
+                : (await inventoryDb.Reservations.IgnoreQueryFilters().AsNoTracking()
                     .Where(r => reservationIds.Contains(r.Id) && r.Status == ReservationStatus.Active)
                     .Select(r => r.Id)
                     .ToListAsync(ct)).ToHashSet();
@@ -83,7 +87,7 @@ public sealed class ExpiredCheckoutWorker(
             var sessionIds = submitted.Select(s => s.Id).ToList();
             var paid = sessionIds.Count == 0
                 ? []
-                : (await ordersDb.Orders.AsNoTracking()
+                : (await ordersDb.Orders.IgnoreQueryFilters().AsNoTracking()
                     .Where(o => sessionIds.Contains(o.CheckoutSessionId) && o.PaidAtUtc != null)
                     .Select(o => o.CheckoutSessionId)
                     .ToListAsync(ct)).ToHashSet();
@@ -91,7 +95,7 @@ public sealed class ExpiredCheckoutWorker(
             // OfflinePayments al vencer su plazo, y ahí la sesión se cierra.
             var awaitingOffline = sessionIds.Count == 0
                 ? []
-                : (await ordersDb.Orders.AsNoTracking()
+                : (await ordersDb.Orders.IgnoreQueryFilters().AsNoTracking()
                     .Where(o => sessionIds.Contains(o.CheckoutSessionId)
                         && o.Status == global::Orders.Core.Domain.OrderStatus.PendingPayment
                         && o.PaymentDueAtUtc != null)

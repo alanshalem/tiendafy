@@ -5,13 +5,18 @@ namespace Reviews.Infrastructure;
 
 public sealed class ReviewsDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public ReviewsDbContext(DbContextOptions<ReviewsDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<ProductReview> Reviews => Set<ProductReview>();
@@ -25,7 +30,7 @@ public sealed class ReviewsDbContext : DbContext
         r.ToTable("product_reviews");
         r.HasKey(x => x.Id);
         r.Property(x => x.Id).ValueGeneratedNever();
-        r.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        r.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         r.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
         r.Property(x => x.Title).HasMaxLength(ProductReview.MaxTitle);
         r.Property(x => x.Body).HasMaxLength(ProductReview.MaxBody).IsRequired();
@@ -45,7 +50,7 @@ public sealed class ReviewsDbContext : DbContext
         v.ToTable("review_votes");
         v.HasKey(x => x.Id);
         v.Property(x => x.Id).ValueGeneratedNever();
-        v.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        v.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         v.Property(x => x.Kind).HasMaxLength(10).IsRequired();
         v.Property(x => x.Fingerprint).HasMaxLength(64).IsRequired();
         v.Property(x => x.Reason).HasMaxLength(300);
@@ -56,13 +61,13 @@ public sealed class ReviewsDbContext : DbContext
         s.ToTable("review_settings");
         s.HasKey(x => x.TenantId);
         s.Property(x => x.TenantId).ValueGeneratedNever();
-        s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        s.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var q = modelBuilder.Entity<ReviewRequest>();
         q.ToTable("review_requests");
         q.HasKey(x => x.Id);
         q.Property(x => x.Id).ValueGeneratedNever();
-        q.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        q.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         q.Property(x => x.Outcome).HasMaxLength(20).IsRequired();
         q.HasIndex(x => new { x.TenantId, x.OrderId }).IsUnique();
     }

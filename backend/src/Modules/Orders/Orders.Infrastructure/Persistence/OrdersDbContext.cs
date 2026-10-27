@@ -9,17 +9,18 @@ namespace Orders.Infrastructure.Persistence;
 
 public sealed class OrdersDbContext : DbContext
 {
-    // Filtro multi-tenant global (defensa en profundidad): toda query del path
-    // de request queda acotada al tenant actual aunque falte el .Where explícito.
-    // Cuando no hay tenant en scope (workers, design-time) se desactiva, para no
-    // romper el settle cross-tenant del webhook ni las migraciones.
-    private readonly bool _filterByTenant;
-    private readonly TenantId _currentTenant;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private TenantId CurrentTenant => FilterByTenant ? _tenant!.TenantId : default;
 
     public OrdersDbContext(DbContextOptions<OrdersDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+        _tenant = tenant;
     }
 
     // Teléfono, documento y dirección del comprador cifrados en reposo, como en
@@ -89,14 +90,14 @@ public sealed class OrdersDbContext : DbContext
         counter.ToTable("order_number_counters");
         counter.HasKey(c => c.TenantId);
         counter.Property(c => c.TenantId).ValueGeneratedNever();
-        counter.HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant.Value);
+        counter.HasQueryFilter(c => FilterByTenant && c.TenantId == CurrentTenant.Value);
 
         var order = modelBuilder.Entity<Order>();
         order.ToTable("orders");
         order.HasKey(o => o.Id);
         order.Property(o => o.Id).ValueGeneratedNever();
         order.Property(o => o.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        order.HasQueryFilter(o => !_filterByTenant || o.TenantId == _currentTenant);
+        order.HasQueryFilter(o => FilterByTenant && o.TenantId == CurrentTenant);
         order.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
         // Token de concurrencia optimista sobre la columna de sistema xmin de
         // Postgres (no requiere migración): dos writes concurrentes al mismo
@@ -203,7 +204,7 @@ public sealed class OrdersDbContext : DbContext
         quote.HasKey(q => q.Id);
         quote.Property(q => q.Id).ValueGeneratedNever();
         quote.Property(q => q.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        quote.HasQueryFilter(q => !_filterByTenant || q.TenantId == _currentTenant);
+        quote.HasQueryFilter(q => FilterByTenant && q.TenantId == CurrentTenant);
         quote.Property(q => q.Number).HasMaxLength(20).IsRequired();
         quote.Property(q => q.Status).HasConversion<string>().HasMaxLength(20);
         quote.Property(q => q.CustomerName).HasMaxLength(160).IsRequired();

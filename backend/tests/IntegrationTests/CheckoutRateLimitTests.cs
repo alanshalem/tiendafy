@@ -1,4 +1,8 @@
 using System.Net;
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -55,6 +59,72 @@ public sealed class CheckoutRateLimitTests(ApiFactory factory)
         var submit = await HitAsync(client, 31, _ => Post($"/api/v1/checkout/{Guid.NewGuid()}/submit", new { email = "a@b.com" }));
         Assert.DoesNotContain(HttpStatusCode.TooManyRequests, submit.Take(30));
         Assert.Equal(HttpStatusCode.TooManyRequests, submit[30]);
+    }
+
+    /// <summary>Pone la IP del cliente desde un header de prueba, antes de los cupos (como Caddy con X-Forwarded-For).</summary>
+    private sealed class TestClientIp : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((ctx, nextMiddleware) =>
+            {
+                if (ctx.Request.Headers.TryGetValue("X-Test-Ip", out var ip))
+                    ctx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(ip.ToString());
+                return nextMiddleware(ctx);
+            });
+            next(app);
+        };
+    }
+
+    /// <summary>
+    /// Cada compra enviada reserva stock media hora: con pocas IP (y en IPv6,
+    /// cambiando de dirección dentro de la misma /64) un script dejaba sin stock
+    /// vendible a una tienda. Hay tope de compras con reserva viva por cliente.
+    /// </summary>
+    [Fact]
+    public async Task Hay_tope_de_compras_con_stock_reservado_por_cliente_y_la_red_interna_no_lo_tiene()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "rsv");
+        var (_, variantId) = await merchant.CreateProductAsync("Variante escasa", priceMinor: 1_000_00, stock: 50);
+        await using var app = factory.WithWebHostBuilder(b =>
+        {
+            b.UseSetting("RateLimiting:CheckoutReservationsPerIp", "2");
+            b.UseSetting("ForwardedHeaders:KnownNetworks:0", "10.0.0.0/8");
+            b.ConfigureServices(s => s.AddSingleton<IStartupFilter, TestClientIp>());
+        });
+        var client = app.CreateClient();
+
+        async Task<HttpResponseMessage> SubmitFromAsync(string ip)
+        {
+            var start = new HttpRequestMessage(HttpMethod.Post, "/api/v1/checkout")
+            {
+                Content = JsonContent.Create(new { lines = new[] { new { variantId, quantity = 1 } } }),
+            };
+            start.Headers.Add("X-Tenant-Id", merchant.TenantId.ToString());
+            start.Headers.Add("X-Test-Ip", ip);
+            var session = await (await client.SendAsync(start)).Content.ReadFromJsonAsync<JsonElement>();
+
+            var submit = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/checkout/{session.GetProperty("id").GetGuid()}/submit")
+            {
+                Content = JsonContent.Create(new { email = "comprador@test.local", name = "Ana", lastName = "Pérez" }),
+            };
+            submit.Headers.Add("X-Tenant-Id", merchant.TenantId.ToString());
+            submit.Headers.Add("X-Test-Ip", ip);
+            return await client.SendAsync(submit);
+        }
+
+        // Dos compras desde la misma /64 (cambiando de dirección) entran; la tercera no.
+        Assert.Equal(HttpStatusCode.OK, (await SubmitFromAsync("2001:db8:aa:1::1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitFromAsync("2001:db8:aa:1::2")).StatusCode);
+        var third = await SubmitFromAsync("2001:db8:aa:1:ffff::3");
+        Assert.Equal(HttpStatusCode.TooManyRequests, third.StatusCode);
+        Assert.Equal("Checkout.TooManyOpen", (await third.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        Assert.True(third.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+
+        // Otra /64 es otro cliente; nuestra red interna (el SSR) no tiene tope.
+        Assert.Equal(HttpStatusCode.OK, (await SubmitFromAsync("2001:db8:aa:2::1")).StatusCode);
+        for (var i = 0; i < 3; i++)
+            Assert.Equal(HttpStatusCode.OK, (await SubmitFromAsync("10.1.2.3")).StatusCode);
     }
 
     [Fact]

@@ -1,12 +1,14 @@
 using Checkout.Infrastructure.Persistence;
+using Fiscal.Infrastructure.Persistence;
 using Orders.Infrastructure.Persistence;
 
 namespace Api.Startup;
 
 /// <summary>
 /// Cifra el teléfono, el documento y la dirección del comprador que quedaron en
-/// claro en ventas y checkouts de antes del cifrado. Idempotente: sin nada
-/// pendiente es una consulta por tabla.
+/// claro en ventas y checkouts de antes del cifrado, y su documento en los
+/// comprobantes fiscales (número del receptor, SOAP crudo y jobs de emisión).
+/// Idempotente: sin nada pendiente es una consulta por tabla.
 ///
 /// Corre solo al arrancar la versión nueva de la API (<see cref="BuyerPiiBackfillService"/>,
 /// con <c>Workers:Enabled</c>), nunca en el paso de migración: en un deploy la
@@ -23,10 +25,11 @@ public static class BuyerPiiBackfill
         var sp = scope.ServiceProvider;
         var orders = await sp.GetRequiredService<OrdersDbContext>().ProtectLegacyPiiAsync(ct);
         var sessions = await sp.GetRequiredService<CheckoutDbContext>().ProtectLegacyPiiAsync(ct);
-        if (orders + sessions > 0)
+        var fiscal = await sp.GetRequiredService<FiscalDbContext>().ProtectLegacyPiiAsync(ct);
+        if (orders + sessions + fiscal > 0)
             logger.LogInformation(
-                "Datos del comprador cifrados: {Orders} ventas y {Sessions} checkouts que estaban en claro.",
-                orders, sessions);
+                "Datos del comprador cifrados: {Orders} ventas, {Sessions} checkouts y {Fiscal} comprobantes o jobs fiscales que estaban en claro.",
+                orders, sessions, fiscal);
     }
 }
 

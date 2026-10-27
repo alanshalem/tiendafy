@@ -5,13 +5,18 @@ namespace Purchasing.Infrastructure;
 
 public sealed class PurchasingDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
@@ -27,7 +32,7 @@ public sealed class PurchasingDbContext : DbContext
         po.ToTable("purchase_orders");
         po.HasKey(p => p.Id);
         po.Property(p => p.Id).ValueGeneratedNever();
-        po.HasQueryFilter(p => !_filterByTenant || p.TenantId == _tenantGuid);
+        po.HasQueryFilter(p => FilterByTenant && p.TenantId == TenantGuid);
         po.Property(p => p.SupplierName).HasMaxLength(120).IsRequired();
         po.Property(p => p.Reference).HasMaxLength(120);
         po.Property(p => p.Notes).HasMaxLength(1000);
@@ -46,7 +51,7 @@ public sealed class PurchasingDbContext : DbContext
         supplier.ToTable("suppliers");
         supplier.HasKey(s => s.Id);
         supplier.Property(s => s.Id).ValueGeneratedNever();
-        supplier.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        supplier.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         supplier.Property(s => s.Name).HasMaxLength(120).IsRequired();
         supplier.Property(s => s.TaxId).HasMaxLength(20);
         supplier.Property(s => s.Email).HasMaxLength(200);
@@ -87,7 +92,7 @@ public sealed class PurchasingDbContext : DbContext
         settings.HasKey(s => s.Id);
         settings.Property(s => s.Id).ValueGeneratedNever();
         settings.Property(s => s.Mode).HasMaxLength(12).IsRequired();
-        settings.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        settings.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         settings.HasIndex(s => s.TenantId).IsUnique();
         // El worker cruza tiendas buscando las que tienen la pasada vencida.
         settings.HasIndex(s => new { s.Mode, s.NextRunAtUtc });
@@ -96,7 +101,7 @@ public sealed class PurchasingDbContext : DbContext
         rule.ToTable("stock_alert_rules");
         rule.HasKey(r => r.Id);
         rule.Property(r => r.Id).ValueGeneratedNever();
-        rule.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        rule.HasQueryFilter(r => FilterByTenant && r.TenantId == TenantGuid);
         rule.HasIndex(r => new { r.TenantId, r.VariantId }).IsUnique();
         rule.Ignore(r => r.IsDefault);
 
@@ -105,7 +110,7 @@ public sealed class PurchasingDbContext : DbContext
         state.HasKey(s => s.Id);
         state.Property(s => s.Id).ValueGeneratedNever();
         state.Property(s => s.Reason).HasMaxLength(12);
-        state.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        state.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         state.HasIndex(s => new { s.TenantId, s.VariantId }).IsUnique();
         state.HasIndex(s => new { s.TenantId, s.IsLow });
         state.Ignore(s => s.PendingNotification);
@@ -114,7 +119,7 @@ public sealed class PurchasingDbContext : DbContext
         optOut.ToTable("stock_alert_opt_outs");
         optOut.HasKey(o => o.Id);
         optOut.Property(o => o.Id).ValueGeneratedNever();
-        optOut.HasQueryFilter(o => !_filterByTenant || o.TenantId == _tenantGuid);
+        optOut.HasQueryFilter(o => FilterByTenant && o.TenantId == TenantGuid);
         optOut.HasIndex(o => new { o.TenantId, o.UserId }).IsUnique();
     }
 }

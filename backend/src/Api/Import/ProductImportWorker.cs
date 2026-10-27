@@ -1,4 +1,5 @@
 using Api.Storefront;
+using Api.Workers;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Inventory.Core.Domain;
@@ -33,7 +34,7 @@ public sealed class ProductImportWorker(
 
         // Resolver de categorías con scope propio para toda la corrida: cachea
         // el árbol y crea las que falten una sola vez.
-        using var catScope = scopeFactory.CreateScope();
+        using var catScope = scopeFactory.CreateTenantScope(tenant);
         var resolver = await CategoryResolver.CreateAsync(
             catScope.ServiceProvider.GetRequiredService<ICategoryRepository>(),
             catScope.ServiceProvider.GetRequiredService<CatalogDbContext>(),
@@ -49,7 +50,7 @@ public sealed class ProductImportWorker(
             downloads.BeginRow();
             try
             {
-                using var scope = scopeFactory.CreateScope();
+                using var scope = scopeFactory.CreateTenantScope(tenant);
                 var repo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
                 var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
                 var stock = scope.ServiceProvider.GetRequiredService<IStockRepository>();

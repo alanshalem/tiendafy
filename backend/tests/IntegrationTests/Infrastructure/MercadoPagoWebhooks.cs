@@ -48,7 +48,7 @@ public static class MercadoPagoWebhooks
             using var scope = factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
             var now = DateTime.UtcNow;
-            if (!await db.PaymentWebhookEvents.AnyAsync(e => e.Status == InboxEntry.StatusPending && e.NextAttemptAtUtc <= now))
+            if (!await db.PaymentWebhookEvents.IgnoreQueryFilters().AnyAsync(e => e.Status == InboxEntry.StatusPending && e.NextAttemptAtUtc <= now))
                 return;
         }
     }

@@ -7,18 +7,20 @@ namespace Payments.Infrastructure.Persistence;
 
 public sealed class PaymentsDbContext : DbContext
 {
-    // Filtro multi-tenant global. Bypass sin tenant en scope: el webhook worker
-    // resuelve la conexión MP por user_id de Mercado Pago, cross-tenant.
-    // PaymentWebhookEvent no tiene tenant (se resuelve al procesar) → sin filtro.
-    private readonly bool _filterByTenant;
-    private readonly TenantId _currentTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private TenantId CurrentTenant => FilterByTenant ? _tenant!.TenantId : default;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
+    // PaymentWebhookEvent no tiene tenant (se resuelve al procesar): sin filtro.
 
     public PaymentsDbContext(DbContextOptions<PaymentsDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
-        _tenantGuid = _currentTenant.Value;
+        _tenant = tenant;
     }
 
     public DbSet<MercadoPagoConnection> MercadoPagoConnections => Set<MercadoPagoConnection>();
@@ -30,13 +32,13 @@ public sealed class PaymentsDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MercadoPagoConnection>()
-            .HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
+            .HasQueryFilter(c => FilterByTenant && c.TenantId == CurrentTenant);
         modelBuilder.Entity<PaymentRefund>()
-            .HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+            .HasQueryFilter(r => FilterByTenant && r.TenantId == TenantGuid);
         modelBuilder.Entity<PaywayConnection>()
-            .HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
+            .HasQueryFilter(c => FilterByTenant && c.TenantId == CurrentTenant);
         modelBuilder.Entity<PaywayPaymentAttempt>()
-            .HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
+            .HasQueryFilter(a => FilterByTenant && a.TenantId == TenantGuid);
 
         var wh = modelBuilder.Entity<PaymentWebhookEvent>();
         wh.ToTable("payment_webhook_events");

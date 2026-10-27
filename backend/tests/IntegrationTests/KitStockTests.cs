@@ -32,6 +32,7 @@ public sealed class KitStockTests
 
         var tenantGuid = Guid.NewGuid();
         var tenant = TenantId.From(tenantGuid);
+        scope.ServiceProvider.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(tenant); // como un request de esa tienda
         var kitVariant = Guid.NewGuid();
         var pieceA = Guid.NewGuid();
         var pieceB = Guid.NewGuid();
@@ -72,6 +73,7 @@ public sealed class KitStockTests
         var kits = sp.GetRequiredService<KitStockService>();
 
         var tenant = TenantId.From(Guid.NewGuid());
+        scope.ServiceProvider.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(tenant);
         var plainVariant = Guid.NewGuid();
         await stock.AdjustAvailableAsync(tenant, plainVariant, 5, "alta");
 

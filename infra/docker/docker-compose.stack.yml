@@ -215,6 +215,9 @@ services:
       PublicApiBaseUrl: https://api.${STACK_DOMAIN}
       # Link al panel en el aviso de stock bajo (sin esto el mail sale sin link).
       Admin__BaseUrl: https://admin.${STACK_DOMAIN}
+      # Verificación en dos pasos obligatoria para dueños y administradores
+      # (true por defecto; false la apaga si hace falta compartir cuenta en una demo).
+      Auth__RequireTwoFactorForAdmins: ${AUTH_REQUIRE_2FA_ADMINS:-true}
       # Opcionales: vacías, sin captcha y sin "Entrar con Google" (como hasta ahora).
       Captcha__Turnstile__SiteKey: ${TURNSTILE_SITE_KEY:-}
       Captcha__Turnstile__Secret: ${TURNSTILE_SECRET:-}

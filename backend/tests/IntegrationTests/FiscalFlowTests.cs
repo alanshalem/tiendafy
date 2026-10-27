@@ -300,11 +300,11 @@ public sealed class FiscalFlowTests
         await RunEmissionUntilAsync(automatic, "Done");
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-        var docs = await db.Documents.AsNoTracking().Where(d => d.OrderId == automatic && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized).ToListAsync();
+        var docs = await db.Documents.IgnoreQueryFilters().AsNoTracking().Where(d => d.OrderId == automatic && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized).ToListAsync();
         Assert.Equal(
             [global::Fiscal.Core.Domain.FiscalEnvironment.Homologacion, global::Fiscal.Core.Domain.FiscalEnvironment.Produccion],
             docs.Select(d => d.Environment).Order());
-        var job = await db.EmissionJobs.AsNoTracking().SingleAsync(j => j.OrderId == automatic);
+        var job = await db.EmissionJobs.IgnoreQueryFilters().AsNoTracking().SingleAsync(j => j.OrderId == automatic);
         Assert.Equal(docs.Single(d => d.Environment == global::Fiscal.Core.Domain.FiscalEnvironment.Produccion).Id, job.FiscalDocumentId);
     }
 
@@ -376,7 +376,7 @@ public sealed class FiscalFlowTests
             await Workers.RunOnceAsync<FiscalEmissionWorker>(_factory);
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-            var jobs = await db.EmissionJobs.AsNoTracking().Where(j => j.OrderId == orderId).ToListAsync();
+            var jobs = await db.EmissionJobs.IgnoreQueryFilters().AsNoTracking().Where(j => j.OrderId == orderId).ToListAsync();
             if (jobs.Any(j => j.Kind.ToString() == kind && j.Status.ToString() == status)) return;
             seen = string.Join("; ", jobs.Select(j => $"{j.Kind} {j.Status} ({j.LastError})"));
         }

@@ -31,6 +31,7 @@ public sealed class PaywayReconciliationService(
     SettlePaymentHandler settle,
     PaidOrderSideEffects paidEffects,
     OrderCouponUses couponUses,
+    Api.Middleware.TenantContextHolder tenantScope,
     ILogger<PaywayReconciliationService> logger)
 {
     /// <summary>Cuántos intentos se consultan por pasada: Payway no publica sus límites de uso.</summary>
@@ -39,9 +40,10 @@ public sealed class PaywayReconciliationService(
     /// <summary>Consulta los intentos a los que les toca. Devuelve cuántos consultó.</summary>
     public async Task<int> RecheckDueAsync(DateTime nowUtc, CancellationToken ct)
     {
-        // Sin tienda en el scope (corre en un worker): ve los intentos de todas.
+        // Corre en un worker, sin tienda en el scope: mira los intentos de todas
+        // a propósito, y cada uno se reconsulta con su tienda fijada.
         var oldest = nowUtc - PaywayPaymentAttempt.RecheckMaxAge;
-        var candidates = await db.PaywayPaymentAttempts
+        var candidates = await db.PaywayPaymentAttempts.IgnoreQueryFilters()
             .Where(a => (a.Status == PaywayPaymentStatus.Unknown
                     || a.Status == PaywayPaymentStatus.UnderReview
                     || a.Status == PaywayPaymentStatus.RequiresAction)
@@ -57,6 +59,7 @@ public sealed class PaywayReconciliationService(
         {
             try
             {
+                tenantScope.Set(TenantId.From(attempt.TenantId));
                 await RecheckAsync(attempt, nowUtc, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -107,7 +110,11 @@ public sealed class PaywayReconciliationService(
         switch (found.Status)
         {
             case PaywayPaymentStatus.Approved when found.ProviderPaymentId is { } paymentId:
-                var paid = await settle.HandleAsync(attempt.OrderId, "approved", paymentId, ct: ct);
+                // Payway no manda avisos: el cobro lo armamos nosotros por el total
+                // y se busca por nuestro id de operación con las credenciales de
+                // la tienda del intento. Igual se exige que la venta sea de esa tienda.
+                var paid = await settle.HandleAsync(attempt.OrderId, "approved", paymentId,
+                    origin: new PaymentOrigin(TenantId.From(attempt.TenantId)), ct: ct);
                 await paidEffects.RunIfJustPaidAsync(paid, ct);
 
                 // Payway cobró, pero la orden ya se había cobrado por otro lado:

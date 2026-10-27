@@ -33,8 +33,11 @@ public sealed class SocialPublishWorker(
         var tokens = sp.GetRequiredService<SocialAccountTokens>();
         var channels = sp.GetServices<ISocialChannel>().ToDictionary(c => c.Key);
 
+        // Los posts de todas las tiendas (sin tienda en el scope): se buscan con
+        // IgnoreQueryFilters y cada uno se publica con su tienda fijada.
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         var now = DateTime.UtcNow;
-        var due = await db.Posts
+        var due = await db.Posts.IgnoreQueryFilters()
             .Where(p => p.Status == SocialPostStatus.Scheduled
                 && p.ScheduleStatus == SocialScheduleStatus.Pending
                 && p.ScheduledAtUtc <= now)
@@ -44,6 +47,7 @@ public sealed class SocialPublishWorker(
 
         foreach (var post in due)
         {
+            tenant.Set(SharedKernel.Common.TenantId.From(post.TenantId));
             // Claim atómico por fila: si otra instancia llegó antes, 0 filas y se saltea.
             var claimed = await db.Posts
                 .Where(p => p.Id == post.Id && p.ScheduleStatus == SocialScheduleStatus.Pending)

@@ -114,7 +114,7 @@ public sealed class PaywayFlowTests
         Assert.Contains("TIENDA TEST", charge.Body);
 
         // La API pública del servicio: consultar y devolver.
-        using (var scope = _factory.Services.CreateScope())
+        await using (var scope = _factory.Services.CreateTenantScope(merchant.TenantId))
         {
             var payway = scope.ServiceProvider.GetRequiredService<IPaywayPaymentService>();
             var tenant = new TenantId(merchant.TenantId);
@@ -424,7 +424,7 @@ public sealed class PaywayFlowTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        return await db.PaywayPaymentAttempts.AsNoTracking().Where(a => a.TenantId == tenantId).ToListAsync();
+        return await db.PaywayPaymentAttempts.IgnoreQueryFilters().AsNoTracking().Where(a => a.TenantId == tenantId).ToListAsync();
     }
 
     /// <summary>Hace como si los intentos de la tienda hubieran pasado hace <paramref name="ago"/>.</summary>
@@ -432,7 +432,7 @@ public sealed class PaywayFlowTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        await db.PaywayPaymentAttempts.Where(a => a.TenantId == tenantId).ExecuteUpdateAsync(s => s
+        await db.PaywayPaymentAttempts.IgnoreQueryFilters().Where(a => a.TenantId == tenantId).ExecuteUpdateAsync(s => s
             .SetProperty(a => a.CreatedAtUtc, a => a.CreatedAtUtc - ago)
             .SetProperty(a => a.ProcessedAtUtc, a => a.ProcessedAtUtc - ago));
     }

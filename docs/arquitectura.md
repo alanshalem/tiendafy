@@ -134,7 +134,13 @@ Reglas que hacen cumplir los tests de arquitectura
   conoce a la Api (`ModuleBoundariesTests`).
 - Toda entidad con `TenantId` tiene `HasQueryFilter`, o figura en una lista de
   excepciones con su motivo (`TenantQueryFilterTests`). Ver
-  [ADR 0003](./adr/0003-multi-tienda-con-rls.md).
+  [ADR 0003](./adr/0003-multi-tienda-con-rls.md). El filtro está cerrado por
+  defecto: sin tienda en el scope no devuelve filas (`TenantFilterFailClosedTests`).
+  Lo que recorre varias tiendas (workers, endpoints de plataforma, backfills)
+  lo pide explícito con `IgnoreQueryFilters()` y su propio `Where`, o fija la
+  tienda del ítem en el scope (`TenantContextHolder.Set`, `CreateTenantScope`):
+  el filtro la lee en cada consulta, no al construir el contexto. Las vueltas de
+  OAuth y los links de los emails fijan la tienda del state o del token firmado.
 - Toda ruta exige un permiso de la matriz o está en una lista de excepciones
   con su motivo (`EndpointPermissionTests`, en los tests de integración). Ver
   [permisos.md](./permisos.md).

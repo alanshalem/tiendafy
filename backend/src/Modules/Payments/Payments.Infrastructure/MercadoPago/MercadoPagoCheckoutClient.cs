@@ -240,7 +240,8 @@ public sealed class MercadoPagoCheckoutClient(
         TransactionAmountRefunded: JsonRead.GetDecimal(root, "transaction_amount_refunded"),
         NetReceivedAmount: root.TryGetProperty("transaction_details", out var td) && td.ValueKind == JsonValueKind.Object
             ? JsonRead.GetDecimal(td, "net_received_amount") is var net and > 0m ? net : null
-            : null);
+            : null,
+        CurrencyId: root.TryGetProperty("currency_id", out var cur) && cur.ValueKind == JsonValueKind.String ? cur.GetString() : null);
 
     public async Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default)
     {

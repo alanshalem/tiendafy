@@ -37,8 +37,12 @@ public sealed class MeliStockSyncWorker(
             .Where(c => (c.StockSyncEnabled || c.PriceSyncEnabled) && !c.IsDemo)
             .ToListAsync(ct);
 
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var connection in connections)
         {
+            // Cada tienda con su tienda fijada en el scope (stock, token): sin
+            // ella, los filtros no devuelven nada.
+            tenant.Set(TenantId.From(connection.TenantId));
             try { await SyncTenantAsync(sp, db, connection, ct); }
             catch (Exception ex)
             {

@@ -60,4 +60,25 @@ public sealed class TrustedNetworksTests
         Assert.NotEqual(PartitionFor("200.45.10.1"), PartitionFor("181.1.2.3"));
         Assert.Equal("unknown", PartitionFor(null));
     }
+
+    /// <summary>
+    /// Regresión: los cupos contaban cada IPv6 por separado, y un proveedor le da
+    /// a cada cliente una /64 entera: cambiar de dirección era cupo nuevo.
+    /// </summary>
+    [Theory]
+    [InlineData("2001:db8:1:2::1", "2001:db8:1:2:ffff:ffff:ffff:ffff", true)]
+    [InlineData("2001:db8:1:2::1", "2001:db8:1:3::1", false)]   // otra /64, otro cliente
+    [InlineData("200.45.10.1", "::ffff:200.45.10.1", true)]      // IPv4 escrita como IPv6
+    [InlineData("200.45.10.1", "200.45.10.2", false)]            // IPv4: por dirección
+    public void En_IPv6_se_cuenta_por_red_64(string a, string b, bool same)
+    {
+        var keyA = TrustedNetworks.ClientKey(IPAddress.Parse(a));
+        var keyB = TrustedNetworks.ClientKey(IPAddress.Parse(b));
+        Assert.Equal(same, keyA == keyB);
+        Assert.Equal(same, PartitionFor(a) == PartitionFor(b)); // el techo global también
+    }
+
+    [Fact]
+    public void La_clave_de_una_IPv6_es_su_prefijo() =>
+        Assert.Equal("2001:db8:1:2::/64", TrustedNetworks.ClientKey(IPAddress.Parse("2001:db8:1:2:aaaa:bbbb:cccc:dddd")));
 }

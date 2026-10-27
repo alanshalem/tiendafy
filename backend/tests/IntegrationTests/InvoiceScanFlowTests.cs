@@ -72,7 +72,7 @@ public sealed class InvoiceScanFlowTests(ApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
-        return await db.Usage.AsNoTracking().Where(u => u.TenantId == tenantId && u.Task == AiTask.InvoiceRead).ToListAsync();
+        return await db.Usage.IgnoreQueryFilters().AsNoTracking().Where(u => u.TenantId == tenantId && u.Task == AiTask.InvoiceRead).ToListAsync();
     }
 
     [Fact]

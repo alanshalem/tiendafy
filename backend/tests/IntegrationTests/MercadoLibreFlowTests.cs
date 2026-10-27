@@ -653,10 +653,10 @@ public sealed class MercadoLibreFlowTests
 
         using var scope = _factory.Services.CreateScope();
         var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-        var job = Assert.Single(await fiscal.EmissionJobs.AsNoTracking().Where(j => j.OrderId == orderId).ToListAsync());
+        var job = Assert.Single(await fiscal.EmissionJobs.IgnoreQueryFilters().AsNoTracking().Where(j => j.OrderId == orderId).ToListAsync());
         Assert.Equal(global::Fiscal.Core.Domain.FiscalJobKind.CreditNote, job.Kind);
         Assert.Equal(global::Fiscal.Core.Domain.FiscalJobStatus.Done, job.Status);
-        var docs = await fiscal.Documents.AsNoTracking().Where(d => d.OrderId == orderId).ToListAsync();
+        var docs = await fiscal.Documents.IgnoreQueryFilters().AsNoTracking().Where(d => d.OrderId == orderId).ToListAsync();
         Assert.Equal(2, docs.Count); // la factura y su NC
         Assert.Contains(docs, d => d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB);
     }
@@ -687,7 +687,7 @@ public sealed class MercadoLibreFlowTests
             .SingleAsync(o => o.TenantId == merchant.TenantId && o.MeliOrderId == saleId);
         Assert.True(row.CreditNoteIssued);
         var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-        Assert.False(await fiscal.EmissionJobs.AsNoTracking().AnyAsync(j => j.OrderId == row.Id));
+        Assert.False(await fiscal.EmissionJobs.IgnoreQueryFilters().AsNoTracking().AnyAsync(j => j.OrderId == row.Id));
     }
 
     [Fact]
@@ -737,7 +737,7 @@ public sealed class MercadoLibreFlowTests
         var orderId = await MeliOrderIdAsync(merchant.TenantId, saleId);
         using var scope = _factory.Services.CreateScope();
         var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-        var environments = await fiscal.Documents.AsNoTracking()
+        var environments = await fiscal.Documents.IgnoreQueryFilters().AsNoTracking()
             .Where(d => d.OrderId == orderId && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
             .Select(d => d.Environment).ToListAsync();
         Assert.Equal(
@@ -778,13 +778,13 @@ public sealed class MercadoLibreFlowTests
 
         using var scope = _factory.Services.CreateScope();
         var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-        var jobs = await fiscal.EmissionJobs.AsNoTracking()
+        var jobs = await fiscal.EmissionJobs.IgnoreQueryFilters().AsNoTracking()
             .Where(j => j.OrderId == orderId && j.Kind == global::Fiscal.Core.Domain.FiscalJobKind.CreditNote)
             .OrderBy(j => j.GrossMinorUnits).ToListAsync();
         Assert.Equal(["ml-reembolso:500000-800000", "ml-reembolso:0-500000"], jobs.Select(j => j.IdempotencyKey));
         Assert.Equal([3_000_00L, 5_000_00L], jobs.Select(j => j.GrossMinorUnits));
         Assert.All(jobs, j => Assert.Equal(global::Fiscal.Core.Domain.FiscalJobStatus.Done, j.Status));
-        var notes = await fiscal.Documents.AsNoTracking()
+        var notes = await fiscal.Documents.IgnoreQueryFilters().AsNoTracking()
             .Where(d => d.OrderId == orderId && d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB
                         && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
             .Select(d => d.ImpTotal).ToListAsync();
@@ -828,7 +828,7 @@ public sealed class MercadoLibreFlowTests
         using (var scope = _factory.Services.CreateScope())
         {
             var fiscal = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-            Assert.False(await fiscal.EmissionJobs.AsNoTracking().AnyAsync(j => j.OrderId == orderId));
+            Assert.False(await fiscal.EmissionJobs.IgnoreQueryFilters().AsNoTracking().AnyAsync(j => j.OrderId == orderId));
             var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
             var cached = await meli.Orders.IgnoreQueryFilters().AsNoTracking().SingleAsync(o => o.Id == orderId);
             Assert.Equal(5_000_00, cached.RefundCreditResolvedMinorUnits);
@@ -968,7 +968,7 @@ public sealed class MercadoLibreFlowTests
         {
             using var scope = _factory.Services.CreateScope();
             var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
-            return await meli.Notifications.AsNoTracking().CountAsync(n => n.Resource == resource);
+            return await meli.Notifications.IgnoreQueryFilters().AsNoTracking().CountAsync(n => n.Resource == resource);
         }
 
         // De otra app: 200, pero no se encola.

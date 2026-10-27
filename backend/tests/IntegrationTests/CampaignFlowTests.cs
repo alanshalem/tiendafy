@@ -290,7 +290,7 @@ public sealed partial class CampaignFlowTests
             await Workers.RunOnceAsync<CampaignWorker>(_factory);
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-            if (await db.EmailCampaigns.AnyAsync(c => c.Id == campaignId && c.Status == status)) return;
+            if (await db.EmailCampaigns.IgnoreQueryFilters().AnyAsync(c => c.Id == campaignId && c.Status == status)) return;
         }
         Assert.Fail($"La campaña {campaignId} no llegó a '{status}'.");
     }
@@ -299,7 +299,7 @@ public sealed partial class CampaignFlowTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-        await db.EmailCampaigns.Where(c => c.Id == campaignId)
+        await db.EmailCampaigns.IgnoreQueryFilters().Where(c => c.Id == campaignId)
             .ExecuteUpdateAsync(s => s.SetProperty(c => c.ScheduledAtUtc, DateTime.UtcNow.AddMinutes(-1)));
     }
 
