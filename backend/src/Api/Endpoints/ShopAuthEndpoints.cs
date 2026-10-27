@@ -41,7 +41,7 @@ public static class ShopAuthEndpoints
         // una cuenta (con contraseña o Google), contesta exactamente lo mismo
         // sin tocar nada y al dueño le llega un aviso. Los dos caminos mandan
         // un mail y contestan lo mismo.
-        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, CancellationToken ct) =>
+        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -52,6 +52,10 @@ public static class ShopAuthEndpoints
             var created = Customer.CreateShopper(tid, req.Name, email ?? req.Email);
             if (created.IsFailure) return created.Error.ToProblem();
             var fresh = created.Value;
+
+            // Tope de mails por dirección (no solo por IP): pasado, contesta lo
+            // mismo sin tocar nada ni mandar otro mail.
+            if (!throttle.TryAcquire(tid, fresh.Email)) return Registered();
 
             var rows = await db.Customers
                 .Where(c => c.TenantId == tid && c.Email == fresh.Email)
@@ -85,7 +89,7 @@ public static class ShopAuthEndpoints
         // ¿Olvidaste tu contraseña? Manda email con link de reset. Respuesta
         // uniforme (204) exista o no el email, y en el mismo tiempo: el token y
         // el mail se arman después de contestar (ShopperMailDispatch).
-        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, CancellationToken ct) =>
+        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -95,7 +99,7 @@ public static class ShopAuthEndpoints
                 .Where(c => c.TenantId == tid && c.Email == addr && (c.PasswordHash != null || c.GoogleSubject != null))
                 .Select(c => (Guid?)c.Id)
                 .FirstOrDefaultAsync(ct);
-            if (customerId is { } id)
+            if (customerId is { } id && throttle.TryAcquire(tid, addr))
             {
                 dispatch.Run(tid, async (sp, token) =>
                 {
@@ -130,6 +134,7 @@ public static class ShopAuthEndpoints
 
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified(); // resetear prueba acceso al email
+            customer.ClearFailedLogins();
             row.Consume();
             await ShopAuth.RevokeSessionsAsync(db, customer.Id, ct);
             var session = IssueSession(db, customer.Id, tid);
@@ -164,6 +169,7 @@ public static class ShopAuthEndpoints
 
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified();
+            customer.ClearFailedLogins();
             row.Consume();
             await ShopAuth.RevokeSessionsAsync(db, customer.Id, ct);
             var session = IssueSession(db, customer.Id, tid);
@@ -174,13 +180,14 @@ public static class ShopAuthEndpoints
 
         // Reenvía el mail de activación a la cuenta logueada (entró con su
         // contraseña sin haber verificado el email). Solo a su propio email.
-        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, CancellationToken ct) =>
+        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             if (customer is null) return Results.Unauthorized();
             if (customer.EmailVerified || string.IsNullOrEmpty(customer.Email)) return Results.NoContent();
             var tid = tenant.TenantId.Value;
+            if (!throttle.TryAcquire(tid, customer.Email)) return Results.NoContent();
             var tok = ShopAuth.NewToken();
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, tok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
@@ -198,13 +205,20 @@ public static class ShopAuthEndpoints
             // Solo cuentas con contraseña: un registro de la agenda con el mismo
             // email no tiene clave y respondería más rápido que el hash.
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == email && c.PasswordHash != null, ct);
-            if (customer is null)
+            // Bloqueada por intentos fallidos: ni se prueba la contraseña, y se
+            // contesta lo mismo que a una contraseña mal puesta (no se avisa
+            // del bloqueo, que también diría que la cuenta existe).
+            if (customer is null || customer.IsLoginLocked(DateTime.UtcNow))
             {
                 ShopAuth.BurnPassword(req.Password ?? string.Empty); // iguala timing
-                return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
+                return InvalidCredentials();
             }
             if (!ShopAuth.VerifyPassword(customer, req.Password ?? string.Empty))
-                return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
+            {
+                await ShopAuth.RegisterFailedLoginAsync(db, customer.Id, ct);
+                return InvalidCredentials();
+            }
+            customer.ClearFailedLogins();
             var token = IssueSession(db, customer.Id, tid);
             await db.SaveChangesAsync(ct);
             ShopAuth.SetSessionCookie(http, tid, token);
@@ -357,6 +371,8 @@ public static class ShopAuthEndpoints
         tenancy.Tenants.AsNoTracking().AnyAsync(t => t.Id == tid && t.Status == TenantStatus.Active, ct);
 
     private static IResult NoStore() => Problem("ShopAuth.BadTenant", "La tienda no existe o no está abierta.", 404);
+
+    private static IResult InvalidCredentials() => Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
 
     private static IResult Registered() => Results.Json(new { message = RegisterMessage }, statusCode: StatusCodes.Status202Accepted);
 

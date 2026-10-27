@@ -47,6 +47,25 @@ public sealed class Customer
     public string? GoogleSubject { get; private set; }
     public bool EmailVerified { get; private set; }
 
+    /// <summary>
+    /// Contraseñas mal puestas seguidas (se suma en la base, de a una, para que
+    /// dos intentos a la vez no se pisen). Al llegar al tope, la cuenta queda
+    /// bloqueada un rato (<see cref="LoginLockedUntilUtc"/>) y vuelve a cero.
+    /// </summary>
+    public int FailedLoginCount { get; private set; }
+
+    /// <summary>Hasta cuándo el login con contraseña no se intenta (ni se dice que está bloqueado).</summary>
+    public DateTime? LoginLockedUntilUtc { get; private set; }
+
+    public bool IsLoginLocked(DateTime nowUtc) => LoginLockedUntilUtc is { } until && until > nowUtc;
+
+    /// <summary>Entró bien, o probó que controla el email (reset, activación): vuelve a cero.</summary>
+    public void ClearFailedLogins()
+    {
+        FailedLoginCount = 0;
+        LoginLockedUntilUtc = null;
+    }
+
     private Customer() { } // EF Core
 
     public static Result<Customer> Create(Guid tenantId, string? name, string? email, string? phone, string? address, string? notes)

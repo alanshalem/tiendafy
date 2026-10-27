@@ -16,6 +16,29 @@ public static class ShopAuth
     private static readonly PasswordHasher<Customer> Hasher = new();
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
 
+    /// <summary>Contraseñas mal puestas seguidas antes de bloquear la cuenta.</summary>
+    public const int MaxFailedLogins = 10;
+
+    /// <summary>Cuánto dura el bloqueo del login con contraseña.</summary>
+    public static readonly TimeSpan LoginLockout = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Cuenta una contraseña mal puesta y, al llegar al tope, bloquea la cuenta
+    /// <see cref="LoginLockout"/>. En la base y de a una (dos intentos a la vez
+    /// desde distintas IPs no se pisan el conteo): el cupo por IP no frena a
+    /// quien reparte los intentos entre muchas.
+    /// </summary>
+    public static async Task RegisterFailedLoginAsync(CustomersDbContext db, Guid customerId, CancellationToken ct)
+    {
+        await db.Customers.Where(c => c.Id == customerId)
+            .ExecuteUpdateAsync(u => u.SetProperty(c => c.FailedLoginCount, c => c.FailedLoginCount + 1), ct);
+        var until = DateTime.UtcNow.Add(LoginLockout);
+        await db.Customers.Where(c => c.Id == customerId && c.FailedLoginCount >= MaxFailedLogins)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(c => c.LoginLockedUntilUtc, until)
+                .SetProperty(c => c.FailedLoginCount, 0), ct);
+    }
+
     public static string HashPassword(Customer c, string password) => Hasher.HashPassword(c, password);
 
     public static bool VerifyPassword(Customer c, string password)

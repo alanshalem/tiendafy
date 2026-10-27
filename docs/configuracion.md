@@ -78,6 +78,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `RateLimiting:ShippingQuotePermitLimit` | Cotizaciones de envío (Correo, Zipnova, Andreani) cada 5 min por IP y carrier | `30` (dev: `1000`) | No se mapea |
 | `RateLimiting:SearchPermitLimit` / `:TrackPermitLimit` | Por minuto por IP y ruta: búsqueda de la tienda (`products/search`, `products/suggest`, `search/log`) / beacon de visitas (`POST /track`). El storefront por la red interna no tiene cupo | `120` / `120` (dev: `5000`) | No se mapea |
 | `RateLimiting:ShopSessionPermitLimit` / `:GoogleAuthPermitLimit` | Por IP y ruta: la sesión del comprador (`GET /shop/auth/me`) por minuto / "Entrar con Google" (`google/start` y `google/callback`) cada 5 min | `120` / `20` (dev: `5000` / `20`) | No se mapea |
+| `RateLimiting:AccountMailsPerEmailPerHour` | Mails de la cuenta del comprador (activación, "ya tenés cuenta", cambio de contraseña, reenvío, confirmación del newsletter) por dirección y tienda, por hora. Pasado el tope el endpoint contesta igual y no manda nada. En memoria. El login del comprador, además, se bloquea 15 min por cuenta después de 10 contraseñas mal puestas (fijo, `ShopAuth.MaxFailedLogins`) | `3` | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
 | `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 

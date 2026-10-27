@@ -138,6 +138,8 @@ public static class ServiceRegistration
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddSingleton<Api.Shop.ShopperMailDispatch>();
+        // Tope de mails de la cuenta del comprador por dirección y tienda.
+        services.AddSingleton<Api.Shop.ShopperMailThrottle>();
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
         services.AddScoped<Api.Fiscal.CreditNoteIssuer>();
         services.AddScoped<StoreLinks>();

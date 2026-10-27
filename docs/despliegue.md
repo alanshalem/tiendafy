@@ -741,6 +741,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   propio con o sin www, el dominio pelado si es la principal de
   `Tenancy__PrimaryStoreSubdomain`); si no, el pedido es anónimo y el logout no
   cierra nada. Sin `Origin` (la tienda armando la página en el servidor) vale.
+- **Fuerza bruta repartida entre IPs** (comprador): el login se bloquea por
+  cuenta 15 minutos después de 10 contraseñas mal puestas (misma respuesta que
+  una contraseña mal puesta), y los mails de la cuenta tienen tope por dirección
+  y tienda (`RateLimiting:AccountMailsPerEmailPerHour`, 3 por hora), además del
+  cupo por IP.
 - **Links de los mails de cuenta**: verificar, restablecer, activar, la
   bienvenida de alguien del equipo y la confirmación del newsletter apuntan a
   `Admin__BaseUrl` o a la URL canónica de la tienda, nunca al `Origin` del pedido.

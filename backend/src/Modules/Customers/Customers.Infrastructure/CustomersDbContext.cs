@@ -66,6 +66,7 @@ public sealed class CustomersDbContext : DbContext
         c.Property(x => x.Tags).HasColumnType("text[]").HasDefaultValueSql("'{}'::text[]");
         c.Property(x => x.OrdersCount).HasDefaultValue(0);
         c.Property(x => x.TotalSpentMinor).HasDefaultValue(0L);
+        c.Property(x => x.FailedLoginCount).HasDefaultValue(0);
 
         var s = modelBuilder.Entity<CustomerSession>();
         s.ToTable("customer_sessions");
