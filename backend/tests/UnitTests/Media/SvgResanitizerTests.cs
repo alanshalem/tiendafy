@@ -160,8 +160,10 @@ public sealed class SvgResanitizerTests
         }
 
         /// <summary>Como S3: el MD5 del contenido, en hex (el SDK lo compara con lo que bajó).</summary>
+#pragma warning disable CA5351 // No es seguridad: es la forma del ETag de S3, que el SDK verifica.
         private static System.Net.Http.Headers.EntityTagHeaderValue Etag(byte[] body) =>
             new($"\"{Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(body))}\"");
+#pragma warning restore CA5351
 
         private HttpResponseMessage List(string? token)
         {
