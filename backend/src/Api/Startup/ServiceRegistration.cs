@@ -125,6 +125,14 @@ public static class ServiceRegistration
         // Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddHttpClient<IEmailSender, EmailSender>();
+        // Emails de la cuenta del panel pedidos sin sesión (olvidé mi contraseña,
+        // reenviar la verificación): salen fuera del request, así el tiempo de
+        // respuesta no delata si el email tiene cuenta. No es un worker de
+        // polling: su cola vive junto al request, como la de importación.
+        services.AddSingleton<Api.Auth.PanelAccountEmails>();
+        services.AddHostedService<Api.Auth.PanelAccountEmailWorker>();
+        // Verificación en dos pasos del panel (login y "Mi cuenta").
+        services.AddScoped<Api.Auth.PanelTwoFactor>();
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddSingleton<Api.Shop.ShopperMailDispatch>();
@@ -402,11 +410,16 @@ public static class ServiceRegistration
                 "DataProtection:KeyPath es obligatorio en Producción (volumen persistente o KeyVault). " +
                 "Sin él, los tokens cifrados de los comercios se pierden al reiniciar.");
 
-        // Prod: la cookie de sesión del admin solo viaja por HTTPS (Secure). En dev (http
-        // localhost) queda SameAsRequest para no romper el login local.
+        // Prod: la cookie de sesión del admin (y la del paso intermedio del segundo
+        // factor) solo viaja por HTTPS (Secure). En dev (http localhost) queda
+        // SameAsRequest para no romper el login local.
         if (!builder.Environment.IsDevelopment())
+        {
             builder.Services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme,
                 o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+            builder.Services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.TwoFactorUserIdScheme,
+                o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+        }
         return builder;
     }
 

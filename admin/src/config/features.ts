@@ -109,6 +109,7 @@ export const HELP_LINKS = {
   ia: { label: 'Más sobre la inteligencia artificial' },
   asistente: { label: 'Más sobre "Preguntale a tu tienda"' },
   users: { label: 'Más sobre roles y permisos' },
+  dosPasos: { label: 'Más sobre la verificación en dos pasos' },
   domains: { label: 'Más sobre dominios' },
   fiscal: { label: 'Más sobre facturación electrónica (ARCA)' },
   legal: { label: 'Requisitos legales de tu tienda' },

@@ -37,6 +37,7 @@ export const EQUIPO = {
           'Lo que puede hacer se elige por tienda: puede ser vendedora en una y no tener acceso a otra.',
           'Para darle acceso a otra tienda, entrá a esa tienda y sumala desde Configuración → Usuarios.',
           'Nadie ve las contraseñas: si alguien la olvida, la restablece desde “¿Olvidaste tu contraseña?”.',
+          'Cada persona puede sumarle a su cuenta la verificación en dos pasos (un código del teléfono además de la contraseña), desde Mi cuenta. Es lo más recomendable para los dueños.',
         ],
       },
       {
@@ -126,6 +127,86 @@ export const EQUIPO = {
               'Cada cambio queda en “Actividad del equipo”, al pie de Configuración → Usuarios: quién, qué y cuándo.',
             ],
           },
+        ],
+      },
+    ],
+  },
+  dosPasos: {
+    title: 'Verificación en dos pasos',
+    intro:
+      'Un segundo paso al entrar al panel: además de la contraseña, un código que cambia cada 30 segundos en una app de tu teléfono. Si alguien consigue tu contraseña, sin tu teléfono no entra.',
+    category: 'Equipo',
+    keywords: [
+      '2FA',
+      'MFA',
+      'doble factor',
+      'autenticación',
+      'Google Authenticator',
+      'Authy',
+      'seguridad',
+      'código',
+    ],
+    sections: [
+      {
+        heading: 'Activarla',
+        steps: [
+          'Instalá en tu teléfono una app de autenticación: Google Authenticator, Microsoft Authenticator, Authy, 1Password o la que uses para otras cuentas.',
+          'En el panel, abrí el menú de tu cuenta (tu inicial, arriba a la derecha) y entrá a Mi cuenta.',
+          'En “Verificación en dos pasos”, tocá “Activar”.',
+          'Con la app, escaneá el código QR que aparece. Si no podés escanearlo, en la app elegí “Ingresar clave” y escribí la clave que figura abajo del QR.',
+          'Escribí el código de 6 dígitos que te muestra la app y tocá “Confirmar y activar”.',
+          'Te mostramos 10 códigos de recuperación. Descargalos o copialos y guardalos fuera de la computadora (en tu gestor de contraseñas, por ejemplo): no se vuelven a mostrar.',
+        ],
+        blocks: [{ type: 'path', segments: ['Tu cuenta', 'Mi cuenta'] }],
+      },
+      {
+        heading: 'Entrar con la verificación activa',
+        steps: [
+          'Escribí tu email y tu contraseña como siempre.',
+          'Te pedimos el código de la app: abrila y escribí el que muestra en ese momento. Tenés unos minutos; si se pasan, volvé a poner la contraseña.',
+          'Si la sesión vence con el panel abierto, el mismo aviso que te pide la contraseña te pide después el código.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Cada código sirve una sola vez. Si la app muestra el mismo que acabás de usar, esperá a que cambie.',
+          },
+        ],
+      },
+      {
+        heading: 'Si perdés el teléfono',
+        steps: [
+          'En la pantalla del código, tocá “¿No tenés el teléfono? Usá un código de recuperación” y escribí uno de los que guardaste. Cada uno sirve una sola vez.',
+          'Ya adentro, en Mi cuenta generá códigos nuevos o desactivá la verificación y volvé a activarla con el teléfono nuevo.',
+          'Sin teléfono y sin códigos de recuperación no hay forma de entrar a esa cuenta: pedile a un dueño que te dé de alta con otro email, o escribile a soporte.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'En Mi cuenta ves cuántos códigos de recuperación te quedan. Cuando quedan 3 o menos, generá nuevos (los anteriores dejan de servir).',
+          },
+        ],
+      },
+      {
+        heading: 'Desactivarla o generar códigos nuevos',
+        paragraphs: [
+          'Las dos cosas se hacen desde Mi cuenta y piden confirmar que sos vos: tu contraseña, o un código (de la app o de recuperación). Así, una sesión que quedó abierta en una computadora ajena no alcanza para sacarle el segundo paso a tu cuenta.',
+          'Al desactivarla, la clave de la app y los códigos de recuperación se borran: si la volvés a activar, hay que escanear un QR nuevo.',
+        ],
+      },
+      {
+        heading: 'Intentos fallidos',
+        paragraphs: [
+          'Los códigos equivocados cuentan igual que una contraseña equivocada: después de 5 intentos fallidos seguidos, la cuenta queda bloqueada unos minutos y no entra ni con el código bueno. Pasado ese tiempo se puede volver a probar.',
+        ],
+      },
+      {
+        heading: 'Para los dueños',
+        paragraphs: [
+          'Mientras no la tengas activa, en el Inicio te aparece un aviso que te la recomienda. Lo podés cerrar; no vuelve a aparecer en esa computadora.',
+          'La verificación en dos pasos es de cada persona: un dueño no puede activarla ni desactivarla por otra persona del equipo.',
         ],
       },
     ],

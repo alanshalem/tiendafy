@@ -1,8 +1,10 @@
 using Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SharedKernel.Persistence;
 
 namespace Identity.Infrastructure;
@@ -26,8 +28,16 @@ public static class IdentityModule
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppIdentityDbContext>()
+            // Secretos del segundo factor protegidos en la base (ver AppUserStore).
+            .AddUserStore<AppUserStore>()
+            // Búsqueda por email con NFKC y rescate de las claves viejas (ver AppUserManager).
+            .AddUserManager<AppUserManager>()
             .AddSignInManager()
             .AddDefaultTokenProviders(); // tokens de reset de contraseña / 2FA
+
+        // NFKC + mayúsculas en vez de solo mayúsculas (AddIdentityCore registra
+        // el de fábrica con TryAdd: este lo reemplaza).
+        services.Replace(ServiceDescriptor.Scoped<ILookupNormalizer, PanelLookupNormalizer>());
 
         // Sesión server-side con cookie httpOnly (ADR sección 9):
         // revocable al instante, sin JWT para el admin.
@@ -58,6 +68,19 @@ public static class IdentityModule
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return Task.CompletedTask;
             };
+        });
+
+        // Entre la contraseña y el código del segundo factor: una cookie aparte,
+        // de 5 minutos, que solo dice quién pasó la contraseña. No abre sesión:
+        // ningún endpoint la acepta salvo el que valida el código.
+        services.Configure<CookieAuthenticationOptions>(IdentityConstants.TwoFactorUserIdScheme, options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.Name = "tiendafy.2fa";
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+            options.SlidingExpiration = false;
         });
 
         services.AddAuthorization();

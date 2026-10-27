@@ -20,6 +20,10 @@
 type StoreId = string | undefined;
 
 export const qk = {
+  /* ---------- Mi cuenta (de la persona: no es de una tienda) ---------- */
+  /** Estado de la verificación en dos pasos y cuántos códigos de recuperación quedan. */
+  twoFactor: () => ['account', 'two-factor'] as const,
+
   /* ---------- Tiendas (las de la cuenta: no son de una tienda) ---------- */
   tenants: () => ['tenants'] as const,
   tenantsPage: (page: number, q: string) => ['tenants', 'pagina', page, q] as const,

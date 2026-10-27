@@ -44,6 +44,7 @@ Credenciales del panel y de los compradores: [usuarios-de-prueba.md](./usuarios-
 | `/configuracion/facturacion`      | ARCA: certificado, CUIT y punto de venta.                                                                 |
 | `/configuracion/usuarios`, `/configuracion/roles` | Equipo y permisos por rol.                                                                |
 | `/tenants`                        | Mis tiendas: alta y edición.                                                                              |
+| `/mi-cuenta`                      | Mi cuenta: verificación en dos pasos (activar, códigos de recuperación, desactivar).                      |
 | `/ayuda`                          | Centro de ayuda.                                                                                          |
 
 ## Cuando el 3000 está ocupado

@@ -85,7 +85,7 @@ export const SETTINGS_PERMISSIONS = {
 
 type SettingsPath = keyof typeof SETTINGS_PERMISSIONS;
 
-/** Pantallas del panel principal. Las que no están acá son de todos (Inicio, Mis tiendas, Ayuda). */
+/** Pantallas del panel principal. Las que no están acá son de todos (Inicio, Mis tiendas, Mi cuenta, Ayuda). */
 const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/estadisticas': 'stats.read',
   '/estadisticas/productos': 'stats.read',

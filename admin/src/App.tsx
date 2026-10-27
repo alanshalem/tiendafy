@@ -66,6 +66,7 @@ const HelpArticlePage = lazyPage(() => import('./pages/Help'), 'HelpArticlePage'
 const HelpIndexPage = lazyPage(() => import('./pages/Help'), 'HelpIndexPage');
 const PagesPage = lazyPage(() => import('./pages/Pages'), 'PagesPage');
 const TenantsPage = lazyPage(() => import('./pages/Tenants'), 'TenantsPage');
+const AccountPage = lazyPage(() => import('./pages/Account'), 'AccountPage');
 const StatsOverviewPage = lazyPage(() => import('./pages/Stats/Overview'), 'StatsOverviewPage');
 const StatsProductsPage = lazyPage(() => import('./pages/Stats/Products'), 'StatsProductsPage');
 const StatsSalesPage = lazyPage(() => import('./pages/Stats/SalesCustomers'), 'StatsSalesPage');
@@ -145,6 +146,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/resenas', el: <ReviewsPage /> },
   { path: '/paginas', el: <PagesPage /> },
   { path: '/tenants', el: <TenantsPage /> },
+  { path: '/mi-cuenta', el: <AccountPage /> },
 ];
 
 // Rutas de Configuración (SettingsLayout, paths relativos).

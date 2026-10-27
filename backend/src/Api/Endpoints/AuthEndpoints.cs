@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Api.Auth;
 using Identity.Infrastructure;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,7 +57,11 @@ public static class AuthEndpoints
             // Verificación de email del merchant: la sesión inicial se otorga igual
             // (onboarding sin fricción), pero los próximos logins exigen email
             // verificado — sin esto cualquiera registra una cuenta con email ajeno.
-            await SendVerificationEmailAsync(user, http, userManager, email, cfg, ct);
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                var (subject, html) = await VerificationEmailAsync(user, http, userManager, cfg);
+                await email.SendAsync(user.Email, subject, html, ct: ct);
+            }
 
             await signInManager.SignInAsync(user, isPersistent: true);
             return Results.Created($"/api/v1/auth/me", ToDto(user));
@@ -76,16 +81,22 @@ public static class AuthEndpoints
         }).RequireRateLimiting("auth");
 
         // Reenvía el email de verificación. Respuesta uniforme (204) → no enumera.
-        auth.MapPost("/resend-verification", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, Api.Notifications.IEmailSender email, IConfiguration cfg, CancellationToken ct) =>
+        // El email sale fuera del request (PanelAccountEmails): esperar a Resend
+        // solo cuando la cuenta existe delataba por el tiempo de respuesta.
+        auth.MapPost("/resend-verification", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails, IConfiguration cfg) =>
         {
             var user = await userManager.FindByEmailAsync(req.Email ?? string.Empty);
-            if (user is not null && !user.EmailConfirmed)
-                await SendVerificationEmailAsync(user, http, userManager, email, cfg, ct);
+            if (user is not null && !user.EmailConfirmed && !string.IsNullOrEmpty(user.Email))
+            {
+                var (subject, html) = await VerificationEmailAsync(user, http, userManager, cfg);
+                emails.Enqueue(user.Email, subject, html);
+            }
             return Results.NoContent();
         }).RequireRateLimiting("auth");
 
         auth.MapPost("/login", async (
             LoginRequest request,
+            HttpContext http,
             Api.Captcha.ICaptchaVerifier captcha,
             SignInManager<AppUser> signInManager,
             UserManager<AppUser> userManager) =>
@@ -113,9 +124,20 @@ public static class AuthEndpoints
                     detail: "Verificá tu email para entrar: te mandamos un link al registrarte. ¿No te llegó? Podés reenviarlo.",
                     statusCode: 403);
 
+            // Con la verificación en dos pasos activa, la contraseña sola no
+            // abre sesión: queda la cookie intermedia de Identity (5 minutos) y
+            // la sesión la abre /login/2fa con el código (AuthTwoFactorEndpoints).
+            if (user.TwoFactorEnabled)
+            {
+                await http.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, PanelTwoFactor.PendingPrincipal(user));
+                return Results.Ok(new { twoFactorRequired = true });
+            }
+
             await signInManager.SignInAsync(user, isPersistent: true);
             return Results.Ok(ToDto(user));
         }).RequireRateLimiting("auth");
+
+        auth.MapTwoFactorEndpoints();
 
         auth.MapPost("/logout", async (SignInManager<AppUser> signInManager) =>
         {
@@ -124,7 +146,9 @@ public static class AuthEndpoints
         });
 
         // ¿Olvidaste tu contraseña? (admin). Respuesta uniforme (204) → no enumera.
-        auth.MapPost("/forgot", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, Api.Notifications.IEmailSender email, IConfiguration cfg, CancellationToken ct) =>
+        // Y el mismo tiempo: el email sale fuera del request (PanelAccountEmails);
+        // antes se esperaba a Resend solo cuando la cuenta existía.
+        auth.MapPost("/forgot", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails, IConfiguration cfg) =>
         {
             var user = await userManager.FindByEmailAsync(req.Email ?? string.Empty);
             if (user is not null && !string.IsNullOrEmpty(user.Email))
@@ -133,8 +157,8 @@ public static class AuthEndpoints
                 var origin = http.Request.Headers.Origin.ToString();
                 var baseUrl = IsSafeAdminOrigin(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
                 var link = $"{baseUrl}/restablecer?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
-                await email.SendAsync(user.Email, "Restablecé tu contraseña (admin)",
-                    $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Restablecé tu contraseña</h2><p>El link vence en poco. Si no fuiste vos, ignorá este email.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Cambiar contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct: ct);
+                emails.Enqueue(user.Email, "Restablecé tu contraseña (admin)",
+                    $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Restablecé tu contraseña</h2><p>El link vence en poco. Si no fuiste vos, ignorá este email.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Cambiar contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""");
             }
             return Results.NoContent();
         }).RequireRateLimiting("auth");
@@ -159,26 +183,25 @@ public static class AuthEndpoints
         return group;
     }
 
-    private static object ToDto(AppUser user) => new
+    internal static object ToDto(AppUser user) => new
     {
         id = user.Id,
         email = user.Email,
         name = user.DisplayName,
         emailVerified = user.EmailConfirmed,
+        twoFactorEnabled = user.TwoFactorEnabled,
     };
 
-    /// <summary>Email de verificación del merchant con link a {admin}/verificar.</summary>
-    private static async Task SendVerificationEmailAsync(
-        AppUser user, HttpContext http, UserManager<AppUser> userManager,
-        Api.Notifications.IEmailSender email, IConfiguration cfg, CancellationToken ct)
+    /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>
+    private static async Task<(string Subject, string Html)> VerificationEmailAsync(
+        AppUser user, HttpContext http, UserManager<AppUser> userManager, IConfiguration cfg)
     {
-        if (string.IsNullOrEmpty(user.Email)) return;
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
         var origin = http.Request.Headers.Origin.ToString();
         var baseUrl = IsSafeAdminOrigin(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
-        var link = $"{baseUrl}/verificar?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
-        await email.SendAsync(user.Email, "Verificá tu email — Tiendafy",
-            $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>¡Bienvenido a Tiendafy!</h2><p>Confirmá tu email para asegurar tu cuenta y poder iniciar sesión.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Verificar mi email</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct: ct);
+        var link = $"{baseUrl}/verificar?email={Uri.EscapeDataString(user.Email ?? string.Empty)}&token={Uri.EscapeDataString(token)}";
+        return ("Verificá tu email — Tiendafy",
+            $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>¡Bienvenido a Tiendafy!</h2><p>Confirmá tu email para asegurar tu cuenta y poder iniciar sesión.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Verificar mi email</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""");
     }
 
     /// <summary>Base para los links del panel: el Origin si es propio, o vacío.</summary>

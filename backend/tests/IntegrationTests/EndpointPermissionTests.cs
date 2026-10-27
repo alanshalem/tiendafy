@@ -99,12 +99,19 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "GET /api/v1/auth/registration-open",
             "POST /api/v1/auth/forgot",
             "POST /api/v1/auth/login",
+            "POST /api/v1/auth/login/2fa", // el segundo paso: vale solo con la cookie intermedia de la contraseña
             "POST /api/v1/auth/logout",
             "POST /api/v1/auth/register",
             "POST /api/v1/auth/resend-verification",
             "POST /api/v1/auth/reset",
             "POST /api/v1/auth/verify",
             "GET /api/v1/me/permissions",
+            // La verificación en dos pasos es de cada persona, no de una tienda.
+            "GET /api/v1/auth/2fa/",
+            "POST /api/v1/auth/2fa/setup",
+            "POST /api/v1/auth/2fa/enable",
+            "POST /api/v1/auth/2fa/disable",
+            "POST /api/v1/auth/2fa/recovery-codes",
         ],
         ["Las tiendas de cada uno: la plataforma, no una tienda (editar y borrar piden 'tenant.admin' adentro; la facturación de cada una, 'stats.read')"] =
         [

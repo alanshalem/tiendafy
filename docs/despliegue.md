@@ -616,6 +616,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   post-login solo apunta a destinos propios (anti open-redirect/robo de token).
 - **Uploads**: validación por *magic bytes* además del content-type.
 - **Sesión admin**: cookie `HttpOnly` + `SameSite=Lax` + `Secure` (forzado en prod).
+- **Segundo factor del panel** (opcional por persona): TOTP con códigos de
+  recuperación; el paso intermedio es otra cookie (`tiendafy.2fa`, 5 min,
+  `Secure` en prod). La clave de la app va cifrada con DataProtection (purpose
+  `Tiendafy.Identity.AuthenticatorKey.v1`, no cambiarlo nunca): perder `dpkeys`
+  deja a esas personas entrando solo con sus códigos de recuperación.
 - **Sesión comprador**: cookie `HttpOnly` por tienda (`shop_{tenantId}`), `SameSite=Lax`,
   `Secure` en https; nunca `localStorage` ni el token en la URL del OAuth. El
   front pega con `credentials: 'include'`.

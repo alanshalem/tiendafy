@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, LogOut, Search, Store } from 'lucide-react';
+import { ExternalLink, LogOut, Search, Store, UserRound } from 'lucide-react';
 import { Dropdown } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
@@ -86,6 +86,11 @@ export function HeaderActions() {
               {user.email}
             </div>
           )}
+          <Dropdown.Item onSelect={() => navigate('/mi-cuenta')}>
+            <span className="flex items-center gap-2">
+              <UserRound className="h-4 w-4" aria-hidden="true" /> Mi cuenta
+            </span>
+          </Dropdown.Item>
           <Dropdown.Item onSelect={() => navigate('/tenants')}>
             <span className="flex items-center gap-2">
               <Store className="h-4 w-4" aria-hidden="true" /> Mis tiendas

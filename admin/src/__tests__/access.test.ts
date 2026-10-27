@@ -65,12 +65,12 @@ describe('qué pide cada pantalla', () => {
   });
 
   it('toda pantalla pide un permiso, salvo las que son de todos', () => {
-    const deTodos = ['/', '/tenants', '/ayuda'];
+    const deTodos = ['/', '/tenants', '/mi-cuenta', '/ayuda'];
     expect(ALL_PATHS.filter((p) => routePerm(p) === undefined)).toEqual(deTodos);
   });
 
-  it('Inicio, Mis tiendas y la ayuda son de todos', () => {
-    for (const path of ['/', '/tenants', '/ayuda']) expect(routePerm(path)).toBeUndefined();
+  it('Inicio, Mis tiendas, Mi cuenta y la ayuda son de todos', () => {
+    for (const path of ['/', '/tenants', '/mi-cuenta', '/ayuda']) expect(routePerm(path)).toBeUndefined();
   });
 
   it('con varios permisos alcanza con uno', () => {

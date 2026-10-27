@@ -80,6 +80,40 @@ describe('sesión vencida', () => {
     ).toMatchObject({ name: 'Nombre sin guardar' });
   });
 
+  it('con la verificación en dos pasos, después de la clave pide el código', async () => {
+    const { api, user } = await editingProduct();
+    api.on('PATCH', `/api/v1/products/${product.id}`, {}, 401);
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Tu sesión venció' }));
+
+    api.on('POST', '/api/v1/auth/login', { twoFactorRequired: true });
+    await user.type(dialog.getByLabelText('Contraseña'), 'una-clave-larga');
+    const submit = dialog.getByRole('button', { name: 'Ingresar' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+
+    const code = await dialog.findByLabelText('Código');
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+    api.on(
+      'POST',
+      '/api/v1/auth/login/2fa',
+      { title: 'Auth.InvalidCode', detail: 'El código no es correcto.' },
+      401,
+    );
+    await user.type(code, '111111');
+    await user.click(dialog.getByRole('button', { name: 'Verificar' }));
+    expect(await dialog.findByText('El código no es correcto.')).toBeInTheDocument();
+
+    api.on('POST', '/api/v1/auth/login/2fa', me);
+    await user.type(dialog.getByLabelText('Código'), '123456');
+    await user.click(dialog.getByRole('button', { name: 'Verificar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Tu sesión venció' })).not.toBeInTheDocument(),
+    );
+    // Lo que había en pantalla sigue ahí.
+    expect(screen.getByLabelText(/^Nombre/)).toHaveValue('Nombre sin guardar');
+  });
+
   it('se puede cerrar para copiar lo que había; el próximo 401 lo vuelve a abrir', async () => {
     const { api, user } = await editingProduct();
     api.on('PATCH', `/api/v1/products/${product.id}`, {}, 401);
