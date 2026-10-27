@@ -182,10 +182,18 @@ public sealed class GoogleLoginTests(ApiFactory factory)
         var merchant = await Merchant.CreateAsync(factory, "ggp");
         var email = $"victima-{merchant.Subdomain}@gmail.com";
 
-        // Alguien pre-registró el email de la víctima y quedó logueado.
+        // Alguien pre-registró el email de la víctima y quedó logueado. Hoy el
+        // registro ya no guarda contraseña (se elige con el link del mail), pero
+        // quedan cuentas de antes así: con contraseña y sin verificar.
+        using (var seed = factory.Services.CreateScope())
+        {
+            var customers = seed.ServiceProvider.GetRequiredService<Customers.Infrastructure.CustomersDbContext>();
+            var legacy = Customers.Infrastructure.Customer.CreateShopper(merchant.TenantId, "Intruso", email).Value;
+            legacy.SetPasswordHash(Api.Shop.ShopAuth.HashPassword(legacy, "clave-del-intruso"));
+            customers.Customers.Add(legacy);
+            await customers.SaveChangesAsync();
+        }
         var intruder = new Shopper(merchant);
-        Assert.Equal(HttpStatusCode.Accepted, (await intruder.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Intruso", email, password = "clave-del-intruso" })).StatusCode);
         await intruder.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/login", new { email, password = "clave-del-intruso" });
 
         // La víctima entra con Google (que verificó el email).

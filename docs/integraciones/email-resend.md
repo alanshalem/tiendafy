@@ -87,7 +87,7 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `reembolso-parcial` | apagada | `RefundedOrderSideEffects.NotifyPartialAsync`, desde `OrderRefundService` (panel) y `PaymentWebhookWorker` (parcial hecho en Mercado Pago). Apagada, sale igual con el texto de fábrica. Uno por reembolso: el webhook solo avisa cuando creció lo devuelto |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
 | `carritos-abandonados` | prendida | `AbandonedCartWorker` (pasa cada 15 min: 1 h después de lo último que el comprador tocó en un checkout con email que no terminó en compra, hasta 7 días de armado; uno por comprador, ver abajo) |
-| `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` |
+| `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` (el link lleva a "Elegí tu contraseña": el registro no pide contraseña) |
 | `cambio-contrasena` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/forgot` (sale después de contestar, por `ShopperMailDispatch`: la respuesta tarda lo mismo exista o no la cuenta) |
 | `intento-registro` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` con un email que ya tiene cuenta: el registro contesta lo mismo que a uno nuevo y el aviso le llega solo al dueño |
 | `factura` | apagada | `Api/Fiscal/InvoiceEmail.cs`, cuando la venta obtiene el CAE (desde `FiscalEmissionWorker` o el botón "Facturar"), con el PDF adjunto. Sale una sola vez por comprobante (se reclama con `BuyerNotifiedAtUtc`), nunca para ventas de Mercado Libre ni ventas sin email |

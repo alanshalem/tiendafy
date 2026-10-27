@@ -88,13 +88,14 @@ describe('entrar a la cuenta', () => {
     expect(screen.getByRole('button', { name: 'Mi cuenta' })).toHaveTextContent(me.name.split(' ')[0]!);
   });
 
-  it('el gestor de contraseñas sabe qué es cada campo: la guardada al entrar, una nueva al registrarse', async () => {
+  it('el gestor de contraseñas ofrece la guardada al entrar; el registro no pide contraseña', async () => {
     const { user } = await openModal();
     expect(screen.getByLabelText('Email')).toHaveAttribute('autocomplete', 'email');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
     await user.click(screen.getByRole('button', { name: 'Registrate' }));
     expect(screen.getByLabelText('Nombre')).toHaveAttribute('autocomplete', 'name');
-    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+    // La contraseña se elige con el link del mail (la pone quien controla el email).
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
   });
 
   it('una clave incorrecta muestra el motivo de la API', async () => {
@@ -118,10 +119,9 @@ describe('entrar a la cuenta', () => {
     await user.click(screen.getByRole('button', { name: 'Registrate' }));
     await user.type(screen.getByPlaceholderText('Nombre'), me.name);
     await user.type(screen.getByPlaceholderText('Email'), me.email);
-    await user.type(screen.getByPlaceholderText('Contraseña'), 'una-clave-larga');
     await user.click(submit());
     await settle(1);
-    expect(posted('/shop/auth/register')[0]).toMatchObject({ name: me.name, email: me.email });
+    expect(posted('/shop/auth/register')[0]).toEqual({ name: me.name, email: me.email });
     expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
       `Te mandamos un mail a ${me.email} para activar tu cuenta`,
     );
@@ -412,24 +412,60 @@ describe('chat posventa', () => {
   });
 });
 
-describe('el link de activación', () => {
-  it('verifica el email y deja la sesión iniciada', async () => {
+describe('el link de activación: elegí tu contraseña', () => {
+  async function openLink(token: string) {
     anonymous();
+    nav.at(`/cuenta/verificar?token=${token}`);
+    const user = await show(<VerifyEmail />);
+    const save = () => screen.getByRole('button', { name: 'Guardar y entrar' });
+    return { user, save };
+  }
+
+  it('pide la contraseña dos veces, la guarda y deja la sesión iniciada', async () => {
     api.on('POST', '/api/v1/shop/auth/verify', { customer: { ...me, emailVerified: true } });
-    nav.at('/cuenta/verificar?token=tok-123');
-    await show(<VerifyEmail />);
-    expect(posted('/shop/auth/verify')).toEqual([{ token: 'tok-123' }]);
-    expect(screen.getByText('Email verificado')).toBeInTheDocument();
+    const { user, save } = await openLink('tok-123');
+    expect(screen.getByRole('heading', { name: 'Elegí tu contraseña' })).toBeInTheDocument();
+    expect(posted('/shop/auth/verify')).toEqual([]); // abrir el link no gasta el token
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+
+    await user.type(screen.getByLabelText('Contraseña'), 'mi-clave-larga');
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'otra-clave-larga');
+    expect(screen.getByText('Las contraseñas no coinciden.')).toBeInTheDocument();
+    expect(save()).toBeDisabled();
+
+    await user.clear(screen.getByLabelText('Repetí la contraseña'));
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'mi-clave-larga');
+    await user.click(save());
+    await settle(1);
+
+    expect(posted('/shop/auth/verify')).toEqual([{ token: 'tok-123', password: 'mi-clave-larga' }]);
+    expect(screen.getByText('Tu cuenta quedó activada y ya iniciaste sesión.')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)!)).toMatchObject({
       email: me.email,
     });
   });
 
-  it('un link vencido lo dice', async () => {
+  it('un link vencido o usado lo dice con el motivo de la API', async () => {
+    api.on(
+      'POST',
+      '/api/v1/shop/auth/verify',
+      { detail: 'El link venció. Volvé a registrarte con tu email para recibir uno nuevo.' },
+      400,
+    );
+    const { user, save } = await openLink('viejo');
+    await user.type(screen.getByLabelText('Contraseña'), 'mi-clave-larga');
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'mi-clave-larga');
+    await user.click(save());
+    await settle(1);
+    expect(screen.getByText(/El link venció/)).toBeInTheDocument();
+    expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
+  });
+
+  it('sin token no muestra el formulario', async () => {
     anonymous();
-    api.on('POST', '/api/v1/shop/auth/verify', { detail: 'El link no es válido o expiró.' }, 400);
-    nav.at('/cuenta/verificar?token=viejo');
+    nav.at('/cuenta/verificar');
     await show(<VerifyEmail />);
-    expect(screen.getByText('Link inválido')).toBeInTheDocument();
+    expect(screen.getByText(/Link inválido/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Guardar y entrar' })).not.toBeInTheDocument();
   });
 });

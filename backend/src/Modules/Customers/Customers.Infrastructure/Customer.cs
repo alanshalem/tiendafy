@@ -41,7 +41,8 @@ public sealed class Customer
     public const int MaxTagLength = 30;
 
     // --- Cuenta de comprador (shopper). Null = es solo un registro de CRM
-    // (ej. creado desde un pedido) sin login. Se setean al registrarse. ---
+    // (ej. creado desde un pedido) o un registro sin activar: la contraseña se
+    // guarda recién con el link del mail de activación (o al entrar con Google). ---
     public string? PasswordHash { get; private set; }
     public string? GoogleSubject { get; private set; }
     public bool EmailVerified { get; private set; }

@@ -37,25 +37,32 @@ public sealed partial class ShopperFlowTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await shopper.SendAsync(HttpMethod.Get, "/api/v1/shop/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Ana", email, password = "corta" })).StatusCode);
+            new { name = "Ana", email = "no-es-un-email" })).StatusCode);
 
-        // Registro: NO abre sesión; le llega el mail para activar la cuenta.
+        // Registro: nombre y email, sin contraseña. NO abre sesión; le llega el mail para activar la cuenta.
         var registered = await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Ana Pérez", email = email.ToUpperInvariant(), password = "una-clave-larga" });
+            new { name = "Ana Pérez", email = email.ToUpperInvariant() });
         Assert.Equal(HttpStatusCode.Accepted, registered.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await shopper.SendAsync(HttpMethod.Get, "/api/v1/shop/auth/me")).StatusCode);
         Assert.False(await EmailVerifiedAsync(email)); // normalizado: la cuenta quedó en minúsculas
 
         var verifyToken = TokenFrom(_factory.ExternalHttp.EmailsTo(email).Single(m => m.Subject.Contains("Verificá")).Html);
-        Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = "inventado" })).StatusCode);
-        // El link abre la sesión.
-        var verified = await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = verifyToken });
+        Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/verify",
+            new { token = "inventado", password = "una-clave-larga" })).StatusCode);
+        // La contraseña se elige en el link: con menos de 8 caracteres, no (y el link sigue sirviendo).
+        Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/verify",
+            new { token = verifyToken, password = "corta" })).StatusCode);
+        // El link guarda la contraseña y abre la sesión.
+        var verified = await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify",
+            new { token = verifyToken, password = "una-clave-larga" });
         Assert.Equal(email, verified.GetProperty("customer").GetProperty("email").GetString());
         Assert.True(verified.GetProperty("customer").GetProperty("emailVerified").GetBoolean());
         Assert.True(await EmailVerifiedAsync(email));
         Assert.Equal("Ana Pérez", (await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/auth/me")).GetProperty("name").GetString());
-        // Un token se usa una vez.
-        Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = verifyToken })).StatusCode);
+        // Un token se usa una vez, y lo dice.
+        var reused = await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = verifyToken, password = "otra-clave-larga" });
+        Assert.Equal(HttpStatusCode.BadRequest, reused.StatusCode);
+        Assert.Contains("ya se usó", await reused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
 
         // Salir y volver a entrar.
         await shopper.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/logout");

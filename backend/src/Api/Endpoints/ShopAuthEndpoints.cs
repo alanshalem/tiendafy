@@ -32,37 +32,45 @@ public static class ShopAuthEndpoints
     {
         var auth = group.MapGroup("/shop/auth");
 
-        // Registro: crea la cuenta y manda el mail de activación, pero NO abre
-        // sesión: la sesión se abre al tocar el link (/verify). Si ya hay una
-        // cuenta con ese email, contesta exactamente lo mismo sin tocar nada y
-        // al dueño le llega un aviso. Los dos caminos hashean una contraseña y
-        // mandan un mail: tardan lo mismo.
+        // Registro: pide nombre y email, NO contraseña. Manda el mail de
+        // activación, cuyo link lleva a "Elegí tu contraseña" (/verify): la
+        // contraseña la pone siempre quien controla el email, así nadie puede
+        // dejar puesta la suya en la cuenta de otro. No abre sesión. Si ya hay
+        // una cuenta (con contraseña o Google), contesta exactamente lo mismo
+        // sin tocar nada y al dueño le llega un aviso. Los dos caminos mandan
+        // un mail y contestan lo mismo.
         auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
-            if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
-                return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
             var tid = tenant.TenantId.Value;
             var email = ShopAuth.NormalizeEmail(req.Email);
 
+            // Valida nombre y email igual que siempre (antes de mirar si existe).
             var created = Customer.CreateShopper(tid, req.Name, email ?? req.Email);
             if (created.IsFailure) return created.Error.ToProblem();
-            var customer = created.Value;
-            var passwordHash = ShopAuth.HashPassword(customer, req.Password);
+            var fresh = created.Value;
 
-            // Una cuenta de comprador es la que tiene contraseña o Google; un
-            // registro de la agenda (creado por una venta) no cuenta.
-            var owner = await db.Customers.FirstOrDefaultAsync(
-                c => c.TenantId == tid && c.Email == customer.Email && (c.PasswordHash != null || c.GoogleSubject != null), ct);
-            if (owner is not null)
+            var rows = await db.Customers
+                .Where(c => c.TenantId == tid && c.Email == fresh.Email)
+                .OrderBy(c => c.CreatedAtUtc)
+                .ToListAsync(ct);
+            // Una cuenta de comprador es la que tiene contraseña o Google.
+            if (rows.FirstOrDefault(c => c.PasswordHash != null || c.GoogleSubject != null) is { } owner)
             {
                 await emails.SendRegistrationAttemptAsync(tid, owner.Email!, owner.Name, StoreLink(http, cfg, "/cuenta"), ct);
                 return Registered();
             }
 
-            customer.SetPasswordHash(passwordHash);
-            db.Customers.Add(customer);
+            // Sin cuenta todavía: un registro anterior sin activar o la ficha de
+            // la agenda (creada por una compra) pasan a ser la cuenta; si no hay
+            // ninguno, se crea. Registrarse de nuevo solo manda otro link.
+            var customer = rows.FirstOrDefault();
+            if (customer is null)
+            {
+                customer = fresh;
+                db.Customers.Add(customer);
+            }
             var verifyTok = ShopAuth.NewToken();
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, verifyTok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
@@ -129,18 +137,31 @@ public static class ShopAuthEndpoints
             return Results.Ok(new { customer = ToDto(customer) });
         }).RequireRateLimiting("auth");
 
-        // Verifica el email con el token del mail de activación y abre la
-        // sesión: es el único lugar donde una cuenta nueva queda logueada. Las
-        // sesiones de antes (un login con contraseña sin verificar) se cierran.
+        // "Elegí tu contraseña", desde el link del mail de activación: verifica
+        // el email, guarda la contraseña y abre la sesión. Es el único lugar
+        // donde una cuenta nueva queda logueada. Las sesiones de antes se
+        // cierran (una cuenta vieja que entró con contraseña sin verificar).
         auth.MapPost("/verify", async (ShopVerifyRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+            if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
+                return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
             var tid = tenant.TenantId.Value;
             var row = await FindTokenAsync(db, tid, req.Token, ct);
-            if (row is null || !row.IsValid(CustomerToken.PurposeVerify))
-                return Problem("ShopAuth.InvalidToken", "El link no es válido o expiró.", 400);
+            if (row is null || row.Purpose != CustomerToken.PurposeVerify)
+                return Problem("ShopAuth.InvalidToken", "El link no es válido. Volvé a registrarte para recibir uno nuevo.", 400);
+            if (row.UsedAtUtc is not null)
+                return Problem("ShopAuth.TokenUsed", "Este link ya se usó. Si ya elegiste tu contraseña, iniciá sesión.", 400);
+            if (!row.IsValid(CustomerToken.PurposeVerify))
+                return Problem("ShopAuth.TokenExpired", "El link venció. Volvé a registrarte con tu email para recibir uno nuevo.", 400);
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == row.CustomerId, ct);
             if (customer is null) return Problem("ShopAuth.InvalidToken", "El link no es válido.", 400);
+            // Una cuenta ya activa con su contraseña no se pisa por acá: para
+            // cambiarla está "¿Olvidaste tu contraseña?".
+            if (customer.EmailVerified && customer.PasswordHash is not null)
+                return Problem("ShopAuth.AlreadyActive", "Tu cuenta ya está activa. Iniciá sesión con tu contraseña.", 409);
+
+            customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified();
             row.Consume();
             await ShopAuth.RevokeSessionsAsync(db, customer.Id, ct);

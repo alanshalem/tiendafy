@@ -23,7 +23,7 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
 
     /// <summary>Email para verificar la dirección de una cuenta recién creada.</summary>
     public Task SendActivationAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
-        SendAsync(tenantId, to, Activation, name, link, "Verificar email", ct);
+        SendAsync(tenantId, to, Activation, name, link, "Activar mi cuenta", ct);
 
     /// <summary>Email con el link (de un solo uso) para elegir una contraseña nueva.</summary>
     public Task SendPasswordResetAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>

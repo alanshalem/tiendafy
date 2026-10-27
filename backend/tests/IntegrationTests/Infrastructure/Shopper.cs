@@ -45,14 +45,15 @@ public sealed class Shopper(Merchant store)
 
     /// <summary>
     /// Crea la cuenta y la activa con el link del mail, como la persona: el
-    /// registro solo no abre sesión. Queda logueada y con el email verificado.
+    /// registro pide nombre y email, y la contraseña se elige en el link.
+    /// Queda logueada y con el email verificado.
     /// </summary>
     public async Task<JsonElement> RegisterVerifiedAsync(string email, string name = "Ana Pérez", string password = "una-clave-larga")
     {
-        var res = await SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register", new { name, email, password });
+        var res = await SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register", new { name, email });
         Assert.Equal(System.Net.HttpStatusCode.Accepted, res.StatusCode);
         var mail = store.Factory.ExternalHttp.EmailsTo(email).Last(m => m.Html.Contains("/cuenta/verificar?token=", StringComparison.Ordinal));
-        return await ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html) });
+        return await ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html), password });
     }
 
     /// <summary>El token del link de un mail de la cuenta (verificar, reset).</summary>

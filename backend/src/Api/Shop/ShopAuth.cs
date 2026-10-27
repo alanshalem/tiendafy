@@ -135,8 +135,13 @@ public static class ShopAuth
         && NormalizeEmail(buyerEmail) == mine;
 }
 
-public sealed record ShopRegisterRequest(string Name, string Email, string Password, string? Captcha = null);
+/// <summary>
+/// Registro: nombre y email. <paramref name="Password"/> se tolera (clientes
+/// viejos lo mandan) pero no se usa: la contraseña se elige con el link del mail.
+/// </summary>
+public sealed record ShopRegisterRequest(string Name, string Email, string? Password = null, string? Captcha = null);
 public sealed record ShopLoginRequest(string Email, string Password, string? Captcha = null);
 public sealed record ShopForgotRequest(string Email, string? Captcha = null);
 public sealed record ShopResetRequest(string Token, string Password);
-public sealed record ShopVerifyRequest(string Token);
+/// <summary>El link de activación más la contraseña que elige quien controla el email.</summary>
+public sealed record ShopVerifyRequest(string Token, string? Password = null);

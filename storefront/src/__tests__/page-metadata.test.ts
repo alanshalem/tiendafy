@@ -17,7 +17,7 @@ describe('títulos', () => {
   it.each([
     ['contacto', () => import('../app/contacto/page'), 'Contacto'],
     ['cambio de clave', () => import('../app/cuenta/reset/page'), 'Nueva contraseña'],
-    ['verificar email', () => import('../app/cuenta/verificar/page'), 'Verificar email'],
+    ['activar cuenta', () => import('../app/cuenta/verificar/page'), 'Activar cuenta'],
     ['mis conversaciones', () => import('../app/cuenta/conversaciones/page'), 'Mis conversaciones'],
     ['favoritos', () => import('../app/favoritos/page'), 'Mis favoritos'],
     ['pago aprobado', () => import('../app/checkout/success/layout'), 'Pago aprobado'],

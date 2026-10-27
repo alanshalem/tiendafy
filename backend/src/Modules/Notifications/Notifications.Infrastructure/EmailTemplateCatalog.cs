@@ -74,9 +74,9 @@ public static class EmailTemplateCatalog
         // contraseña, quien la olvidó pierde la cuenta. {{link}} es el link
         // con el token; si la tienda lo borra del texto, se agrega al final.
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
-            "Le pide al cliente que confirme su email al crear la cuenta. Sale siempre.", true,
+            "Le pide al cliente que confirme su email y elija su contraseña al crear la cuenta. Sale siempre.", true,
             "Verificá tu email",
-            Wrap("Verificá tu email", "<p>Hola {{name}}, confirmá tu dirección para activar tu cuenta.</p>" + Cta("Verificar email")),
+            Wrap("Verificá tu email", "<p>Hola {{name}}, confirmá tu dirección y elegí tu contraseña para activar tu cuenta. Si no creaste una cuenta, ignorá este email.</p>" + Cta("Activar mi cuenta")),
             AlwaysOn: true),
 
         new("cambio-contrasena", "Cuenta de usuarios", "Cambio de contraseña",

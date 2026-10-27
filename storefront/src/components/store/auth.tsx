@@ -25,11 +25,14 @@ interface AuthContextValue {
   token: string | null;
   ready: boolean;
   login: (email: string, password: string, captcha?: string) => Promise<AuthResult>;
-  /** Crea la cuenta y manda el mail de activación. NO abre sesión: la abre el link del mail. */
-  register: (name: string, email: string, password: string, captcha?: string) => Promise<AuthResult>;
+  /**
+   * Crea la cuenta (nombre y email) y manda el mail de activación. NO abre
+   * sesión ni pide contraseña: las dos cosas pasan en el link del mail.
+   */
+  register: (name: string, email: string, captcha?: string) => Promise<AuthResult>;
   forgot: (email: string, captcha?: string) => Promise<AuthResult>;
-  /** El link del mail de activación: verifica el email y deja la sesión iniciada. */
-  verify: (token: string) => Promise<AuthResult>;
+  /** El link del mail de activación: guarda la contraseña elegida, verifica el email y deja la sesión iniciada. */
+  verify: (token: string, password: string) => Promise<AuthResult>;
   /** Otro mail de activación para la cuenta logueada que todavía no verificó su email. */
   resendVerification: () => Promise<AuthResult>;
   logout: () => void;
@@ -147,8 +150,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   );
 
   const register = useCallback(
-    (name: string, email: string, password: string, captcha?: string) =>
-      authPost('register', { name, email, password, captcha }),
+    (name: string, email: string, captcha?: string) => authPost('register', { name, email, captcha }),
     [authPost],
   );
 
@@ -157,7 +159,10 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
     [authPost],
   );
 
-  const verify = useCallback((token: string) => authPost('verify', { token }, true), [authPost]);
+  const verify = useCallback(
+    (token: string, password: string) => authPost('verify', { token, password }, true),
+    [authPost],
+  );
 
   const resendVerification = useCallback(() => authPost('verify/resend', {}), [authPost]);
 

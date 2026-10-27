@@ -57,8 +57,9 @@ export function AuthModal({
       return;
     }
     if (mode === 'register') {
-      // El registro no deja la sesión iniciada: la abre el link del mail.
-      const res = await register(name, email, password, captcha || undefined);
+      // El registro pide nombre y email: la contraseña se elige con el link
+      // del mail, que es también el que deja la sesión iniciada.
+      const res = await register(name, email, captcha || undefined);
       setBusy(false);
       if (res.ok) setSent('register');
       else setError(res.error ?? 'Algo salió mal.');
@@ -124,7 +125,7 @@ export function AuthModal({
           ) : sent === 'register' ? (
             <p role="status" className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
               Te mandamos un mail a <strong>{email}</strong> para activar tu cuenta. Tocá el link del mail
-              para entrar. Revisá tu correo (y spam).
+              para elegir tu contraseña y entrar. Revisá tu correo (y spam).
             </p>
           ) : (
             <>
@@ -166,16 +167,15 @@ export function AuthModal({
                   required
                   className={INPUT_THEMED_11}
                 />
-                {mode !== 'forgot' && (
+                {/* Solo para entrar: al registrarse, la contraseña se elige con el link del mail. */}
+                {mode === 'login' && (
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Contraseña"
                     aria-label="Contraseña"
-                    // Que el gestor de contraseñas ofrezca la guardada al entrar
-                    // y una nueva (y la guarde) al registrarse.
-                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                    autoComplete="current-password"
                     required
                     minLength={8}
                     className={INPUT_THEMED_11}
