@@ -37,6 +37,44 @@ public sealed class PublicUrlGuardTests
     public void Las_formas_disfrazadas_tampoco(string ip) =>
         Assert.True(PublicUrlGuard.IsPrivateOrReserved(IPAddress.Parse(ip)));
 
+    // Rangos de benchmarking y prefijos de traducción que llevan una IPv4 adentro:
+    // con un NAT64 en la red, 64:ff9b::a9fe:a9fe llegaba a 169.254.169.254.
+    [Theory]
+    [InlineData("198.18.0.1")]
+    [InlineData("198.19.255.255")]
+    [InlineData("192.0.0.8")]
+    [InlineData("64:ff9b::a9fe:a9fe")]      // NAT64 -> 169.254.169.254
+    [InlineData("64:ff9b::7f00:1")]         // NAT64 -> 127.0.0.1
+    [InlineData("64:ff9b::a00:1")]          // NAT64 -> 10.0.0.1
+    [InlineData("64:ff9b:1::1")]            // NAT64 de uso local
+    [InlineData("2002:a9fe:a9fe::1")]       // 6to4 -> 169.254.169.254
+    [InlineData("2002:7f00:1::1")]          // 6to4 -> 127.0.0.1
+    [InlineData("2001:0:4136:e378:8000:63bf:3fff:fdd2")] // Teredo
+    [InlineData("::10.0.0.1")]              // IPv4 compatible
+    public void Las_formas_con_ipv4_embebida_se_juzgan_por_ella(string ip) =>
+        Assert.True(PublicUrlGuard.IsPrivateOrReserved(IPAddress.Parse(ip)));
+
+    [Theory]
+    [InlineData("198.17.255.255")]  // justo afuera de 198.18/15
+    [InlineData("198.20.0.1")]
+    [InlineData("64:ff9b::808:808")] // NAT64 -> 8.8.8.8
+    [InlineData("2002:808:808::1")]  // 6to4 -> 8.8.8.8
+    public void Lo_publico_embebido_si(string ip) =>
+        Assert.False(PublicUrlGuard.IsPrivateOrReserved(IPAddress.Parse(ip)));
+
+    [Theory]
+    [InlineData("https://ejemplo.com/a.jpg", true)]
+    [InlineData("http://8.8.8.8/a.jpg", true)]
+    [InlineData("http://127.0.0.1/a.jpg", false)]
+    [InlineData("http://169.254.169.254/latest", false)]
+    [InlineData("http://[64:ff9b::a9fe:a9fe]/a.jpg", false)]
+    [InlineData("http://localhost/a.jpg", false)]
+    [InlineData("ftp://ejemplo.com/a.jpg", false)]
+    [InlineData("https://user:pass@ejemplo.com/a.jpg", false)]
+    [InlineData("no es una url", false)]
+    public void Sin_red_se_descarta_lo_evidentemente_interno(string url, bool expected) =>
+        Assert.Equal(expected, PublicUrlGuard.IsPlausiblyPublic(url));
+
     [Theory]
     [InlineData("8.8.8.8")]
     [InlineData("172.32.0.1")]   // justo afuera de 172.16/12
