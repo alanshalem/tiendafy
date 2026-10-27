@@ -563,6 +563,34 @@ los secretos de adentro **dejen de valer**. El orden:
 (`SetApplicationName("tiendafy")`) para "rotar": todo lo cifrado con el viejo
 deja de poder leerse, y es la forma más rápida de perder los secretos de todas
 las tiendas. La rotación se hace con claves nuevas dentro del mismo purpose.
+
+### Alguien del panel perdió el teléfono de la verificación en dos pasos
+
+Para dueños y administradores la verificación en dos pasos es obligatoria
+(`Auth:RequireTwoFactorForAdmins`, prendida por defecto). Quien perdió el
+teléfono entra con uno de sus códigos de recuperación y, ya adentro, la pasa a
+la app nueva desde Mi cuenta. Si tampoco tiene los códigos, no hay forma de
+entrar desde el panel: la borra quien opera la plataforma.
+
+1. **Confirmá por otro medio que el pedido es de esa persona** (un llamado, el
+   dueño de la tienda en persona). Este comando es la única forma de entrar a
+   una cuenta sin el segundo paso: alguien que se haga pasar por ella se queda
+   con la cuenta.
+2. Desde `infra/docker`:
+
+   ```bash
+   docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm api dotnet Api.dll reset-2fa persona@empresa.com
+   ```
+
+   Desactiva la verificación, borra la clave de la app y los códigos de
+   recuperación, desbloquea la cuenta (por si se bloqueó probando códigos) y
+   cierra sus sesiones abiertas. Sale con código 1 si no hay una cuenta con ese
+   email. El log no repite el email.
+3. La persona entra con su contraseña y, si es dueña o administradora, el panel
+   le pide configurar la verificación de nuevo antes de dejarla pasar.
+
+En staging, lo mismo con `.env.staging`.
+
 ### Cambiar de major de Postgres (16 → 18)
 
 Los datos de una major no arrancan con otra, así que no es un deploy más:
@@ -667,11 +695,18 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   post-login solo apunta a destinos propios (anti open-redirect/robo de token).
 - **Uploads**: validación por *magic bytes* además del content-type.
 - **Sesión admin**: cookie `HttpOnly` + `SameSite=Lax` + `Secure` (forzado en prod).
-- **Segundo factor del panel** (opcional por persona): TOTP con códigos de
-  recuperación; el paso intermedio es otra cookie (`tiendafy.2fa`, 5 min,
-  `Secure` en prod). La clave de la app va cifrada con DataProtection (purpose
-  `Tiendafy.Identity.AuthenticatorKey.v1`, no cambiarlo nunca): perder `dpkeys`
-  deja a esas personas entrando solo con sus códigos de recuperación.
+- **Segundo factor del panel**: TOTP con códigos de recuperación. Obligatorio
+  para dueños y administradores (`Auth:RequireTwoFactorForAdmins`, prendido por
+  defecto; apagado en Development) y opcional para el resto. El paso intermedio
+  es otra cookie (`tiendafy.2fa`, `Secure` en prod): 5 min para el código, 15 min
+  para configurarla al entrar (ese estado solo habilita configurarla). Las
+  sesiones abiertas de quien la tiene que configurar reciben 403
+  `Auth.TwoFactorSetupRequired` (`TwoFactorSetupMiddleware`). La clave de la app
+  va cifrada con DataProtection (purpose `Tiendafy.Identity.AuthenticatorKey.v1`,
+  no cambiarlo nunca): perder `dpkeys` deja a esas personas entrando solo con sus
+  códigos de recuperación. Pasarla a otra app usa un ticket de 15 min (purpose
+  `Tiendafy.Identity.AuthenticatorRelink.v1`). Sin teléfono ni códigos:
+  `dotnet Api.dll reset-2fa <email>` (ver *Alguien del panel perdió el teléfono*).
 - **Sesión comprador**: cookie `HttpOnly` por tienda (`shop_{tenantId}`), `SameSite=Lax`,
   `Secure` en https; nunca `localStorage` ni el token en la URL del OAuth. El
   front pega con `credentials: 'include'`.
@@ -726,7 +761,8 @@ Turnstile: cambiar el valor en `.env.prod` y redesplegar. Si se comprometen
 las claves de DataProtection, ver *Rotar las claves de DataProtection*.
 
 **Decisiones / roadmap pendientes:**
-- **MFA/2FA** para admins (TOTP/WebAuthn) — feature de producto.
+- **WebAuthn / llaves de seguridad** para el panel (hoy el segundo factor es
+  TOTP) — feature de producto.
 - **CORS multi-tenant**: el API acepta con credenciales el panel, el dominio de la
   plataforma y `<tienda>.PlatformBaseDomain` (un solo nivel, que no sea un
   subdominio reservado de `Subdomain.cs`: admin, api, img, media, stg…) y los de

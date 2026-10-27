@@ -39,6 +39,16 @@ export function setSessionExpiredHandler(handler: (() => void) | null) {
   onSessionExpired = handler;
 }
 
+/** Lo avisa AuthContext: la API pide configurar la verificación en dos pasos obligatoria. */
+let onTwoFactorSetupRequired: (() => void) | null = null;
+
+export function setTwoFactorSetupRequiredHandler(handler: (() => void) | null) {
+  onTwoFactorSetupRequired = handler;
+}
+
+/** El 403 de la API a dueños y administradores sin la verificación en dos pasos. */
+const TWO_FACTOR_SETUP_REQUIRED = 'Auth.TwoFactorSetupRequired';
+
 /**
  * Un 401 de cualquier pedido del panel es la sesión que venció (la cookie dura
  * 12 h desde el último uso). Antes llegaba con el cuerpo vacío y se mostraba
@@ -63,6 +73,8 @@ function problemToError(
   // La API devuelve RFC 7807: { title: código, detail: mensaje }. Algunos
   // endpoints de importación todavía responden { error: mensaje }.
   const p = (problem ?? {}) as { title?: string; detail?: unknown; error?: unknown };
+  // Una sesión abierta antes de que se exigiera: el panel lleva a configurarla.
+  if (status === 403 && p.title === TWO_FACTOR_SETUP_REQUIRED) onTwoFactorSetupRequired?.();
   const detail = typeof p.detail === 'string' ? p.detail : typeof p.error === 'string' ? p.error : null;
   return new ApiRequestError(
     status,

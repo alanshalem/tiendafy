@@ -49,6 +49,37 @@ if (args.Contains("resanitize-svg"))
     return;
 }
 
+// Mantenimiento: `dotnet Api.dll reset-2fa <email>` borra la verificación en
+// dos pasos de alguien del panel que perdió el teléfono y los códigos de
+// recuperación (ver PanelTwoFactorReset y docs/despliegue.md). El log no
+// repite el email (los logs van a Sentry).
+var resetTwoFactorAt = Array.IndexOf(args, Api.Auth.PanelTwoFactorReset.Command);
+if (resetTwoFactorAt >= 0)
+{
+    var email = args.ElementAtOrDefault(resetTwoFactorAt + 1);
+    if (string.IsNullOrWhiteSpace(email))
+    {
+        app.Logger.LogError("Falta el email: dotnet Api.dll reset-2fa <email>");
+        Environment.ExitCode = 1;
+        return;
+    }
+    var outcome = await Api.Auth.PanelTwoFactorReset.RunAsync(app.Services, email);
+    switch (outcome)
+    {
+        case Api.Auth.TwoFactorResetOutcome.Reset:
+            app.Logger.LogInformation("Verificación en dos pasos borrada: esa persona la vuelve a configurar al entrar. Saliendo.");
+            break;
+        case Api.Auth.TwoFactorResetOutcome.NotEnabled:
+            app.Logger.LogInformation("Esa cuenta no tenía verificación en dos pasos (igual se desbloqueó y se cerraron sus sesiones). Saliendo.");
+            break;
+        default:
+            app.Logger.LogError("No hay una cuenta del panel con ese email.");
+            Environment.ExitCode = 1;
+            break;
+    }
+    return;
+}
+
 // Migraciones pendientes de todos los módulos, antes de servir (idempotente).
 // Prod multi-instancia: poné Database__MigrateOnStartup=false y corré las
 // migraciones como paso de deploy (evita carreras de migración al boot).
@@ -82,6 +113,8 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+// Dueños y administradores sin la verificación en dos pasos: 403 hasta configurarla.
+app.UseMiddleware<TwoFactorSetupMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
 // Aislamiento multi-tenant: toda escritura admin requiere sesión + membresía.
 app.UseMiddleware<AdminWriteAuthMiddleware>();

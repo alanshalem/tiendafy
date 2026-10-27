@@ -1,12 +1,18 @@
 import { useId, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Download, KeyRound, ShieldCheck } from 'lucide-react';
+import { KeyRound, ShieldCheck, Smartphone } from 'lucide-react';
 import { Badge, Button, Card, FormField, Input, Modal, PageHeader, useToast } from '@tiendafy/ui';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { qk } from '../lib/queryKeys';
-import { downloadBlob } from '../lib/download';
 import { HelpLink } from '../components/HelpLink';
+import {
+  problem,
+  RecoveryCodesView,
+  SetupView,
+  type RecoveryCodes,
+  type TwoFactorSetup,
+} from '../components/TwoFactorSetup';
 
 interface TwoFactorStatus {
   enabled: boolean;
@@ -14,20 +20,13 @@ interface TwoFactorStatus {
   recoveryCodesLeft: number | null;
 }
 
-interface TwoFactorSetup {
-  sharedKey?: string;
-  authenticatorUri?: string;
-  qrSvg?: string;
-}
-
-interface RecoveryCodes {
-  recoveryCodes?: string[];
-}
-
 /** Para confirmar que es la persona: su contraseña o un código. */
 type Confirmation = { password: string } | { code: string };
 
-const problem = (e: unknown, fallback: string) => (e instanceof ApiRequestError ? e.error.message : fallback);
+/** Pasar a otra app: la clave nueva y el ticket con el que se confirma. */
+interface RelinkStart extends TwoFactorSetup {
+  ticket: string;
+}
 
 /**
  * "Mi cuenta": lo de la persona, no de una tienda. Hoy, la verificación en
@@ -48,8 +47,11 @@ function TwoFactorCard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
+  const [relink, setRelink] = useState<RelinkStart | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
-  const [confirming, setConfirming] = useState<'disable' | 'regenerate' | null>(null);
+  const [confirming, setConfirming] = useState<'disable' | 'regenerate' | 'relink' | null>(null);
+  // Dueños y administradores: obligatoria, no se puede desactivar.
+  const required = !!user?.twoFactorMandatory;
 
   const { data } = useQuery({
     queryKey: qk.twoFactor(),
@@ -87,12 +89,31 @@ function TwoFactorCard() {
       ) : setup ? (
         <SetupView
           setup={setup}
+          confirm={(code, password) => api.post<RecoveryCodes>('/api/v1/auth/2fa/enable', { code, password })}
           onCancel={() => setSetup(null)}
-          onEnabled={(r) => {
+          onConfirmed={(r) => {
             setSetup(null);
             refresh(true);
             showCodes(r);
             toast('Listo: la verificación en dos pasos quedó activa.', { variant: 'success' });
+          }}
+        />
+      ) : relink ? (
+        <SetupView
+          setup={relink}
+          // La contraseña y un código ya se pidieron para empezar.
+          askPassword={false}
+          confirm={(code) =>
+            api.post<void>('/api/v1/auth/2fa/relink/confirm', { ticket: relink.ticket, code })
+          }
+          confirmLabel="Confirmar"
+          onCancel={() => setRelink(null)}
+          onConfirmed={() => {
+            setRelink(null);
+            refresh(true);
+            toast('Listo: la verificación quedó en la app nueva. La anterior ya no sirve.', {
+              variant: 'success',
+            });
           }}
         />
       ) : status.enabled ? (
@@ -114,13 +135,24 @@ function TwoFactorCard() {
               Te quedan pocos códigos de recuperación. Generá nuevos y guardalos en un lugar seguro.
             </p>
           )}
+          {required && (
+            <p className="text-sm text-fg-muted">
+              Para dueños y administradores es obligatoria: no se puede desactivar. Si cambiás de teléfono,
+              pasala a la app nueva.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setConfirming('regenerate')}>
               <KeyRound className="h-4 w-4" aria-hidden="true" /> Generar códigos nuevos
             </Button>
-            <Button variant="danger" onClick={() => setConfirming('disable')}>
-              Desactivar
+            <Button variant="secondary" onClick={() => setConfirming('relink')}>
+              <Smartphone className="h-4 w-4" aria-hidden="true" /> Pasar a otra app
             </Button>
+            {!required && (
+              <Button variant="danger" onClick={() => setConfirming('disable')}>
+                Desactivar
+              </Button>
+            )}
           </div>
         </div>
       ) : (
@@ -139,7 +171,16 @@ function TwoFactorCard() {
         </div>
       )}
 
-      {confirming && (
+      {confirming === 'relink' && (
+        <RelinkModal
+          onClose={() => setConfirming(null)}
+          onStarted={(r) => {
+            setConfirming(null);
+            setRelink(r);
+          }}
+        />
+      )}
+      {(confirming === 'disable' || confirming === 'regenerate') && (
         <ConfirmIdentityModal
           action={confirming}
           onClose={() => setConfirming(null)}
@@ -156,149 +197,6 @@ function TwoFactorCard() {
         />
       )}
     </Card>
-  );
-}
-
-/** Paso a paso para activarla: escanear el QR (o tipear la clave) y confirmar con un código. */
-function SetupView({
-  setup,
-  onCancel,
-  onEnabled,
-}: {
-  setup: TwoFactorSetup;
-  onCancel: () => void;
-  onEnabled: (r: RecoveryCodes) => void;
-}) {
-  const [code, setCode] = useState('');
-  // Activarla pide la contraseña: con una sesión abierta en una compu ajena,
-  // otro podría activarla con su teléfono y dejarte afuera de tu cuenta.
-  const [password, setPassword] = useState('');
-  const enable = useMutation({
-    mutationFn: () => api.post<RecoveryCodes>('/api/v1/auth/2fa/enable', { code, password }),
-    onSuccess: onEnabled,
-    // El error se muestra en el campo.
-    meta: { errorShown: true },
-  });
-  const error = enable.isError ? problem(enable.error, 'No se pudo activar.') : undefined;
-  const errorCode = enable.error instanceof ApiRequestError ? enable.error.error.code : null;
-  const passwordError = errorCode === 'Auth.InvalidPassword' || errorCode === 'Auth.PasswordRequired';
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    enable.mutate();
-  };
-
-  return (
-    <div className="space-y-5">
-      <ol className="space-y-5 text-sm text-fg">
-        <li>
-          <p className="font-medium">1. Escaneá este código con la app de autenticación de tu teléfono.</p>
-          {setup.qrSvg && (
-            <img
-              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qrSvg)}`}
-              alt="Código QR para agregar tu cuenta a la app de autenticación"
-              className="mt-3 h-44 w-44 rounded-md border border-border bg-white p-1"
-            />
-          )}
-          <p className="mt-3 text-fg-muted">
-            ¿No podés escanearlo? En la app elegí “Ingresar clave” y escribí:
-          </p>
-          <code className="mt-1 inline-block rounded-md bg-bg-muted px-2 py-1 font-mono text-sm tracking-wide break-all text-fg">
-            {setup.sharedKey}
-          </code>
-        </li>
-        <li>
-          <p className="font-medium">
-            2. Escribí el código de 6 dígitos que te muestra la app y, para confirmar que sos vos, tu
-            contraseña.
-          </p>
-          <form onSubmit={submit} className="mt-3 flex flex-wrap items-start gap-2">
-            <FormField label="Código de la app" error={passwordError ? undefined : error} className="w-44">
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                maxLength={7}
-                required
-              />
-            </FormField>
-            <FormField label="Tu contraseña" error={passwordError ? error : undefined} className="w-56">
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </FormField>
-            <div className="flex gap-2 sm:mt-6">
-              <Button
-                type="submit"
-                loading={enable.isPending}
-                disabled={code.trim().length < 6 || password.length === 0}
-              >
-                Confirmar y activar
-              </Button>
-              <Button type="button" variant="ghost" onClick={onCancel}>
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </li>
-      </ol>
-    </div>
-  );
-}
-
-/** Los códigos de recuperación: se ven esta única vez. */
-function RecoveryCodesView({ codes, onDone }: { codes: string[]; onDone: () => void }) {
-  const { toast } = useToast();
-  const text = codes.join('\n');
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h4 className="text-sm font-semibold text-fg">Guardá tus códigos de recuperación</h4>
-        <p className="mt-1 text-sm text-fg-muted">
-          Si perdés el teléfono, con uno de estos códigos entrás en lugar del de la app. Cada uno sirve una
-          sola vez. <strong className="text-fg">No los vas a volver a ver:</strong> descargalos o copialos
-          ahora y guardalos fuera de esta computadora (en tu gestor de contraseñas, por ejemplo).
-        </p>
-      </div>
-      <ul
-        aria-label="Códigos de recuperación"
-        className="grid grid-cols-2 gap-2 rounded-md bg-bg-muted p-3 font-mono text-sm text-fg sm:grid-cols-5"
-      >
-        {codes.map((c) => (
-          <li key={c}>{c}</li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            void navigator.clipboard?.writeText(text);
-            toast('Copiados.', { variant: 'success' });
-          }}
-        >
-          <Copy className="h-4 w-4" aria-hidden="true" /> Copiar
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() =>
-            downloadBlob(
-              new Blob([`${text}\n`], { type: 'text/plain' }),
-              'tiendafy-codigos-de-recuperacion.txt',
-            )
-          }
-        >
-          <Download className="h-4 w-4" aria-hidden="true" /> Descargar
-        </Button>
-        <Button onClick={onDone}>Ya los guardé</Button>
-      </div>
-    </div>
   );
 }
 
@@ -388,6 +286,78 @@ function ConfirmIdentityModal({
         >
           {withCode ? 'Usar la contraseña' : 'Usar un código en vez de la contraseña'}
         </button>
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * Pasarla a otra app (teléfono nuevo) pide la contraseña Y un código: de la
+ * app de antes o, si ya no la tenés, uno de recuperación. Hasta confirmar con
+ * un código de la app nueva, sigue valiendo la de antes.
+ */
+function RelinkModal({ onClose, onStarted }: { onClose: () => void; onStarted: (r: RelinkStart) => void }) {
+  const fid = useId();
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const start = useMutation({
+    mutationFn: () => api.post<RelinkStart>('/api/v1/auth/2fa/relink', { password, code }),
+    onSuccess: onStarted,
+    meta: { errorShown: true },
+  });
+  const error = start.isError ? problem(start.error, 'No se pudo confirmar.') : undefined;
+  const errorCode = start.error instanceof ApiRequestError ? start.error.error.code : null;
+  const passwordError = errorCode === 'Auth.InvalidPassword';
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    start.mutate();
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="sm"
+      title="Pasar a otra app"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form={`${fid}-form`}
+            loading={start.isPending}
+            disabled={!password || !code.trim()}
+          >
+            Seguir
+          </Button>
+        </div>
+      }
+    >
+      <form id={`${fid}-form`} onSubmit={submit} className="space-y-3">
+        <p className="text-sm text-fg-muted">
+          Para confirmar que sos vos, tu contraseña y un código de la app que usás ahora. ¿Ya no la tenés? Usá
+          uno de tus códigos de recuperación.
+        </p>
+        <FormField label="Tu contraseña" error={passwordError ? error : undefined}>
+          <Input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </FormField>
+        <FormField label="Código de la app o de recuperación" error={passwordError ? undefined : error}>
+          <Input
+            autoComplete="one-time-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+          />
+        </FormField>
       </form>
     </Modal>
   );

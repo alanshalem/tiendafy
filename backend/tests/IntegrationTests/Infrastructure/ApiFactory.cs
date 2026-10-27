@@ -74,6 +74,10 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Database:MigrateOnStartup", "true");
         builder.UseSetting("Media:EnsureBucketOnStartup", "false"); // sin MinIO en tests
         builder.UseSetting("Workers:Enabled", "false");             // sin background workers
+        // Como en dev: el panel se usa con contraseña. Los tests de la
+        // verificación obligatoria levantan otra API con esto prendido
+        // (PanelTwoFactorRequiredTests).
+        builder.UseSetting("Auth:RequireTwoFactorForAdmins", "false");
         // Todos los tests loguean desde la misma IP: con el cupo de producción
         // (10 cada 5 min) la suite empieza a fallar con 429 al crecer, por algo
         // que en producción es justamente lo que se quiere.

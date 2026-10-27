@@ -20,6 +20,8 @@ public interface IMembershipService
     /// <summary>Las tiendas donde la persona es dueña.</summary>
     Task<IReadOnlyList<Guid>> OwnedTenantIdsAsync(Guid userId, CancellationToken ct = default);
     Task AddOwnerAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
+    /// <summary>Si la persona tiene alguno de esos roles en alguna tienda.</summary>
+    Task<bool> HasAnyRoleAsync(Guid userId, IReadOnlyList<string> roles, CancellationToken ct = default);
 
     Task<IReadOnlyList<TenantMembership>> ListAsync(Guid tenantId, CancellationToken ct = default);
     Task<MembershipChange> AddAsync(Guid userId, Guid tenantId, string role, CancellationToken ct = default);
@@ -38,6 +40,9 @@ public sealed class MembershipService(AppIdentityDbContext db) : IMembershipServ
 
     public async Task AddOwnerAsync(Guid userId, Guid tenantId, CancellationToken ct = default) =>
         await AddAsync(userId, tenantId, Roles.Owner, ct);
+
+    public Task<bool> HasAnyRoleAsync(Guid userId, IReadOnlyList<string> roles, CancellationToken ct = default) =>
+        db.TenantMemberships.AsNoTracking().AnyAsync(m => m.UserId == userId && roles.Contains(m.Role), ct);
 
     public async Task<IReadOnlyList<TenantMembership>> ListAsync(Guid tenantId, CancellationToken ct = default) =>
         await db.TenantMemberships.AsNoTracking().Where(m => m.TenantId == tenantId).OrderBy(m => m.CreatedAtUtc).ToListAsync(ct);

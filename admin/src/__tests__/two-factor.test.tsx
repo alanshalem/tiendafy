@@ -2,7 +2,9 @@
  * La verificación en dos pasos en el panel: el segundo paso del login (código
  * de la app o de recuperación), activarla desde Mi cuenta (QR, código y los
  * códigos de recuperación que se ven una sola vez), desactivarla confirmando
- * con la contraseña, y el aviso del Inicio para los dueños que no la tienen.
+ * con la contraseña, pasarla a otra app, la configuración obligatoria de
+ * dueños y administradores (al entrar y con una sesión de antes) y el aviso
+ * del Inicio para quien no la tiene ni se la exigen.
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -102,14 +104,158 @@ describe('login con verificación en dos pasos', () => {
   });
 });
 
-describe('Mi cuenta: activar y desactivar', () => {
-  const setup = {
-    sharedKey: 'abcd efgh ijkl mnop',
-    authenticatorUri: 'otpauth://totp/Tiendafy:x?secret=ABCDEFGHIJKLMNOP&issuer=Tiendafy&digits=6',
-    qrSvg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>',
-  };
-  const codes = Array.from({ length: 10 }, (_, i) => `CODE${i}-ABCDE`);
+const setup = {
+  sharedKey: 'abcd efgh ijkl mnop',
+  authenticatorUri: 'otpauth://totp/Tiendafy:x?secret=ABCDEFGHIJKLMNOP&issuer=Tiendafy&digits=6',
+  qrSvg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>',
+};
+const codes = Array.from({ length: 10 }, (_, i) => `CODE${i}-ABCDE`);
 
+describe('obligatoria para dueños y administradores', () => {
+  it('al entrar sin ella, la configura (sin volver a escribir la contraseña) y recién ahí entra', async () => {
+    const api = loggedOut();
+    api.on('POST', '/api/v1/auth/login', { twoFactorSetupRequired: true });
+    api.on('POST', '/api/v1/auth/2fa/setup', setup);
+    const user = userEvent.setup();
+    renderApp('/');
+    await user.type(await screen.findByLabelText('Email'), me.email);
+    await user.type(screen.getByLabelText('Contraseña'), 'una-clave-larga');
+    await user.click(await submitButton('Iniciar sesión'));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Activá la verificación en dos pasos' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Para dueños y administradores es obligatoria/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Empezar' }));
+
+    expect(await screen.findByRole('img', { name: /Código QR/ })).toBeInTheDocument();
+    expect(screen.getByText(setup.sharedKey)).toBeInTheDocument();
+    // La contraseña recién escrita no se vuelve a pedir.
+    expect(screen.queryByLabelText('Tu contraseña')).not.toBeInTheDocument();
+
+    api.on('POST', '/api/v1/auth/2fa/enable', {
+      recoveryCodes: codes,
+      user: { ...me, twoFactorEnabled: true, twoFactorMandatory: true },
+    });
+    await user.type(screen.getByLabelText('Código de la app'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Confirmar y activar' }));
+    expect(api.calls.filter((c) => c.path === '/api/v1/auth/2fa/enable').at(-1)?.body).toEqual({
+      code: '123456',
+      password: 'una-clave-larga',
+    });
+
+    // Los códigos de recuperación, una vez; después, el panel.
+    const list = await screen.findByRole('list', { name: 'Códigos de recuperación' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(10);
+    await user.click(screen.getByRole('button', { name: 'Ya los guardé' }));
+    expect(await screen.findByRole('heading', { name: /Hola/ })).toBeInTheDocument();
+  });
+
+  it('si el paso venció, vuelve a pedir la contraseña con el motivo', async () => {
+    const api = loggedOut();
+    api.on('POST', '/api/v1/auth/login', { twoFactorSetupRequired: true });
+    api.on(
+      'POST',
+      '/api/v1/auth/2fa/setup',
+      { title: 'Auth.TwoFactorExpired', detail: 'Pasó demasiado tiempo. Volvé a ingresar tu contraseña.' },
+      401,
+    );
+    const user = userEvent.setup();
+    renderApp('/');
+    await user.type(await screen.findByLabelText('Email'), me.email);
+    await user.type(screen.getByLabelText('Contraseña'), 'una-clave-larga');
+    await user.click(await submitButton('Iniciar sesión'));
+    await user.click(await screen.findByRole('button', { name: 'Empezar' }));
+
+    expect(await screen.findByLabelText('Contraseña')).toHaveValue('');
+    expect(screen.getByText('Pasó demasiado tiempo. Volvé a ingresar tu contraseña.')).toBeInTheDocument();
+  });
+
+  it('con una sesión abierta sin ella, el panel lleva a configurarla (pidiendo la contraseña)', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/auth/me', { ...me, twoFactorEnabled: false, twoFactorMandatory: true });
+    api.on('POST', '/api/v1/auth/2fa/setup', setup);
+    const user = userEvent.setup();
+    renderApp('/');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Activá la verificación en dos pasos' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Hola/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Empezar' }));
+    expect(await screen.findByLabelText('Tu contraseña')).toHaveAttribute('autocomplete', 'current-password');
+
+    api.on('POST', '/api/v1/auth/2fa/enable', {
+      recoveryCodes: codes,
+      user: { ...me, twoFactorEnabled: true, twoFactorMandatory: true },
+    });
+    await user.type(screen.getByLabelText('Código de la app'), '123456');
+    await user.type(screen.getByLabelText('Tu contraseña'), 'mi-clave-larga');
+    await user.click(screen.getByRole('button', { name: 'Confirmar y activar' }));
+    await user.click(await screen.findByRole('button', { name: 'Ya los guardé' }));
+    expect(await screen.findByRole('heading', { name: /Hola/ })).toBeInTheDocument();
+  });
+
+  it('un 403 Auth.TwoFactorSetupRequired de la API lleva a la misma pantalla, y se puede salir', async () => {
+    const api = mockApi();
+    api.on(
+      'GET',
+      '/api/v1/me/permissions',
+      { title: 'Auth.TwoFactorSetupRequired', detail: 'Para dueños y administradores es obligatoria.' },
+      403,
+    );
+    const user = userEvent.setup();
+    renderApp('/');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Activá la verificación en dos pasos' }),
+    ).toBeInTheDocument();
+    api.on('POST', '/api/v1/auth/logout', {}, 204);
+    await user.click(screen.getByRole('button', { name: 'Salir' }));
+    expect(await screen.findByLabelText('Contraseña')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.method === 'POST' && c.path === '/api/v1/auth/logout')).toBe(true);
+  });
+
+  it('en Mi cuenta no se puede desactivar, pero sí pasar a otra app', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/auth/me', { ...me, twoFactorEnabled: true, twoFactorMandatory: true });
+    api.on('GET', '/api/v1/auth/2fa', { enabled: true, recoveryCodesLeft: 8 });
+    const user = userEvent.setup();
+    renderApp('/mi-cuenta');
+
+    expect(await screen.findByText('Activa')).toBeInTheDocument();
+    expect(screen.getByText(/es obligatoria: no se puede desactivar/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Desactivar' })).not.toBeInTheDocument();
+
+    // Pasar a otra app pide la contraseña y un código.
+    await user.click(screen.getByRole('button', { name: 'Pasar a otra app' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.getByRole('button', { name: 'Seguir' })).toBeDisabled();
+    api.on('POST', '/api/v1/auth/2fa/relink', { ...setup, ticket: 'ticket-cifrado' });
+    await user.type(dialog.getByLabelText('Tu contraseña'), 'mi-clave-larga');
+    await user.type(dialog.getByLabelText('Código de la app o de recuperación'), 'ABCDE-12345');
+    await user.click(dialog.getByRole('button', { name: 'Seguir' }));
+    expect(api.calls.filter((c) => c.path === '/api/v1/auth/2fa/relink').at(-1)?.body).toEqual({
+      password: 'mi-clave-larga',
+      code: 'ABCDE-12345',
+    });
+
+    // El QR de la app nueva y su código (sin volver a pedir la contraseña).
+    expect(await screen.findByRole('img', { name: /Código QR/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Tu contraseña')).not.toBeInTheDocument();
+    api.on('POST', '/api/v1/auth/2fa/relink/confirm', {}, 204);
+    await user.type(screen.getByLabelText('Código de la app'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(screen.queryByRole('img', { name: /Código QR/ })).not.toBeInTheDocument());
+    expect(api.calls.filter((c) => c.path === '/api/v1/auth/2fa/relink/confirm').at(-1)?.body).toEqual({
+      ticket: 'ticket-cifrado',
+      code: '654321',
+    });
+    expect(await screen.findByText(/quedó en la app nueva/)).toBeInTheDocument();
+  });
+});
+
+describe('Mi cuenta: activar y desactivar', () => {
   it('se llega desde el menú de la cuenta', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/auth/2fa', { enabled: false, recoveryCodesLeft: 0 });
@@ -219,7 +365,7 @@ describe('Mi cuenta: activar y desactivar', () => {
   });
 });
 
-describe('el aviso del Inicio para los dueños', () => {
+describe('el aviso del Inicio para quien no la tiene ni se la exigen', () => {
   it('le recomienda activarla a un dueño que no la tiene, y se puede cerrar', async () => {
     mockApi();
     const user = userEvent.setup();
@@ -245,10 +391,19 @@ describe('el aviso del Inicio para los dueños', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('no aparece para quien no es dueño', async () => {
+  it('también se lo recomienda a los demás roles', async () => {
     const api = mockApi();
     const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
     api.on('GET', '/api/v1/me/permissions', { ...perms, role: 'vendedor' });
+    renderApp('/');
+    expect(
+      await screen.findByRole('complementary', { name: 'Recomendación de seguridad' }),
+    ).toBeInTheDocument();
+  });
+
+  it('no aparece para quien la tiene obligatoria', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/auth/me', { ...me, twoFactorEnabled: true, twoFactorMandatory: true });
     renderApp('/');
     await screen.findByRole('heading', { name: /Hola/ });
     await settle(3);

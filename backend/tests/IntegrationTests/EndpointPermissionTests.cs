@@ -112,6 +112,8 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/auth/2fa/enable",
             "POST /api/v1/auth/2fa/disable",
             "POST /api/v1/auth/2fa/recovery-codes",
+            "POST /api/v1/auth/2fa/relink", // pasarla a otra app (teléfono nuevo)
+            "POST /api/v1/auth/2fa/relink/confirm",
         ],
         ["Las tiendas de cada uno: la plataforma, no una tienda (editar y borrar piden 'tenant.admin' adentro; la facturación de cada una, 'stats.read')"] =
         [
