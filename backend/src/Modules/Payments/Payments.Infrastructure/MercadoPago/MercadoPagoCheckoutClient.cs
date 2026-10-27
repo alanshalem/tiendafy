@@ -73,7 +73,7 @@ public sealed class MercadoPagoCheckoutClient(
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("MercadoPago preference error {Status}: {Body}", (int)resp.StatusCode, json);
+            logger.LogError("MercadoPago preference error {Status}: {Body}", (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<PreferenceResult>(new Error("MercadoPago.PreferenceFailed",
                 "No se pudo iniciar el pago con MercadoPago."));
         }
@@ -134,7 +134,7 @@ public sealed class MercadoPagoCheckoutClient(
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("MercadoPago card payment error {Status}: {Body}", (int)resp.StatusCode, json);
+            logger.LogError("MercadoPago card payment error {Status}: {Body}", (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<CardPaymentResult>(new Error("MercadoPago.PaymentFailed",
                 "No se pudo procesar el pago con la tarjeta."));
         }
@@ -188,7 +188,7 @@ public sealed class MercadoPagoCheckoutClient(
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("MercadoPago get payment {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, json);
+            logger.LogError("MercadoPago get payment {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<PaymentStatusDto>(new Error("MercadoPago.GetPaymentFailed", "No se pudo consultar el pago."));
         }
 
@@ -212,7 +212,7 @@ public sealed class MercadoPagoCheckoutClient(
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogWarning("MercadoPago search payments de la orden {OrderId} error {Status}: {Body}", orderId, (int)resp.StatusCode, json);
+            logger.LogWarning("MercadoPago search payments de la orden {OrderId} error {Status}: {Body}", orderId, (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<IReadOnlyList<PaymentStatusDto>>(new Error("MercadoPago.SearchFailed",
                 "No se pudieron consultar los pagos de la venta en Mercado Pago."));
         }
@@ -261,7 +261,7 @@ public sealed class MercadoPagoCheckoutClient(
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("MercadoPago refund {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, json);
+            logger.LogError("MercadoPago refund {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<RefundResult>(new Error("MercadoPago.RefundFailed",
                 "No se pudo reembolsar el pago en MercadoPago."));
         }
@@ -293,7 +293,7 @@ public sealed class MercadoPagoCheckoutClient(
         if (resp.IsSuccessStatusCode) return Result.Success();
 
         var json = await resp.Content.ReadAsStringAsync(ct);
-        logger.LogWarning("MercadoPago expire preference {Id} error {Status}: {Body}", preferenceId, (int)resp.StatusCode, json);
+        logger.LogWarning("MercadoPago expire preference {Id} error {Status}: {Body}", preferenceId, (int)resp.StatusCode, LogValue.Body(json));
         return Result.Failure(new Error("MercadoPago.ExpireFailed", "No se pudo anular el link de pago en Mercado Pago."));
     }
 

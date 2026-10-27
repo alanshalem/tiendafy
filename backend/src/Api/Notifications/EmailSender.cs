@@ -112,7 +112,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
                 {
                     // 4xx definitivo (from inválido, dominio sin verificar…): reintentar no ayuda.
                     logger.LogError("Resend error {Status} enviando a {To} (intento {Attempt}): {Body}",
-                        (int)resp.StatusCode, toLog, attempt + 1, LogValue.Safe(body, 500));
+                        (int)resp.StatusCode, toLog, attempt + 1, LogValue.Body(body));
                     return false;
                 }
                 logger.LogWarning("Resend {Status} transitorio, reintento {Attempt} en {Delay}s → {To}",

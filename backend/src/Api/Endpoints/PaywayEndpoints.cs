@@ -50,7 +50,7 @@ public static class PaywayEndpoints
                     environment = connection.Environment.ToString().ToUpperInvariant(),
                     connection.PublicKey,
                     hasPrivateKey = !string.IsNullOrWhiteSpace(connection.PrivateKeyEncrypted),
-                    connection.BaseUrlOverride,
+                    BaseUrlOverride = connection.EffectiveBaseUrlOverride,
                     connection.EstablishmentName,
                     installmentOptions = connection.InstallmentOptions,
                     baseUrl = connection.BaseUrl,

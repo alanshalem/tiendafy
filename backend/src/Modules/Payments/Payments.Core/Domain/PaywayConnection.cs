@@ -106,6 +106,9 @@ public sealed class PaywayConnection
                 return Result.Failure(Error.Validation("Payway.BadBaseUrl", "El host alternativo no es una URL válida."));
             if (parsed.Scheme != Uri.UriSchemeHttps)
                 return Result.Failure(Error.Validation("Payway.InsecureBaseUrl", "El host alternativo debe ser HTTPS."));
+            if (!IsAllowedBaseUrl(baseUrlOverride))
+                return Result.Failure(Error.Validation("Payway.BadBaseUrl",
+                    "El host alternativo tiene que ser de Payway (decidir.com o payway.com.ar), sin usuario ni puerto."));
         }
 
         SiteId = siteId!.Trim();
@@ -124,9 +127,35 @@ public sealed class PaywayConnection
 
     /// <summary>Host efectivo de la API para esta conexión.</summary>
     public string BaseUrl =>
-        string.IsNullOrWhiteSpace(BaseUrlOverride)
-            ? (Environment == PaywayEnvironment.Production ? ProductionBaseUrl : SandboxBaseUrl)
-            : BaseUrlOverride.TrimEnd('/');
+        EffectiveBaseUrlOverride is { } over
+            ? over.TrimEnd('/')
+            : (Environment == PaywayEnvironment.Production ? ProductionBaseUrl : SandboxBaseUrl);
+
+    /// <summary>
+    /// El host alternativo guardado, o null si no hay o no es de Payway (datos
+    /// viejos de cuando se aceptaba cualquier https): en ese caso se ignora y
+    /// rige el del ambiente, para no mandarle la clave privada a un tercero.
+    /// </summary>
+    public string? EffectiveBaseUrlOverride =>
+        !string.IsNullOrWhiteSpace(BaseUrlOverride) && IsAllowedBaseUrl(BaseUrlOverride)
+            ? BaseUrlOverride
+            : null;
+
+    private static readonly string[] AllowedHostSuffixes = ["decidir.com", "payway.com.ar"];
+
+    /// <summary>
+    /// Solo https, host de Payway/Decidir (o subdominio), sin credenciales en la
+    /// URL, sin puerto distinto del 443 ni query/fragmento.
+    /// </summary>
+    public static bool IsAllowedBaseUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var u))
+            return false;
+        if (u.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(u.UserInfo)) return false;
+        if (!u.IsDefaultPort || !string.IsNullOrEmpty(u.Query) || !string.IsNullOrEmpty(u.Fragment)) return false;
+        var host = u.IdnHost.ToLowerInvariant();
+        return AllowedHostSuffixes.Any(s => host == s || host.EndsWith("." + s, StringComparison.Ordinal));
+    }
 
     private void SetInstallmentOptions(IReadOnlyList<int>? options)
     {

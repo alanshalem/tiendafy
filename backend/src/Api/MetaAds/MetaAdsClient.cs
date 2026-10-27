@@ -43,7 +43,7 @@ public sealed class MetaAdsClient(HttpClient http, IOptions<MetaAdsOptions> opti
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("Meta adaccounts error {Status}: {Body}", (int)resp.StatusCode, json);
+            logger.LogError("Meta adaccounts error {Status}: {Body}", (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<IReadOnlyList<MetaAdAccount>>(new Error("MetaAds.AccountsFailed", "No se pudieron listar las cuentas publicitarias."));
         }
         using var doc = JsonDocument.Parse(json);
@@ -67,7 +67,7 @@ public sealed class MetaAdsClient(HttpClient http, IOptions<MetaAdsOptions> opti
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("Meta insights error {Status}: {Body}", (int)resp.StatusCode, json);
+            logger.LogError("Meta insights error {Status}: {Body}", (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<IReadOnlyList<MetaCampaignSpend>>(new Error("MetaAds.InsightsFailed", "No se pudo leer el gasto de pauta."));
         }
         using var doc = JsonDocument.Parse(json);

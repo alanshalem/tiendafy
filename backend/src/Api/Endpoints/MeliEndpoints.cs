@@ -923,7 +923,8 @@ public static class MeliEndpoints
         // Sin firma criptográfica: nunca se confía en el payload — el worker
         // re-consulta el resource con el token del vendedor.
         group.MapPost("/webhooks/meli", async (
-            HttpRequest http, MeliDbContext db, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            HttpRequest http, MeliDbContext db, IOptions<MeliOptions> options,
+            ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
             // Un cuerpo que no es JSON (o no es un objeto) se contesta 200 y se
             // descarta, igual que un aviso incompleto. Antes reventaba con 500.
@@ -951,6 +952,40 @@ public static class MeliEndpoints
 
             if (topic.Length == 0 || resource.Length == 0 || userId == 0)
                 return Results.Ok(); // payload raro: ACK igual para que ML no reintente
+
+            // Sin firma, lo único que filtra el ruido es de quién es el aviso:
+            // tiene que ser de NUESTRA app (application_id = ClientId) y de un
+            // vendedor que conectó su cuenta en alguna tienda. Lo demás se
+            // contesta 200 y no se encola (ML reintenta todo lo que no sea 200).
+            // Con la integración sin configurar (demo/dev) no hay app propia
+            // contra la cual comparar: ahí solo rige el chequeo del vendedor.
+            var opts = options.Value;
+            if (opts.Configured)
+            {
+                // ML lo manda como número; se compara el texto para no depender del tipo.
+                var applicationId = root.TryGetProperty("application_id", out var app)
+                    ? app.ValueKind switch
+                    {
+                        JsonValueKind.Number => app.GetRawText(),
+                        JsonValueKind.String => app.GetString(),
+                        _ => null,
+                    }
+                    : null;
+                if (!string.Equals(applicationId?.Trim(), opts.ClientId.Trim(), StringComparison.Ordinal))
+                    return Results.Ok();
+            }
+
+            var hasConnection = await db.Connections.IgnoreQueryFilters().AsNoTracking()
+                .AnyAsync(c => c.MeliUserId == userId, ct);
+            if (!hasConnection) return Results.Ok();
+
+            // ML manda el mismo aviso varias veces seguidas: un pendiente igual
+            // (mismo resource y vendedor) de los últimos 30 s alcanza.
+            var since = DateTime.UtcNow.AddSeconds(-30);
+            var duplicate = await db.Notifications.AsNoTracking().AnyAsync(n =>
+                n.MeliUserId == userId && n.Resource == resource && n.Topic == topic
+                && n.Status == InboxEntry.StatusPending && n.CreatedAtUtc > since, ct);
+            if (duplicate) return Results.Ok();
 
             db.Notifications.Add(MeliNotification.Receive(topic, resource, userId));
             await db.SaveChangesAsync(ct);
