@@ -19,6 +19,17 @@ namespace Api.Endpoints;
 /// Cada código mal puesto cuenta como un intento fallido, igual que una
 /// contraseña mal puesta: al quinto, la cuenta se bloquea unos minutos.
 /// </para>
+///
+/// <para>
+/// Dueños y administradores, si la plataforma la exige
+/// (<see cref="TwoFactorRequirement"/>): el login sin ella deja la misma cookie
+/// intermedia marcada "para configurar" (15 minutos) y responde
+/// <c>{ twoFactorSetupRequired: true }</c>. Con esa cookie solo andan
+/// <c>GET /2fa</c>, <c>/2fa/setup</c> y <c>/2fa/enable</c>; al activarla se
+/// abre la sesión. No la pueden desactivar: sí renovar los códigos o pasarla
+/// a otra app (<c>/2fa/relink</c>). Si pierden todo, quien opera la
+/// plataforma la borra con <c>dotnet Api.dll reset-2fa</c> (<see cref="PanelTwoFactorReset"/>).
+/// </para>
 /// </summary>
 public static class AuthTwoFactorEndpoints
 {
@@ -32,7 +43,8 @@ public static class AuthTwoFactorEndpoints
             HttpContext http,
             SignInManager<AppUser> signInManager,
             UserManager<AppUser> userManager,
-            PanelTwoFactor twoFactor) =>
+            PanelTwoFactor twoFactor,
+            TwoFactorRequirement requirement) =>
         {
             var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
             if (user is null || !user.TwoFactorEnabled)
@@ -54,14 +66,18 @@ public static class AuthTwoFactorEndpoints
             await userManager.ResetAccessFailedCountAsync(user);
             await http.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
             await signInManager.SignInWithClaimsAsync(user, isPersistent: true, [new Claim("amr", "mfa")]);
-            return Results.Ok(AuthEndpoints.ToDto(user));
+            return Results.Ok(AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user.Id)));
         }).RequireRateLimiting("auth");
 
+        // Ver el estado, empezar y confirmar: con la sesión o con el paso
+        // intermedio de quien tiene que configurarla para entrar (ver
+        // ResolveAsync). Lo demás del grupo pide la sesión.
+        var setupGroup = auth.MapGroup("/2fa");
         var manage = auth.MapGroup("/2fa").RequireAuthorization();
 
-        manage.MapGet("/", async (ClaimsPrincipal principal, UserManager<AppUser> userManager) =>
+        setupGroup.MapGet("/", async (HttpContext http, UserManager<AppUser> userManager) =>
         {
-            var user = await userManager.GetUserAsync(principal);
+            var (user, _) = await ResolveAsync(http, userManager);
             if (user is null) return Results.Unauthorized();
             return Results.Ok(new
             {
@@ -72,17 +88,18 @@ public static class AuthTwoFactorEndpoints
 
         // Empezar a activarla: una clave nueva para la app (la anterior, si
         // había una a medio configurar, deja de servir). Se confirma con /enable.
-        manage.MapPost("/setup", async (
-            ClaimsPrincipal principal, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager) =>
+        setupGroup.MapPost("/setup", async (
+            HttpContext http, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager) =>
         {
-            var user = await userManager.GetUserAsync(principal);
+            var (user, pending) = await ResolveAsync(http, userManager);
             if (user is null) return Results.Unauthorized();
             if (user.TwoFactorEnabled) return AlreadyEnabled();
 
             await userManager.ResetAuthenticatorKeyAsync(user);
             // Cambiar la clave cambia el sello de seguridad: sin renovar la
             // cookie, esta misma sesión se cerraría en la próxima validación.
-            await signInManager.RefreshSignInAsync(user);
+            // (En el paso intermedio no hay sesión que renovar.)
+            if (!pending) await signInManager.RefreshSignInAsync(user);
             var key = await userManager.GetAuthenticatorKeyAsync(user) ?? string.Empty;
             var uri = PanelTwoFactor.AuthenticatorUri(user.Email ?? user.UserName ?? string.Empty, key);
             return Results.Ok(new
@@ -98,14 +115,15 @@ public static class AuthTwoFactorEndpoints
         // contraseña, como al desactivarla: con solo la cookie, quien la robara
         // activaría su propia app, se quedaría con los códigos y dejaría afuera
         // al dueño (que para desactivarla ya no tendría ni código).
-        manage.MapPost("/enable", async (
+        setupGroup.MapPost("/enable", async (
             TwoFactorEnableRequest req,
-            ClaimsPrincipal principal,
+            HttpContext http,
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
-            PanelTwoFactor twoFactor) =>
+            PanelTwoFactor twoFactor,
+            TwoFactorRequirement requirement) =>
         {
-            var user = await userManager.GetUserAsync(principal);
+            var (user, pending) = await ResolveAsync(http, userManager);
             if (user is null) return Results.Unauthorized();
             if (user.TwoFactorEnabled) return AlreadyEnabled();
             if (await userManager.GetAuthenticatorKeyAsync(user) is null)
@@ -122,21 +140,41 @@ public static class AuthTwoFactorEndpoints
 
             await userManager.SetTwoFactorEnabledAsync(user, true);
             var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, PanelTwoFactor.RecoveryCodeCount);
-            await signInManager.RefreshSignInAsync(user);
-            return Results.Ok(new { recoveryCodes = codes });
+            if (pending)
+            {
+                // Quien la tenía que configurar para entrar: contraseña y código
+                // ya probados, se abre la sesión (como al pasar el segundo paso).
+                await http.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
+                await signInManager.SignInWithClaimsAsync(user, isPersistent: true, [new Claim("amr", "mfa")]);
+            }
+            else
+            {
+                await signInManager.RefreshSignInAsync(user);
+            }
+            return Results.Ok(new
+            {
+                recoveryCodes = codes,
+                user = AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user.Id)),
+            });
         }).RequireRateLimiting("auth");
 
         // Desactivarla pide la contraseña o un código (de la app o de recuperación).
+        // A dueños y administradores no se les deja, si la plataforma la exige.
         manage.MapPost("/disable", async (
             TwoFactorConfirmRequest req,
             ClaimsPrincipal principal,
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
-            PanelTwoFactor twoFactor) =>
+            PanelTwoFactor twoFactor,
+            TwoFactorRequirement requirement) =>
         {
             var user = await userManager.GetUserAsync(principal);
             if (user is null) return Results.Unauthorized();
             if (!user.TwoFactorEnabled) return Results.NoContent(); // idempotente
+            if (await requirement.AppliesToAsync(user.Id))
+                return Results.Problem(title: "Auth.TwoFactorRequired",
+                    detail: "Para dueños y administradores la verificación en dos pasos es obligatoria: no se puede desactivar. Si cambiaste de teléfono, pasala a la app nueva.",
+                    statusCode: StatusCodes.Status403Forbidden);
             if (await ConfirmAsync(user, req, userManager, twoFactor) is { } denied) return denied;
 
             await userManager.SetTwoFactorEnabledAsync(user, false);
@@ -167,7 +205,91 @@ public static class AuthTwoFactorEndpoints
             return Results.Ok(new { recoveryCodes = codes });
         }).RequireRateLimiting("auth");
 
+        // Pasarla a otra app (teléfono nuevo): pide la contraseña Y un código
+        // (de la app de antes o de recuperación). Devuelve la clave nueva y un
+        // ticket cifrado con ella; nada cambia hasta confirmar con un código
+        // de la app nueva en /relink/confirm. Los códigos de recuperación siguen.
+        manage.MapPost("/relink", async (
+            TwoFactorConfirmRequest req,
+            ClaimsPrincipal principal,
+            UserManager<AppUser> userManager,
+            PanelTwoFactor twoFactor) =>
+        {
+            var user = await userManager.GetUserAsync(principal);
+            if (user is null) return Results.Unauthorized();
+            if (!user.TwoFactorEnabled)
+                return Results.Problem(title: "Auth.TwoFactorDisabled",
+                    detail: "La verificación en dos pasos no está activa.", statusCode: 409);
+            if (string.IsNullOrEmpty(req.Password) || string.IsNullOrWhiteSpace(req.Code))
+                return Results.Problem(title: "Auth.ConfirmationRequired",
+                    detail: "Escribí tu contraseña y un código (de la app o de recuperación) para confirmar.", statusCode: 400);
+            // Las dos cosas, cada una contando para el bloqueo por intentos.
+            if (await ConfirmAsync(user, new TwoFactorConfirmRequest(Password: req.Password), userManager, twoFactor) is { } badPassword)
+                return badPassword;
+            if (await ConfirmAsync(user, new TwoFactorConfirmRequest(Code: req.Code), userManager, twoFactor) is { } badCode)
+                return badCode;
+
+            var (key, ticket) = twoFactor.StartRelink(user);
+            var uri = PanelTwoFactor.AuthenticatorUri(user.Email ?? user.UserName ?? string.Empty, key);
+            return Results.Ok(new
+            {
+                sharedKey = PanelTwoFactor.FormatKey(key),
+                authenticatorUri = uri,
+                qrSvg = Api.Import.VariantLabelsPdf.QrSvg(uri),
+                ticket,
+            });
+        }).RequireRateLimiting("auth");
+
+        manage.MapPost("/relink/confirm", async (
+            TwoFactorRelinkConfirmRequest req,
+            ClaimsPrincipal principal,
+            UserManager<AppUser> userManager,
+            SignInManager<AppUser> signInManager,
+            PanelTwoFactor twoFactor,
+            IUserStore<AppUser> userStore) =>
+        {
+            var user = await userManager.GetUserAsync(principal);
+            if (user is null) return Results.Unauthorized();
+            if (!user.TwoFactorEnabled)
+                return Results.Problem(title: "Auth.TwoFactorDisabled",
+                    detail: "La verificación en dos pasos no está activa.", statusCode: 409);
+            if (twoFactor.ReadRelinkTicket(user, req.Ticket) is not { } key)
+                return Results.Problem(title: "Auth.InvalidTicket",
+                    detail: "Pasó demasiado tiempo. Empezá de nuevo para ver otro código QR.", statusCode: 400);
+            if (await userManager.IsLockedOutAsync(user)) return LockedOut();
+            if (!twoFactor.VerifyCodeForKey(user, key, req.Code))
+            {
+                await userManager.AccessFailedAsync(user);
+                return await userManager.IsLockedOutAsync(user) ? LockedOut() : InvalidCode();
+            }
+
+            // La clave nueva por el store (cifrada, como siempre): UserManager
+            // solo sabe generar una al azar, no guardar una ya confirmada.
+            await ((IUserAuthenticatorKeyStore<AppUser>)userStore).SetAuthenticatorKeyAsync(user, key, CancellationToken.None);
+            await userManager.ResetAccessFailedCountAsync(user);
+            await userManager.UpdateSecurityStampAsync(user); // guarda y cierra las otras sesiones
+            await signInManager.RefreshSignInAsync(user);
+            return Results.NoContent();
+        }).RequireRateLimiting("auth");
+
         return auth;
+    }
+
+    /// <summary>
+    /// Quién configura la verificación: la persona con sesión o, si no hay
+    /// sesión, quien está en el paso intermedio "para configurar" del login
+    /// (contraseña ya validada; ver <see cref="PanelTwoFactor.PendingSetupPrincipal"/>).
+    /// El paso intermedio del código (el de quien ya la tiene) no sirve acá.
+    /// </summary>
+    private static async Task<(AppUser? User, bool Pending)> ResolveAsync(HttpContext http, UserManager<AppUser> userManager)
+    {
+        if (await userManager.GetUserAsync(http.User) is { } user) return (user, false);
+
+        var step = await http.AuthenticateAsync(IdentityConstants.TwoFactorUserIdScheme);
+        if (step.Succeeded && PanelTwoFactor.SetupUserId(step.Principal) is { } id
+            && await userManager.FindByIdAsync(id.ToString()) is { } pendingUser)
+            return (pendingUser, true);
+        return (null, false);
     }
 
     /// <summary>
@@ -216,3 +338,4 @@ public static class AuthTwoFactorEndpoints
 public sealed record TwoFactorLoginRequest(string? Code);
 public sealed record TwoFactorEnableRequest(string? Code, string? Password = null);
 public sealed record TwoFactorConfirmRequest(string? Password = null, string? Code = null);
+public sealed record TwoFactorRelinkConfirmRequest(string? Ticket, string? Code);

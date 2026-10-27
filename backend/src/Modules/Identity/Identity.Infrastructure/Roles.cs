@@ -26,6 +26,13 @@ public static class Roles
         new(Soporte, "Soporte", "posventa y mensajes", 1),
     ];
 
+    /// <summary>
+    /// Los roles con los que la verificación en dos pasos es obligatoria
+    /// (si la plataforma la exige: <c>Auth:RequireTwoFactorForAdmins</c>).
+    /// Con la contraseña de uno de estos se maneja la tienda entera.
+    /// </summary>
+    public static readonly IReadOnlyList<string> RequireTwoFactor = [Owner, Admin];
+
     public static bool Exists(string? role) => All.Any(r => r.Key == role);
 
     public static int Rank(string? role) => All.FirstOrDefault(r => r.Key == role)?.Rank ?? 0;

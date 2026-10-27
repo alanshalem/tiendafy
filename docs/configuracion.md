@@ -66,6 +66,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | --- | --- | --- | --- |
 | `ConnectionStrings:Default` | Postgres | `Host=127.0.0.1;Port=5432;Database=tiendafy;Username=tiendafy;Password=tiendafy` | Armada con `POSTGRES_PASSWORD` y `DB_MIN_POOL_SIZE` (default 5) |
 | `Database:MigrateOnStartup` | Migrar al arrancar | `true` | Fija en `false`: `deploy.sh` corre `dotnet Api.dll migrate` antes del `up` |
+| `Auth:RequireTwoFactorForAdmins` | Verificación en dos pasos obligatoria para quien es dueño o administrador de alguna tienda: sin ella no usa el panel (al entrar la configura). Ver `Api/Auth/TwoFactorRequirement` | `true` (dev: `false`, en `appsettings.Development.json`: el seed y el e2e entran con contraseña) | No se mapea (usa `true`) |
 | `DataProtection:KeyPath` | Keyring que cifra todos los secretos de las tiendas | Vacío = `%LOCALAPPDATA%`. En Production es obligatoria (sin ella la API no arranca) | Fija en `/keys` (volumen `dpkeys`) |
 | `Tenancy:PlatformBaseDomain` | Dominio base: las tiendas son `<sub>.<dominio>` | `localhost` | `STACK_DOMAIN` |
 | `Cors:AllowedOrigins` | Orígenes extra (dominios propios de tiendas). Ya se aceptan el panel (`Admin:BaseUrl`), el dominio base y `<tienda>.<dominio>` (un nivel, sin los reservados de `Subdomain.cs` ni el host de `Media:PublicBaseUrl`); `localhost` y `*.localhost`, solo en Development. La sesión del panel solo vale desde el panel | `[]` | No se mapea (ver Pendientes) |

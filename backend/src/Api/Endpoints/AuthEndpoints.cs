@@ -28,6 +28,7 @@ public static class AuthEndpoints
             SignInManager<AppUser> signInManager,
             Api.Notifications.IEmailSender email,
             IConfiguration cfg,
+            TwoFactorRequirement requirement,
             CancellationToken ct) =>
         {
             if (await userManager.Users.AnyAsync(ct))
@@ -64,7 +65,7 @@ public static class AuthEndpoints
             }
 
             await signInManager.SignInAsync(user, isPersistent: true);
-            return Results.Created($"/api/v1/auth/me", ToDto(user));
+            return Results.Created($"/api/v1/auth/me", ToDto(user, await requirement.AppliesToAsync(user.Id, ct)));
         }).RequireRateLimiting("auth");
 
         // Confirma el email del merchant (link del correo de verificación).
@@ -99,7 +100,8 @@ public static class AuthEndpoints
             HttpContext http,
             Api.Captcha.ICaptchaVerifier captcha,
             SignInManager<AppUser> signInManager,
-            UserManager<AppUser> userManager) =>
+            UserManager<AppUser> userManager,
+            TwoFactorRequirement requirement) =>
         {
             if (!await captcha.VerifyAsync(request.Captcha))
                 return Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida.", statusCode: 400);
@@ -133,8 +135,19 @@ public static class AuthEndpoints
                 return Results.Ok(new { twoFactorRequired = true });
             }
 
+            // Dueño o administrador sin la verificación, con la plataforma
+            // exigiéndola: tampoco abre sesión. Queda la misma cookie intermedia,
+            // marcada para que solo sirva para configurarla; al confirmarla con
+            // un código, /auth/2fa/enable abre la sesión (AuthTwoFactorEndpoints).
+            if (await requirement.AppliesToAsync(user.Id))
+            {
+                await http.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, PanelTwoFactor.PendingSetupPrincipal(user),
+                    new AuthenticationProperties { ExpiresUtc = DateTimeOffset.UtcNow.Add(PanelTwoFactor.SetupStepLifetime) });
+                return Results.Ok(new { twoFactorSetupRequired = true });
+            }
+
             await signInManager.SignInAsync(user, isPersistent: true);
-            return Results.Ok(ToDto(user));
+            return Results.Ok(ToDto(user, twoFactorRequired: false));
         }).RequireRateLimiting("auth");
 
         auth.MapTwoFactorEndpoints();
@@ -174,22 +187,27 @@ public static class AuthEndpoints
             return Results.NoContent();
         }).RequireRateLimiting("auth");
 
-        auth.MapGet("/me", async (ClaimsPrincipal principal, UserManager<AppUser> userManager) =>
+        // Responde aunque falte configurar la verificación obligatoria
+        // (TwoFactorSetupMiddleware no frena /auth/): con twoFactorRequired y
+        // twoFactorEnabled el panel sabe que tiene que llevar a configurarla.
+        auth.MapGet("/me", async (ClaimsPrincipal principal, UserManager<AppUser> userManager, TwoFactorRequirement requirement) =>
         {
             var user = await userManager.GetUserAsync(principal);
-            return user is null ? Results.Unauthorized() : Results.Ok(ToDto(user));
+            return user is null ? Results.Unauthorized() : Results.Ok(ToDto(user, await requirement.AppliesToAsync(user.Id)));
         }).RequireAuthorization();
 
         return group;
     }
 
-    internal static object ToDto(AppUser user) => new
+    /// <param name="twoFactorRequired">Si a la persona se le exige la verificación en dos pasos (TwoFactorRequirement).</param>
+    internal static object ToDto(AppUser user, bool twoFactorRequired) => new
     {
         id = user.Id,
         email = user.Email,
         name = user.DisplayName,
         emailVerified = user.EmailConfirmed,
         twoFactorEnabled = user.TwoFactorEnabled,
+        twoFactorRequired,
     };
 
     /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>

@@ -133,6 +133,8 @@ public static class ServiceRegistration
         services.AddHostedService<Api.Auth.PanelAccountEmailWorker>();
         // Verificación en dos pasos del panel (login y "Mi cuenta").
         services.AddScoped<Api.Auth.PanelTwoFactor>();
+        // Obligatoria para dueños y administradores (Auth:RequireTwoFactorForAdmins).
+        services.AddScoped<Api.Auth.TwoFactorRequirement>();
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddSingleton<Api.Shop.ShopperMailDispatch>();

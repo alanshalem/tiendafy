@@ -110,15 +110,37 @@ olvida la restablece por email. El email se busca con NFKC + mayúsculas
 (`PanelLookupNormalizer`); las cuentas guardadas con la clave vieja (solo
 mayúsculas) las encuentra `AppUserManager` y les guarda la nueva.
 
-**Verificación en dos pasos** (opcional, de cada persona, desde "Mi cuenta"):
-código de 6 dígitos de una app de autenticación (TOTP de ASP.NET Identity) y
-10 códigos de recuperación de un solo uso. Con ella activa, `POST /auth/login`
-no abre sesión: deja la cookie intermedia `tiendafy.2fa` (5 minutos) y responde
+**Verificación en dos pasos** (de cada persona, desde "Mi cuenta"): código de 6
+dígitos de una app de autenticación (TOTP de ASP.NET Identity) y 10 códigos de
+recuperación de un solo uso. Con ella activa, `POST /auth/login` no abre sesión:
+deja la cookie intermedia `tiendafy.2fa` (5 minutos) y responde
 `{ twoFactorRequired: true }`; la sesión la abre `POST /auth/login/2fa` con el
 código. Cada código mal puesto cuenta para el bloqueo por intentos, como la
 contraseña. La clave de la app va cifrada (purpose
 `Tiendafy.Identity.AuthenticatorKey.v1`) y los códigos de recuperación como
 hash (`AppUserStore`). Endpoints en `AuthTwoFactorEndpoints.cs`.
+
+Es **obligatoria para quien es dueño o administrador de alguna tienda**
+(`Roles.RequireTwoFactor`, si `Auth:RequireTwoFactorForAdmins` está prendida;
+`TwoFactorRequirement`). No hay rol de administrador de la plataforma: quien la
+opera es dueño de sus tiendas. Para esas personas:
+
+- El login sin la verificación activa no abre sesión: deja la misma cookie
+  intermedia marcada "para configurar" (15 minutos) y responde
+  `{ twoFactorSetupRequired: true }`. Con ella solo andan `GET /auth/2fa`,
+  `POST /auth/2fa/setup` y `POST /auth/2fa/enable` (que pide también la
+  contraseña); al activarla se abre la sesión y la respuesta trae los códigos
+  de recuperación y el usuario.
+- Una sesión abierta sin ella (de antes de exigirla, o de alguien que pasó a
+  ser dueño o administrador) recibe 403 `Auth.TwoFactorSetupRequired` en toda
+  la API salvo `/auth/*` (`TwoFactorSetupMiddleware`); `/auth/me` responde con
+  `twoFactorRequired` y el panel lleva a configurarla.
+- No la pueden desactivar (403 `Auth.TwoFactorRequired`). Sí generar códigos
+  nuevos o pasarla a otra app: `POST /auth/2fa/relink` (contraseña **y** código)
+  devuelve la clave nueva y un ticket cifrado; `POST /auth/2fa/relink/confirm`
+  la guarda recién con un código de la app nueva.
+- Sin teléfono ni códigos: `dotnet Api.dll reset-2fa <email>`, lo corre quien
+  opera la plataforma (`docs/despliegue.md`).
 
 Crear una tienda nueva es de quien ya es **dueño** de alguna (`TeamRules.CanCreateStore`;
 la única excepción es la primera tienda de una instalación nueva). Editar,
