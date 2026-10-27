@@ -42,6 +42,21 @@ namespace Api.Startup;
 /// </summary>
 public static class ServiceRegistration
 {
+    /// <summary>
+    /// Configuración operativa de la plataforma en base de datos
+    /// (<c>platform_settings</c>), que pisa en caliente a <c>.env.prod</c>.
+    /// </summary>
+    public static WebApplicationBuilder AddPlatformSettings(this WebApplicationBuilder builder)
+    {
+        var provider = new Api.Platform.PlatformConfigurationProvider();
+        var source = new Api.Platform.PlatformConfigurationSource(provider);
+        builder.Configuration.Sources.Add(source);
+        builder.Services.AddSingleton(provider);
+        builder.Services.AddSingleton(source);
+        builder.Services.AddScoped<Api.Platform.PlatformSettingsService>();
+        return builder;
+    }
+
     /// <summary>Logging estructurado (Serilog) + error-tracking (Sentry, gated por DSN).</summary>
     public static WebApplicationBuilder AddObservability(this WebApplicationBuilder builder)
     {
@@ -281,6 +296,14 @@ public static class ServiceRegistration
         services.AddHttpClient(Api.Storefront.StorefrontRevalidator.HttpClientName,
             c => c.Timeout = Api.Storefront.StorefrontRevalidator.Timeout);
         services.AddSingleton<Api.Storefront.IStorefrontRevalidator, Api.Storefront.StorefrontRevalidator>();
+
+        // Opciones que pueden cambiar en caliente desde Configuración de la plataforma:
+        // IOptions<T> delega a IOptionsMonitor<T>.CurrentValue.
+        services.AddSingleton<Microsoft.Extensions.Options.IOptions<EmailOptions>, Api.Platform.LiveOptions<EmailOptions>>();
+        services.AddSingleton<Microsoft.Extensions.Options.IOptions<global::Payments.Infrastructure.MercadoPago.MercadoPagoOptions>, Api.Platform.LiveOptions<global::Payments.Infrastructure.MercadoPago.MercadoPagoOptions>>();
+        services.AddSingleton<Microsoft.Extensions.Options.IOptions<MeliOptions>, Api.Platform.LiveOptions<MeliOptions>>();
+        services.AddSingleton<Microsoft.Extensions.Options.IOptions<Api.MetaAds.MetaAdsOptions>, Api.Platform.LiveOptions<Api.MetaAds.MetaAdsOptions>>();
+        services.AddSingleton<Microsoft.Extensions.Options.IOptions<Api.Social.SocialOptions>, Api.Platform.LiveOptions<Api.Social.SocialOptions>>();
 
         return services;
     }

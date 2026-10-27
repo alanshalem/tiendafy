@@ -68,7 +68,7 @@ pnpm verify --back       # build con -warnaserror, dotnet format, unit e integra
   también en el bundle del servidor); el panel reescribe `config.js` al arrancar.
 - **DataProtection.** Nunca cambiar un *purpose* (el string de cada
   `CreateProtector(...)` o `Purpose = ...`: `Tiendafy.Fiscal.Secrets.v1`,
-  `Customers.PII.v1`, `Tiendafy.Ai.Keys.v1`, `tiendafy.correo.tokens`…, no siguen un único patrón):
+  `Customers.PII.v1`, `Tiendafy.Ai.Keys.v1`, `Tiendafy.Platform.Secrets.v1`, `tiendafy.correo.tokens`…, no siguen un único patrón):
   todo lo cifrado con el viejo deja de poder leerse. El volumen `dpkeys` se
   backupea junto con la base.
 - **Plata.** `Money` es entero en centavos (`long`) más la moneda; nunca

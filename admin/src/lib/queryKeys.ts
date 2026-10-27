@@ -27,6 +27,8 @@ export const qk = {
   /* ---------- Tiendas (las de la cuenta: no son de una tienda) ---------- */
   tenants: () => ['tenants'] as const,
   tenantsPage: (page: number, q: string) => ['tenants', 'pagina', page, q] as const,
+  /** Configuración global de la plataforma (solo superadministrador). */
+  platformSettings: () => ['platform-settings'] as const,
 
   /* ---------- Inteligencia artificial ---------- */
   /** Qué tareas de IA puede usar esta persona en esta tienda (disponibilidad y motivo). */

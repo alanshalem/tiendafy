@@ -15,10 +15,18 @@ public sealed class AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> 
     public DbSet<RolePermissionOverride> RolePermissionOverrides => Set<RolePermissionOverride>();
     public DbSet<MemberPermissionOverride> MemberPermissionOverrides => Set<MemberPermissionOverride>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        var ps = builder.Entity<PlatformSetting>();
+        ps.ToTable("platform_settings");
+        ps.HasKey(x => x.Key);
+        ps.Property(x => x.Key).HasMaxLength(120);
+        ps.Property(x => x.Value).HasMaxLength(4000).IsRequired();
+        ps.Property(x => x.UpdatedByEmail).HasMaxLength(256);
 
         var m = builder.Entity<TenantMembership>();
         m.ToTable("tenant_memberships");

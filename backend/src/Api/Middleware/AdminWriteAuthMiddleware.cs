@@ -19,6 +19,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
     {
         "/api/v1/auth",
         "/api/v1/tenants",
+        // Configuración de la plataforma: es de toda la instalación (no lleva
+        // X-Tenant-Id) y exige sesión de superadministrador adentro del grupo.
+        "/api/v1/admin/platform-settings",
         "/api/v1/checkout",
         "/api/v1/track",
         // Una búsqueda hecha en la tienda (para "búsquedas populares"). Exacta:

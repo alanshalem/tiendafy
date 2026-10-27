@@ -12,4 +12,12 @@ public sealed class AppUser : IdentityUser<Guid>
 {
     public string DisplayName { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Superadministrador de la plataforma: único usuario que puede ver y
+    /// cambiar la Configuración de la plataforma (palancas globales y claves de
+    /// servicios compartidos por todas las tiendas). Se asigna por CLI
+    /// (<c>dotnet Api.dll make-superadmin</c>), nunca desde el panel.
+    /// </summary>
+    public bool IsSuperAdmin { get; set; }
 }

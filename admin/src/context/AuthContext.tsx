@@ -15,6 +15,11 @@ export interface AdminUser {
    * sin activarla no usa el panel, y no la puede desactivar.
    */
   twoFactorMandatory?: boolean;
+  /**
+   * Si es superadministrador de la plataforma (única cuenta que ve y edita
+   * Configuración de la plataforma en /plataforma).
+   */
+  isSuperAdmin?: boolean;
 }
 
 export interface AuthResult {

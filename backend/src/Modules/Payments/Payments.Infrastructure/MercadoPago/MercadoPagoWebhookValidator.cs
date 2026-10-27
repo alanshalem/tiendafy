@@ -12,7 +12,7 @@ namespace Payments.Infrastructure.MercadoPago;
 /// </summary>
 public sealed class MercadoPagoWebhookValidator(IOptions<MercadoPagoOptions> options) : IMercadoPagoWebhookValidator
 {
-    private readonly MercadoPagoOptions _o = options.Value;
+    private MercadoPagoOptions _o => options.Value;
 
     public WebhookValidationResult Validate(string? xSignatureHeader, string? xRequestId, string? dataIdFromQuery, string rawBody)
     {

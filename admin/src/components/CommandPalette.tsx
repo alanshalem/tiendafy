@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Package, Receipt, ShoppingCart, UserRound } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { visibleMainNav, visibleSettingsNav } from '../config/navigation';
 import { routePerm, satisfies, type Perm } from '../lib/access';
@@ -59,6 +60,7 @@ const KEYWORDS: Record<string, string> = {
   '/canales/tienda-online': 'tema tienda online personalizar editor diseño',
   '/estadisticas': 'reportes analytics',
   '/tenants': 'tiendas sucursales',
+  '/plataforma': 'superadmin variables entorno env resend turnstile oauth',
   '/presupuestos': 'cotizacion',
   '/compras': 'importaciones ordenes de compra contenedor',
   '/tesoreria': 'caja banco cobros pagos',
@@ -85,8 +87,8 @@ const EXTRA: NavCommand[] = [
  * Las pantallas que la persona puede abrir: las de sus menús (así el buscador
  * encuentra exactamente lo que el menú muestra) más algunos accesos directos.
  */
-function navCommands(can: (perm: Perm) => boolean): NavCommand[] {
-  const main: NavCommand[] = visibleMainNav(can).flatMap((s) =>
+function navCommands(can: (perm: Perm) => boolean, isSuperAdmin: boolean): NavCommand[] {
+  const main: NavCommand[] = visibleMainNav(can, isSuperAdmin).flatMap((s) =>
     s.items
       .flatMap((it) => [it, ...(it.children ?? [])])
       .map((it) => ({ label: it.label, to: it.to, group: 'Ir a' })),
@@ -174,7 +176,9 @@ type Target = { to: string };
 function PaletteDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { store } = useStore();
+  const { user } = useAuth();
   const { can } = usePermissions();
+  const isSuperAdmin = Boolean(user?.isSuperAdmin);
   const [q, setQ] = useState('');
   const term = useDebouncedValue(q.trim(), 250);
   const remote = !!store && term.length >= MIN_REMOTE && REMOTE_PERMS.some(can);
@@ -267,7 +271,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
       ),
     );
 
-    const nav = navCommands(can)
+    const nav = navCommands(can, isSuperAdmin)
       // El grupo cuenta: "configuración" trae todas las pantallas de Configuración.
       .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''} ${c.group}`))
       .slice(0, 8)
@@ -277,7 +281,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
 
     const items: PaletteItem[] = [...orders, ...customers, ...products, ...purchases, ...suppliers, ...nav];
     return { items, targets };
-  }, [q, remote, search.data, can]);
+  }, [q, remote, search.data, can, isSuperAdmin]);
 
   return (
     <SearchPalette

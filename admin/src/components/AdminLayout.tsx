@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LifeBuoy, Settings } from 'lucide-react';
 import { cn, Tooltip } from '@tiendafy/ui';
+import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { firstSettingsPath } from '../lib/access';
 import { visibleMainNav, type NavItem } from '../config/navigation';
@@ -127,10 +128,11 @@ function SidebarItem({ item, counts }: { item: NavItem; counts: Record<NavBadge,
 }
 
 export function AdminLayout() {
+  const { user } = useAuth();
   const { can } = usePermissions();
   const counts = useNavCounts();
 
-  const visibleSections = visibleMainNav(can);
+  const visibleSections = visibleMainNav(can, Boolean(user?.isSuperAdmin));
 
   // La entrada Configuración se muestra si puede ver ALGO adentro.
   const showSettings = firstSettingsPath(can) !== null;

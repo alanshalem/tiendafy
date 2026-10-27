@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, LogOut, Search, Store, UserRound } from 'lucide-react';
+import { ExternalLink, LogOut, Search, ShieldAlert, Store, UserRound } from 'lucide-react';
 import { Dropdown } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
@@ -96,6 +96,13 @@ export function HeaderActions() {
               <Store className="h-4 w-4" aria-hidden="true" /> Mis tiendas
             </span>
           </Dropdown.Item>
+          {user?.isSuperAdmin && (
+            <Dropdown.Item onSelect={() => navigate('/plataforma')}>
+              <span className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" /> Configuración de la plataforma
+              </span>
+            </Dropdown.Item>
+          )}
           <Dropdown.Item destructive onSelect={() => logout()}>
             <span className="flex items-center gap-2">
               <LogOut className="h-4 w-4" aria-hidden="true" /> Cerrar sesión

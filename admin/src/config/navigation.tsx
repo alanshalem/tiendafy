@@ -45,6 +45,7 @@ export interface NavItem {
   desc?: string;
   soon?: boolean;
   badge?: NavBadge;
+  superAdminOnly?: boolean;
   children?: NavChild[];
 }
 
@@ -295,6 +296,12 @@ const MAIN_NAV: NavSection[] = [
         label: 'Mis tiendas',
         desc: 'Todas las tiendas del grupo: entrar a una o crear la próxima.',
       },
+      {
+        to: '/plataforma',
+        label: 'Configuración de la plataforma',
+        desc: 'Palancas operativas y credenciales compartidas por todas las tiendas (solo superadmin).',
+        superAdminOnly: true,
+      },
     ],
   },
 ];
@@ -460,11 +467,12 @@ const allowedFor = (can: (perm: Perm) => boolean) => (x: { to: string }) =>
  * hijos (aunque la pantalla del grupo pida otra cosa); una sección sin nada
  * visible no muestra su título.
  */
-export function visibleMainNav(can: (perm: Perm) => boolean): NavSection[] {
+export function visibleMainNav(can: (perm: Perm) => boolean, isSuperAdmin = false): NavSection[] {
   const allowed = allowedFor(can);
   return MAIN_NAV.map((s) => ({
     ...s,
     items: s.items
+      .filter((it) => !it.superAdminOnly || isSuperAdmin)
       .map((it) => (it.children ? { ...it, children: it.children.filter(allowed) } : it))
       .filter((it) => (it.children ? it.children.length > 0 : allowed(it))),
   })).filter((s) => s.items.length > 0);

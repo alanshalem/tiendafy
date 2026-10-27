@@ -5,6 +5,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddPlatformSettings();
 builder.AddObservability();
 builder.Services.AddAllModules(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddIntegrations(builder.Configuration);
@@ -16,6 +17,15 @@ builder.Services.AddAppCors(builder.Configuration, builder.Environment);
 builder.Services.AddAppResponseCompression();
 
 var app = builder.Build();
+
+// Asegura que PlatformConfigurationSource quede al final incluso cuando
+// WebApplicationFactory agrega fuentes en memoria durante Build().
+var platformSource = app.Services.GetRequiredService<Api.Platform.PlatformConfigurationSource>();
+if (!ReferenceEquals(builder.Configuration.Sources.LastOrDefault(), platformSource))
+{
+    builder.Configuration.Sources.Remove(platformSource);
+    builder.Configuration.Sources.Add(platformSource);
+}
 
 // PII cifrada en reposo con DataProtection: la de los clientes, la del
 // comprador en ventas y checkouts (teléfono, documento, dirección) y su
@@ -82,6 +92,37 @@ if (resetTwoFactorAt >= 0)
     return;
 }
 
+// Mantenimiento: `dotnet Api.dll make-superadmin <email> [contraseña] [nombre]`
+// crea o promueve la cuenta de superadministrador de la plataforma.
+var makeSuperAdminAt = Array.IndexOf(args, Api.Auth.SuperAdminCli.Command);
+if (makeSuperAdminAt >= 0)
+{
+    var email = args.ElementAtOrDefault(makeSuperAdminAt + 1);
+    var password = args.ElementAtOrDefault(makeSuperAdminAt + 2);
+    var displayName = args.ElementAtOrDefault(makeSuperAdminAt + 3);
+    if (string.IsNullOrWhiteSpace(email))
+    {
+        app.Logger.LogError("Falta el email: dotnet Api.dll make-superadmin <email> [contraseña] [nombre]");
+        Environment.ExitCode = 1;
+        return;
+    }
+    var (outcome, error) = await Api.Auth.SuperAdminCli.RunAsync(app.Services, email, password, displayName);
+    switch (outcome)
+    {
+        case Api.Auth.SuperAdminCliOutcome.Created:
+            app.Logger.LogInformation("Cuenta de superadministrador creada y asociada como dueña en todas las tiendas. Saliendo.");
+            break;
+        case Api.Auth.SuperAdminCliOutcome.Promoted:
+            app.Logger.LogInformation("Cuenta promovida a superadministrador y asociada como dueña en todas las tiendas. Saliendo.");
+            break;
+        default:
+            app.Logger.LogError("No se pudo configurar el superadministrador: {Error}", error);
+            Environment.ExitCode = 1;
+            break;
+    }
+    return;
+}
+
 // Migraciones pendientes de todos los módulos, antes de servir (idempotente).
 // Prod multi-instancia: poné Database__MigrateOnStartup=false y corré las
 // migraciones como paso de deploy (evita carreras de migración al boot).
@@ -89,6 +130,17 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
     await app.Services.MigrateDatabaseAsync();
 else
     app.Logger.LogInformation("Migraciones en startup desactivadas (Database:MigrateOnStartup=false).");
+
+// Carga las palancas y credenciales guardadas desde Configuración de la plataforma.
+try
+{
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<Api.Platform.PlatformSettingsService>().ReloadProviderAsync();
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "No se pudieron cargar los ajustes de plataforma al iniciar.");
+}
 
 // Bucket de media listo antes de servir (idempotente). Apagable por config
 // (tests de integración corren sin MinIO).

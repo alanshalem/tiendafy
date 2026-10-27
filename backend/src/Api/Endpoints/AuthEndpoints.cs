@@ -80,7 +80,7 @@ public static class AuthEndpoints
             }
 
             await signInManager.SignInAsync(user, isPersistent: true);
-            return Results.Created($"/api/v1/auth/me", ToDto(user, await requirement.AppliesToAsync(user.Id, ct)));
+            return Results.Created($"/api/v1/auth/me", ToDto(user, await requirement.AppliesToAsync(user, ct)));
         }).RequireRateLimiting("auth");
 
         // Confirma el email del merchant (link del correo de verificación).
@@ -154,7 +154,7 @@ public static class AuthEndpoints
             // exigiéndola: tampoco abre sesión. Queda la misma cookie intermedia,
             // marcada para que solo sirva para configurarla; al confirmarla con
             // un código, /auth/2fa/enable abre la sesión (AuthTwoFactorEndpoints).
-            if (await requirement.AppliesToAsync(user.Id))
+            if (await requirement.AppliesToAsync(user))
             {
                 await http.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, PanelTwoFactor.PendingSetupPrincipal(user),
                     new AuthenticationProperties { ExpiresUtc = DateTimeOffset.UtcNow.Add(PanelTwoFactor.SetupStepLifetime) });
@@ -207,7 +207,7 @@ public static class AuthEndpoints
         auth.MapGet("/me", async (ClaimsPrincipal principal, UserManager<AppUser> userManager, TwoFactorRequirement requirement) =>
         {
             var user = await userManager.GetUserAsync(principal);
-            return user is null ? Results.Unauthorized() : Results.Ok(ToDto(user, await requirement.AppliesToAsync(user.Id)));
+            return user is null ? Results.Unauthorized() : Results.Ok(ToDto(user, await requirement.AppliesToAsync(user)));
         }).RequireAuthorization();
 
         return group;
@@ -222,6 +222,7 @@ public static class AuthEndpoints
         emailVerified = user.EmailConfirmed,
         twoFactorEnabled = user.TwoFactorEnabled,
         twoFactorMandatory,
+        isSuperAdmin = user.IsSuperAdmin,
     };
 
     /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>

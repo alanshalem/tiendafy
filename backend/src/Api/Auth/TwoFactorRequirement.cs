@@ -30,9 +30,13 @@ public sealed class TwoFactorRequirement(IConfiguration cfg, IMembershipService 
     public async Task<bool> AppliesToAsync(Guid userId, CancellationToken ct = default) =>
         Enabled && await memberships.HasAnyRoleAsync(userId, Roles.RequireTwoFactor, ct);
 
+    /// <summary>Si a esta persona se le exige (dueño/admin de tienda o superadmin de la plataforma).</summary>
+    public async Task<bool> AppliesToAsync(AppUser user, CancellationToken ct = default) =>
+        Enabled && (user.IsSuperAdmin || await memberships.HasAnyRoleAsync(user.Id, Roles.RequireTwoFactor, ct));
+
     /// <summary>Si se le exige y todavía no la activó.</summary>
     public async Task<bool> MissingAsync(AppUser user, CancellationToken ct = default) =>
-        !user.TwoFactorEnabled && await AppliesToAsync(user.Id, ct);
+        !user.TwoFactorEnabled && await AppliesToAsync(user, ct);
 
     /// <summary>El 403 de "configurá la verificación en dos pasos" (lo reconoce el panel por el título).</summary>
     public static IResult SetupRequired() =>

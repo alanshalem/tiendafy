@@ -66,7 +66,7 @@ public static class AuthTwoFactorEndpoints
             await userManager.ResetAccessFailedCountAsync(user);
             await http.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
             await signInManager.SignInWithClaimsAsync(user, isPersistent: true, [new Claim("amr", "mfa")]);
-            return Results.Ok(AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user.Id)));
+            return Results.Ok(AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user)));
         }).RequireRateLimiting("auth");
 
         // Ver el estado, empezar y confirmar: con la sesión o con el paso
@@ -154,7 +154,7 @@ public static class AuthTwoFactorEndpoints
             return Results.Ok(new
             {
                 recoveryCodes = codes,
-                user = AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user.Id)),
+                user = AuthEndpoints.ToDto(user, await requirement.AppliesToAsync(user)),
             });
         }).RequireRateLimiting("auth");
 
@@ -171,7 +171,7 @@ public static class AuthTwoFactorEndpoints
             var user = await userManager.GetUserAsync(principal);
             if (user is null) return Results.Unauthorized();
             if (!user.TwoFactorEnabled) return Results.NoContent(); // idempotente
-            if (await requirement.AppliesToAsync(user.Id))
+            if (await requirement.AppliesToAsync(user))
                 return Results.Problem(title: "Auth.TwoFactorRequired",
                     detail: "Para dueños y administradores la verificación en dos pasos es obligatoria: no se puede desactivar. Si cambiaste de teléfono, pasala a la app nueva.",
                     statusCode: StatusCodes.Status403Forbidden);

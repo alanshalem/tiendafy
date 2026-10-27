@@ -10,7 +10,8 @@ a **todas** las tiendas de la base, para ver el panel como lo ve cada uno.
 
 | Rol           | Email                          | Qué puede, con los permisos de fábrica                                                              |
 | ------------- | ------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Dueño         | `admin@tiendafy.local`         | Todo. Es la que usa el e2e (`e2e/tests/_helpers.ts`)                                                |
+| Dueño         | `admin@tiendafy.local`         | Todo en las tiendas. Es la que usa el e2e (`e2e/tests/_helpers.ts`)                                 |
+| Superadmin    | `superadmin@tiendafy.local`    | Todo en las tiendas + Configuración de la plataforma (`/plataforma`). En prod se asigna con `dotnet Api.dll make-superadmin <email>` |
 | Dueño         | `duenio@tiendafy.local`        | Todo (un segundo dueño, para probar las reglas entre dueños)                                        |
 | Administrador | `administrador@tiendafy.local` | Todo menos dominios, editar y borrar la tienda (eso es solo del dueño)                              |
 | Vendedor      | `vendedor@tiendafy.local`      | Ventas (registrar y despachar), presupuestos, atender Mercado Libre, clientes, chat, reseñas, estadísticas; ve stock y cupones |

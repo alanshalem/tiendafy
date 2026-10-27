@@ -59,11 +59,11 @@ export BACKUP_UID="$(id -u)" BACKUP_GID="$(id -g)"
 backups_writable() {
   local dir="backups/$APP_ENV"
   mkdir -p "$dir" 2> /dev/null || true
-  if [ ! -w "$dir" ]; then
+  if [ ! -w "$dir" ] || [ -n "$(find "$dir" -maxdepth 1 ! -user "$(id -u)" -print -quit 2> /dev/null)" ]; then
     # Backups viejos, de cuando pg-backup corría como root: se los devuelve con
     # un contenedor de ese servicio, que ya monta la carpeta (estar en el grupo
     # docker alcanza, no hace falta sudo).
-    echo "==> $dir es de root: pasa a $(id -un)"
+    echo "==> $dir tiene archivos de root: pasan a $(id -un)"
     compose run --rm --no-deps -T --user 0 --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
       --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
     [ -w "$dir" ] || {

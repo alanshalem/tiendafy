@@ -112,6 +112,16 @@ public sealed partial class ApiFixturesExport
     /// </summary>
     private async Task ReadyToSellAsync(Merchant store)
     {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Identity.Infrastructure.AppUser>>();
+            var user = await users.FindByEmailAsync(store.Email);
+            if (user is not null && !user.IsSuperAdmin)
+            {
+                user.IsSuperAdmin = true;
+                await users.UpdateAsync(user);
+            }
+        }
         _ = new FakeArca(_factory.ExternalHttp);
         await store.ConfigureFiscalAsync();
         await store.PutAsync("/api/v1/admin/payments/options", new

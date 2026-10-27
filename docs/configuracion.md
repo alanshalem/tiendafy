@@ -58,7 +58,15 @@ $env:MercadoLibre__ClientId = '...'; $env:MercadoLibre__ClientSecret = '...'
 > `UserSecretsId`.
 
 **En producción**, el servicio `api` de `infra/docker/docker-compose.stack.yml`
-arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
+arma estas claves a partir del `.env.prod` (columna "En `.env.prod`"). Las
+palancas operativas (`Auth:RequireTwoFactorForAdmins`, `Ai:Disabled`) y las
+credenciales de servicios compartidos (Resend, Turnstile, Google OAuth y las
+apps de Mercado Pago, Mercado Libre, Meta Ads y redes sociales) se pueden
+cargar y cambiar en caliente desde **Configuración de la plataforma**
+(`/plataforma`, solo para usuarios con `IsSuperAdmin = true`, dados de alta con
+`dotnet Api.dll make-superadmin <email>`): lo guardado ahí va a la tabla
+`platform_settings` (secretos cifrados con DataProtection, purpose
+`Tiendafy.Platform.Secrets.v1`) y pisa al `.env.prod` sin reiniciar contenedores.
 
 ### Base, red y arranque
 
@@ -120,7 +128,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Social:Meta:AppId` / `:AppSecret` | Facebook e Instagram. Vacío = conector apagado | Vacío | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET` |
 | `Social:X:ClientId` / `:ClientSecret` | X | Vacío | `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` |
 | `Social:Meta:RedirectUri`, `Social:X:RedirectUri`, `Social:AdminReturnUrl` | OAuth y vuelta | Vacío / vacío / `http://localhost:5173/redes` | Derivadas de `STACK_DOMAIN` |
-| `Ai:Disabled` | Palanca de emergencia: apaga la IA de todas las tiendas (hace falta reiniciar la API). Las claves son de cada tienda, no de plataforma | `false` | `AI_DISABLED` (el compose la pasa como `Ai__Disabled`) |
+| `Ai:Disabled` | Palanca de emergencia: apaga la IA de todas las tiendas (editable en vivo desde `/plataforma` o por `.env.prod`). Las claves son de cada tienda, no de plataforma | `false` | `AI_DISABLED` (el compose la pasa como `Ai__Disabled`) |
 | `RateLimiting:AiPermitLimit` | Llamadas de IA por usuario y por ruta cada 5 minutos | `30` | Sin variable: default del código |
 | `RateLimiting:AiJobsPermitLimit` | Trabajos masivos de IA por tienda por hora | `5` | Sin variable: default del código |
 | `Fiscal:Endpoints:*` | URLs de WSAA, WSFEv1 y padrón (constancia de inscripción) de ARCA, en homologación y producción (cada tienda elige su ambiente) | Las oficiales, en el código | No hace falta tocarlas |

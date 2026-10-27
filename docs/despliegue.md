@@ -172,7 +172,7 @@ recrea los contenedores cuya config cambió).
 | `MEDIA_BUCKET_IN_PUBLIC_URL` | `false` | `false` con dominio propio de R2 (objeto en la raíz); `true` en MinIO o S3 path-style (`{base}/{bucket}/{key}`) |
 | `MEDIA_ENSURE_BUCKET` | `false` | R2 no soporta `PutBucketPolicy`: los buckets se crean a mano una vez |
 
-**Email, cobros y servicios** (vacío = apagado, y el panel lo dice)
+**Email, cobros y servicios** (vacío = apagado; también se pueden cargar en vivo desde `/plataforma` con una cuenta superadmin, sin tocar `.env.prod`)
 
 | Variable | Notas |
 |---|---|
@@ -638,6 +638,27 @@ entrar desde el panel: la borra quien opera la plataforma.
    le pide configurar la verificación de nuevo antes de dejarla pasar.
 
 En staging, lo mismo con `.env.staging`.
+
+### Dar de alta o promover un superadmin (`make-superadmin`)
+
+La pantalla **Configuración de la plataforma** (`/plataforma`) permite cambiar
+en caliente las palancas operativas (`Auth:RequireTwoFactorForAdmins`,
+`Ai:Disabled`) y las credenciales de servicios compartidos (Resend, Turnstile,
+Google OAuth, Mercado Pago, Mercado Libre, Meta Ads y redes) sin tocar
+`.env.prod` ni reiniciar contenedores. Solo la ven las cuentas marcadas con
+`IsSuperAdmin = true` (una cuenta de demo como `admin@…` no la ve aunque sea
+dueña de una tienda).
+
+Para promover una cuenta existente o crear una nueva desde `infra/docker`:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm api \
+  dotnet Api.dll make-superadmin superadmin@tudominio.com "TuClaveSegura123!" "Nombre"
+```
+
+Si la cuenta ya existe, no hace falta pasar contraseña: la marca como
+superadmin, confirma su email y la suma como dueña a todas las tiendas
+actuales.
 
 ### Cambiar de major de Postgres (16 → 18)
 

@@ -129,6 +129,11 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "DELETE /api/v1/tenants/{id:guid}",
             "DELETE /api/v1/tenants/{id:guid}/purge",
         ],
+        ["Configuración de la plataforma: exige sesión de superadministrador (IsSuperAdmin) adentro del grupo"] =
+        [
+            "GET /api/v1/admin/platform-settings/",
+            "PUT /api/v1/admin/platform-settings/",
+        ],
         ["Webhooks y vueltas de OAuth: los llama el proveedor (se validan con firma o state)"] =
         [
             "POST /api/v1/payments/webhooks/mercadopago",
