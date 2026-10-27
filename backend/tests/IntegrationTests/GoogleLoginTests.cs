@@ -219,6 +219,74 @@ public sealed class GoogleLoginTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Una_cuenta_vinculada_a_otra_cuenta_de_Google_no_se_pisa()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "ggs");
+        var email = $"duena-{merchant.Subdomain}@empresa.example";
+        await using var app = WithGoogle();
+        var client = NoRedirects(app);
+        factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "id-token-ok" });
+
+        async Task<HttpResponseMessage> EnterAsync(string sub, string mail)
+        {
+            var state = await StartAsync(client, merchant.TenantId, "/");
+            _google.Next = new GoogleIdentity(sub, mail, "Dueña", EmailVerified: true);
+            return await client.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={Uri.EscapeDataString(state)}");
+        }
+
+        // La dueña original entra y queda vinculada.
+        Assert.Equal(HttpStatusCode.Redirect, (await EnterAsync("google-sub-original", email)).StatusCode);
+
+        // La dirección pasó a otra cuenta de Google (otro sub): no entra ni se vincula.
+        var other = await EnterAsync("google-sub-nuevo-dueno", email);
+        Assert.Equal(HttpStatusCode.Conflict, other.StatusCode);
+        Assert.Contains("Esa cuenta ya está vinculada a otra cuenta de Google", await other.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var cookies = other.Headers.TryGetValues("Set-Cookie", out var set) ? set.ToList() : [];
+        Assert.DoesNotContain(cookies, c => c.StartsWith($"shop_{merchant.TenantId:N}=", StringComparison.Ordinal));
+
+        // La dueña original sigue entrando, aunque Google ahora le dé otro email.
+        Assert.Equal(HttpStatusCode.Redirect, (await EnterAsync("google-sub-original", $"nueva-{merchant.Subdomain}@gmail.com")).StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Customers.Infrastructure.CustomersDbContext>();
+        var account = await db.Customers.IgnoreQueryFilters().SingleAsync(c => c.TenantId == merchant.TenantId && c.Email == email);
+        Assert.Equal("google-sub-original", account.GoogleSubject);
+        Assert.False(await db.Customers.IgnoreQueryFilters().AnyAsync(c => c.TenantId == merchant.TenantId && c.Email == $"nueva-{merchant.Subdomain}@gmail.com"));
+    }
+
+    [Fact]
+    public async Task Google_solo_para_una_tienda_que_existe_y_esta_abierta()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "ggt");
+        await using var app = WithGoogle();
+        var client = NoRedirects(app);
+
+        // Un GUID que no es de ninguna tienda.
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/shop/auth/google/start?tenant={Guid.NewGuid()}&return=/")).StatusCode);
+
+        // La tienda se suspende entre el arranque y la vuelta: no se da de alta a nadie.
+        var state = await StartAsync(client, merchant.TenantId, "/");
+        using (var scope = factory.Services.CreateScope())
+        {
+            var tenancy = scope.ServiceProvider.GetRequiredService<Tenancy.Infrastructure.Persistence.TenancyDbContext>();
+            (await tenancy.Tenants.IgnoreQueryFilters().SingleAsync(t => t.Id == merchant.TenantId)).Suspend();
+            await tenancy.SaveChangesAsync();
+        }
+        factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "id-token-ok" });
+        var email = $"susp-{merchant.Subdomain}@gmail.com";
+        _google.Next = new GoogleIdentity("google-sub-susp", email, "Ana", EmailVerified: true);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={Uri.EscapeDataString(state)}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/shop/auth/google/start?tenant={merchant.TenantId}&return=/")).StatusCode);
+
+        using var check = factory.Services.CreateScope();
+        var db = check.ServiceProvider.GetRequiredService<Customers.Infrastructure.CustomersDbContext>();
+        Assert.False(await db.Customers.IgnoreQueryFilters().AnyAsync(c => c.Email == email));
+    }
+
+    [Fact]
     public async Task Sin_el_secreto_de_Google_el_callback_no_corre()
     {
         await using var app = factory.WithWebHostBuilder(b => b.UseSetting("Authentication:Google:ClientId", "google-client"));

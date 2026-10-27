@@ -8,6 +8,8 @@ using Customers.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
+using Tenancy.Core.Domain;
+using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Endpoints;
 
@@ -227,12 +229,15 @@ public static class ShopAuthEndpoints
 
         // --- Google OAuth (authorization code). Gated por config del server. ---
         // `tenant` va por query (no header): el browser navega acá directo, sin XHR.
-        auth.MapGet("/google/start", (IConfiguration cfg, HttpContext http, IDataProtectionProvider dp, string tenant, string? @return) =>
+        auth.MapGet("/google/start", async (IConfiguration cfg, HttpContext http, IDataProtectionProvider dp, TenancyDbContext tenancy, string tenant, string? @return, CancellationToken ct) =>
         {
             if (!Guid.TryParse(tenant, out var tid)) return Problem("ShopAuth.BadTenant", "Tenant inválido.", 400);
             var clientId = cfg["Authentication:Google:ClientId"];
             if (string.IsNullOrEmpty(clientId))
                 return Problem("ShopAuth.GoogleNotConfigured", "Login con Google no está configurado en el servidor.", 501);
+            // Solo para una tienda que existe y está abierta: si no, el callback
+            // daba de alta clientes de cualquier GUID que alguien inventara.
+            if (!await IsActiveStoreAsync(tenancy, tid, ct)) return NoStore();
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
 
             // El state va atado a ESTE navegador: lleva un nonce que también
@@ -252,7 +257,7 @@ public static class ShopAuthEndpoints
             return Results.Redirect(url);
         });
 
-        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
+        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, TenancyDbContext tenancy, HttpContext http, CancellationToken ct) =>
         {
             var clientId = cfg["Authentication:Google:ClientId"];
             var clientSecret = cfg["Authentication:Google:ClientSecret"];
@@ -278,6 +283,8 @@ public static class ShopAuthEndpoints
             if (string.IsNullOrEmpty(browserNonce)
                 || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(browserNonce), Encoding.UTF8.GetBytes(nonce)))
                 return Problem("ShopAuth.GoogleError", "El ingreso con Google no se empezó en este navegador. Probá de nuevo.", 400);
+            // La tienda pudo cerrarse (o borrarse) entre el arranque y la vuelta.
+            if (!await IsActiveStoreAsync(tenancy, tid, ct)) return NoStore();
 
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
             var client = httpFactory.CreateClient();
@@ -305,11 +312,20 @@ public static class ShopAuthEndpoints
             if (string.IsNullOrEmpty(sub) || string.IsNullOrEmpty(email) || !gp.EmailVerified)
                 return Problem("ShopAuth.GoogleError", "Google no devolvió un email verificado.", 502);
 
-            // La cuenta de comprador antes que un registro de la agenda con el mismo email.
-            var customer = await db.Customers
-                .Where(c => c.TenantId == tid && c.Email == email)
-                .OrderByDescending(c => c.PasswordHash != null || c.GoogleSubject != null)
-                .FirstOrDefaultAsync(ct);
+            // Primero la cuenta ya vinculada a ESTA cuenta de Google (aunque Google
+            // ahora le dé otro email); si no, por email: la cuenta de comprador
+            // antes que un registro de la agenda con el mismo email.
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.GoogleSubject == sub, ct)
+                ?? await db.Customers
+                    .Where(c => c.TenantId == tid && c.Email == email)
+                    .OrderByDescending(c => c.PasswordHash != null || c.GoogleSubject != null)
+                    .FirstOrDefaultAsync(ct);
+            // Una cuenta vinculada a OTRA cuenta de Google no se pisa: si la
+            // dirección cambió de dueño en Google (un dominio de Workspace que
+            // pasó a otro, una cuenta recreada), el nuevo dueño entraría a la
+            // cuenta del anterior, con sus pedidos y direcciones.
+            if (customer?.GoogleSubject is { } linked && linked != sub)
+                return Problem("ShopAuth.GoogleAccountMismatch", "Esa cuenta ya está vinculada a otra cuenta de Google.", 409);
             if (customer is null)
             {
                 var created = Customer.CreateShopper(tid, name, email, emailVerified: true);
@@ -336,6 +352,11 @@ public static class ShopAuthEndpoints
 
         return group;
     }
+
+    private static Task<bool> IsActiveStoreAsync(TenancyDbContext tenancy, Guid tid, CancellationToken ct) =>
+        tenancy.Tenants.AsNoTracking().AnyAsync(t => t.Id == tid && t.Status == TenantStatus.Active, ct);
+
+    private static IResult NoStore() => Problem("ShopAuth.BadTenant", "La tienda no existe o no está abierta.", 404);
 
     private static IResult Registered() => Results.Json(new { message = RegisterMessage }, statusCode: StatusCodes.Status202Accepted);
 

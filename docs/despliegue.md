@@ -693,6 +693,9 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   loopback, rangos privados y `169.254.169.254`).
 - **OAuth Google**: se verifica firma + `aud` + `exp` del `id_token`; el redirect
   post-login solo apunta a destinos propios (anti open-redirect/robo de token).
+  La cuenta se busca primero por la cuenta de Google (`sub`) y después por
+  email; una cuenta ya vinculada a otra cuenta de Google no se pisa (409). El
+  arranque y la vuelta exigen una tienda que exista y esté abierta.
 - **Uploads**: validación por *magic bytes* además del content-type.
 - **Sesión admin**: cookie `HttpOnly` + `SameSite=Lax` + `Secure` (forzado en prod).
 - **Segundo factor del panel**: TOTP con códigos de recuperación. Obligatorio
