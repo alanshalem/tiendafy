@@ -17,10 +17,13 @@ builder.Services.AddAppResponseCompression();
 
 var app = builder.Build();
 
-// PII de clientes (teléfono/dirección) cifrada en reposo con DataProtection.
+// PII cifrada en reposo con DataProtection: la de los clientes y la del
+// comprador en ventas y checkouts (teléfono, documento, dirección).
 // Debe quedar seteado antes de construir el modelo EF / migrar.
-Customers.Infrastructure.CustomersDbContext.UsePii(
-    app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>());
+var dataProtection = app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>();
+Customers.Infrastructure.CustomersDbContext.UsePii(dataProtection);
+Orders.Infrastructure.Persistence.OrdersDbContext.UsePii(dataProtection);
+Checkout.Infrastructure.Persistence.CheckoutDbContext.UsePii(dataProtection);
 
 app.UseProxyHeaders();
 

@@ -47,6 +47,18 @@ public class OrderShippingTests
     }
 
     [Fact]
+    public void Datos_del_comprador_demasiado_largos_se_cortan_en_el_dominio()
+    {
+        // Van cifrados en columnas `text`: la base ya no frena un valor largo.
+        var order = NewOrder();
+        order.SetShippingAndBuyer(new Money(0, "ARS"), null, new string('a', 400), null, new string('1', 60), new string('2', 30), null);
+
+        Assert.Equal(Order.ShippingAddressMaxLength, order.ShippingAddress!.Length);
+        Assert.Equal(Order.BuyerPhoneMaxLength, order.BuyerPhone!.Length);
+        Assert.Equal(Order.DocNumberMaxLength, order.DocNumber!.Length);
+    }
+
+    [Fact]
     public void Refund_RemainingIncludesShipping()
     {
         var order = NewOrder(); // subtotal 200 + envío 50 = 250

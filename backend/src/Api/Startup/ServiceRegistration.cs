@@ -248,6 +248,10 @@ public static class ServiceRegistration
         services.AddScoped<Api.Purchasing.StockAlertService>();
         if (runPollingWorkers) services.AddHostedService<Api.Purchasing.StockAlertWorker>();
 
+        // Una pasada al arrancar que cifra los datos del comprador que una
+        // versión vieja haya guardado en claro durante el deploy.
+        if (runPollingWorkers) services.AddHostedService<BuyerPiiBackfillService>();
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
         // Fuera de Development, sin secret: Critical al arrancar (no tira la app).

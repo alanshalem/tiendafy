@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using SharedKernel.Abstractions;
@@ -20,6 +21,28 @@ public sealed class OrdersDbContext : DbContext
         _filterByTenant = tenant?.HasTenant == true;
         _currentTenant = _filterByTenant ? tenant!.TenantId : default;
     }
+
+    // Teléfono, documento y dirección del comprador cifrados en reposo, como en
+    // Customers pero con su propio purpose. Lo setea el host (Program) antes de
+    // migrar/servir; null (design-time de migraciones) = columnas en claro.
+    // Nunca cambiar el purpose: lo cifrado con el viejo deja de leerse.
+    private static IDataProtector? _piiProtector;
+    public static void UsePii(IDataProtectionProvider provider) =>
+        _piiProtector = provider.CreateProtector("Orders.PII.v1");
+
+    /// <summary>Las columnas de <see cref="Order"/> que van cifradas.</summary>
+    public static readonly IReadOnlyList<string> PiiProperties =
+        [nameof(Order.BuyerPhone), nameof(Order.DocNumber), nameof(Order.ShippingAddress)];
+
+    /// <summary>
+    /// Cifra las ventas que quedaron con esos datos en claro (las de antes del
+    /// cifrado). Idempotente; corre en el paso de migración y al arrancar,
+    /// nunca en un request.
+    /// </summary>
+    public Task<int> ProtectLegacyPiiAsync(CancellationToken ct = default) =>
+        _piiProtector is null
+            ? Task.FromResult(0)
+            : PiiColumns.ProtectLegacyRowsAsync<Order>(this, _piiProtector, PiiProperties, ct: ct);
 
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Quote> Quotes => Set<Quote>();
@@ -112,10 +135,15 @@ public sealed class OrdersDbContext : DbContext
             .HasMaxLength(24);
         order.Property(o => o.ShippingMethodName).HasMaxLength(120);
         order.Property(o => o.IsPickup).HasDefaultValue(false);
-        order.Property(o => o.ShippingAddress).HasMaxLength(300);
         order.Property(o => o.BuyerName).HasMaxLength(170);
-        order.Property(o => o.BuyerPhone).HasMaxLength(40);
-        order.Property(o => o.DocNumber).HasMaxLength(20);
+        // Datos que ubican o identifican al comprador: cifrados, en `text` (el
+        // ciphertext es más largo y opaco) y sin índice. Nadie filtra ni busca
+        // por ellos (el buscador de Ventas va por número, email y nombre); el
+        // largo lo corta el dominio. Email y nombre quedan en claro: se buscan
+        // y vinculan la venta con el cliente.
+        var pii = PiiColumns.Converter(() => _piiProtector);
+        foreach (var field in PiiProperties)
+            order.Property<string?>(field).HasConversion(pii);
         order.Property(o => o.Notes).HasMaxLength(500);
         order.Property(o => o.Channel).HasMaxLength(20).HasDefaultValue(Order.ChannelWeb);
         order.Property(o => o.CancelledBy).HasMaxLength(200);

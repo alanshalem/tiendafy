@@ -72,6 +72,20 @@ public static class DatabaseMigrator
         if (customersPending.Any(m => m.EndsWith("_AddCustomerTagsAndPurchaseStats", StringComparison.Ordinal)))
             await RestateCustomersAsync(sp, logger);
 
+        // Teléfono, documento y dirección del comprador que quedaron en claro
+        // (de antes del cifrado o de la versión vieja durante el deploy).
+        // Siempre: es idempotente y sin pendientes es una consulta por tabla.
+        try
+        {
+            await BuyerPiiBackfill.RunAsync(services, logger);
+        }
+        catch (Exception ex)
+        {
+            // No frena el deploy: lo viejo se sigue leyendo y el arranque de la
+            // API (BuyerPiiBackfillService) lo vuelve a intentar.
+            logger.LogWarning(ex, "No se pudieron cifrar los datos del comprador que estaban en claro.");
+        }
+
         // Los productos que se crearon "Sin límite" cuando eso no cargaba stock.
         if (inventoryPending.Any(m => m.EndsWith(UnlimitedStockBackfill.Migration, StringComparison.Ordinal)))
         {
