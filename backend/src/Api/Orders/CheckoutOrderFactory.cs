@@ -33,6 +33,7 @@ public sealed class CheckoutOrderFactory(
     ICheckoutRepository checkouts,
     IOrderRepository orders,
     DiscountsDbContext discountsDb,
+    CouponRedemptions couponRedemptions,
     CreateOrderHandler createOrder,
     ICatalogCheckoutQuery catalogQuery,
     IShippingMethodRepository shippingMethods)
@@ -69,6 +70,8 @@ public sealed class CheckoutOrderFactory(
         Money discount = Money.Zero(session.Currency);
         var freeShipping = false;
         var code = (couponCode ?? string.Empty).Trim().ToUpperInvariant();
+        // Si el uso del cupón se tomó en este pedido: si la venta no nace, vuelve.
+        var tookCouponUse = false;
         if (code.Length > 0)
         {
             var subtotal = session.Items.Aggregate(0L, (s, i) => s + i.UnitPrice.AmountInMinorUnits * i.Quantity);
@@ -76,9 +79,24 @@ public sealed class CheckoutOrderFactory(
                 .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value && c.Code == code, ct);
             if (coupon is not null)
             {
-                var ev = coupon.Evaluate(subtotal, DateTime.UtcNow);
+                // Un doble clic de esta misma compra no choca contra el uso que
+                // ya tomó ella.
+                var held = await couponRedemptions.IsHeldAsync(tenantId.Value, coupon.Id, session.Id, ct);
+                var ev = coupon.Evaluate(subtotal, DateTime.UtcNow, useAlreadyTaken: held);
+                // Agotado no se ignora como los demás rechazos: el comprador vio
+                // el descuento en el carrito y pagaría sin él sin enterarse.
+                if (ev.LimitReached) return CouponExhausted();
                 if (ev.Valid)
                 {
+                    // El uso se toma ACÁ, con un UPDATE condicional: dos compras
+                    // sobre el último uso no lo pueden tomar las dos (antes se
+                    // contaba al pagar y un cupón de un uso servía para N).
+                    if (!held)
+                    {
+                        var reservation = await couponRedemptions.ReserveAsync(tenantId.Value, coupon.Id, session.Id, ct);
+                        if (reservation == CouponReservation.Exhausted) return CouponExhausted();
+                        tookCouponUse = reservation == CouponReservation.Taken;
+                    }
                     if (ev.Discount > 0) discount = new Money(ev.Discount, session.Currency);
                     freeShipping = ev.FreeShipping;
                 }
@@ -123,6 +141,10 @@ public sealed class CheckoutOrderFactory(
             UtmSource: utmSource,
             IsPickup: isPickup,
             OfflinePayment: offline), ct);
+        // La venta no nació, o la que nació en el mismo instante (otro pedido
+        // de la misma compra) no lleva este cupón: el uso tomado acá vuelve.
+        if (tookCouponUse && (placed.IsFailure || (!placed.Value.IsNew && placed.Value.Order.CouponCode != code)))
+            await couponRedemptions.ReleaseAsync(tenantId.Value, session.Id, ct);
         if (placed.IsFailure) return Result.Failure<CheckoutOrder>(placed.Error);
 
         // Otro pedido sobre la misma sesión la creó en el mismo instante.
@@ -130,6 +152,9 @@ public sealed class CheckoutOrderFactory(
             ? new CheckoutOrder(placed.Value.Order, true)
             : Reuse(placed.Value.Order, offline);
     }
+
+    private static Result<CheckoutOrder> CouponExhausted() =>
+        Result.Failure<CheckoutOrder>(Error.Conflict("Checkout.CouponExhausted", Coupon.LimitReachedMessage));
 
     /// <summary>
     /// Qué hacer con la orden que ya tenía la sesión. Pendiente y con el mismo

@@ -46,6 +46,7 @@ public sealed class AbandonedPaymentService(
     IInventoryService inventory,
     SettlePaymentHandler settle,
     PaidOrderSideEffects paidEffects,
+    OrderCouponUses couponUses,
     ILogger<AbandonedPaymentService> logger)
 {
     /// <summary>
@@ -210,15 +211,13 @@ public sealed class AbandonedPaymentService(
                 .SetProperty(o => o.CancelReason, Reason), ct);
         if (claimed != 1) return false;
 
-        var reservationIds = await ordersDb.Orders.AsNoTracking()
-            .Where(o => o.Id == order.Id)
-            .SelectMany(o => o.Items.Where(i => i.ReservationId != null).Select(i => i.ReservationId!.Value))
-            .ToListAsync(ct);
-        foreach (var reservationId in reservationIds)
+        var cancelled = await ordersDb.Orders.AsNoTracking().FirstAsync(o => o.Id == order.Id, ct);
+        foreach (var reservationId in cancelled.ReservationIds)
         {
             // Casi siempre ya la liberó el job de vencidas: no hay nada que devolver.
             await inventory.ReleaseReservationAsync(order.TenantId.Value, reservationId, ct);
         }
+        await couponUses.ReleaseAsync(cancelled, ct);
 
         logger.LogInformation("Venta {OrderId} cancelada: no se completó el pago en {Hours} horas.", order.Id, AbandonAfter.TotalHours);
         return true;

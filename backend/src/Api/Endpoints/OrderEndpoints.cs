@@ -96,6 +96,7 @@ public static class OrderEndpoints
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
             Api.Orders.PaidOrderSideEffects paidEffects,
+            Api.Orders.OrderCouponUses couponUses,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
@@ -117,7 +118,7 @@ public static class OrderEndpoints
             var card = payResult.Value;
 
             // Aplicar el resultado ya (el webhook es backup, idempotente).
-            await SettleNowAsync(settle, paidEffects, order.Id, card.Status, card.PaymentId, ct);
+            await SettleNowAsync(settle, paidEffects, couponUses, order.Id, card.Status, card.PaymentId, ct);
 
             // Si el banco pide confirmar el pago (3DS), la orden queda pendiente
             // y la tienda muestra el desafío con estos datos; el resultado final
@@ -148,6 +149,7 @@ public static class OrderEndpoints
             SettlePaymentHandler settle,
             IPaywayPaymentService payway,
             Api.Orders.PaidOrderSideEffects paidEffects,
+            Api.Orders.OrderCouponUses couponUses,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.Bin))
@@ -196,9 +198,9 @@ public static class OrderEndpoints
             // Un "en revisión" o un estado que no supimos interpretar la dejan
             // pendiente a propósito: se despacha cuando Payway confirma.
             if (charge.IsApproved && charge.ProviderPaymentId is { } paymentId)
-                await SettleNowAsync(settle, paidEffects, order.Id, "approved", paymentId, ct);
+                await SettleNowAsync(settle, paidEffects, couponUses, order.Id, "approved", paymentId, ct);
             else if (charge.Status == PaywayPaymentStatus.Declined)
-                await SettleNowAsync(settle, paidEffects, order.Id, "rejected", charge.ProviderPaymentId, ct);
+                await SettleNowAsync(settle, paidEffects, couponUses, order.Id, "rejected", charge.ProviderPaymentId, ct);
 
             return Results.Ok(new
             {
@@ -602,7 +604,7 @@ public static class OrderEndpoints
     /// nada por hacer: la venta ya está pagada y sus efectos corren en el otro.
     /// </summary>
     private static async Task SettleNowAsync(
-        SettlePaymentHandler settle, Api.Orders.PaidOrderSideEffects paidEffects,
+        SettlePaymentHandler settle, Api.Orders.PaidOrderSideEffects paidEffects, Api.Orders.OrderCouponUses couponUses,
         Guid orderId, string status, string? paymentId, CancellationToken ct)
     {
         Result<SettleResult> settled;
@@ -615,6 +617,8 @@ public static class OrderEndpoints
             return;
         }
         await paidEffects.RunIfJustPaidAsync(settled, ct);
+        // Rechazado: la venta no se cobra y el uso del cupón vuelve.
+        await couponUses.ReleaseIfFailedAsync(settled, ct);
     }
 
     /// <summary>Quién hizo la acción, para dejarlo escrito: su nombre, si no su id, y si no "admin".</summary>

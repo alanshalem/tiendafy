@@ -17,7 +17,7 @@ namespace Discounts.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -84,6 +84,41 @@ namespace Discounts.Infrastructure.Migrations
                         .HasDatabaseName("ix_coupons_tenant_id_code");
 
                     b.ToTable("coupons", (string)null);
+                });
+
+            modelBuilder.Entity("Discounts.Infrastructure.CouponRedemption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CheckoutSessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("checkout_session_id");
+
+                    b.Property<Guid>("CouponId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("coupon_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_coupon_redemptions");
+
+                    b.HasIndex("CouponId")
+                        .HasDatabaseName("ix_coupon_redemptions_coupon_id");
+
+                    b.HasIndex("TenantId", "CheckoutSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_coupon_redemptions_tenant_id_checkout_session_id");
+
+                    b.ToTable("coupon_redemptions", (string)null);
                 });
 #pragma warning restore 612, 618
         }

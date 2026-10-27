@@ -35,6 +35,7 @@ public sealed class OrderRefundService(
     OrderNotifier notifier,
     Api.Fiscal.CreditNoteIssuer creditNotes,
     OrderRefundLocks locks,
+    OrderCouponUses couponUses,
     ILogger<OrderRefundService> logger)
 {
     /// <summary>
@@ -266,6 +267,9 @@ public sealed class OrderRefundService(
         foreach (var reservationId in order.ReservationIds)
             if ((await stock.ReleaseReservationAsync(tenantId, reservationId, ct)).IsSuccess)
                 released++;
+
+        // Y el uso del cupón, que se había tomado al crearla.
+        await couponUses.ReleaseAsync(order, ct);
 
         // El comprador se entera de que la venta ya no va (y de que el link de
         // pago dejó de andar). Una sola vez: solo llega acá quien la pasó a

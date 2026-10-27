@@ -94,12 +94,34 @@ public class CouponTests
         var coupon = Create(CouponType.Percentage, 10, maxUses: 2);
         Assert.True(coupon.Evaluate(50_000, Now).Valid);
 
-        coupon.RegisterUse();
+        SetUsedCount(coupon, 1);
         Assert.True(coupon.Evaluate(50_000, Now).Valid);
 
-        coupon.RegisterUse();
+        SetUsedCount(coupon, 2);
         var ev = coupon.Evaluate(50_000, Now);
         Assert.False(ev.Valid);
+        Assert.True(ev.LimitReached);
         Assert.Contains("límite", ev.Error);
     }
+
+    /// <summary>
+    /// La compra que ya tomó el último uso no se lo choca a sí misma: su doble
+    /// clic se evalúa sin el límite (el uso que lo llena es el suyo).
+    /// </summary>
+    [Fact]
+    public void El_uso_ya_tomado_por_la_compra_no_cuenta_contra_ella()
+    {
+        var coupon = Create(CouponType.Percentage, 10, maxUses: 1);
+        SetUsedCount(coupon, 1);
+
+        Assert.False(coupon.Evaluate(50_000, Now).Valid);
+        var mine = coupon.Evaluate(50_000, Now, useAlreadyTaken: true);
+        Assert.True(mine.Valid);
+        Assert.Equal(5_000, mine.Discount);
+    }
+
+    // Los usos los suma la base (CouponRedemptions, con un UPDATE condicional),
+    // no la entidad: acá se fija el contador como lo dejaría ella.
+    private static void SetUsedCount(Coupon coupon, int used) =>
+        typeof(Coupon).GetProperty(nameof(Coupon.UsedCount))!.SetValue(coupon, used);
 }
