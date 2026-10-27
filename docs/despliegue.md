@@ -670,6 +670,12 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 - **CSRF**: las escrituras con cookie exigen el header custom `X-Tenant-Id` (no
   enviable por un form cross-site sin preflight CORS, que no permitimos) **y** la
   cookie es `SameSite=Lax` → doble defensa. No usamos tokens CSRF dedicados.
+- **Sesión del panel solo desde el panel** (`Api/Auth/OriginRules.cs`): la cookie
+  `tiendafy.session` es `Lax` y viaja en todo pedido del mismo sitio, y las tiendas
+  viven en subdominios con GTM, Pixel y Clarity de cada comercio. Si el pedido trae
+  `Origin` y no es el del panel (`Admin:BaseUrl`) ni el de la API, la sesión del
+  panel se ignora (anónimo, 401) sin borrar la cookie. Sin `Origin` (navegación,
+  descargas) vale. La cookie del comprador no cambia: se usa desde su tienda.
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
@@ -703,11 +709,15 @@ las claves de DataProtection, ver *Rotar las claves de DataProtection*.
 
 **Decisiones / roadmap pendientes:**
 - **MFA/2FA** para admins (TOTP/WebAuthn) — feature de producto.
-- **CORS multi-tenant**: el API refleja `*.PlatformBaseDomain` con credenciales
-  porque el storefront vive en subdominios. Es seguro mientras **nosotros** sirvamos
-  el storefront ahí (el merchant no inyecta JS propio; su `customCss` es solo CSS
-  saneado). Aislamiento total = servir las tiendas en un **dominio registrable
-  aparte** del admin/API (decisión de infra, modelo `myshopify.com`).
+- **CORS multi-tenant**: el API acepta con credenciales el panel, el dominio de la
+  plataforma y `<tienda>.PlatformBaseDomain` (un solo nivel, que no sea un
+  subdominio reservado de `Subdomain.cs`: admin, api, img, media, stg…) y los de
+  `Cors__AllowedOrigins`; nunca el host de las fotos (`Media:PublicBaseUrl`) ni
+  lo de staging cuando cuelga de producción (`x.stg.<dominio>`). Las tiendas
+  cargan scripts de terceros que configura cada comercio (GTM, Pixel, Clarity):
+  por eso la sesión del panel no vale desde ellas (ver *CSRF* arriba). Aislamiento
+  total = servir las tiendas en un **dominio registrable aparte** del admin/API
+  (decisión de infra, modelo `myshopify.com`).
 - **Dominios propios de tiendas**: hoy hay que sumar cada uno a
   `Cors__AllowedOrigins`, y la sesión del comprador vive en `api.` (desde otro
   dominio es una cookie de terceros). Se resuelve sirviendo la API desde el

@@ -479,34 +479,42 @@ public static class ServiceRegistration
     }
 
     /// <summary>
-    /// CORS: dev (localhost + *.localhost) + dominio de plataforma y sus
-    /// subdominios (tiendas) + cualquier extra de Cors:AllowedOrigins.
+    /// Orígenes (ver <see cref="Api.Auth.OriginRules"/>): CORS con credenciales
+    /// para el panel, las tiendas y los dominios propios de Cors:AllowedOrigins
+    /// (nunca el host de las fotos ni un subdominio reservado), y la sesión del
+    /// panel solo desde el origen del panel o de la propia API.
     /// </summary>
     public static IServiceCollection AddAppCors(
         this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
-        var platformDomain = StoreLinks.PlatformDomainOf(configuration);
-        var extraOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-        var allowLocalhost = environment.IsDevelopment();
+        var rules = new Api.Auth.OriginRules(configuration, environment);
+        services.AddSingleton(rules);
         services.AddCors(options =>
             options.AddDefaultPolicy(policy =>
-                policy.SetIsOriginAllowed(origin =>
-                    {
-                        try
-                        {
-                            var host = new Uri(origin).Host.ToLowerInvariant();
-                            // Dev local (solo en Development; en prod no se aceptan localhost).
-                            if (allowLocalhost && (host == "localhost" || host.EndsWith(".localhost"))) return true;
-                            // Dominio de plataforma + subdominios de tienda (mitienda.dominio).
-                            if (host == platformDomain || host.EndsWith("." + platformDomain)) return true;
-                            // Allowlist explícita (ej. dominios propios de merchants).
-                            return extraOrigins.Any(o => string.Equals(o, origin, StringComparison.OrdinalIgnoreCase));
-                        }
-                        catch { return false; }
-                    })
+                policy.SetIsOriginAllowed(rules.IsCorsAllowed)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
-                    .AllowCredentials())); // cookie de sesión (admin) + bearer (shopper)
+                    .AllowCredentials())); // cookie de sesión (admin) + cookie del comprador
+
+        // Con la cookie del panel (y la del paso del segundo factor) desde otro
+        // origen —una tienda, otro subdominio—, el pedido es anónimo para lo del
+        // panel. No se borra la cookie: el admin sigue con su sesión en el panel.
+        foreach (var scheme in new[] { IdentityConstants.ApplicationScheme, IdentityConstants.TwoFactorUserIdScheme })
+        {
+            services.PostConfigure<CookieAuthenticationOptions>(scheme, o =>
+            {
+                var inner = o.Events.OnValidatePrincipal;
+                o.Events.OnValidatePrincipal = async ctx =>
+                {
+                    if (!rules.AllowsPanelSession(ctx.Request))
+                    {
+                        ctx.RejectPrincipal();
+                        return;
+                    }
+                    await inner(ctx);
+                };
+            });
+        }
         return services;
     }
 }
