@@ -161,7 +161,14 @@ describe('cuentas corrientes', () => {
   });
 
   it('cobro desde la lista: se busca el cliente y se puede cambiar', async () => {
-    const { api, user } = await open('/cuentas-corrientes');
+    // La búsqueda real filtra por nombre; el mock no mira el query, así que se
+    // responde lo mismo que devolvería la API para "Nicol". Sin esto, el
+    // cliente del saldo puede no estar entre los primeros 50 de la lista.
+    const { api, user } = await open('/cuentas-corrientes', (a) =>
+      a.on('GET', '/api/v1/finance/parties', {
+        items: [{ id: balance.partyId, name: balance.partyName, detail: '' }],
+      }),
+    );
     await user.click(screen.getByRole('button', { name: /Registrar cobro/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Registrar un cobro' }));
     // Recién abierto no hay errores: los faltantes se marcan al intentar registrar.

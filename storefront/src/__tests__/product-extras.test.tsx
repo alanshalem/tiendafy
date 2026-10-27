@@ -284,7 +284,8 @@ describe('escribir una opinión', () => {
     expect(screen.getByText(/se publica cuando la tienda la revise/)).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: 'Publicar mi opinión' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Elegí de 1 a 5 estrellas');
+    // El submit espera el captcha antes de validar: la alerta llega en un tick posterior.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Elegí de 1 a 5 estrellas');
     await u.click(screen.getByRole('radio', { name: /5 estrellas: Excelente/ }));
     await u.type(screen.getByLabelText('Tu opinión'), 'Excelente, lo recomiendo.');
     const file = new File(['x'], 'foto.png', { type: 'image/png' });
