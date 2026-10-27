@@ -60,6 +60,9 @@ UPDATE orders SET
     buyer_name = 'Comprador de prueba',
     buyer_email = 'comprador-' || left(md5(id::text), 8) || '@example.invalid',
     buyer_phone = NULL,
+    -- DNI/CUIT: el real (filas viejas) o cifrado con las claves de producción,
+    -- que en staging no se puede leer (y la factura saldría con basura).
+    doc_number = NULL,
     shipping_address = 'Dirección de prueba 123';
 
 UPDATE checkout_sessions SET
@@ -67,7 +70,14 @@ UPDATE checkout_sessions SET
     buyer_last_name = 'De prueba',
     email = 'checkout-' || left(md5(id::text), 8) || '@example.invalid',
     phone = NULL,
+    doc_number = NULL,
     shipping_address = 'Dirección de prueba 123';
+
+-- Presupuestos: a quién se le mandó.
+UPDATE quotes SET
+    customer_name = 'Cliente de prueba',
+    customer_email = 'presupuesto-' || left(md5(id::text), 8) || '@example.invalid'
+WHERE customer_email IS NOT NULL OR customer_name IS NOT NULL;
 
 UPDATE contact_messages SET
     name = 'Consulta de prueba',

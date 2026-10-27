@@ -67,7 +67,8 @@ que sale a producción son exactamente los bytes que se probaron en staging.
 ```
 
 Restaura el backup en staging y le pasa `infra/sql/anonymize-staging.sql`, que
-reemplaza los datos de contacto por direcciones `@example.invalid`, borra las
+reemplaza los datos de contacto por direcciones `@example.invalid` (y borra el
+teléfono, el DNI/CUIT y la dirección de ventas y checkouts), borra las
 credenciales de cobro y facturación y deja a los usuarios del panel **sin
 contraseña** y sin sesiones (`password_hash` en NULL, `security_stamp` nuevo). Si algo queda sin anonimizar, el script
 **no levanta staging**. Restaurar producción sin anonimizar es la forma más
