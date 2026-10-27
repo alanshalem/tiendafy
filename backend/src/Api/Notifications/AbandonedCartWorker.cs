@@ -136,7 +136,24 @@ public sealed class AbandonedCartWorker(
             s.MarkRecoveryEmailed();
         }
 
-        await checkoutDb.SaveChangesAsync(ct);
+        try
+        {
+            await checkoutDb.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Alguna compra cambió en el medio (el comprador volvió, o venció):
+            // los recordatorios ya salieron, así que se vuelven a marcar sobre
+            // lo que hay ahora en la base. Sin esto, la pasada siguiente los
+            // mandaba de nuevo a todo el lote.
+            var marked = candidates.Where(s => s.RecoveryEmailSentAtUtc is not null).ToList();
+            foreach (var s in marked)
+            {
+                await checkoutDb.Entry(s).ReloadAsync(ct);
+                s.MarkRecoveryEmailed();
+            }
+            await checkoutDb.SaveChangesAsync(ct);
+        }
         if (sent > 0) logger.LogInformation("Recuperación de carritos: {Sent} emails enviados.", sent);
     }
 

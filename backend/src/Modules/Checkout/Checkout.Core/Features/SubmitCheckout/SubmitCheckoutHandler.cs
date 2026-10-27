@@ -125,7 +125,15 @@ public sealed class SubmitCheckoutHandler(
             return Result.Failure<CheckoutSession>(submit.Error);
         }
 
-        await repository.SaveChangesAsync(ct);
+        // Otro envío de la misma compra (doble clic, otra pestaña) la guardó
+        // primero: lo que reservó este vuelve al stock, en vez de quedar
+        // tomado sin compra que lo use hasta que venza.
+        if (!await repository.TrySaveChangesAsync(ct))
+        {
+            await CompensateAsync(command.TenantId.Value, reserved.Values, ct);
+            return Result.Failure<CheckoutSession>(Error.Conflict("Checkout.Concurrent",
+                "Esta compra se estaba enviando al mismo tiempo desde otra pestaña. Recargá la página para seguir."));
+        }
         return session;
     }
 

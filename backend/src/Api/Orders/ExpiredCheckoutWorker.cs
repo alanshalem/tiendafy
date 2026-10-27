@@ -117,7 +117,19 @@ public sealed class ExpiredCheckoutWorker(
                 }
             }
 
-            await checkoutDb.SaveChangesAsync(ct);
+            try
+            {
+                await checkoutDb.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Alguna compra de la página cambió mientras tanto (xmin): no se
+                // pisa lo que hizo el otro. Cerrarlas es idempotente, así que la
+                // próxima pasada las vuelve a mirar con lo que haya en la base.
+                checkoutDb.ChangeTracker.Clear();
+                logger.LogInformation("Checkouts: una compra cambió mientras se cerraba; se reintenta en la próxima pasada.");
+                break;
+            }
             if (sessions.Count < PageSize) break;
         }
 

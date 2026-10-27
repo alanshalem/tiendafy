@@ -42,7 +42,12 @@ public sealed class CheckoutDbContext : DbContext
         session.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         session.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
         session.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
-        session.Property(s => s.Email).HasMaxLength(200);
+        // Token de concurrencia optimista sobre xmin (columna de sistema de
+        // Postgres, sin DDL), como Order: dos envíos simultáneos de la misma
+        // compra reservaban stock los dos y la reserva del que perdía quedaba
+        // huérfana. Ahora el segundo guardado choca y devuelve lo que reservó.
+        session.Property<uint>("xmin").IsRowVersion().HasColumnName("xmin");
+        session.Property(s => s.Email).HasMaxLength(CheckoutSession.EmailMaxLength);
         session.Property(s => s.Currency).HasMaxLength(3);
         session.HasIndex(s => new { s.TenantId, s.CreatedAtUtc });
         session.HasIndex(s => new { s.Status, s.ExpiresAtUtc });
