@@ -96,9 +96,11 @@ public static class SeededStore
                 new { definitionId = Id(weight), value = "10" },
             },
         });
+        // Bajo la carpeta de la tienda, como las que sube el panel: una URL de
+        // nuestro bucket fuera de ella es de otra tienda y no se acepta.
         foreach (var photo in new[] { "frente", "detalle" })
             await store.PostAsync($"/api/v1/products/{ids["product"]}/images",
-                new { url = $"{ApiFactory.Storage}/tiendafy-media/seed/{photo}.jpg", altText = Products[0] });
+                new { url = $"{ApiFactory.Storage}/tiendafy-media/{store.TenantId}/{photo}.jpg", altText = Products[0] });
 
         var product = await store.GetAsync($"/api/v1/products/{ids["product"]}");
         ids["productSlug"] = product.GetProperty("slug").GetString()!;
