@@ -225,7 +225,7 @@ flowchart LR
 | Redes | Meta (Facebook/Instagram), X, Telegram | Posts multi-red programados. | Tokens cifrados |
 | Publicidad | Meta Ads | Gasto por campaña para el ROAS en Rentabilidad. | Token cifrado |
 | IA | Anthropic, OpenAI, Google, Groq | Respuestas a preguntas de ML y del chat, textos de posts y de productos, lectura de facturas de compra encadenada (extraer, validar en código, una sola corrección y emparejar las líneas con la orden). Cada tienda carga sus claves y elige el modelo por tarea, con tope mensual; sin clave o con la IA apagada, el botón dice por qué no está disponible. Ver [integraciones/ia.md](integraciones/ia.md). | Claves por tienda, cifradas |
-| Anti-bots | Cloudflare Turnstile | Login, registro y contacto. Sin config, pasa (dev). | Site/secret key |
+| Anti-bots | Cloudflare Turnstile | Login, registro, contacto, newsletter, alta de reseñas y "avisame cuando ingrese". Sin config, pasa (dev; fuera de Development, log Critical al arrancar). | Site/secret key |
 | Login social | Google OAuth | Solo compradores, opcional. | Client id y secret |
 | Media | MinIO (dev) / Cloudflare R2 (prod) | Bucket público para fotos y videos; bucket privado para adjuntos del chat, con URL firmada de 15 min. | Access keys |
 | Errores | Sentry | API, tienda y panel; activo solo con DSN. | DSN por app |

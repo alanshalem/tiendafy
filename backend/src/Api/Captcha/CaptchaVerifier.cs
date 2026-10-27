@@ -13,6 +13,13 @@ public interface ICaptchaVerifier
     Task<bool> VerifyAsync(string? token, CancellationToken ct = default);
 }
 
+/// <summary>La respuesta de un formulario público cuyo captcha no pasó (la misma que contacto).</summary>
+public static class CaptchaProblem
+{
+    public static IResult Failed() =>
+        Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida. Reintentá.", statusCode: 400);
+}
+
 public sealed class TurnstileVerifier(HttpClient http, IConfiguration cfg) : ICaptchaVerifier
 {
     private string? Secret => cfg["Captcha:Turnstile:Secret"];

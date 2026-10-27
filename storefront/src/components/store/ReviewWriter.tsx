@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Camera, CheckCircle2, Loader2, Star, X } from 'lucide-react';
 import { cn } from '@tiendafy/ui/cn';
 import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { Captcha } from './Captcha';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { Stars } from './ReviewStars';
@@ -157,6 +158,10 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ rating: number; status: string } | null>(item.review);
   const fileRef = useRef<HTMLInputElement>(null);
+  // El mismo captcha que contacto y registro. null = pendiente; el token sirve
+  // una vez, así que tras un rechazo se pide otro (`captchaKey`).
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const header = (
     <div className="flex items-center gap-3">
@@ -233,22 +238,36 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
     if (rating === 0) return setError('Elegí de 1 a 5 estrellas.');
     if (body.trim().length < MIN_BODY)
       return setError(`Contanos un poco más (al menos ${MIN_BODY} caracteres).`);
+    if (captcha === null) return;
     setError(null);
     setSending(true);
+    const failed = (text: string) => {
+      setError(text);
+      setCaptcha(null);
+      setCaptchaKey((k) => k + 1);
+    };
     try {
       const res = await fetch(`${apiUrl()}/api/v1/reviews`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ token, orderItemId: item.orderItemId, rating, title, body, photos }),
+        body: JSON.stringify({
+          token,
+          orderItemId: item.orderItemId,
+          rating,
+          title,
+          body,
+          photos,
+          captcha: captcha || undefined,
+        }),
       });
       if (!res.ok) {
-        setError(await problemMessage(res, 'No se pudo guardar tu opinión. Probá de nuevo.'));
+        failed(await problemMessage(res, 'No se pudo guardar tu opinión. Probá de nuevo.'));
         return;
       }
       const { status } = (await res.json()) as { status: string };
       setDone({ rating, status });
     } catch {
-      setError('No se pudo guardar tu opinión. Probá de nuevo.');
+      failed('No se pudo guardar tu opinión. Probá de nuevo.');
     } finally {
       setSending(false);
     }
@@ -344,12 +363,19 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
         </div>
       </div>
 
+      <div className="mt-4 empty:hidden">
+        <Captcha key={captchaKey} onToken={setCaptcha} />
+      </div>
       {error && (
         <p role="alert" className="mt-3 text-sm font-medium">
           {error}
         </p>
       )}
-      <button type="submit" disabled={sending || uploading} className={`${BTN_PRIMARY_BLOCK} mt-4`}>
+      <button
+        type="submit"
+        disabled={sending || uploading || captcha === null}
+        className={`${BTN_PRIMARY_BLOCK} mt-4`}
+      >
         {sending ? 'Enviando…' : 'Publicar mi opinión'}
       </button>
     </form>

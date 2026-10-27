@@ -147,8 +147,10 @@ public static class ReviewEndpoints
         // venta y una vez por línea.
         reviews.MapPost("/", async (
             CreateReviewRequest req, ITenantContext tenant, IDataProtectionProvider dp, MediaOptions media,
+            Api.Captcha.ICaptchaVerifier captcha,
             OrdersDbContext orders, CatalogDbContext catalog, ReviewsDbContext db, CancellationToken ct) =>
         {
+            if (!await captcha.VerifyAsync(req.Captcha, ct)) return Api.Captcha.CaptchaProblem.Failed();
             var tid = tenant.TenantId.Value;
             var payload = ReviewInviteToken.Unprotect(dp, req.Token, tid);
             if (payload is null) return InvalidLink();
@@ -543,7 +545,7 @@ public static class ReviewEndpoints
 }
 
 public sealed record CreateReviewRequest(
-    string? Token, Guid OrderItemId, int Rating, string? Title, string? Body, string[]? Photos);
+    string? Token, Guid OrderItemId, int Rating, string? Title, string? Body, string[]? Photos, string? Captcha = null);
 
 public sealed record ReportReviewRequest(string? Reason);
 

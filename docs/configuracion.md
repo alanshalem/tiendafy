@@ -20,7 +20,7 @@ Dos niveles que no se mezclan:
 | Mercado Pago | App marketplace: Client ID, Client Secret, Webhook Secret | [Panel de desarrolladores](https://www.mercadopago.com.ar/developers). Redirect: `https://api.TUDOMINIO/api/v1/payments/mercadopago/callback` | Plataforma | Para cobrar con MP |
 | Resend | API key + dominio verificado (SPF/DKIM) | [resend.com](https://resend.com) | Plataforma | Sí en prod (sin key, los mails van al log) |
 | Webhook de Resend | Signing secret (`whsec_…`) | Resend → Webhooks, eventos `email.bounced` y `email.complained` → `https://api.TUDOMINIO/api/v1/webhooks/resend` | Plataforma | Recomendado (suprime rebotes) |
-| Cloudflare Turnstile | Site key + secret | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (captcha en contacto y login) |
+| Cloudflare Turnstile | Site key + secret | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (captcha en login, registro, contacto, newsletter, reseñas y "avisame") |
 | Google OAuth | Client ID + secret | [Google Cloud Console](https://console.cloud.google.com/apis/credentials), cliente web. Redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores) |
 | Sentry | Un DSN por app (API, tienda, panel) | [sentry.io](https://sentry.io) | Plataforma | Opcional |
 | Mercado Libre | App: Client ID + secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar). Redirect: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Para el canal ML |

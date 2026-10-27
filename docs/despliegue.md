@@ -156,7 +156,7 @@ recrea los contenedores cuya config cambió).
 | `MELI_CLIENT_ID` / `MELI_CLIENT_SECRET` | Canal Mercado Libre ([integraciones/mercadolibre.md](./integraciones/mercadolibre.md)) |
 | `META_APP_ID` / `META_APP_SECRET` | Meta Ads (ROAS real) |
 | `SOCIAL_META_APP_ID` / `SOCIAL_META_APP_SECRET`, `SOCIAL_X_CLIENT_ID` / `SOCIAL_X_CLIENT_SECRET` | Redes sociales; Telegram no necesita credenciales ([integraciones/redes-sociales.md](./integraciones/redes-sociales.md)) |
-| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | Cloudflare Turnstile en login, registro y contacto. Vacío = sin captcha |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | Cloudflare Turnstile en login, registro, contacto, newsletter, reseñas y "avisame". Vacío = sin captcha (`deploy.sh` avisa) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | "Entrar con Google" de los compradores. Vacío = botón oculto |
 | `AI_DISABLED` | `true` apaga la IA de **todas** las tiendas (palanca de emergencia, vacío = prendida). Las claves de IA no van acá: las carga cada tienda ([integraciones/ia.md](./integraciones/ia.md)) |
 | `REVALIDATE_SECRET` | Lo comparten la API y la tienda: con él, publicar un diseño o cambiar el catálogo se ve al toque; vacío, tarda 30 a 60 s. `openssl rand -hex 32` |
