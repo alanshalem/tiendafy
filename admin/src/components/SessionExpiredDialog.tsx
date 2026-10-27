@@ -7,15 +7,27 @@ import { Captcha } from './Captcha';
  * pantalla, sin desmontarla: lo que se estaba cargando sigue ahí, y después
  * de entrar se repite lo que no se guardó. La contraseña vive solo en este
  * formulario (nunca se guarda) y el email es el de la sesión que venció.
+ *
+ * Con la verificación en dos pasos activa, después de la contraseña se pide
+ * el código de la app (o uno de recuperación) en el mismo diálogo.
  */
+interface LoginResult {
+  ok: boolean;
+  error?: string;
+  code?: string;
+  twoFactor?: boolean;
+}
+
 export function SessionExpiredDialog({
   email,
   onLogin,
+  onCode,
   onSwitchAccount,
   onDismiss,
 }: {
   email: string;
-  onLogin: (password: string, captcha?: string) => Promise<{ ok: boolean; error?: string }>;
+  onLogin: (password: string, captcha?: string) => Promise<LoginResult>;
+  onCode: (code: string) => Promise<LoginResult>;
   onSwitchAccount: () => void;
   onDismiss: () => void;
 }) {
@@ -24,6 +36,9 @@ export function SessionExpiredDialog({
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // La contraseña estuvo bien y falta el código del segundo paso.
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [code, setCode] = useState('');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,11 +46,69 @@ export function SessionExpiredDialog({
     setBusy(true);
     const res = await onLogin(password, captcha || undefined);
     setBusy(false);
-    if (!res.ok) {
-      setPassword('');
-      setError(res.error ?? 'No se pudo iniciar sesión.');
-    }
+    setPassword('');
+    if (res.twoFactor) setTwoFactor(true);
+    else if (!res.ok) setError(res.error ?? 'No se pudo iniciar sesión.');
   };
+
+  const submitCode = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    const res = await onCode(code);
+    setBusy(false);
+    setCode('');
+    if (res.ok) return;
+    // Se pasaron los minutos de gracia: de nuevo la contraseña.
+    if (res.code === 'Auth.TwoFactorExpired') setTwoFactor(false);
+    setError(res.error ?? 'El código no es correcto.');
+  };
+
+  if (twoFactor) {
+    return (
+      <Modal open onClose={onDismiss} size="sm" title="Tu sesión venció">
+        <form id={`${fid}-form`} onSubmit={submitCode} className="space-y-3">
+          <p className="text-sm text-fg-muted">
+            Escribí el código de 6 dígitos de tu app de autenticación, o uno de tus códigos de recuperación.
+          </p>
+          <div>
+            <label htmlFor={`${fid}-code`} className="mb-1 block text-sm font-medium text-fg">
+              Código
+            </label>
+            <input
+              id={`${fid}-code`}
+              autoComplete="one-time-code"
+              required
+              autoFocus
+              spellCheck={false}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? `${fid}-error` : undefined}
+              className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          {error && (
+            <p id={`${fid}-error`} role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onSwitchAccount}
+              className="text-sm text-fg-muted underline-offset-2 hover:underline"
+            >
+              Entrar con otra cuenta
+            </button>
+            <Button type="submit" loading={busy} disabled={!code.trim()}>
+              Verificar
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
 
   return (
     <Modal open onClose={onDismiss} size="sm" title="Tu sesión venció">

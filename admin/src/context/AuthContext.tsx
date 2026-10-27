@@ -8,13 +8,25 @@ interface AdminUser {
   id: string;
   email: string;
   name: string;
+  /** Si tiene activa la verificación en dos pasos. */
+  twoFactorEnabled?: boolean;
 }
 
-interface AuthResult {
+export interface AuthResult {
   ok: boolean;
   error?: string;
   /** Código RFC 7807 (title) del backend, p.ej. Auth.EmailNotVerified. */
   code?: string;
+  /**
+   * La contraseña estuvo bien pero la cuenta tiene la verificación en dos
+   * pasos: falta el código de la app (o uno de recuperación) con verifyTwoFactor.
+   */
+  twoFactor?: boolean;
+}
+
+/** Lo que responde /auth/login cuando falta el segundo paso. */
+interface TwoFactorPending {
+  twoFactorRequired: true;
 }
 
 interface AuthContextValue {
@@ -28,6 +40,10 @@ interface AuthContextValue {
   unreachable: boolean;
   retry: () => void;
   login: (email: string, password: string, captcha?: string) => Promise<AuthResult>;
+  /** Segundo paso del login: el código de la app o uno de recuperación. */
+  verifyTwoFactor: (code: string) => Promise<AuthResult>;
+  /** Refleja en la sesión que se activó o desactivó la verificación en dos pasos. */
+  setTwoFactorEnabled: (enabled: boolean) => void;
   register: (name: string, email: string, password: string, captcha?: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
 }
@@ -79,7 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, captcha?: string): Promise<AuthResult> => {
     try {
-      const u = await api.post<AdminUser>('/api/v1/auth/login', { email, password, captcha });
+      const u = await api.post<AdminUser | TwoFactorPending>('/api/v1/auth/login', {
+        email,
+        password,
+        captcha,
+      });
+      // Con la verificación en dos pasos la contraseña sola no abre la sesión.
+      if ('twoFactorRequired' in u) return { ok: false, twoFactor: true };
       setUser(u);
       setUnreachable(false);
       return { ok: true };
@@ -88,6 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: 'No se pudo iniciar sesión.' };
     }
   };
+
+  const verifyTwoFactor = async (code: string): Promise<AuthResult> => {
+    try {
+      const u = await api.post<AdminUser>('/api/v1/auth/login/2fa', { code });
+      setUser(u);
+      setUnreachable(false);
+      return { ok: true };
+    } catch (e) {
+      if (e instanceof ApiRequestError) return { ok: false, error: e.error.message, code: e.error.code };
+      return { ok: false, error: 'No se pudo verificar el código.' };
+    }
+  };
+
+  const setTwoFactorEnabled = (enabled: boolean) =>
+    setUser((u) => (u ? { ...u, twoFactorEnabled: enabled } : u));
 
   const register = async (
     name: string,
@@ -113,12 +150,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const relogin = async (password: string, captcha?: string) => {
     if (!user) return { ok: false };
     const res = await login(user.email, password, captcha);
-    if (res.ok) {
-      setExpired(false);
-      void queryClient.refetchQueries({ predicate: (q) => q.state.status === 'error' });
-      toast('Listo, volviste a ingresar. Si algo no se guardó, repetilo.', { variant: 'success' });
-    }
+    if (res.ok) welcomeBack();
     return res;
+  };
+
+  const reloginCode = async (code: string) => {
+    const res = await verifyTwoFactor(code);
+    if (res.ok) welcomeBack();
+    return res;
+  };
+
+  const welcomeBack = () => {
+    setExpired(false);
+    void queryClient.refetchQueries({ predicate: (q) => q.state.status === 'error' });
+    toast('Listo, volviste a ingresar. Si algo no se guardó, repetilo.', { variant: 'success' });
   };
 
   const logout = async () => {
@@ -132,12 +177,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, ready, unreachable, retry, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        ready,
+        unreachable,
+        retry,
+        login,
+        verifyTwoFactor,
+        setTwoFactorEnabled,
+        register,
+        logout,
+      }}
+    >
       {children}
       {user && expired && (
         <SessionExpiredDialog
           email={user.email}
           onLogin={relogin}
+          onCode={reloginCode}
           onSwitchAccount={() => void logout()}
           // Cerrarlo deja ver (y copiar) lo que había; el próximo pedido que
           // falle lo vuelve a abrir.

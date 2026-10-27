@@ -44,6 +44,90 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * El segundo paso del login, cuando la cuenta tiene la verificación en dos
+ * pasos: el código de 6 dígitos de la app o, sin el teléfono a mano, uno de
+ * los códigos de recuperación. La contraseña ya se validó: el servidor guarda
+ * ese paso unos minutos en una cookie aparte.
+ */
+function TwoFactorStep({ onBack, onExpired }: { onBack: () => void; onExpired: (message: string) => void }) {
+  const { verifyTwoFactor } = useAuth();
+  const [code, setCode] = useState('');
+  const [recovery, setRecovery] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    const res = await verifyTwoFactor(code);
+    setBusy(false);
+    if (res.ok) return;
+    if (res.code === 'Auth.TwoFactorExpired') {
+      onExpired(res.error ?? 'Pasó demasiado tiempo. Volvé a ingresar tu contraseña.');
+      return;
+    }
+    setCode('');
+    setError(res.error ?? 'El código no es correcto.');
+  };
+
+  return (
+    <>
+      <h1 className="text-lg font-semibold text-fg">Verificación en dos pasos</h1>
+      <p className="mt-1 text-sm text-fg-muted">
+        {recovery
+          ? 'Escribí uno de los códigos de recuperación que guardaste al activarla. Cada uno sirve una sola vez.'
+          : 'Escribí el código de 6 dígitos que muestra ahora tu app de autenticación.'}
+      </p>
+      <form onSubmit={submit} className="mt-5 space-y-3">
+        <AuthField
+          // La key rearma el campo al cambiar de tipo de código (y le devuelve el foco).
+          key={recovery ? 'recovery' : 'app'}
+          label={recovery ? 'Código de recuperación' : 'Código de la app'}
+          autoComplete="one-time-code"
+          inputMode={recovery ? 'text' : 'numeric'}
+          autoCapitalize="characters"
+          spellCheck={false}
+          autoFocus
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder={recovery ? 'XXXXX-XXXXX' : '123456'}
+          required
+        />
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy || code.trim().length === 0}
+          className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
+        >
+          {busy ? <Spinner inline /> : 'Verificar'}
+        </button>
+      </form>
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setCode('');
+          setRecovery(!recovery);
+        }}
+        className="mt-3 block w-full text-center text-sm text-fg-muted hover:underline"
+      >
+        {recovery ? 'Usar el código de la app' : '¿No tenés el teléfono? Usá un código de recuperación'}
+      </button>
+      <p className="mt-4 text-center text-sm">
+        <button type="button" onClick={onBack} className="font-semibold text-primary hover:underline">
+          Volver a iniciar sesión
+        </button>
+      </p>
+    </>
+  );
+}
+
 export function Login() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
@@ -56,6 +140,8 @@ export function Login() {
   const [sent, setSent] = useState(false);
   const [needsVerify, setNeedsVerify] = useState(false); // login bloqueado por email sin verificar
   const [resent, setResent] = useState(false);
+  // La contraseña estuvo bien y falta el código del segundo paso.
+  const [twoFactor, setTwoFactor] = useState(false);
 
   // El panel no tiene alta pública: el equipo se da de alta desde Usuarios. La
   // única excepción es una instalación vacía, donde hay que poder crear al
@@ -90,11 +176,30 @@ export function Login() {
         ? await login(email, password, captcha || undefined)
         : await register(name, email, password, captcha || undefined);
     setBusy(false);
+    if (res.twoFactor) {
+      setPassword('');
+      setTwoFactor(true);
+      return;
+    }
     if (!res.ok) {
       setError(res.error ?? 'Algo salió mal.');
       if (res.code === 'Auth.EmailNotVerified') setNeedsVerify(true);
     }
   };
+
+  if (twoFactor) {
+    return (
+      <Shell>
+        <TwoFactorStep
+          onBack={() => setTwoFactor(false)}
+          onExpired={(message) => {
+            setTwoFactor(false);
+            setError(message);
+          }}
+        />
+      </Shell>
+    );
+  }
 
   const resendVerification = async () => {
     setResent(false);

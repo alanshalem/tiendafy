@@ -13,6 +13,7 @@ import { HelpLink } from '../components/HelpLink';
 import { AskStoreButton } from '../components/ai/AskStoreButton';
 import { storefrontHost, storePublicHost } from '../lib/storefront';
 import { InlineSkeleton } from '../components/Skeleton';
+import { TwoFactorReminder } from '../components/TwoFactorReminder';
 
 interface ProductsResponse {
   items: unknown[];
@@ -118,6 +119,8 @@ export function HomePage() {
         }
         actions={<AskStoreButton />}
       />
+
+      <TwoFactorReminder />
 
       <AvisosCard />
 
