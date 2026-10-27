@@ -68,7 +68,7 @@ public sealed class PanelTwoFactorRequiredTests(ApiFactory factory)
         // Activarla abrió la sesión: el panel entero ya responde.
         var me = await client.GetFromJsonAsync<JsonElement>("/api/v1/auth/me");
         Assert.True(me.GetProperty("twoFactorEnabled").GetBoolean());
-        Assert.True(me.GetProperty("twoFactorRequired").GetBoolean());
+        Assert.True(me.GetProperty("twoFactorMandatory").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/tenants")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await store.SendAsync(client, HttpMethod.Get, "/api/v1/orders")).StatusCode);
 
@@ -144,7 +144,7 @@ public sealed class PanelTwoFactorRequiredTests(ApiFactory factory)
 
         // /auth/me responde (con lo que falta) y la configuración anda con esa sesión.
         var me = await client.GetFromJsonAsync<JsonElement>("/api/v1/auth/me");
-        Assert.True(me.GetProperty("twoFactorRequired").GetBoolean());
+        Assert.True(me.GetProperty("twoFactorMandatory").GetBoolean());
         Assert.False(me.GetProperty("twoFactorEnabled").GetBoolean());
         await EnableAsync(client);
 
@@ -235,7 +235,7 @@ public sealed class PanelTwoFactorRequiredTests(ApiFactory factory)
         var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = Password });
         var body = await login.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(email, body.GetProperty("email").GetString());
-        Assert.False(body.GetProperty("twoFactorRequired").GetBoolean());
+        Assert.False(body.GetProperty("twoFactorMandatory").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/tenants")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await store.SendAsync(client, HttpMethod.Get, "/api/v1/orders")).StatusCode);
 
@@ -254,7 +254,7 @@ public sealed class PanelTwoFactorRequiredTests(ApiFactory factory)
         var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = Password });
         var body = await login.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(email, body.GetProperty("email").GetString());
-        Assert.False(body.GetProperty("twoFactorRequired").GetBoolean());
+        Assert.False(body.GetProperty("twoFactorMandatory").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await store.SendAsync(client, HttpMethod.Get, "/api/v1/orders")).StatusCode);
 
         await EnableAsync(client);

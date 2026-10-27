@@ -78,7 +78,7 @@ public static class AuthTwoFactorEndpoints
         setupGroup.MapGet("/", async (HttpContext http, UserManager<AppUser> userManager) =>
         {
             var (user, _) = await ResolveAsync(http, userManager);
-            if (user is null) return Results.Unauthorized();
+            if (user is null) return NoSessionNorSetupStep();
             return Results.Ok(new
             {
                 enabled = user.TwoFactorEnabled,
@@ -92,7 +92,7 @@ public static class AuthTwoFactorEndpoints
             HttpContext http, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager) =>
         {
             var (user, pending) = await ResolveAsync(http, userManager);
-            if (user is null) return Results.Unauthorized();
+            if (user is null) return NoSessionNorSetupStep();
             if (user.TwoFactorEnabled) return AlreadyEnabled();
 
             await userManager.ResetAuthenticatorKeyAsync(user);
@@ -124,7 +124,7 @@ public static class AuthTwoFactorEndpoints
             TwoFactorRequirement requirement) =>
         {
             var (user, pending) = await ResolveAsync(http, userManager);
-            if (user is null) return Results.Unauthorized();
+            if (user is null) return NoSessionNorSetupStep();
             if (user.TwoFactorEnabled) return AlreadyEnabled();
             if (await userManager.GetAuthenticatorKeyAsync(user) is null)
                 return Results.Problem(title: "Auth.TwoFactorNotStarted",
@@ -321,6 +321,14 @@ public static class AuthTwoFactorEndpoints
             ? Results.Problem(title: "Auth.InvalidPassword", detail: "La contraseña no es correcta.", statusCode: 400)
             : InvalidCode();
     }
+
+    /// <summary>
+    /// 401 sin sesión ni paso intermedio: lo más común es que el paso de
+    /// configurarla al entrar (15 minutos) haya vencido.
+    /// </summary>
+    private static IResult NoSessionNorSetupStep() =>
+        Results.Problem(title: "Auth.TwoFactorExpired",
+            detail: "Pasó demasiado tiempo. Volvé a ingresar tu contraseña.", statusCode: 401);
 
     private static IResult InvalidCode() =>
         Results.Problem(title: "Auth.InvalidCode",

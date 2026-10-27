@@ -134,7 +134,7 @@ opera es dueño de sus tiendas. Para esas personas:
 - Una sesión abierta sin ella (de antes de exigirla, o de alguien que pasó a
   ser dueño o administrador) recibe 403 `Auth.TwoFactorSetupRequired` en toda
   la API salvo `/auth/*` (`TwoFactorSetupMiddleware`); `/auth/me` responde con
-  `twoFactorRequired` y el panel lleva a configurarla.
+  `twoFactorMandatory` y el panel lleva a configurarla.
 - No la pueden desactivar (403 `Auth.TwoFactorRequired`). Sí generar códigos
   nuevos o pasarla a otra app: `POST /auth/2fa/relink` (contraseña **y** código)
   devuelve la clave nueva y un ticket cifrado; `POST /auth/2fa/relink/confirm`

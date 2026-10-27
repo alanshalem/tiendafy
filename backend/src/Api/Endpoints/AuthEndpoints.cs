@@ -147,7 +147,7 @@ public static class AuthEndpoints
             }
 
             await signInManager.SignInAsync(user, isPersistent: true);
-            return Results.Ok(ToDto(user, twoFactorRequired: false));
+            return Results.Ok(ToDto(user, twoFactorMandatory: false));
         }).RequireRateLimiting("auth");
 
         auth.MapTwoFactorEndpoints();
@@ -188,7 +188,7 @@ public static class AuthEndpoints
         }).RequireRateLimiting("auth");
 
         // Responde aunque falte configurar la verificación obligatoria
-        // (TwoFactorSetupMiddleware no frena /auth/): con twoFactorRequired y
+        // (TwoFactorSetupMiddleware no frena /auth/): con twoFactorMandatory y
         // twoFactorEnabled el panel sabe que tiene que llevar a configurarla.
         auth.MapGet("/me", async (ClaimsPrincipal principal, UserManager<AppUser> userManager, TwoFactorRequirement requirement) =>
         {
@@ -199,15 +199,15 @@ public static class AuthEndpoints
         return group;
     }
 
-    /// <param name="twoFactorRequired">Si a la persona se le exige la verificación en dos pasos (TwoFactorRequirement).</param>
-    internal static object ToDto(AppUser user, bool twoFactorRequired) => new
+    /// <param name="twoFactorMandatory">Si a la persona se le exige la verificación en dos pasos (TwoFactorRequirement).</param>
+    internal static object ToDto(AppUser user, bool twoFactorMandatory) => new
     {
         id = user.Id,
         email = user.Email,
         name = user.DisplayName,
         emailVerified = user.EmailConfirmed,
         twoFactorEnabled = user.TwoFactorEnabled,
-        twoFactorRequired,
+        twoFactorMandatory,
     };
 
     /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>
