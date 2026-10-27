@@ -21,7 +21,10 @@ public sealed class TurnstileVerifier(HttpClient http, IConfiguration cfg) : ICa
 
     public async Task<bool> VerifyAsync(string? token, CancellationToken ct = default)
     {
-        if (!Enabled) return true; // dev: sin secret no se verifica
+        // Sin secret no se verifica: en dev es lo normal, y en producción se
+        // deja pasar igual para no cortar las ventas (CaptchaStartupCheck lo
+        // avisa como Critical al arrancar y deploy.sh antes de levantar).
+        if (!Enabled) return true;
         if (string.IsNullOrWhiteSpace(token)) return false;
 
         try

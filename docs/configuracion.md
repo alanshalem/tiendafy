@@ -96,7 +96,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Email:WebhookSecret` | Firma (svix) del webhook de Resend | Vacío = el webhook responde 404 | `EMAIL_WEBHOOK_SECRET` |
 | `Email:MaxRetries` | Reintentos de envío | `2` | No se mapea |
 | `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas para el costo estimado del panel | `0.40` / `0.034` | No se mapea |
-| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` |
+| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha (fuera de Development la API lo loguea como Critical al arrancar y `deploy.sh` avisa, sin frenar) | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` |
 
 ### Medios de pago y canales
 

@@ -249,6 +249,8 @@ public static class ServiceRegistration
 
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
+        // Fuera de Development, sin secret: Critical al arrancar (no tira la app).
+        services.AddHostedService<Api.Captcha.CaptchaStartupCheck>();
 
         // Aviso al storefront para que vence su caché al publicar un diseño o
         // cambiar el catálogo. Vacío = apagado (la tienda vence sola por tiempo).
