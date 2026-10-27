@@ -361,6 +361,32 @@ Ojo: eso vuelve el código, no la base. Una migración que borra datos no se
 deshace con un rollback de imagen: para eso está la copia `tiendafy-predeploy-*`
 de ese deploy (restaurarla como se explica abajo).
 
+Lo mismo con una migración que la versión anterior no conoce y que cambia
+columnas que esa versión usa. Volver a un tag anterior a las migraciones de
+oct-2026 que cifran el teléfono, el DNI y la dirección del comprador
+(`EncryptBuyerPii`, en ventas y checkouts) y que guardan hasheados los tokens de
+sus sesiones (`HashShopperTokens`) **exige restaurar el `PREDEPLOY_DUMP`** de
+ese deploy: la versión vieja no encuentra la columna `token` y leería cifrado
+lo que muestra, factura y manda por mail. Se pierde lo que se guardó desde el
+deploy. `deploy.sh` imprime los comandos con la ruta del dump; desde
+`infra/docker`:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod stop api storefront admin
+docker compose -f docker-compose.stack.yml --env-file .env.prod exec -T postgres \
+  pg_restore -U tiendafy -d tiendafy --clean --if-exists --single-transaction --exit-on-error \
+  < backups/prod/tiendafy-predeploy-AAAAMMDD-HHMM-sha-NUEVO.dump
+cd ../.. && ./infra/deploy.sh prod sha-EL_ANTERIOR
+```
+
+Con `--single-transaction` y `--exit-on-error`, si algo falla la base queda
+como estaba.
+
+El cifrado de los datos del comprador que estaban en claro no corre en
+`migrate` sino al arrancar la versión nueva (`BuyerPiiBackfillService`, con
+`Workers:Enabled`): mientras corre `migrate` sigue atendiendo la versión vieja,
+que no sabe descifrar.
+
 **Actualizar Postgres dentro de la misma major** (18.6 → 18.7, parches de
 seguridad): el deploy no lo hace solo, a propósito, porque reinicia la base.
 En un horario tranquilo:

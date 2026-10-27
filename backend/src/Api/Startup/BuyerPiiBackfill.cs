@@ -8,10 +8,12 @@ namespace Api.Startup;
 /// claro en ventas y checkouts de antes del cifrado. Idempotente: sin nada
 /// pendiente es una consulta por tabla.
 ///
-/// Corre en el paso de migración (<c>dotnet Api.dll migrate</c> y la migración
-/// al arrancar) y una vez más al arrancar la API (<see cref="BuyerPiiBackfillService"/>):
-/// en un deploy, la versión vieja sigue atendiendo mientras corre `migrate` y
-/// lo que guarde en ese rato entra en claro. Nunca dentro de un request.
+/// Corre solo al arrancar la versión nueva de la API (<see cref="BuyerPiiBackfillService"/>,
+/// con <c>Workers:Enabled</c>), nunca en el paso de migración: en un deploy la
+/// versión vieja sigue atendiendo mientras corre <c>migrate</c> y no sabe
+/// descifrar; si encontrara cifrados el teléfono, el DNI o la dirección, los
+/// mostraría, facturaría y mandaría por mail así. Lo que la vieja guarde en
+/// claro en ese rato lo cifra esta misma pasada. Nunca dentro de un request.
 /// </summary>
 public static class BuyerPiiBackfill
 {
@@ -44,7 +46,7 @@ public sealed class BuyerPiiBackfillService(IServiceProvider services, ILogger<B
         catch (Exception ex)
         {
             // No frena nada: lo viejo se sigue leyendo en claro y la próxima
-            // corrida (otro arranque, otro migrate) lo vuelve a intentar.
+            // corrida (el próximo arranque) lo vuelve a intentar.
             logger.LogWarning(ex, "No se pudieron cifrar los datos del comprador que estaban en claro.");
         }
     }

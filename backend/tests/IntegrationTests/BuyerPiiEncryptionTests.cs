@@ -92,7 +92,7 @@ public sealed class BuyerPiiEncryptionTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Las_filas_viejas_en_claro_se_leen_y_el_paso_de_migracion_las_cifra()
+    public async Task Las_filas_viejas_en_claro_se_leen_y_las_cifra_el_arranque_de_la_version_nueva_no_migrate()
     {
         var merchant = await Merchant.CreateAsync(factory, "piil");
         var (_, variantId) = await merchant.CreateProductAsync("Termo", priceMinor: 10_000_00, stock: 5);
@@ -113,7 +113,17 @@ public sealed class BuyerPiiEncryptionTests(ApiFactory factory)
         // Se leen igual.
         await AssertOldValuesAsync(merchant, orderId, sessionId);
 
-        await BuyerPiiBackfill.RunAsync(factory.Services, NullLogger.Instance);
+        // El paso de migración (`dotnet Api.dll migrate`) NO las cifra: corre con
+        // la versión vieja todavía atendiendo, que leería cifrado (CfDJ8...) el
+        // teléfono, el DNI y la dirección.
+        await factory.Services.MigrateDatabaseAsync();
+        Assert.Equal("1144443333", await OrderColumnAsync(orderId, "buyer_phone"));
+        Assert.Equal("27999888", await SessionColumnAsync(sessionId, "doc_number"));
+
+        // Las cifra el arranque de la versión nueva (BuyerPiiBackfillService).
+        var service = new BuyerPiiBackfillService(factory.Services, NullLogger<BuyerPiiBackfillService>.Instance);
+        await service.StartAsync(CancellationToken.None);
+        await service.ExecuteTask!;
 
         // Quedaron cifradas (y lo que era NULL sigue NULL)...
         Assert.StartsWith(PiiColumns.ProtectedPrefix, await OrderColumnAsync(orderId, "buyer_phone"), StringComparison.Ordinal);
