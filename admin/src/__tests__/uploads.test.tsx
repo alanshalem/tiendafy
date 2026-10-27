@@ -88,8 +88,11 @@ describe('la ficha de cada lugar', () => {
     expect(rejectReason(UPLOADS.productCsv, file('p.csv', 10, 'application/vnd.ms-excel'))).toBeNull();
     expect(rejectReason(UPLOADS.productCsv, file('p.csv', 10, ''))).toBeNull();
     expect(rejectReason(UPLOADS.productCsv, file('p.xlsx', 10, ''))).toMatch(/Es un archivo XLSX/);
-    // El ZIP de la carga masiva no tiene tope; cada foto suelta, el de /media.
+    // El ZIP de la carga masiva, hasta el tope de la subida (1 GB); cada foto suelta, el de /media.
     expect(rejectReason(UPLOADS.bulkImages, file('fotos.zip', 300 * MB, 'application/zip'))).toBeNull();
+    expect(rejectReason(UPLOADS.bulkImages, file('fotos.zip', 1100 * MB, 'application/zip'))).toMatch(
+      /máximo .* 1024 MB/,
+    );
     expect(rejectReason(UPLOADS.bulkImages, file('a.jpg', 6 * MB, 'image/jpeg'))).toMatch(/máximo .* 5 MB/);
   });
 
@@ -124,7 +127,7 @@ describe('la ficha de cada lugar', () => {
     });
     expect(describeSpec(UPLOADS.heroVideoMp4).weight).toBe('Hasta 20 MB');
     expect(describeSpec(UPLOADS.productImage).count).toBe('Máximo 10');
-    expect(describeSpec(UPLOADS.bulkImages).weight).toBe('Hasta 5 MB (ZIP: sin límite, CSV: 25 MB)');
+    expect(describeSpec(UPLOADS.bulkImages).weight).toBe('Hasta 5 MB (ZIP: 1024 MB, CSV: 25 MB)');
     expect(acceptOf(UPLOADS.logo)).toContain('image/svg+xml');
     expect(acceptOf(UPLOADS.shareImage)).not.toContain('svg');
     expect(acceptOf(UPLOADS.productCsv)).toBe('text/csv,application/vnd.ms-excel,.csv');

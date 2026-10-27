@@ -84,18 +84,31 @@ public static partial class ProductEndpoints
             if (!req.HasFormContentType)
                 return MultipartExpected();
 
-            // Subida grande: cientos/miles de imágenes en un POST. Levantar el
-            // tope de tamaño (default 30MB) y el de secciones multipart (default 1024).
+            // Subida grande: cientos/miles de imágenes en un POST. Se levanta el
+            // tope de tamaño (default 30MB) y el de partes del multipart
+            // (default 1024), pero hasta un límite: sin él, un solo pedido
+            // llenaba el disco del servidor.
+            var limits = ProductImportEndpointHelpers.ImportLimits.Default;
+            var maxBytes = ProductImportEndpointHelpers.ImportLimits.MaxRequestBytes;
             var sizeFeature = req.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>();
-            if (sizeFeature is { IsReadOnly: false }) sizeFeature.MaxRequestBodySize = null;
+            if (sizeFeature is { IsReadOnly: false }) sizeFeature.MaxRequestBodySize = maxBytes;
+            if (req.ContentLength > maxBytes) return ImageUploadTooLarge();
             req.HttpContext.Features.Set<IFormFeature>(new FormFeature(req, new FormOptions
             {
-                ValueCountLimit = int.MaxValue,
-                MultipartBodyLengthLimit = long.MaxValue,
-                MultipartHeadersCountLimit = int.MaxValue,
+                ValueCountLimit = limits.MaxEntries,
+                MultipartBodyLengthLimit = maxBytes,
             }));
 
-            var form = await req.ReadFormAsync(ct);
+            IFormCollection form;
+            try
+            {
+                form = await req.ReadFormAsync(ct);
+            }
+            catch (Exception ex) when (ex is InvalidDataException or BadHttpRequestException)
+            {
+                // Pasó alguno de los topes de arriba mientras llegaba.
+                return ImageUploadTooLarge();
+            }
             if (form.Files.Count == 0)
                 return Error.Validation("Import.NoFiles", "No se subió ninguna imagen.").ToProblem();
 
@@ -104,11 +117,20 @@ public static partial class ProductEndpoints
             Directory.CreateDirectory(tempDir);
 
             var total = 0;
+            var budget = new ProductImportEndpointHelpers.ExtractionBudget(limits);
             foreach (var file in form.Files)
             {
                 var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
                 if (ext == ".zip")
-                    total += await ProductImportEndpointHelpers.ExtractZipAsync(file, tempDir, ct);
+                {
+                    var extracted = await ProductImportEndpointHelpers.ExtractZipAsync(file, tempDir, budget, ct);
+                    if (extracted.IsFailure)
+                    {
+                        try { Directory.Delete(tempDir, true); } catch { /* best effort */ }
+                        return extracted.Error.ToProblem();
+                    }
+                    total += extracted.Value;
+                }
                 else if (ext == ".csv")
                 {
                     // CSV de mapeo (handle → archivos). El worker lo usa para asociar exacto.
@@ -176,4 +198,10 @@ public static partial class ProductEndpoints
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
         }).RequirePermission(Permission.CatalogWrite);
     }
+
+    private static IResult ImageUploadTooLarge() =>
+        Results.Problem(
+            title: "Import.TooLarge",
+            detail: $"La subida es demasiado grande: el máximo es {ProductImportEndpointHelpers.ImportLimits.MaxRequestBytes / 1024 / 1024 / 1024} GB por vez. Subí las fotos en varias tandas.",
+            statusCode: StatusCodes.Status413PayloadTooLarge);
 }

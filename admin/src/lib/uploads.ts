@@ -268,10 +268,10 @@ export const UPLOADS = {
     maxBytes: { default: 10 * MB },
     tip: 'Una foto derecha y bien iluminada se lee mejor que un escaneo torcido.',
   },
-  /** Carga masiva de fotos: cada imagen sube a /media; el ZIP y el CSV de mapeo no tienen tope propio. */
+  /** Carga masiva de fotos: cada imagen, como en /media; la subida entera, hasta 1 GB (el tope de la API). */
   bulkImages: {
     formats: [...PHOTO, 'zip', 'csv'],
-    maxBytes: { default: 5 * MB, zip: Number.POSITIVE_INFINITY, csv: 25 * MB },
+    maxBytes: { default: 5 * MB, zip: 1024 * MB, csv: 25 * MB },
     ideal: { width: 1200, height: 1200 },
     tip: 'El nombre de cada foto tiene que ser el identificador de URL del producto.',
   },
