@@ -238,7 +238,7 @@ public static class CorreoArgentinoEndpoints
                     error = "No pudimos cotizar con Correo Argentino en este momento. Probá de nuevo en unos minutos.",
                 });
             }
-        }).RequireTenant();
+        }).RequireTenant().RequireRateLimiting("shipping-quote");
 
         // Sucursales que reciben paquetes, por provincia (cacheadas 12 h).
         group.MapGet("/shipping/correo/agencies", async (

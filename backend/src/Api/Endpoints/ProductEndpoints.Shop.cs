@@ -45,7 +45,7 @@ public static partial class ProductEndpoints
                 total = found.Total,
                 categories = found.Categories.Select(c => c.ToDto()),
             });
-        });
+        }).RequireRateLimiting("search");
 
         // "Te puede interesar" del carrito: según lo que tiene adentro (ver
         // CartSuggestions). Sin variantes, lo más vendido.

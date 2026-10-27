@@ -293,12 +293,33 @@ public static class ServiceRegistration
         var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
         var checkoutContact = configuration?.GetValue("RateLimiting:CheckoutContactPermitLimit", 30) ?? 30;
         var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
+        var checkout = configuration?.GetValue("RateLimiting:CheckoutPermitLimit", 10) ?? 10;
+        var shippingQuote = configuration?.GetValue("RateLimiting:ShippingQuotePermitLimit", 30) ?? 30;
+        var search = configuration?.GetValue("RateLimiting:SearchPermitLimit", 120) ?? 120;
+        var track = configuration?.GetValue("RateLimiting:TrackPermitLimit", 120) ?? 120;
 
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
         static RateLimitPartition<string> PerIpPerPath(HttpContext ctx, int permitLimit) =>
             RateLimitPartition.GetFixedWindowLimiter(
                 $"{ctx.Connection.RemoteIpAddress}:{ctx.Request.Path}",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 });
+
+        // Por IP y por ruta, contando el PATRÓN de la ruta y no el path: un
+        // /checkout/{id}/submit con otro id es el mismo cupo (por path, cada
+        // compra nueva traía cupo nuevo). Nuestros servidores por la red
+        // interna (el storefront armando la página de búsqueda) no tienen cupo,
+        // como en el techo global: son todos los compradores juntos.
+        var internalNetworks = TrustedNetworks.From(configuration);
+        RateLimitPartition<string> PerIpPerRoute(HttpContext ctx, int permitLimit, TimeSpan window)
+        {
+            var ip = ctx.Connection.RemoteIpAddress;
+            if (TrustedNetworks.Contains(internalNetworks, ip))
+                return RateLimitPartition.GetNoLimiter("internal");
+            var route = (ctx.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? ctx.Request.Path.Value;
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"{ip}:{route}",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = window, QueueLimit = 0 });
+        }
 
         services.AddRateLimiter(options =>
         {
@@ -317,7 +338,6 @@ public static class ServiceRegistration
             // Global: techo amplio contra agotamiento de recursos (DoS L7), por
             // cliente real. Nuestros servidores en la red interna (el storefront
             // armando páginas) no tienen techo: son todos los compradores juntos.
-            var internalNetworks = TrustedNetworks.From(configuration);
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 TrustedNetworks.GlobalPartition(ctx, internalNetworks, global));
 
@@ -335,6 +355,21 @@ public static class ServiceRegistration
             // comprador real lo llama varias veces (email, nombre, teléfono, el
             // aviso por WhatsApp y al pagar), y si se agota no puede pagar.
             options.AddPolicy("checkout-contact", ctx => PerIpPerPath(ctx, checkoutContact));
+
+            // Armar y enviar un checkout reservan stock: sin cupo, un script
+            // podía dejar sin stock vendible a una tienda reservándolo todo (la
+            // reserva dura media hora). 10 cada 10 minutos sobra para quien
+            // compra de verdad, aunque corrija datos y reintente.
+            options.AddPolicy("checkout", ctx => PerIpPerRoute(ctx, checkout, TimeSpan.FromMinutes(10)));
+
+            // Cotizar envío le pega a la API del carrier con nuestras credenciales.
+            // Más holgado: la ficha y el checkout cotizan cada vez que cambia el CP.
+            options.AddPolicy("shipping-quote", ctx => PerIpPerRoute(ctx, shippingQuote, TimeSpan.FromMinutes(5)));
+
+            // Búsqueda (el predictivo va por tecla) y el beacon de visitas (una
+            // por página): holgados, contra el abuso y no contra quien navega.
+            options.AddPolicy("search", ctx => PerIpPerRoute(ctx, search, TimeSpan.FromMinutes(1)));
+            options.AddPolicy("track", ctx => PerIpPerRoute(ctx, track, TimeSpan.FromMinutes(1)));
         });
         return services;
     }

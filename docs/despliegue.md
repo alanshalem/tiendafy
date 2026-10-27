@@ -513,7 +513,9 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   storefront que pide desde la red interna) + estricto 10/5min por IP y endpoint
   en los formularios públicos (login y registro del panel y de la tienda,
   contacto, cupón, reseñas, "avisame cuando ingrese", "Seguí tu pedido"), y
-  15/5min en los endpoints de pago (contra el card-testing).
+  15/5min en los endpoints de pago (contra el card-testing). Además, por IP y
+  ruta: armar y enviar un checkout 10/10min (reservan stock), cotizar envío
+  30/5min por carrier, y búsqueda y beacon de visitas 120/min.
   ⚠️ El límite es **por instancia**. Con varias réplicas, poné el throttling también
   en el proxy (nginx `limit_req` / Cloudflare) o un store distribuido.
 - **SSRF**: la importación de imágenes por URL solo busca hosts públicos (bloquea

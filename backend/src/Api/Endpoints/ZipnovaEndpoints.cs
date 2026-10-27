@@ -208,7 +208,7 @@ public static class ZipnovaEndpoints
                     error = "No pudimos cotizar con Zipnova en este momento. Probá de nuevo en unos minutos.",
                 });
             }
-        }).RequireTenant();
+        }).RequireTenant().RequireRateLimiting("shipping-quote");
 
         // ------------------------------- Admin: envío desde una venta + etiqueta
         group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment", async (
