@@ -58,6 +58,8 @@ public static class MediaModule
             return new AmazonS3Client(options.AccessKey, options.SecretKey, config);
         });
         services.AddSingleton<IMediaStorage, S3MediaStorage>();
+        // Paso de mantenimiento: `dotnet Api.dll resanitize-svg` (ver SvgResanitizer).
+        services.AddSingleton<SvgResanitizer>();
 
         return services;
     }

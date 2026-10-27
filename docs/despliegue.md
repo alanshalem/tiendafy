@@ -382,6 +382,23 @@ cd ../.. && ./infra/deploy.sh prod sha-EL_ANTERIOR
 Con `--single-transaction` y `--exit-on-error`, si algo falla la base queda
 como estaba.
 
+**Paso único después del deploy de oct-2026 (sanitizador de SVG):** el
+sanitizador nuevo y el `Content-Disposition: attachment` solo se aplican a lo
+que se sube de ahí en adelante; los `.svg` que ya estaban en el bucket público
+pasaron por el sanitizador viejo (con bypass conocidos) y se sirven en línea.
+Una vez, con la versión nueva ya arriba, desde `infra/docker`:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm api dotnet Api.dll resanitize-svg
+```
+
+Recorre los `.svg` del bucket de media, los re-sanea y los vuelve a subir en la
+misma clave (las URLs no cambian) con `attachment`. Es idempotente: lo que ya
+está bien no se toca, así que se puede volver a correr. Lo que el sanitizador
+rechaza no se borra (es el logo de alguien): queda con `attachment` y sale en el
+log como `SVG <clave>: el sanitizador lo rechaza`, para revisarlo a mano. En
+staging, lo mismo con `.env.staging`.
+
 El cifrado de los datos del comprador que estaban en claro no corre en
 `migrate` sino al arrancar la versión nueva (`BuyerPiiBackfillService`, con
 `Workers:Enabled`): mientras corre `migrate` sigue atendiendo la versión vieja,
