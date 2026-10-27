@@ -93,10 +93,13 @@ public static class AuthTwoFactorEndpoints
             });
         }).RequireRateLimiting("auth");
 
-        // Confirmar con un código de la app: queda activa y se entregan los
-        // códigos de recuperación (se muestran esta única vez).
+        // Confirmar con un código de la app y la contraseña: queda activa y se
+        // entregan los códigos de recuperación (se muestran esta única vez). La
+        // contraseña, como al desactivarla: con solo la cookie, quien la robara
+        // activaría su propia app, se quedaría con los códigos y dejaría afuera
+        // al dueño (que para desactivarla ya no tendría ni código).
         manage.MapPost("/enable", async (
-            TwoFactorCodeRequest req,
+            TwoFactorEnableRequest req,
             ClaimsPrincipal principal,
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
@@ -108,6 +111,11 @@ public static class AuthTwoFactorEndpoints
             if (await userManager.GetAuthenticatorKeyAsync(user) is null)
                 return Results.Problem(title: "Auth.TwoFactorNotStarted",
                     detail: "Empezá de nuevo: tocá \"Activar\" para ver el código QR.", statusCode: 409);
+            if (string.IsNullOrEmpty(req.Password))
+                return Results.Problem(title: "Auth.PasswordRequired",
+                    detail: "Escribí tu contraseña para confirmar.", statusCode: 400);
+            if (await ConfirmAsync(user, new TwoFactorConfirmRequest(Password: req.Password), userManager, twoFactor) is { } denied)
+                return denied;
 
             if (!await twoFactor.VerifyAuthenticatorCodeAsync(user, req.Code))
                 return InvalidCode();
@@ -206,5 +214,5 @@ public static class AuthTwoFactorEndpoints
 }
 
 public sealed record TwoFactorLoginRequest(string? Code);
-public sealed record TwoFactorCodeRequest(string? Code);
+public sealed record TwoFactorEnableRequest(string? Code, string? Password = null);
 public sealed record TwoFactorConfirmRequest(string? Password = null, string? Code = null);

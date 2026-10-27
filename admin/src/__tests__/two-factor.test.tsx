@@ -142,8 +142,26 @@ describe('Mi cuenta: activar y desactivar', () => {
       400,
     );
     await user.type(screen.getByLabelText('Código de la app'), '000000');
+    // Activarla pide la contraseña: sin ella el botón no se habilita.
+    expect(screen.getByLabelText('Tu contraseña')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Tu contraseña')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByRole('button', { name: 'Confirmar y activar' })).toBeDisabled();
+    await user.type(screen.getByLabelText('Tu contraseña'), 'mi-clave-larga');
     await user.click(screen.getByRole('button', { name: 'Confirmar y activar' }));
     expect(await screen.findByText('El código no es correcto o ya venció.')).toBeInTheDocument();
+
+    // Una contraseña equivocada se marca en su campo.
+    api.on(
+      'POST',
+      '/api/v1/auth/2fa/enable',
+      { title: 'Auth.InvalidPassword', detail: 'La contraseña no es correcta.' },
+      400,
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirmar y activar' }));
+    expect(await screen.findByText('La contraseña no es correcta.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tu contraseña')).toHaveAccessibleDescription(
+      'La contraseña no es correcta.',
+    );
 
     api.on('POST', '/api/v1/auth/2fa/enable', { recoveryCodes: codes });
     api.on('GET', '/api/v1/auth/2fa', { enabled: true, recoveryCodesLeft: 10 });
@@ -160,6 +178,7 @@ describe('Mi cuenta: activar y desactivar', () => {
     ).toEqual(codes);
     expect(api.calls.filter((c) => c.path === '/api/v1/auth/2fa/enable').at(-1)?.body).toEqual({
       code: '123456',
+      password: 'mi-clave-larga',
     });
 
     // Guardados: ya no se ven más, y queda activa.

@@ -154,7 +154,7 @@ export const EQUIPO = {
           'En el panel, abrí el menú de tu cuenta (tu inicial, arriba a la derecha) y entrá a Mi cuenta.',
           'En “Verificación en dos pasos”, tocá “Activar”.',
           'Con la app, escaneá el código QR que aparece. Si no podés escanearlo, en la app elegí “Ingresar clave” y escribí la clave que figura abajo del QR.',
-          'Escribí el código de 6 dígitos que te muestra la app y tocá “Confirmar y activar”.',
+          'Escribí el código de 6 dígitos que te muestra la app y tu contraseña (para confirmar que sos vos: una sesión abierta en una computadora ajena no alcanza para activarla), y tocá “Confirmar y activar”.',
           'Te mostramos 10 códigos de recuperación. Descargalos o copialos y guardalos fuera de la computadora (en tu gestor de contraseñas, por ejemplo): no se vuelven a mostrar.',
         ],
         blocks: [{ type: 'path', segments: ['Tu cuenta', 'Mi cuenta'] }],
