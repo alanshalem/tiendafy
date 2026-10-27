@@ -123,7 +123,9 @@ describe('avisame cuando ingrese', () => {
     const u = user();
     renderInStore(<BackInStock variantId="v-agotada" label="Rojo / S" />);
     await u.type(screen.getByLabelText('Tu email para el aviso'), 'ana@mail.com');
-    await u.click(screen.getByRole('button', { name: 'Avisarme' }));
+    const notify = screen.getByRole('button', { name: 'Avisarme' });
+    await waitFor(() => expect(notify).toBeEnabled()); // el captcha ya respondió
+    await u.click(notify);
     expect(await screen.findByRole('status')).toHaveTextContent('ana@mail.com cuando ingrese Rojo / S');
     const call = api.calls.find((c) => c.path === '/api/v1/back-in-stock');
     expect(call?.body).toMatchObject({ variantId: 'v-agotada', email: 'ana@mail.com', website: '' });
@@ -134,7 +136,9 @@ describe('avisame cuando ingrese', () => {
     const u = user();
     renderInStore(<BackInStock variantId="v1" />);
     await u.type(screen.getByLabelText('Tu email para el aviso'), 'ana@mail.com');
-    await u.click(screen.getByRole('button', { name: 'Avisarme' }));
+    const notify = screen.getByRole('button', { name: 'Avisarme' });
+    await waitFor(() => expect(notify).toBeEnabled()); // el captcha ya respondió
+    await u.click(notify);
     expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay stock');
   });
 });
@@ -283,8 +287,11 @@ describe('escribir una opinión', () => {
     // Lo ya opinado no se vuelve a ofrecer.
     expect(screen.getByText(/se publica cuando la tienda la revise/)).toBeInTheDocument();
 
-    await u.click(screen.getByRole('button', { name: 'Publicar mi opinión' }));
-    // El submit espera el captcha antes de validar: la alerta llega en un tick posterior.
+    // El botón se habilita recién cuando el captcha consultó su configuración
+    // (en CI tarda más que un tick): clickear antes no manda nada.
+    const publish = screen.getByRole('button', { name: 'Publicar mi opinión' });
+    await waitFor(() => expect(publish).toBeEnabled());
+    await u.click(publish);
     expect(await screen.findByRole('alert')).toHaveTextContent('Elegí de 1 a 5 estrellas');
     await u.click(screen.getByRole('radio', { name: /5 estrellas: Excelente/ }));
     await u.type(screen.getByLabelText('Tu opinión'), 'Excelente, lo recomiendo.');
