@@ -21,10 +21,13 @@ export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.set('x-pathname', request.nextUrl.pathname);
   const response = NextResponse.next({ request: { headers } });
+  const runtime = serverRuntimeConfig();
   response.headers.set(
     'Content-Security-Policy',
-    buildCsp(serverRuntimeConfig().apiUrl, {
+    buildCsp(runtime.apiUrl, {
       cardChallenge: isCardChallengePage(request.nextUrl.pathname),
+      adminOrigin: runtime.adminOrigin,
+      dev: process.env.NODE_ENV === 'development',
     }),
   );
   return response;

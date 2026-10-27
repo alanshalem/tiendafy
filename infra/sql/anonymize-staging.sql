@@ -14,8 +14,10 @@
 --  3. Vacía sesiones y tokens: nadie sigue logueado en staging con una sesión
 --     de producción.
 --
--- Lo que NO toca: los usuarios del panel (son del propio equipo) y el catálogo.
--- Sin catálogo real, staging no sirve para probar lo que importa.
+-- Los usuarios del panel conservan su email y sus tiendas (son del propio equipo)
+-- pero pierden la contraseña y las sesiones (paso 3): quien entra a staging usa
+-- "Olvidé mi contraseña" (ver docs/despliegue.md). El catálogo no se toca: sin
+-- catálogo real, staging no sirve para probar lo que importa.
 
 \set ON_ERROR_STOP on
 
@@ -88,6 +90,21 @@ DELETE FROM email_suppressions;
 -- 3) Sesiones y tokens de compradores.
 DELETE FROM customer_sessions;
 DELETE FROM customer_tokens;
+
+-- 3b) Usuarios del panel: una copia de producción no puede dejar entrar a staging
+--    con las contraseñas de producción. Sin hash no hay contraseña que valga;
+--    cambiar el security_stamp invalida las cookies de sesión que ya existan
+--    (la API las revalida contra él) y los logins externos (Google) y tokens
+--    de recuperación viejos se borran.
+UPDATE users SET
+    password_hash = NULL,
+    security_stamp = gen_random_uuid()::text,
+    concurrency_stamp = gen_random_uuid()::text,
+    two_factor_enabled = false,
+    access_failed_count = 0,
+    lockout_end = NULL;
+DELETE FROM user_logins;
+DELETE FROM user_tokens;
 
 -- 4) Colas y webhooks pendientes: si quedan, staging intenta procesar trabajo
 --    de producción (facturar, avisar, despachar) contra servicios de prueba.

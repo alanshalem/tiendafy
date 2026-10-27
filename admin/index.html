@@ -8,8 +8,10 @@
          frame-src: el editor de diseño embebe la tienda del merchant (preview).
          Dev = subdominios *.localhost:3000; prod = la tienda en https (incluye
          dominios propios del merchant). frame-ancestors NO va acá (ignorado en
-         <meta>); que no se pueda embeber el admin lo resuelve X-Frame-Options
-         en el nginx. -->
+         <meta>); que no se pueda embeber el admin lo resuelven X-Frame-Options
+         y el mismo CSP mandado por header desde el nginx (con frame-ancestors
+         'none' y connect-src acotado a la API del ambiente). Si tocás esta
+         política, tocá también admin/nginx-security-headers.conf. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; media-src 'self' blob: https: http:; connect-src 'self' https: http://localhost:*; frame-src 'self' http://*.localhost:* https:; object-src 'none'; base-uri 'self'"

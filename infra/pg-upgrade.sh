@@ -37,23 +37,22 @@ compose() { docker compose -f docker-compose.stack.yml --env-file "$ENV_FILE" "$
 psql_in() { docker exec -i "$1" psql -U tiendafy -d tiendafy -v ON_ERROR_STOP=1 -tA "${@:2}"; }
 APP_ENV="$(sed -n 's/^APP_ENV=//p' "$ENV_FILE" | tail -1)"
 
-# Los backups los escribe pg-backup, que corre como root: la carpeta del
-# ambiente queda de root y el usuario que corre esto (deploy) no puede escribir
-# ahí. Se la devuelve con un contenedor del mismo servicio, que ya la monta
-# (estar en el grupo docker alcanza, no hace falta sudo). pg-backup sigue
-# escribiendo igual: corre como root.
+# Los backups: la carpeta es del usuario que corre esto, con 0700 (ver deploy.sh).
+export BACKUP_UID="$(id -u)" BACKUP_GID="$(id -g)"
 backups_writable() {
   local dir="backups/$APP_ENV"
   mkdir -p "$dir" 2> /dev/null || true
-  [ -w "$dir" ] && return 0
-  echo "==> $dir es de root (la crea pg-backup): pasa a $(id -un)"
-  compose run --rm --no-deps -T --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
-  [ -w "$dir" ] || {
-    echo "No pude dejar $dir escribible para $(id -un)." >&2
-    return 1
-  }
+  if [ ! -w "$dir" ]; then
+    echo "==> $dir es de root: pasa a $(id -un)"
+    compose run --rm --no-deps -T --user 0 --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+      --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
+    [ -w "$dir" ] || {
+      echo "No pude dejar $dir escribible para $(id -un)." >&2
+      return 1
+    }
+  fi
+  chmod 700 "$dir"
 }
-
 # Una línea "tabla filas" por tabla, ordenadas: se comparan antes y después.
 COUNT_ROWS="SELECT format('SELECT %L, count(*) FROM %I.%I', table_schema || '.' || table_name, table_schema, table_name)
   FROM information_schema.tables

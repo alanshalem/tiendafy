@@ -28,6 +28,23 @@ x-logging: &logging
       max-size: '10m'
       max-file: '3'
 
+# Endurecimiento de los contenedores de la app: sin escalar privilegios, sin
+# ninguna capability de Linux (ninguno necesita una: escuchan puertos altos y
+# escriben solo en sus volúmenes) y con el sistema de archivos de solo lectura;
+# lo que escribe va a un tmpfs o a un volumen declarado.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+
+# Quién lee los backups afuera: el usuario que corre deploy.sh (que exporta
+# BACKUP_UID/BACKUP_GID). La carpeta es suya, con 0700, y los archivos son suyos
+# con 0600 (pg-backup se los devuelve). backup-offsite corre como él.
+x-backup-user: &backupuser
+  user: '${BACKUP_UID:-1000}:${BACKUP_GID:-1000}'
+
 services:
   postgres:
     image: *pgimage
@@ -59,7 +76,16 @@ services:
   pg-backup:
     image: *pgimage
     restart: unless-stopped
-    <<: *logging
+    <<: [*logging, *hardening]
+    # Corre como root a propósito: las claves de /keys son 0600 del usuario de
+    # la API y hay que leerlas. Con el mínimo: DAC_OVERRIDE (leerlas y escribir
+    # en la carpeta 0700) y CHOWN (devolver cada archivo al usuario del servidor,
+    # backup.sh). Nada más.
+    cap_add:
+      - DAC_OVERRIDE
+      - CHOWN
+    tmpfs:
+      - /tmp
     deploy:
       replicas: ${BACKUP_REPLICAS:-1}
     depends_on:
@@ -67,6 +93,8 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_UID: ${BACKUP_UID:-1000}
+      BACKUP_GID: ${BACKUP_GID:-1000}
     volumes:
       - ./backups/${APP_ENV:?definir APP_ENV}:/backups
       - ./backup.sh:/usr/local/bin/tiendafy-backup.sh:ro
@@ -82,11 +110,14 @@ services:
   backup-offsite:
     image: rclone/rclone:1.75
     restart: unless-stopped
-    <<: *logging
+    <<: [*logging, *hardening, *backupuser]
+    tmpfs:
+      - /tmp
     deploy:
       replicas: ${OFFSITE_REPLICAS:-0}
     mem_limit: 128m
     environment:
+      HOME: /tmp
       RCLONE_CONFIG_DESTINO_TYPE: s3
       RCLONE_CONFIG_DESTINO_PROVIDER: ${OFFSITE_PROVIDER:-Cloudflare}
       RCLONE_CONFIG_DESTINO_ENDPOINT: ${OFFSITE_ENDPOINT:-}
@@ -115,7 +146,10 @@ services:
       context: ../..
       dockerfile: backend/Dockerfile
     restart: unless-stopped
-    <<: *logging
+    <<: [*logging, *hardening]
+    # /tmp: lo único que escribe fuera de /keys (QuestPDF, archivos temporales).
+    tmpfs:
+      - /tmp
     mem_limit: ${API_MEM_LIMIT:-1g}
     depends_on:
       postgres:
@@ -213,7 +247,16 @@ services:
       context: ../..
       dockerfile: storefront/Dockerfile
     restart: unless-stopped
-    <<: *logging
+    <<: [*logging, *hardening]
+    # La tienda NO va de solo lectura: Next escribe su caché (Data Cache,
+    # prerender y las imágenes optimizadas) en .next/cache en runtime, y crece
+    # con el catálogo. En un tmpfs viviría en la memoria del contenedor (cuenta
+    # para mem_limit) y con tope; en el disco del contenedor, como siempre, se
+    # vacía igual en cada deploy (contenedor nuevo). Sin privilegios ni
+    # capabilities sí, como las demás.
+    read_only: false
+    tmpfs:
+      - /tmp
     mem_limit: ${WEB_MEM_LIMIT:-768m}
     ports:
       - '127.0.0.1:${WEB_PORT:-3000}:3000'
@@ -241,7 +284,11 @@ services:
       context: ../..
       dockerfile: admin/Dockerfile
     restart: unless-stopped
-    <<: *logging
+    <<: [*logging, *hardening]
+    # nginx guarda su pid y sus temporales en /tmp; docker-config.sh escribe
+    # ahí config.js y la CSP de runtime (ver admin/nginx.conf).
+    tmpfs:
+      - /tmp
     mem_limit: ${ADMIN_MEM_LIMIT:-128m}
     ports:
       - '127.0.0.1:${ADMIN_PORT:-8090}:8080'

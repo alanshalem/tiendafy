@@ -23,6 +23,7 @@ Customers.Infrastructure.CustomersDbContext.UsePii(
     app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>());
 
 app.UseProxyHeaders();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Modo one-shot para deploys: `dotnet Api.dll migrate` aplica las migraciones de
 // TODOS los módulos y sale con código 0. Es el paso de deploy explícito (antes

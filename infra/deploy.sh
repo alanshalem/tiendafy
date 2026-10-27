@@ -51,22 +51,49 @@ for key in TURNSTILE_SECRET TURNSTILE_SITE_KEY; do
   fi
 done
 
-# Los backups los escribe pg-backup, que corre como root: la carpeta del
-# ambiente queda de root y el usuario que corre esto (deploy) no puede escribir
-# ahí. Se la devuelve con un contenedor del mismo servicio, que ya la monta
-# (estar en el grupo docker alcanza, no hace falta sudo). pg-backup sigue
-# escribiendo igual: corre como root.
+# Los backups: la carpeta es del usuario que corre esto (deploy), con 0700, y
+# los archivos 0600 también suyos (pg-backup se los devuelve, ver backup.sh):
+# el dump y el keyring juntos abren todos los secretos de las tiendas. Los
+# contenedores de backup reciben su uid/gid por BACKUP_UID/BACKUP_GID.
+export BACKUP_UID="$(id -u)" BACKUP_GID="$(id -g)"
 backups_writable() {
   local dir="backups/$APP_ENV"
   mkdir -p "$dir" 2> /dev/null || true
-  [ -w "$dir" ] && return 0
-  echo "==> $dir es de root (la crea pg-backup): pasa a $(id -un)"
-  compose run --rm --no-deps -T --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
-  [ -w "$dir" ] || {
-    echo "No pude dejar $dir escribible para $(id -un)." >&2
-    return 1
-  }
+  if [ ! -w "$dir" ]; then
+    # Backups viejos, de cuando pg-backup corría como root: se los devuelve con
+    # un contenedor de ese servicio, que ya monta la carpeta (estar en el grupo
+    # docker alcanza, no hace falta sudo).
+    echo "==> $dir es de root: pasa a $(id -un)"
+    compose run --rm --no-deps -T --user 0 --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+      --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
+    [ -w "$dir" ] || {
+      echo "No pude dejar $dir escribible para $(id -un)." >&2
+      return 1
+    }
+  fi
+  chmod 700 "$dir"
+  find "$dir" -maxdepth 1 -type f -exec chmod 600 {} +
 }
+# Valor de una variable en el archivo de un ambiente (la última definición).
+env_value() { sed -n "s/^$2=//p" "$1" | tail -1; }
+# Staging con los buckets de producción es staging borrando fotos de producción:
+# el compose cae a los nombres por defecto cuando falta MEDIA_BUCKET, que son
+# los de producción. Acá se exige que staging defina los suyos y que no sean
+# los de prod (ni los por defecto ni los que declare .env.prod).
+if [ "$ENVIRONMENT" = staging ]; then
+  for pair in MEDIA_BUCKET:tiendafy-media MEDIA_PRIVATE_BUCKET:tiendafy-private; do
+    var="${pair%%:*}"
+    prod_default="${pair##*:}"
+    stg_value="$(env_value "$ENV_FILE" "$var")"
+    prod_value=""
+    [ -f .env.prod ] && prod_value="$(env_value .env.prod "$var")"
+    if [ -z "$stg_value" ] || [ "$stg_value" = "$prod_default" ] || [ "$stg_value" = "${prod_value:-$prod_default}" ]; then
+      echo "Staging tiene que usar sus propios buckets: definí $var en $ENV_FILE con un nombre distinto del de producción (hoy: \"${stg_value:-sin definir}\")." >&2
+      exit 1
+    fi
+  done
+fi
+
 # Tag de una imagen "registro/nombre:tag" (lo que va después de los últimos dos puntos).
 tag_of() { echo "${1##*:}"; }
 
@@ -117,7 +144,7 @@ if [ -n "$PG_ID" ]; then
   backups_writable
   PREDEPLOY_DUMP="backups/$APP_ENV/tiendafy-predeploy-$(date +%Y%m%d-%H%M)-$NEW_TAG.dump"
   echo "==> copia de la base antes de migrar ($PREDEPLOY_DUMP)"
-  docker exec "$PG_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$PREDEPLOY_DUMP.tmp"
+  (umask 077 && docker exec "$PG_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$PREDEPLOY_DUMP.tmp")
   mv "$PREDEPLOY_DUMP.tmp" "$PREDEPLOY_DUMP"
 fi
 
