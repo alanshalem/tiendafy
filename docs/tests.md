@@ -21,6 +21,7 @@ navegador donde hace falta) y tener un solo lugar para cada pieza compartida.
 | Smoke e2e | Un despliegue está vivo: API, tienda por host, catálogo, sitemap/robots, login | `e2e/tests/smoke.spec.ts` (`@smoke`) | `pnpm test:smoke` | (dentro del E2E) |
 | Accesibilidad (navegador) | axe en Chromium, contraste de color incluido | `e2e/tests/accesibilidad.spec.ts` | (e2e) | (dentro del E2E) |
 | Carga y protección | Usuarios virtuales recorriendo la tienda (p50/p95/p99); el rate limit corta el abuso con 429 | `scripts/load-test.mjs` | `pnpm test:load` / `pnpm test:load -- --mode protection` | No |
+| Scripts de deploy | El freno de `deploy.sh` que impide que staging use los buckets de producción (comillas, CRLF, comentarios, variable del shell) | `infra/tests/*.test.sh` | `bash infra/tests/deploy-buckets.test.sh` | No |
 
 ## Qué necesita cada suite
 
