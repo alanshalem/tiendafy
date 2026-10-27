@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 /** Las excepciones, con su motivo. */
 const ALLOWED: Record<string, string> = {
-  '../pages/Help.tsx': 'el centro de ayuda es texto para leer y tiene su propio marco',
+  '../pages/Help.tsx': 'usa PAGE_MAIN; solo el buscador y las categorías del inicio van centrados y angostos',
   '../components/EmptyState.tsx': 'el "todavía no hay nada" va centrado, no es el contenido de la página',
 };
 

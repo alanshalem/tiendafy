@@ -65,6 +65,12 @@ describe('artículos de ayuda', () => {
     expect(await screen.findByPlaceholderText(/Buscá: reembolsos/)).toBeInTheDocument();
   });
 
+  it('el logo de arriba vuelve al inicio del centro de ayuda', async () => {
+    const user = await openHelp(`/ayuda/${TOPICS[0]}`);
+    await user.click(screen.getByRole('link', { name: 'Centro de ayuda — inicio' }));
+    expect(await screen.findByPlaceholderText(/Buscá: reembolsos/)).toBeInTheDocument();
+  });
+
   it('el índice lateral marca la sección que se está viendo', async () => {
     let callback: IntersectionObserverCallback = () => {};
     const observe = vi.fn();

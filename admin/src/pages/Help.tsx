@@ -58,6 +58,7 @@ import {
 } from '../config/helpContent';
 import type { HelpLinkId } from '../config/features';
 import { HelpDemo } from '../components/HelpDemos';
+import { PAGE_MAIN } from '../lib/styles';
 import { foldText } from '../lib/text';
 
 // Ícono por tema (con fallback genérico).
@@ -137,14 +138,21 @@ function TopicIcon({ id, className }: { id: HelpLinkId; className?: string }) {
   return <Icon className={className} />;
 }
 
-function HelpShell({ children, width = 'max-w-2xl' }: { children: ReactNode; width?: string }) {
+/** El mismo ancho que las páginas del panel (PAGE_MAIN); el texto largo se angosta adentro. */
+function HelpShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen scroll-smooth bg-bg-subtle text-fg">
-      <header className="sticky top-0 z-20 flex h-header items-center gap-2.5 border-b border-border bg-surface/80 px-6 backdrop-blur-xl">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-black text-primary-fg">
-          t
-        </span>
-        <span className="text-base font-semibold tracking-tight">Centro de ayuda</span>
+      <header className="sticky top-0 z-20 flex h-header items-center gap-2.5 border-b border-border bg-surface/80 px-4 backdrop-blur-xl sm:px-6 md:px-8">
+        <Link
+          to="/ayuda"
+          aria-label="Centro de ayuda — inicio"
+          className="flex items-center gap-2.5 hover:opacity-80"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-black text-primary-fg">
+            t
+          </span>
+          <span className="text-base font-semibold tracking-tight">Centro de ayuda</span>
+        </Link>
         <Link
           to="/ayuda"
           className="ml-auto inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg"
@@ -152,7 +160,7 @@ function HelpShell({ children, width = 'max-w-2xl' }: { children: ReactNode; wid
           <BookOpen className="h-4 w-4" /> Todos los temas
         </Link>
       </header>
-      <main className={`mx-auto ${width} px-5 py-12`}>{children}</main>
+      <main className={PAGE_MAIN}>{children}</main>
     </div>
   );
 }
@@ -431,7 +439,7 @@ export function HelpArticlePage() {
   const related = all.filter((k) => k !== id && HELP_CONTENT[k].category === article.category).slice(0, 4);
 
   return (
-    <HelpShell width="max-w-5xl">
+    <HelpShell>
       <div ref={topRef} className="scroll-mt-24" />
       {/* Migas de pan */}
       <nav className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg-muted">
@@ -446,8 +454,9 @@ export function HelpArticlePage() {
         <span className="text-fg">{article.title}</span>
       </nav>
 
-      <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_200px] lg:gap-10">
-        <div className="min-w-0 max-w-2xl">
+      {/* La columna del texto queda en un largo de línea cómodo de leer; el índice, al lado. */}
+      <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,48rem)_220px] lg:gap-12">
+        <div className="min-w-0">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <TopicIcon id={id} className="h-5 w-5" />
@@ -589,7 +598,7 @@ export function HelpIndexPage() {
   }, []);
 
   return (
-    <HelpShell width="max-w-4xl">
+    <HelpShell>
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight">¿Con qué te ayudamos?</h1>
         <p className="mt-3 text-lg text-fg-muted">
