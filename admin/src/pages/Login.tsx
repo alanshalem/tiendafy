@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { Captcha } from '../components/Captcha';
 import { LogoMark } from '../components/LogoMark';
+import { RequiredTwoFactorSetup } from '../components/TwoFactorSetup';
 import { Spinner } from '@tiendafy/ui';
 
 const AUTH_INPUT =
@@ -28,12 +29,15 @@ function AuthField({ label, ...input }: { label: string } & InputHTMLAttributes<
   );
 }
 
-function Shell({ children }: { children: ReactNode }) {
+/** `wide`: la configuración de la verificación en dos pasos (QR y campos lado a lado). */
+function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return (
     // `main`: sin él la pantalla de entrada no tenía región principal y un
     // lector de pantalla no podía saltar directo al formulario.
-    <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-7 shadow-card">
+    <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4 py-8">
+      <div
+        className={`w-full ${wide ? 'max-w-xl' : 'max-w-sm'} rounded-2xl border border-border bg-surface p-7 shadow-card`}
+      >
         <div className="mb-6 flex items-center gap-2.5">
           <LogoMark className="h-9 w-9" />
           <span className="text-xl font-bold text-fg">tiendafy</span>
@@ -129,7 +133,7 @@ function TwoFactorStep({ onBack, onExpired }: { onBack: () => void; onExpired: (
 }
 
 export function Login() {
-  const { login, register } = useAuth();
+  const { login, register, completeTwoFactorSetup } = useAuth();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -142,6 +146,8 @@ export function Login() {
   const [resent, setResent] = useState(false);
   // La contraseña estuvo bien y falta el código del segundo paso.
   const [twoFactor, setTwoFactor] = useState(false);
+  // La contraseña estuvo bien y tiene que configurar la verificación (obligatoria).
+  const [twoFactorSetup, setTwoFactorSetup] = useState(false);
 
   // El panel no tiene alta pública: el equipo se da de alta desde Usuarios. La
   // única excepción es una instalación vacía, donde hay que poder crear al
@@ -181,11 +187,39 @@ export function Login() {
       setTwoFactor(true);
       return;
     }
+    // La contraseña queda en memoria para confirmar la activación sin volver
+    // a pedirla (el servidor la exige); se borra al salir de este paso.
+    if (res.twoFactorSetup) {
+      setTwoFactorSetup(true);
+      return;
+    }
     if (!res.ok) {
       setError(res.error ?? 'Algo salió mal.');
       if (res.code === 'Auth.EmailNotVerified') setNeedsVerify(true);
     }
   };
+
+  if (twoFactorSetup) {
+    const backToPassword = (message?: string) => {
+      setTwoFactorSetup(false);
+      setPassword('');
+      setError(message ?? null);
+    };
+    return (
+      <Shell wide>
+        <RequiredTwoFactorSetup
+          password={password}
+          onDone={(user) => {
+            setPassword('');
+            completeTwoFactorSetup(user);
+          }}
+          onExit={() => backToPassword()}
+          exitLabel="Volver a iniciar sesión"
+          onExpired={backToPassword}
+        />
+      </Shell>
+    );
+  }
 
   if (twoFactor) {
     return (
@@ -463,7 +497,7 @@ function VerifyEmailScreen() {
 
 /** Gate: muestra el login si no hay sesión; el resto de la app si la hay. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { user, ready, unreachable, retry } = useAuth();
+  const { user, ready, unreachable, retry, logout, completeTwoFactorSetup } = useAuth();
   // Links del email (reset / verificación) llegan sin sesión: antes del gate.
   if (typeof window !== 'undefined' && window.location.pathname === '/restablecer') {
     return <ResetPasswordForm />;
@@ -498,5 +532,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
   if (!user) return <Login />;
+  // Dueño o administrador con la sesión abierta y sin la verificación en dos
+  // pasos, que es obligatoria (lo dijo /auth/me o un 403 de la API): no se usa
+  // el panel hasta configurarla.
+  if (user.twoFactorMandatory && !user.twoFactorEnabled) {
+    return (
+      <Shell wide>
+        <RequiredTwoFactorSetup
+          onDone={completeTwoFactorSetup}
+          onExit={() => void logout()}
+          exitLabel="Salir"
+          onExpired={() => void logout()}
+        />
+      </Shell>
+    );
+  }
   return <>{children}</>;
 }

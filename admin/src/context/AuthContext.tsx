@@ -1,15 +1,20 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@tiendafy/ui';
-import { api, ApiRequestError, setSessionExpiredHandler } from '../lib/api';
+import { api, ApiRequestError, setSessionExpiredHandler, setTwoFactorSetupRequiredHandler } from '../lib/api';
 import { SessionExpiredDialog } from '../components/SessionExpiredDialog';
 
-interface AdminUser {
+export interface AdminUser {
   id: string;
   email: string;
   name: string;
   /** Si tiene activa la verificación en dos pasos. */
   twoFactorEnabled?: boolean;
+  /**
+   * Si se la exigen (dueños y administradores, cuando la plataforma la pide):
+   * sin activarla no usa el panel, y no la puede desactivar.
+   */
+  twoFactorMandatory?: boolean;
 }
 
 export interface AuthResult {
@@ -22,12 +27,16 @@ export interface AuthResult {
    * pasos: falta el código de la app (o uno de recuperación) con verifyTwoFactor.
    */
   twoFactor?: boolean;
+  /**
+   * La contraseña estuvo bien pero es dueño o administrador y no tiene la
+   * verificación en dos pasos, que es obligatoria: hay que configurarla para
+   * entrar (RequiredTwoFactorSetup); la sesión se abre al activarla.
+   */
+  twoFactorSetup?: boolean;
 }
 
-/** Lo que responde /auth/login cuando falta el segundo paso. */
-interface TwoFactorPending {
-  twoFactorRequired: true;
-}
+/** Lo que responde /auth/login cuando falta el segundo paso (o configurarlo). */
+type TwoFactorPending = { twoFactorRequired: true } | { twoFactorSetupRequired: true };
 
 interface AuthContextValue {
   user: AdminUser | null;
@@ -44,6 +53,8 @@ interface AuthContextValue {
   verifyTwoFactor: (code: string) => Promise<AuthResult>;
   /** Refleja en la sesión que se activó o desactivó la verificación en dos pasos. */
   setTwoFactorEnabled: (enabled: boolean) => void;
+  /** Se configuró la verificación obligatoria: la sesión ya está abierta (con la persona, si llegó). */
+  completeTwoFactorSetup: (user?: AdminUser) => void;
   register: (name: string, email: string, password: string, captcha?: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
 }
@@ -68,7 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setSessionExpiredHandler(() => setExpired(true));
-    return () => setSessionExpiredHandler(null);
+    // La API dice que falta configurar la verificación obligatoria (una sesión
+    // de antes de que se exigiera): el gate muestra la pantalla para hacerlo.
+    setTwoFactorSetupRequiredHandler(() =>
+      setUser((u) => (u ? { ...u, twoFactorMandatory: true, twoFactorEnabled: false } : u)),
+    );
+    return () => {
+      setSessionExpiredHandler(null);
+      setTwoFactorSetupRequiredHandler(null);
+    };
   }, []);
 
   useEffect(() => {
@@ -102,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       // Con la verificación en dos pasos la contraseña sola no abre la sesión.
       if ('twoFactorRequired' in u) return { ok: false, twoFactor: true };
+      if ('twoFactorSetupRequired' in u) return { ok: false, twoFactorSetup: true };
       setUser(u);
       setUnreachable(false);
       return { ok: true };
@@ -125,6 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setTwoFactorEnabled = (enabled: boolean) =>
     setUser((u) => (u ? { ...u, twoFactorEnabled: enabled } : u));
+
+  const completeTwoFactorSetup = (configured?: AdminUser) => {
+    setUser((u) => configured ?? (u ? { ...u, twoFactorEnabled: true } : u));
+    setUnreachable(false);
+    setExpired(false);
+  };
 
   const register = async (
     name: string,
@@ -151,6 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return { ok: false };
     const res = await login(user.email, password, captcha);
     if (res.ok) welcomeBack();
+    // Le falta configurar la verificación obligatoria: la pantalla del gate.
+    if (res.twoFactorSetup) {
+      setExpired(false);
+      setUser((u) => (u ? { ...u, twoFactorMandatory: true, twoFactorEnabled: false } : u));
+    }
     return res;
   };
 
@@ -186,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         verifyTwoFactor,
         setTwoFactorEnabled,
+        completeTwoFactorSetup,
         register,
         logout,
       }}

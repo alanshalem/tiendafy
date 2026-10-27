@@ -37,7 +37,7 @@ export const EQUIPO = {
           'Lo que puede hacer se elige por tienda: puede ser vendedora en una y no tener acceso a otra.',
           'Para darle acceso a otra tienda, entrá a esa tienda y sumala desde Configuración → Usuarios.',
           'Nadie ve las contraseñas: si alguien la olvida, la restablece desde “¿Olvidaste tu contraseña?”.',
-          'Cada persona puede sumarle a su cuenta la verificación en dos pasos (un código del teléfono además de la contraseña), desde Mi cuenta. Es lo más recomendable para los dueños.',
+          'Cada persona puede sumarle a su cuenta la verificación en dos pasos (un código del teléfono además de la contraseña), desde Mi cuenta. Para dueños y administradores es obligatoria: la configuran al entrar.',
         ],
       },
       {
@@ -134,7 +134,7 @@ export const EQUIPO = {
   dosPasos: {
     title: 'Verificación en dos pasos',
     intro:
-      'Un segundo paso al entrar al panel: además de la contraseña, un código que cambia cada 30 segundos en una app de tu teléfono. Si alguien consigue tu contraseña, sin tu teléfono no entra.',
+      'Un segundo paso al entrar al panel: además de la contraseña, un código que cambia cada 30 segundos en una app de tu teléfono. Si alguien consigue tu contraseña, sin tu teléfono no entra. Para dueños y administradores es obligatoria.',
     category: 'Equipo',
     keywords: [
       '2FA',
@@ -145,13 +145,24 @@ export const EQUIPO = {
       'Authy',
       'seguridad',
       'código',
+      'obligatoria',
+      'perdí el teléfono',
     ],
     sections: [
+      {
+        heading: 'Obligatoria para dueños y administradores',
+        paragraphs: [
+          'Si sos dueño o administrador de alguna tienda, no podés usar el panel sin la verificación en dos pasos: con tu contraseña se maneja la tienda entera (cobros, precios, el equipo). La primera vez que entres después de que se exija, te pedimos configurarla antes de seguir: tocá “Empezar”, escaneá el código QR con la app y escribí el código que te muestra. Al terminar te mostramos los códigos de recuperación y entrás al panel.',
+          'Si ya tenías el panel abierto, la próxima pantalla que cargues te lleva a la misma configuración.',
+          'No se puede desactivar. Sí podés generar códigos de recuperación nuevos o pasarla a otra app (por ejemplo, si cambiás de teléfono).',
+          'Para los demás roles es opcional: en el Inicio te aparece un aviso que te la recomienda.',
+        ],
+      },
       {
         heading: 'Activarla',
         steps: [
           'Instalá en tu teléfono una app de autenticación: Google Authenticator, Microsoft Authenticator, Authy, 1Password o la que uses para otras cuentas.',
-          'En el panel, abrí el menú de tu cuenta (tu inicial, arriba a la derecha) y entrá a Mi cuenta.',
+          'En el panel, abrí el menú de tu cuenta (tu inicial, arriba a la derecha) y entrá a Mi cuenta. (Si sos dueño o administrador, el panel te la pide al entrar: seguí desde el paso 4.)',
           'En “Verificación en dos pasos”, tocá “Activar”.',
           'Con la app, escaneá el código QR que aparece. Si no podés escanearlo, en la app elegí “Ingresar clave” y escribí la clave que figura abajo del QR.',
           'Escribí el código de 6 dígitos que te muestra la app y tu contraseña (para confirmar que sos vos: una sesión abierta en una computadora ajena no alcanza para activarla), y tocá “Confirmar y activar”.',
@@ -178,8 +189,8 @@ export const EQUIPO = {
         heading: 'Si perdés el teléfono',
         steps: [
           'En la pantalla del código, tocá “¿No tenés el teléfono? Usá un código de recuperación” y escribí uno de los que guardaste. Cada uno sirve una sola vez.',
-          'Ya adentro, en Mi cuenta generá códigos nuevos o desactivá la verificación y volvé a activarla con el teléfono nuevo.',
-          'Sin teléfono y sin códigos de recuperación no hay forma de entrar a esa cuenta: pedile a un dueño que te dé de alta con otro email, o escribile a soporte.',
+          'Ya adentro, en Mi cuenta tocá “Pasar a otra app”: te pedimos tu contraseña y otro código de recuperación, escaneás el QR nuevo con el teléfono nuevo y confirmás con el código que muestra. Después generá códigos de recuperación nuevos.',
+          'Sin teléfono y sin códigos de recuperación no podés entrar: pedile a quien opera la plataforma que te borre la verificación (antes te va a pedir confirmar que sos vos por otro medio). Al entrar con tu contraseña la configurás de nuevo.',
         ],
         blocks: [
           {
@@ -190,10 +201,11 @@ export const EQUIPO = {
         ],
       },
       {
-        heading: 'Desactivarla o generar códigos nuevos',
+        heading: 'Desactivarla, generar códigos nuevos o pasarla a otra app',
         paragraphs: [
-          'Las dos cosas se hacen desde Mi cuenta y piden confirmar que sos vos: tu contraseña, o un código (de la app o de recuperación). Así, una sesión que quedó abierta en una computadora ajena no alcanza para sacarle el segundo paso a tu cuenta.',
-          'Al desactivarla, la clave de la app y los códigos de recuperación se borran: si la volvés a activar, hay que escanear un QR nuevo.',
+          'Las tres cosas se hacen desde Mi cuenta y piden confirmar que sos vos: tu contraseña, o un código (de la app o de recuperación). Así, una sesión que quedó abierta en una computadora ajena no alcanza para sacarle el segundo paso a tu cuenta.',
+          'Pasarla a otra app pide las dos cosas: tu contraseña y un código. Hasta que confirmes con el código de la app nueva, sigue valiendo la de antes; al confirmar, la anterior deja de servir. Los códigos de recuperación siguen siendo los mismos.',
+          'Al desactivarla, la clave de la app y los códigos de recuperación se borran: si la volvés a activar, hay que escanear un QR nuevo. Dueños y administradores no la pueden desactivar.',
         ],
       },
       {
@@ -203,10 +215,10 @@ export const EQUIPO = {
         ],
       },
       {
-        heading: 'Para los dueños',
+        heading: 'Es de cada persona',
         paragraphs: [
-          'Mientras no la tengas activa, en el Inicio te aparece un aviso que te la recomienda. Lo podés cerrar; no vuelve a aparecer en esa computadora.',
-          'La verificación en dos pasos es de cada persona: un dueño no puede activarla ni desactivarla por otra persona del equipo.',
+          'Si no te la exigen y no la tenés activa, en el Inicio te aparece un aviso que te la recomienda. Lo podés cerrar; no vuelve a aparecer en esa computadora.',
+          'La verificación en dos pasos es de cada persona: un dueño no puede activarla ni desactivarla por otra persona del equipo. Si sumás a alguien como administrador, la va a tener que configurar al entrar.',
         ],
       },
     ],
