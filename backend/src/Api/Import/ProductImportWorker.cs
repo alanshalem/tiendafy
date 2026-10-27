@@ -17,6 +17,7 @@ public sealed class ProductImportWorker(
     ProductImportQueue queue,
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
+    MediaOptions mediaOptions,
     IHttpClientFactory httpFactory,
     IStorefrontRevalidator storefront,
     ILogger<ProductImportWorker> logger) : ImportQueueWorker<ImportJob>(queue, logger)
@@ -327,7 +328,7 @@ public sealed class ProductImportWorker(
             http.Timeout = TimeSpan.FromSeconds(20);
 
             using var resp = await http.GetAsync(src, ct);
-            if (!resp.IsSuccessStatusCode) return Fallback(src);
+            if (!resp.IsSuccessStatusCode) return Fallback(tenantId, src);
 
             var contentType = resp.Content.Headers.ContentType?.MediaType ?? GuessContentType(src);
             if (contentType == "image/jpg") contentType = "image/jpeg";
@@ -336,16 +337,23 @@ public sealed class ProductImportWorker(
             using var ms = new MemoryStream(bytes);
 
             var upload = await media.UploadAsync(tenantId, ms, contentType, bytes.Length, ct);
-            return upload.IsSuccess ? upload.Value : Fallback(src);
+            return upload.IsSuccess ? upload.Value : Fallback(tenantId, src);
         }
         catch
         {
-            return Fallback(src);
+            return Fallback(tenantId, src);
         }
     }
 
-    private static string? Fallback(string src) =>
-        Uri.IsWellFormedUriString(src, UriKind.Absolute) && src.Length is >= 10 and <= 500 ? src : null;
+    /// <summary>
+    /// La URL original, si sirve como foto. Nunca la de un objeto de nuestro
+    /// bucket de otra tienda: esa foto no es de esta tienda.
+    /// </summary>
+    private string? Fallback(Guid tenantId, string src) =>
+        Uri.IsWellFormedUriString(src, UriKind.Absolute) && src.Length is >= 10 and <= 500
+            && !mediaOptions.IsForeignMedia(tenantId, src)
+            ? src
+            : null;
 
     private static string GuessContentType(string url)
     {

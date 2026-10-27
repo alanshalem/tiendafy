@@ -380,8 +380,16 @@ public static partial class ProductEndpoints
             AddImageRequest request,
             ITenantContext tenant,
             UpdateProductHandler handler,
+            Media.Infrastructure.MediaOptions media,
             CancellationToken ct) =>
         {
+            // Una foto de nuestro bucket que es de otra tienda: además de
+            // mostrar lo ajeno, al borrar el catálogo se intentaba borrar ese
+            // objeto. Las de un proveedor (otro host) sí se aceptan.
+            if (request.Url is { } url && media.IsForeignMedia(tenant.TenantId.Value, url.Trim()))
+                return Error.Validation("Image.ForeignMedia",
+                    "Esa imagen no es de tu tienda. Subila desde tu computadora.").ToProblem();
+
             var result = await handler.AddImageAsync(
                 new AddImageCommand(tenant.TenantId, id, request.Url, request.AltText), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
@@ -460,7 +468,7 @@ public static partial class ProductEndpoints
             // Borrar las imágenes re-hospedadas del storage (best-effort).
             foreach (var product in all)
                 foreach (var image in product.Images)
-                    await media.DeleteAsync(image.Url, ct);
+                    await media.DeleteAsync(tid.Value, image.Url, ct);
 
             db.Products.RemoveRange(all);
             await db.SaveChangesAsync(ct);
