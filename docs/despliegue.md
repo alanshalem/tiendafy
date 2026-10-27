@@ -67,10 +67,25 @@ que sale a producción son exactamente los bytes que se probaron en staging.
 ```
 
 Restaura el backup en staging y le pasa `infra/sql/anonymize-staging.sql`, que
-reemplaza los datos de contacto por direcciones `@example.invalid` y borra las
-credenciales de cobro y facturación. Si algo queda sin anonimizar, el script
+reemplaza los datos de contacto por direcciones `@example.invalid`, borra las
+credenciales de cobro y facturación y deja a los usuarios del panel **sin
+contraseña** y sin sesiones (`password_hash` en NULL, `security_stamp` nuevo). Si algo queda sin anonimizar, el script
 **no levanta staging**. Restaurar producción sin anonimizar es la forma más
 común de mandarle un email a un cliente real desde un ambiente de prueba.
+
+**Cómo se entra a staging después.** Los usuarios del panel conservan su email y
+sus tiendas, pero ninguna contraseña de producción sirve ahí. Entrá con el
+flujo de recuperación: en el login del panel de staging, *Olvidé mi contraseña*
+con tu email (o `POST /api/v1/auth/forgot` con `{ "email": "…" }`). Staging no
+tiene API key de Resend, así que el mail no sale: el link con el token queda en
+el log de la API (`docker compose … logs api | grep -i reset`). Abrí ese link y
+elegí una contraseña nueva. Para un usuario nuevo, `/auth/register` solo
+funciona si el registro está abierto (`GET /api/v1/auth/registration-open`).
+
+**Buckets.** `deploy.sh staging` se niega a seguir si `MEDIA_BUCKET` o
+`MEDIA_PRIVATE_BUCKET` faltan en `.env.staging` o valen lo mismo que en
+producción (los valores por defecto del compose son los de producción): sin
+esto, un borrado de prueba en staging se llevaría una foto de producción.
 
 ## Dónde está cada cosa en el servidor
 
@@ -84,7 +99,7 @@ repos de cking y ckinsight.
 | El repo | **`/srv/tiendafy`**, de `deploy`. Es una ruta absoluta, en la raíz del disco: `cd /srv/tiendafy`, no `~/srv` (el home de `deploy` es `/home/deploy` y ahí no hay nada de Tiendafy) |
 | Variables de producción | `/srv/tiendafy/infra/docker/.env.prod` (`chmod 600`; git lo ignora, así que no aparece en `git status`) |
 | El borde (Caddy) | `/srv/tiendafy/infra/edge/`: `docker-compose.yml`, su `.env`, el `Caddyfile` y un archivo por sistema en `sites/`. Proyecto compose `edge`, contenedor `edge-caddy-1` |
-| Backups | `/srv/tiendafy/infra/docker/backups/prod/`: los diarios (`tiendafy-*.dump` y `dpkeys-*.tgz`), las copias previas a cada deploy (`tiendafy-predeploy-*.dump`) y las de un cambio de major (`pg-upgrade-<fecha>/`). Puede quedar de root porque la escribe `pg-backup`; `deploy.sh` la devuelve a `deploy` cuando la necesita |
+| Backups | `/srv/tiendafy/infra/docker/backups/prod/`: los diarios (`tiendafy-*.dump` y `dpkeys-*.tgz`), las copias previas a cada deploy (`tiendafy-predeploy-*.dump`) y las de un cambio de major (`pg-upgrade-<fecha>/`). Es de `deploy` con permisos 0700 y los archivos 0600 (`pg-backup` se los devuelve y `deploy.sh` lo vuelve a asegurar). **Equivale a todos los secretos de las tiendas**: ver *Backups* |
 | Control semanal de backups | `/srv/tiendafy/infra/docker/backups/check.log`, si está el cron de `deploy` (`crontab -l`) |
 | La base y el keyring | Volúmenes de Docker `tiendafy-prod_pgdata18` y `tiendafy-prod_dpkeys` (`docker volume ls`). El de la 16 (`tiendafy-prod_pgdata`), si existe, es la vuelta atrás del cambio de major |
 | Certificados | Volumen `edge_caddydata` |
@@ -273,6 +288,14 @@ Notas de build (ya resueltas en los Dockerfiles):
   trae corepack). Capa de deps con `pnpm fetch` (solo lockfile) + cache mount
   del store, e install `--frozen-lockfile --offline` del workspace completo (un
   install filtrado deja a tsc sin los tipos compartidos).
+- **Contenedores endurecidos** (`docker-compose.stack.yml`): `api`,
+  `storefront` y `admin` corren con `no-new-privileges`, `cap_drop: ALL` y
+  el sistema de archivos de solo lectura; lo que escriben va a un tmpfs: `/tmp`
+  en los tres, la caché de Next (`.next/cache`, con tope de 128 MB que cuenta
+  para el límite de memoria) en la tienda y, en el panel, `config.js` y su CSP
+  de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). `/keys` de
+  la API es un volumen. Si agregás algo que escribe a disco, declaralo ahí: con
+  el sistema de solo lectura falla con `EROFS`.
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
 - Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
@@ -352,6 +375,18 @@ Todos los días, `pg-backup` (ver `infra/docker/backup.sh`) deja en
   secretos que la base guarda cifrados (tokens de MP, certificados de ARCA)
   no se pueden leer: **un dump sin su keyring restaura una base a medias**.
 
+> **Esa carpeta equivale a todos los secretos de las tiendas.** Quien se lleve un
+> dump y el `dpkeys` de la misma fecha puede descifrar los tokens de Mercado
+> Pago y Mercado Libre, los certificados de ARCA, las claves de IA y los datos
+> personales de los clientes. Por eso la carpeta es 0700 y los archivos 0600, del
+> usuario `deploy`: no la abras a otros usuarios, no la copies sin cifrar a
+> ningún lado (la copia fuera del servidor ya sale cifrada con rclone crypt) y
+> tratá cualquier copia como si fuera la base de producción. Los contenedores
+> de backup corren con `BACKUP_UID`/`BACKUP_GID` (los de `deploy`, que
+> `deploy.sh` exporta). `pg-backup` es el único que sigue como root, con
+> `DAC_OVERRIDE` y `CHOWN` y nada más, porque las claves de `/keys` son
+> 0600 del usuario de la API.
+
 **Control semanal** de que el último backup se puede restaurar (en una base
 aparte, sin tocar la real) y de que el keyring se abre. Una vez, en el crontab
 del usuario `deploy` (`crontab -e`):
@@ -420,6 +455,63 @@ docker run --rm -v tiendafy-prod_dpkeys:/keys -v "$PWD/backups/prod:/b:ro" alpin
 docker compose -f docker-compose.stack.yml --env-file .env.prod start api
 ```
 
+### Rotar las claves de DataProtection (si se comprometieron)
+
+Caso: alguien se llevó el volumen `dpkeys`, un `dpkeys-*.tgz` o la carpeta de
+backups. Con las claves **y** un dump puede descifrar todo lo que la base guarda
+cifrado. Cambiar la clave no protege lo que ya se copió; lo que protege es que
+los secretos de adentro **dejen de valer**. El orden:
+
+1. **Contener.** Cortá el acceso por donde salió (credenciales del servidor,
+   bucket de la copia fuera del servidor, usuario `deploy`) y rotá las de
+   infraestructura que estén en `.env.prod`: contraseña de Postgres, R2/MinIO,
+   Resend, Turnstile, `REVALIDATE_SECRET`, la frase de `rclone crypt`.
+2. **Generar claves nuevas sin perder las viejas.** DataProtection guarda un
+   `key-<id>.xml` por clave en `/keys` y firma/cifra con la más nueva; las
+   demás solo sirven para descifrar. **No borres ni reemplaces el volumen**: la
+   base quedaría ilegible. Con la API apagada, en cada `key-*.xml` poné el
+   `expirationDate` en el momento actual (y `activationDate` igual o anterior)
+   y levantala: al no haber clave vigente crea una nueva y la usa desde el
+   primer arranque. La vieja queda en el keyring, solo para descifrar. Ensayalo
+   primero en staging y verificá en `/keys` que apareció un `key-*.xml` nuevo.
+   Hacé un backup del volumen antes (a un lugar cifrado).
+3. **Re-cifrar lo que se pueda.** Se vuelve a cifrar solo lo que la aplicación
+   vuelve a guardar; no hay un comando que recorra la base:
+   - Se reconecta o se vuelve a cargar a mano en cada tienda (la clave nueva
+     cifra lo nuevo): **Mercado Pago** y **Mercado Libre** (reconectar la
+     cuenta), **Meta Ads**, **redes sociales** (Meta, X, Telegram),
+     **WhatsApp**, **Payway**, **Correo Argentino**, **Andreani**, **Zipnova**,
+     **claves de IA** (cargar la clave de nuevo) y el **certificado de ARCA**
+     (subir el certificado y la clave privada de nuevo, o generar otro; si la
+     privada se filtró, revocá el certificado en ARCA y sacá uno nuevo).
+   - Pedíle a cada comercio que **rote la credencial en el proveedor**
+     (revocar el token de MP/ML, regenerar la clave de IA, etc.): el valor
+     viejo es el que el atacante pudo leer, así que volver a cifrarlo no
+     alcanza.
+   - Lo que **no** se re-cifra solo: los datos personales de los clientes
+     (`Customers.PII.v1`: teléfono, dirección). Siguen cifrados con la clave
+     vieja y, si esa clave se filtró, son legibles para quien tenga el dump.
+     Re-cifrarlos exige un script que los lea y los guarde de nuevo, que hoy no
+     existe: se escribe con el equipo, no se improvisa en la emergencia.
+   - Lo efímero se corta solo, sin hacer nada: sesiones del panel y de la
+     tienda, links firmados (cotizaciones de envío, recuperar contraseña,
+     estado de OAuth, vista previa del editor). Quedan inválidos y es lo
+     esperado.
+4. **Sacar la clave vieja** recién cuando todo lo cifrado con ella se haya
+   vuelto a guardar (y lo de los clientes, resuelto): se la revoca (se saca su
+   archivo del volumen **después** de confirmar con un backup que se puede
+   volver atrás). Mientras quede alguna fila cifrada con ella, borrarla deja
+   ese dato ilegible para siempre.
+5. Backups: los `dpkeys-*.tgz` y dumps anteriores a la rotación siguen
+   abriendo lo viejo; borralos (también la copia fuera del servidor) cuando ya
+   no hagan falta.
+
+**NUNCA cambies un *purpose*** (el string de cada `CreateProtector(...)` o
+`Purpose = ...`: `Tiendafy.Fiscal.Secrets.v1`, `Customers.PII.v1`,
+`Tiendafy.Ai.Keys.v1`, `tiendafy.correo.tokens`…) ni el nombre de aplicación
+(`SetApplicationName("tiendafy")`) para "rotar": todo lo cifrado con el viejo
+deja de poder leerse, y es la forma más rápida de perder los secretos de todas
+las tiendas. La rotación se hace con claves nuevas dentro del mismo purpose.
 ### Cambiar de major de Postgres (16 → 18)
 
 Los datos de una major no arrancan con otra, así que no es un deploy más:
@@ -537,9 +629,17 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
-referrer y permissions policy) y la tienda desde `storefront/next.config.ts`
+referrer, permissions policy y el CSP con `frame-ancestors 'none'`; al arrancar,
+`docker-config.sh` suma un segundo CSP que acota `connect-src` a la API y a
+Sentry del ambiente, y el navegador aplica los dos). La API manda nosniff,
+`X-Frame-Options: DENY`, `frame-ancestors 'none'` y `Referrer-Policy:
+no-referrer` (`SecurityHeadersMiddleware`; en Development `/scalar` queda sin
+CSP). La tienda desde `storefront/next.config.ts`
 (nosniff, referrer; sin `X-Frame-Options` porque el editor la previsualiza en
-un iframe) más el CSP, que lo pone `storefront/src/proxy.ts` en cada respuesta
+un iframe) más el CSP, que se enmarca solo desde ella misma y desde
+`PUBLIC_ADMIN_ORIGIN` (`frame-ancestors`), sin `'unsafe-eval'` en producción
+(`'unsafe-inline'` se queda: los nonces obligarían a renderizar todas las
+páginas en forma dinámica y la tienda vive de la caché). Lo pone `storefront/src/proxy.ts` en cada respuesta
 porque depende de la API del ambiente (`storefront/src/lib/csp.ts`). Caddy suma
 HSTS, nosniff y referrer en los sitios que no los ponen (`security_headers` del
 `infra/edge/Caddyfile`).
@@ -551,7 +651,8 @@ ningún puerto de la base ni de las apps abierto a internet (todo escucha en
 **Rotación de secretos:** DataProtection rota sus llaves solo (cada 90 días,
 conserva las viejas para descifrar) mientras el volumen `dpkeys` persista.
 Tokens de MP: el comercio vuelve a conectar su cuenta. Base, Resend, R2,
-Turnstile: cambiar el valor en `.env.prod` y redesplegar.
+Turnstile: cambiar el valor en `.env.prod` y redesplegar. Si se comprometen
+las claves de DataProtection, ver *Rotar las claves de DataProtection*.
 
 **Decisiones / roadmap pendientes:**
 - **MFA/2FA** para admins (TOTP/WebAuthn) — feature de producto.
