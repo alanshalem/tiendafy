@@ -278,6 +278,27 @@ public sealed class AbandonedCartEmailTests(ApiFactory factory)
         Assert.Contains("5491155556666", body, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// El checkout guarda el email apenas se escribe, sin verificarlo: con eso
+    /// alguien podía hacerle llegar un recordatorio tras otro a una casilla
+    /// ajena armando compras a su nombre. Ahora sale uno por email y tienda
+    /// cada siete días; la compra igual queda procesada.
+    /// </summary>
+    [Fact]
+    public async Task Un_recordatorio_por_email_cada_siete_dias()
+    {
+        var (merchant, email, first) = await AbandonedCartAsync("acl");
+        await RunUntilProcessedAsync(first);
+        Assert.Single(factory.ExternalHttp.EmailsTo(email));
+
+        var (_, variantId) = await merchant.CreateProductAsync("Valija", priceMinor: 90_000_00);
+        var second = await new Shopper(merchant).CheckoutAsync(variantId, email: email.ToUpperInvariant());
+        await BackdateAsync(second, hours: 2);
+        await RunUntilProcessedAsync(second);
+
+        Assert.Single(factory.ExternalHttp.EmailsTo(email));
+    }
+
     [Fact]
     public async Task Guardar_el_email_tiene_cupo_por_IP()
     {

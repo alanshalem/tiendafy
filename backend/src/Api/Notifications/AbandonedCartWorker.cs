@@ -43,6 +43,7 @@ public sealed class AbandonedCartWorker(
 
     private static readonly TimeSpan MinAge = TimeSpan.FromHours(1);  // 1 h sin que el comprador toque nada
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);   // no perseguir carritos viejos
+    private static readonly TimeSpan ReminderEvery = TimeSpan.FromDays(7); // uno por email y tienda
 
     protected override void LogPollFailure(Exception ex) =>
         logger.LogError(ex, "Recuperación de carritos falló.");
@@ -99,6 +100,20 @@ public sealed class AbandonedCartWorker(
             .Select(x => (x.TenantId, x.Email))
             .ToHashSet();
 
+        // Un recordatorio por email y tienda por período: el checkout guarda el
+        // email apenas se escribe, sin verificarlo, así que sin tope alguien
+        // podía hacerle llegar uno tras otro a una casilla ajena armando
+        // compras a su nombre. Cuenta lo que salió de verdad, no lo resuelto
+        // sin mandar (compró, o había una compra suya más nueva).
+        var remindedSince = now - ReminderEvery;
+        var recentlyReminded = (await checkoutDb.Sessions.AsNoTracking()
+                .Where(s => s.RecoveryReminderSentAtUtc != null && s.RecoveryReminderSentAtUtc >= remindedSince
+                    && s.Email != null && addresses.Contains(s.Email.ToLower()))
+                .Select(s => new { s.TenantId, s.Email })
+                .ToListAsync(ct))
+            .Select(x => (x.TenantId.Value, x.Email!.Trim().ToLowerInvariant()))
+            .ToHashSet();
+
         var sent = 0;
         foreach (var s in candidates)
         {
@@ -107,7 +122,11 @@ public sealed class AbandonedCartWorker(
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
 
             var to = s.Email!.Trim();
-            var unsubscribed = suppressed.Contains((s.TenantId.Value, to.ToLowerInvariant()));
+            var key = (s.TenantId.Value, to.ToLowerInvariant());
+            if (recentlyReminded.Contains(key)) { s.MarkRecoveryEmailed(); continue; }
+
+            var reminded = false;
+            var unsubscribed = suppressed.Contains(key);
             if (!unsubscribed && !BrandedEmailSender.IsPlaceholder(to))
             {
                 var storeUrl = links.For(t.CustomDomain, t.Subdomain, "https");
@@ -122,7 +141,10 @@ public sealed class AbandonedCartWorker(
                 if (rendered is { Enabled: true }
                     && await email.SendAsync(s.TenantId.Value, to, rendered.Subject,
                         rendered.Html + UnsubscribeToken.Footer(dp, links.ApiBase, s.TenantId.Value, to), ct, Template))
+                {
                     sent++;
+                    reminded = true;
+                }
             }
             // WhatsApp solo si la sesión llegó a cargar teléfono, la tienda tiene
             // la plantilla de carrito abandonado activada y el comprador tildó el
@@ -131,9 +153,13 @@ public sealed class AbandonedCartWorker(
             // email). Meta lo cuenta como marketing y exige que la persona haya
             // aceptado.
             if (s.AcceptsWhatsApp && !unsubscribed)
+            {
                 await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
                     s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
-            s.MarkRecoveryEmailed();
+                reminded = true;
+            }
+            if (reminded) recentlyReminded.Add(key);
+            s.MarkRecoveryEmailed(reminded);
         }
 
         try
@@ -146,11 +172,14 @@ public sealed class AbandonedCartWorker(
             // los recordatorios ya salieron, así que se vuelven a marcar sobre
             // lo que hay ahora en la base. Sin esto, la pasada siguiente los
             // mandaba de nuevo a todo el lote.
-            var marked = candidates.Where(s => s.RecoveryEmailSentAtUtc is not null).ToList();
-            foreach (var s in marked)
+            var marked = candidates
+                .Where(s => s.RecoveryEmailSentAtUtc is not null)
+                .Select(s => (Session: s, Reminded: s.RecoveryReminderSentAtUtc is not null))
+                .ToList();
+            foreach (var (s, reminded) in marked)
             {
                 await checkoutDb.Entry(s).ReloadAsync(ct);
-                s.MarkRecoveryEmailed();
+                s.MarkRecoveryEmailed(reminded);
             }
             await checkoutDb.SaveChangesAsync(ct);
         }

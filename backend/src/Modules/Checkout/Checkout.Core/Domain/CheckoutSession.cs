@@ -40,6 +40,13 @@ public sealed partial class CheckoutSession : AggregateRoot
     /// </summary>
     public DateTime? RecoveryEmailSentAtUtc { get; private set; }
 
+    /// <summary>
+    /// Cuándo le salió de verdad el recordatorio (email o WhatsApp) por esta
+    /// compra; null si se resolvió sin mandarlo. Con esto se cuenta el tope de
+    /// un recordatorio por email y tienda por período.
+    /// </summary>
+    public DateTime? RecoveryReminderSentAtUtc { get; private set; }
+
     // Datos del destinatario / facturación (checkout en pasos).
     public string? BuyerName { get; private set; }
     public string? BuyerLastName { get; private set; }
@@ -266,7 +273,13 @@ public sealed partial class CheckoutSession : AggregateRoot
         return Result.Success();
     }
 
-    public void MarkRecoveryEmailed() => RecoveryEmailSentAtUtc = DateTime.UtcNow;
+    /// <param name="reminded">Si el recordatorio salió (y no se resolvió sin mandarlo).</param>
+    public void MarkRecoveryEmailed(bool reminded = false)
+    {
+        var now = DateTime.UtcNow;
+        RecoveryEmailSentAtUtc = now;
+        if (reminded) RecoveryReminderSentAtUtc = now;
+    }
 }
 
 /// <summary>Línea del checkout: snapshot de producto y precio.</summary>

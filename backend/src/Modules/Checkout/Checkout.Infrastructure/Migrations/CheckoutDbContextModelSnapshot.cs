@@ -292,6 +292,10 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("recovery_email_sent_at_utc");
 
+                    b.Property<DateTime?>("RecoveryReminderSentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recovery_reminder_sent_at_utc");
+
                     b.Property<string>("ShippingAddress")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")

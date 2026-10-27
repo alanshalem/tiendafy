@@ -214,7 +214,7 @@ export const CLIENTES = {
         heading: 'Carritos abandonados',
         paragraphs: [
           'Le llega a todo el que escribió su email en el checkout y no terminó la compra, aunque no tenga cuenta: el email queda guardado apenas lo escribe, y debajo del campo el checkout le avisa que, si deja la compra sin terminar, le mandás un recordatorio. Sale alrededor de una hora después de lo último que tocó, trae lo que quedó en el carrito y el link para volver a tu tienda.',
-          'Uno solo por comprador: no le llega si después compró (con esa compra o con otra), si eligió transferencia o efectivo (ese pedido ya tiene sus propios avisos) ni por un carrito de hace más de 7 días. Es un email de promoción: trae el link “Darme de baja” y nunca le llega a quien se dio de baja de tus novedades.',
+          'Uno solo por comprador, y como mucho uno cada 7 días al mismo email aunque arme varias compras: no le llega si después compró (con esa compra o con otra), si eligió transferencia o efectivo (ese pedido ya tiene sus propios avisos) ni por un carrito de hace más de 7 días. Es un email de promoción: trae el link “Darme de baja” y nunca le llega a quien se dio de baja de tus novedades.',
           'Viene prendido; si lo apagás, deja de salir. El de WhatsApp va por separado y pide permiso propio: lo explica el artículo «WhatsApp automático». La lista de carritos está en Ventas → Carritos abandonados.',
         ],
       },
