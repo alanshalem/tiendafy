@@ -25,7 +25,8 @@ export function AuthModal({
   const [busy, setBusy] = useState(false);
   const [googleOn, setGoogleOn] = useState(false);
   const [captcha, setCaptcha] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  // Qué mail salió: el de recuperar la clave o el de activar la cuenta nueva.
+  const [sent, setSent] = useState<'forgot' | 'register' | null>(null);
   const dialogRef = useFocusTrap<HTMLDivElement>(true);
 
   useEffect(() => {
@@ -49,16 +50,21 @@ export function AuthModal({
     setError(null);
     setBusy(true);
     if (mode === 'forgot') {
-      const res = await forgot(email);
+      const res = await forgot(email, captcha || undefined);
       setBusy(false);
-      if (res.ok) setSent(true);
+      if (res.ok) setSent('forgot');
       else setError(res.error ?? 'Algo salió mal.');
       return;
     }
-    const res =
-      mode === 'login'
-        ? await login(email, password, captcha || undefined)
-        : await register(name, email, password, captcha || undefined);
+    if (mode === 'register') {
+      // El registro no deja la sesión iniciada: la abre el link del mail.
+      const res = await register(name, email, password, captcha || undefined);
+      setBusy(false);
+      if (res.ok) setSent('register');
+      else setError(res.error ?? 'Algo salió mal.');
+      return;
+    }
+    const res = await login(email, password, captcha || undefined);
     setBusy(false);
     if (res.ok) onClose();
     else setError(res.error ?? 'Algo salió mal.');
@@ -110,10 +116,15 @@ export function AuthModal({
                 : 'Guardá favoritos y seguí tus compras.'}
           </p>
 
-          {sent ? (
+          {sent === 'forgot' ? (
             <p className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
               Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo
               (y spam).
+            </p>
+          ) : sent === 'register' ? (
+            <p role="status" className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
+              Te mandamos un mail a <strong>{email}</strong> para activar tu cuenta. Tocá el link del mail
+              para entrar. Revisá tu correo (y spam).
             </p>
           ) : (
             <>
@@ -171,15 +182,11 @@ export function AuthModal({
                   />
                 )}
 
-                {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
+                <Captcha onToken={setCaptcha} />
 
                 {error && <p className="text-sm text-danger">{error}</p>}
 
-                <button
-                  type="submit"
-                  disabled={busy || (mode !== 'forgot' && captcha === null)}
-                  className={BTN_PRIMARY_BLOCK}
-                >
+                <button type="submit" disabled={busy || captcha === null} className={BTN_PRIMARY_BLOCK}>
                   {busy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : mode === 'forgot' ? (
@@ -213,7 +220,7 @@ export function AuthModal({
                 type="button"
                 onClick={() => {
                   setError(null);
-                  setSent(false);
+                  setSent(null);
                   setMode('login');
                 }}
                 className="font-semibold text-primary-ink hover:underline"
@@ -227,6 +234,7 @@ export function AuthModal({
                   type="button"
                   onClick={() => {
                     setError(null);
+                    setSent(null);
                     setMode(mode === 'login' ? 'register' : 'login');
                   }}
                   className="font-semibold text-primary-ink hover:underline"

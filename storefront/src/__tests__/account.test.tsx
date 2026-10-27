@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountButton } from '../components/store/AccountButton';
 import { AccountDashboard } from '../components/store/AccountDashboard';
+import { VerifyEmail } from '../components/store/VerifyEmail';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { nav } from '../test/next';
@@ -106,8 +107,13 @@ describe('entrar a la cuenta', () => {
     expect(screen.getByText('Email o contraseña incorrectos.')).toBeInTheDocument();
   });
 
-  it('se registra con nombre', async () => {
-    api.on('POST', '/api/v1/shop/auth/register', { customer: me });
+  it('se registra con nombre y le pide activar la cuenta desde el mail (sin sesión todavía)', async () => {
+    api.on(
+      'POST',
+      '/api/v1/shop/auth/register',
+      { message: 'Te mandamos un mail para activar tu cuenta.' },
+      202,
+    );
     const { user, submit } = await openModal();
     await user.click(screen.getByRole('button', { name: 'Registrate' }));
     await user.type(screen.getByPlaceholderText('Nombre'), me.name);
@@ -116,7 +122,11 @@ describe('entrar a la cuenta', () => {
     await user.click(submit());
     await settle(1);
     expect(posted('/shop/auth/register')[0]).toMatchObject({ name: me.name, email: me.email });
-    expect(screen.getByRole('button', { name: 'Mi cuenta' })).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
+      `Te mandamos un mail a ${me.email} para activar tu cuenta`,
+    );
+    expect(screen.queryByRole('button', { name: 'Mi cuenta' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
   });
 
   it('recupera la clave: avisa sin decir si la cuenta existe', async () => {
@@ -275,6 +285,28 @@ describe('con la sesión iniciada', () => {
     expect(screen.queryByText('Enviado')).toBeNull();
   });
 
+  it('sin el email verificado pide verificarlo y reenvía el mail', async () => {
+    api.on('GET', '/api/v1/shop/orders', { items: [], emailVerified: false });
+    api.on('POST', '/api/v1/shop/auth/verify/resend', {}, 204);
+    const user = await show(<AccountDashboard />);
+    expect(screen.getByText('Verificá tu email para ver tus compras')).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hiciste ningún pedido.')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reenviar el mail' }));
+    await settle(1);
+    expect(posted('/shop/auth/verify/resend')).toHaveLength(1);
+    expect(screen.getByText(/Te mandamos otro mail/)).toBeInTheDocument();
+  });
+
+  it('si el reenvío falla, lo dice', async () => {
+    api.on('GET', '/api/v1/shop/orders', { items: [], emailVerified: false });
+    api.on('POST', '/api/v1/shop/auth/verify/resend', { detail: 'Demasiados intentos.' }, 429);
+    const user = await show(<AccountDashboard />);
+    await user.click(screen.getByRole('button', { name: 'Reenviar el mail' }));
+    await settle(1);
+    expect(screen.getByText('Demasiados intentos.')).toBeInTheDocument();
+  });
+
   it('sin pedidos lo dice', async () => {
     api.on('GET', '/api/v1/shop/orders', { items: [] });
     await show(<AccountDashboard />);
@@ -377,5 +409,27 @@ describe('chat posventa', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('el link de activación', () => {
+  it('verifica el email y deja la sesión iniciada', async () => {
+    anonymous();
+    api.on('POST', '/api/v1/shop/auth/verify', { customer: { ...me, emailVerified: true } });
+    nav.at('/cuenta/verificar?token=tok-123');
+    await show(<VerifyEmail />);
+    expect(posted('/shop/auth/verify')).toEqual([{ token: 'tok-123' }]);
+    expect(screen.getByText('Email verificado')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)!)).toMatchObject({
+      email: me.email,
+    });
+  });
+
+  it('un link vencido lo dice', async () => {
+    anonymous();
+    api.on('POST', '/api/v1/shop/auth/verify', { detail: 'El link no es válido o expiró.' }, 400);
+    nav.at('/cuenta/verificar?token=viejo');
+    await show(<VerifyEmail />);
+    expect(screen.getByText('Link inválido')).toBeInTheDocument();
   });
 });

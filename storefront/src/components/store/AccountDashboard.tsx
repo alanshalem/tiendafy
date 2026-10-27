@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Heart, LogOut, MessageCircle, Package, Search } from 'lucide-react';
+import { ChevronRight, Heart, LogOut, MailCheck, MessageCircle, Package, Search } from 'lucide-react';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useAuth } from './auth';
 import { useCart } from './cart-context';
@@ -46,7 +46,7 @@ const BTN_OUTLINE =
 
 export function AccountDashboard() {
   const session = useAuth();
-  const { token, logout } = session;
+  const { token, logout, resendVerification } = session;
   // La sesión vive en el navegador: el servidor dibuja "cargando". El contenido
   // de la página hidrata en su propio Suspense, después de que la sesión ya se
   // leyó; sin esperar a hidratar, el primer render no coincidía con el HTML y
@@ -61,6 +61,9 @@ export function AccountDashboard() {
   const [attempt, setAttempt] = useState(0);
   const [chatOrder, setChatOrder] = useState<string | null>(null);
   const [auth, setAuth] = useState<'login' | 'register' | null>(null);
+  // La API no muestra pedidos de una cuenta que no verificó su email (se
+  // atan por el email de la compra): lo avisa con emailVerified=false.
+  const [unverified, setUnverified] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -68,10 +71,12 @@ export function AccountDashboard() {
       return;
     }
     let cancelled = false;
-    clientJsonTenant<{ items: Order[] }>('/api/v1/shop/orders', tenantId, {
+    clientJsonTenant<{ items: Order[]; emailVerified?: boolean }>('/api/v1/shop/orders', tenantId, {
       credentials: 'include',
     }).then((d) => {
-      if (!cancelled) setOrders(d ? (d.items ?? []) : 'error');
+      if (cancelled) return;
+      setUnverified(d?.emailVerified === false);
+      setOrders(d ? (d.items ?? []) : 'error');
     });
     return () => {
       cancelled = true;
@@ -152,7 +157,9 @@ export function AccountDashboard() {
       </div>
 
       <h2 className="mt-6 mb-3 text-lg font-bold">Mis pedidos</h2>
-      {orders === null ? (
+      {unverified ? (
+        <VerifyEmailNotice email={user?.email} onResend={resendVerification} />
+      ) : orders === null ? (
         <p className="py-10 text-center text-sm text-fg-muted">Cargando…</p>
       ) : orders === 'error' ? (
         <div
@@ -193,6 +200,47 @@ export function AccountDashboard() {
       {chatOrder && (
         <SupportChat orderId={chatOrder} tenantId={tenantId} onClose={() => setChatOrder(null)} />
       )}
+    </div>
+  );
+}
+
+/** Sin el email verificado no hay pedidos que mostrar: pide el link (y lo reenvía). */
+function VerifyEmailNotice({
+  email,
+  onResend,
+}: {
+  email?: string;
+  onResend: () => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  const resend = async () => {
+    setState('sending');
+    const res = await onResend();
+    setError(res.ok ? null : (res.error ?? 'No pudimos mandar el mail. Probá de nuevo.'));
+    setState(res.ok ? 'sent' : 'error');
+  };
+
+  return (
+    <div
+      role="status"
+      className="flex flex-col items-center gap-3 rounded-2xl border border-[rgb(var(--color-fg)/0.12)] px-4 py-12 text-center"
+    >
+      <MailCheck className="h-8 w-8 text-fg-muted" aria-hidden />
+      <p className="font-semibold">Verificá tu email para ver tus compras</p>
+      <p className="max-w-sm text-sm text-fg-muted">
+        Tus pedidos aparecen acá cuando confirmás que {email ? <strong>{email}</strong> : 'el email'} es tuyo,
+        con el link que te mandamos al crear la cuenta.
+      </p>
+      {state === 'sent' ? (
+        <p className="text-sm">Te mandamos otro mail. Revisá tu correo (y spam).</p>
+      ) : (
+        <button type="button" onClick={resend} disabled={state === 'sending'} className={BTN_OUTLINE}>
+          Reenviar el mail
+        </button>
+      )}
+      {state === 'error' && error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

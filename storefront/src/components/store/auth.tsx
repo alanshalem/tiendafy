@@ -10,6 +10,8 @@ interface ShopUser {
   id: string;
   name: string;
   email: string;
+  /** false hasta tocar el link del mail de activación: sin eso no se ven los pedidos. */
+  emailVerified?: boolean;
 }
 
 interface AuthResult {
@@ -23,8 +25,13 @@ interface AuthContextValue {
   token: string | null;
   ready: boolean;
   login: (email: string, password: string, captcha?: string) => Promise<AuthResult>;
+  /** Crea la cuenta y manda el mail de activación. NO abre sesión: la abre el link del mail. */
   register: (name: string, email: string, password: string, captcha?: string) => Promise<AuthResult>;
-  forgot: (email: string) => Promise<AuthResult>;
+  forgot: (email: string, captcha?: string) => Promise<AuthResult>;
+  /** El link del mail de activación: verifica el email y deja la sesión iniciada. */
+  verify: (token: string) => Promise<AuthResult>;
+  /** Otro mail de activación para la cuenta logueada que todavía no verificó su email. */
+  resendVerification: () => Promise<AuthResult>;
   logout: () => void;
   /** URL de inicio del flujo de Google (navegación full-page). */
   googleUrl: (returnTo: string) => string;
@@ -141,11 +148,18 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
 
   const register = useCallback(
     (name: string, email: string, password: string, captcha?: string) =>
-      authPost('register', { name, email, password, captcha }, true),
+      authPost('register', { name, email, password, captcha }),
     [authPost],
   );
 
-  const forgot = useCallback((email: string) => authPost('forgot', { email }), [authPost]);
+  const forgot = useCallback(
+    (email: string, captcha?: string) => authPost('forgot', { email, captcha }),
+    [authPost],
+  );
+
+  const verify = useCallback((token: string) => authPost('verify', { token }, true), [authPost]);
+
+  const resendVerification = useCallback(() => authPost('verify/resend', {}), [authPost]);
 
   const logout = useCallback(() => {
     fetch(`${apiUrl()}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(
@@ -165,8 +179,19 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, token: user ? 'cookie' : null, ready, login, register, forgot, logout, googleUrl }),
-    [user, ready, login, register, forgot, logout, googleUrl],
+    () => ({
+      user,
+      token: user ? 'cookie' : null,
+      ready,
+      login,
+      register,
+      forgot,
+      verify,
+      resendVerification,
+      logout,
+      googleUrl,
+    }),
+    [user, ready, login, register, forgot, verify, resendVerification, logout, googleUrl],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
