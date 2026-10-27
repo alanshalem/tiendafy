@@ -620,7 +620,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   `Secure` en https; nunca `localStorage` ni el token en la URL del OAuth. El
   front pega con `credentials: 'include'`.
 - **PII en reposo**: teléfono y dirección de los clientes van cifrados por
-  columna (DataProtection, purpose `Customers.PII.v1`).
+  columna (DataProtection, purpose `Customers.PII.v1`). En ventas y checkouts,
+  el teléfono, el documento y la dirección del comprador también (purposes
+  `Orders.PII.v1` y `Checkout.PII.v1`); el email y el nombre quedan en claro
+  porque se buscan y vinculan. Las filas de antes del cifrado se leen igual y
+  las cifra el paso `migrate` (y una pasada al arrancar la API), por lotes.
 - **Archivos privados** (adjuntos del chat de soporte): bucket aparte, nunca
   público, servido con URLs firmadas de vida corta.
 - **CSS del tema**: `customCss` se sanea al guardar (quita `<`, `@import`,

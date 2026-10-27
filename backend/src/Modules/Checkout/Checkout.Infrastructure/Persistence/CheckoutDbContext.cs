@@ -1,4 +1,5 @@
 using Checkout.Core.Domain;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
@@ -20,6 +21,28 @@ public sealed class CheckoutDbContext : DbContext
         _currentTenant = _filterByTenant ? tenant!.TenantId : default;
         _tenantGuid = _currentTenant.Value;
     }
+
+    // Teléfono, documento y dirección del comprador cifrados en reposo, como en
+    // Customers pero con su propio purpose. Lo setea el host (Program) antes de
+    // migrar/servir; null (design-time de migraciones) = columnas en claro.
+    // Nunca cambiar el purpose: lo cifrado con el viejo deja de leerse.
+    private static IDataProtector? _piiProtector;
+    public static void UsePii(IDataProtectionProvider provider) =>
+        _piiProtector = provider.CreateProtector("Checkout.PII.v1");
+
+    /// <summary>Las columnas de <see cref="CheckoutSession"/> que van cifradas.</summary>
+    public static readonly IReadOnlyList<string> PiiProperties =
+        [nameof(CheckoutSession.Phone), nameof(CheckoutSession.DocNumber), nameof(CheckoutSession.ShippingAddress)];
+
+    /// <summary>
+    /// Cifra las sesiones que quedaron con esos datos en claro (las de antes
+    /// del cifrado). Idempotente; corre en el paso de migración y al arrancar,
+    /// nunca en un request.
+    /// </summary>
+    public Task<int> ProtectLegacyPiiAsync(CancellationToken ct = default) =>
+        _piiProtector is null
+            ? Task.FromResult(0)
+            : PiiColumns.ProtectLegacyRowsAsync<CheckoutSession>(this, _piiProtector, PiiProperties, ct: ct);
 
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
@@ -55,11 +78,16 @@ public sealed class CheckoutDbContext : DbContext
         session.Ignore(s => s.Subtotal);
         session.Property(s => s.BuyerName).HasMaxLength(80);
         session.Property(s => s.BuyerLastName).HasMaxLength(80);
-        session.Property(s => s.Phone).HasMaxLength(40);
-        session.Property(s => s.DocNumber).HasMaxLength(20);
         session.Property(s => s.Notes).HasMaxLength(500);
         session.Property(s => s.ShippingMethodName).HasMaxLength(120);
-        session.Property(s => s.ShippingAddress).HasMaxLength(300);
+        // Datos que ubican o identifican al comprador: cifrados, en `text` (el
+        // ciphertext es más largo y opaco) y sin índice. Nadie filtra ni cotiza
+        // con lo guardado (la cotización viaja firmada en su token); el largo lo
+        // corta el dominio. Email y nombre quedan en claro: el recupero de
+        // carritos los usa para escribirle al comprador y vincularlo.
+        var pii = PiiColumns.Converter(() => _piiProtector);
+        foreach (var field in PiiProperties)
+            session.Property<string?>(field).HasConversion(pii);
         session.Property(s => s.ShippingCost)
             .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("shipping_cost")

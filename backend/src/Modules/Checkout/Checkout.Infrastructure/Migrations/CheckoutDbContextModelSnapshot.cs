@@ -261,8 +261,7 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnName("currency");
 
                     b.Property<string>("DocNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("doc_number");
 
                     b.Property<string>("Email")
@@ -284,8 +283,7 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnName("notes");
 
                     b.Property<string>("Phone")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
+                        .HasColumnType("text")
                         .HasColumnName("phone");
 
                     b.Property<DateTime?>("RecoveryEmailSentAtUtc")
@@ -297,8 +295,7 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnName("recovery_reminder_sent_at_utc");
 
                     b.Property<string>("ShippingAddress")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
+                        .HasColumnType("text")
                         .HasColumnName("shipping_address");
 
                     b.Property<string>("ShippingCost")

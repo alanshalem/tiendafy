@@ -216,6 +216,10 @@ public sealed class Order : AggregateRoot
             ? null
             : Text.Cap(utmSource.Trim().ToLowerInvariant(), 40);
 
+    public const int ShippingAddressMaxLength = 300;
+    public const int BuyerPhoneMaxLength = 40;
+    public const int DocNumberMaxLength = 20;
+
     public void SetShippingAndBuyer(
         Money shippingCost, string? shippingMethodName, string? shippingAddress,
         string? buyerName, string? buyerPhone, string? docNumber, string? notes, bool isPickup = false)
@@ -224,10 +228,12 @@ public sealed class Order : AggregateRoot
         if (shippingCost.Currency == Currency && !shippingCost.IsNegative)
             ShippingCost = shippingCost;
         ShippingMethodName = shippingMethodName;
-        ShippingAddress = shippingAddress;
+        // Estas tres van cifradas en la base, que ya no puede frenar un valor
+        // demasiado largo: el límite de siempre lo pone el dominio.
+        ShippingAddress = shippingAddress is null ? null : Text.Cap(shippingAddress, ShippingAddressMaxLength);
         BuyerName = buyerName;
-        BuyerPhone = buyerPhone;
-        DocNumber = docNumber;
+        BuyerPhone = buyerPhone is null ? null : Text.Cap(buyerPhone, BuyerPhoneMaxLength);
+        DocNumber = docNumber is null ? null : Text.Cap(docNumber, DocNumberMaxLength);
         Notes = notes;
     }
 

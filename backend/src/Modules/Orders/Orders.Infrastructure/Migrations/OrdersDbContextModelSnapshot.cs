@@ -17,7 +17,7 @@ namespace Orders.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -40,8 +40,7 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnName("buyer_name");
 
                     b.Property<string>("BuyerPhone")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
+                        .HasColumnType("text")
                         .HasColumnName("buyer_phone");
 
                     b.Property<string>("CancelReason")
@@ -92,8 +91,7 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnName("discount_amount");
 
                     b.Property<string>("DocNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("doc_number");
 
                     b.Property<DateTime?>("FulfilledAtUtc")
@@ -170,8 +168,7 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnName("review_note_at_utc");
 
                     b.Property<string>("ShippingAddress")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
+                        .HasColumnType("text")
                         .HasColumnName("shipping_address");
 
                     b.Property<string>("ShippingCost")
