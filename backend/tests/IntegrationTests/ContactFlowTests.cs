@@ -31,6 +31,8 @@ public sealed class ContactFlowTests
             new { name = "", email = "a@b.com", body = "hola" },
             new { name = "Ana", email = "sin-arroba", body = "hola" },
             new { name = "Ana", email = "a@b.com", body = "" },
+            // La columna admite 60: más largo era un 500 de la base.
+            new { name = "Ana", email = "a@b.com", body = "hola", orderRef = new string('7', 61) },
         })
         {
             Assert.Equal(HttpStatusCode.BadRequest, (await shopper.SendAsync(HttpMethod.Post, "/api/v1/contact/submit", bad)).StatusCode);

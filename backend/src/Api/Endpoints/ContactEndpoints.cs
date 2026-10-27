@@ -38,6 +38,9 @@ public static class ContactEndpoints
             if (name.Length is < 1 or > 120) return Problem("Contact.InvalidName", "Nombre inválido.");
             if (!email.Contains('@') || email.Length > 200) return Problem("Contact.InvalidEmail", "Email inválido.");
             if (body.Length is < 1 or > 4000) return Problem("Contact.InvalidBody", "El mensaje no puede estar vacío.");
+            // La columna es varchar(60): sin este tope, un número de pedido más
+            // largo terminaba en un 500 de la base.
+            if (req.OrderRef?.Trim().Length > 60) return Problem("Contact.InvalidOrderRef", "El número de pedido es demasiado largo.");
 
             var isRepentance = req.Kind == ContactMessage.KindRepentance;
             var reference = isRepentance ? NewRepentanceReference() : null;
