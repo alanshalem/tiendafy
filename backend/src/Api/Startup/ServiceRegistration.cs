@@ -308,7 +308,9 @@ public static class ServiceRegistration
         var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
         var checkoutContact = configuration?.GetValue("RateLimiting:CheckoutContactPermitLimit", 30) ?? 30;
         var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
-        var checkout = configuration?.GetValue("RateLimiting:CheckoutPermitLimit", 10) ?? 10;
+        // int? y no int: un valor vacío (una variable de entorno definida sin
+        // valor) cae al de fábrica en vez de tirar la API al arrancar.
+        var checkout = configuration?.GetValue<int?>("RateLimiting:CheckoutPermitLimit") ?? 30;
         var shippingQuote = configuration?.GetValue("RateLimiting:ShippingQuotePermitLimit", 30) ?? 30;
         var search = configuration?.GetValue("RateLimiting:SearchPermitLimit", 120) ?? 120;
         var track = configuration?.GetValue("RateLimiting:TrackPermitLimit", 120) ?? 120;
@@ -373,8 +375,10 @@ public static class ServiceRegistration
 
             // Armar y enviar un checkout reservan stock: sin cupo, un script
             // podía dejar sin stock vendible a una tienda reservándolo todo (la
-            // reserva dura media hora). 10 cada 10 minutos sobra para quien
-            // compra de verdad, aunque corrija datos y reintente.
+            // reserva dura media hora). 30 cada 10 minutos: los celulares en
+            // Argentina comparten IPv4 (CGNAT) y en un pico (Hot Sale) muchos
+            // compradores pagan detrás de la misma IP; con 10, el undécimo recibía
+            // 429 al pagar. Sigue frenando a un script.
             options.AddPolicy("checkout", ctx => PerIpPerRoute(ctx, checkout, TimeSpan.FromMinutes(10)));
 
             // Cotizar envío le pega a la API del carrier con nuestras credenciales.
