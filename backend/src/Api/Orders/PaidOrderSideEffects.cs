@@ -1,9 +1,7 @@
 using Api.Crm;
 using Api.Notifications;
-using Discounts.Infrastructure;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
-using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Core.Features;
 using SharedKernel.Common;
@@ -27,7 +25,7 @@ public sealed class PaidOrderSideEffects(
     OrderNotifier notifier,
     WhatsAppNotifier whatsapp,
     IFiscalEmissionQueue fiscal,
-    DiscountsDbContext discounts,
+    OrderCouponUses couponUses,
     CustomerDirectory customers,
     ILogger<PaidOrderSideEffects> logger)
 {
@@ -59,7 +57,9 @@ public sealed class PaidOrderSideEffects(
             order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
             order.DocNumber, EmissionTrigger.OnPayment, ct));
 
-        await StepAsync("uso del cupón", order, () => RegisterCouponUseAsync(order, ct));
+        // El uso ya se tomó al crear la venta (ver OrderCouponUses): esto solo
+        // lo asegura, sin sumar dos veces, para una venta que no lo tenía.
+        await StepAsync("uso del cupón", order, () => couponUses.CountPaidAsync(order, ct));
 
         // La venta deja su ficha en Clientes: quien compra como invitado también
         // es un cliente de la tienda.
@@ -74,25 +74,6 @@ public sealed class PaidOrderSideEffects(
         settled.IsSuccess && settled.Value.Outcome == SettleOutcome.JustPaid && settled.Value.Order is { } order
             ? RunAsync(order, ct: ct)
             : Task.CompletedTask;
-
-    /// <summary>
-    /// Suma un uso al cupón de la venta. El contador ya se mostraba en el panel
-    /// y el límite "máximo N usos" ya se validaba… pero nadie lo incrementaba:
-    /// un cupón con tope era, en los hechos, ilimitado. Se cuenta al PAGARSE y
-    /// no al crear la orden, así "usos" son ventas cobradas y no intentos.
-    /// </summary>
-    private async Task RegisterCouponUseAsync(Order order, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(order.CouponCode)) return;
-
-        var code = order.CouponCode.Trim().ToUpperInvariant();
-        var coupon = await discounts.Coupons
-            .FirstOrDefaultAsync(c => c.TenantId == order.TenantId.Value && c.Code == code, ct);
-        if (coupon is null) return;
-
-        coupon.RegisterUse();
-        await discounts.SaveChangesAsync(ct);
-    }
 
     private async Task StepAsync(string step, Order order, Func<Task> run)
     {

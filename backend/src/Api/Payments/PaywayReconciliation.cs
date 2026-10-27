@@ -30,6 +30,7 @@ public sealed class PaywayReconciliationService(
     IPaywayPaymentService payway,
     SettlePaymentHandler settle,
     PaidOrderSideEffects paidEffects,
+    OrderCouponUses couponUses,
     ILogger<PaywayReconciliationService> logger)
 {
     /// <summary>Cuántos intentos se consultan por pasada: Payway no publica sus límites de uso.</summary>
@@ -130,12 +131,15 @@ public sealed class PaywayReconciliationService(
             case PaywayPaymentStatus.Declined:
                 // El mismo resultado que un rechazo de Mercado Pago: la orden
                 // pasa a fallida y el stock reservado vuelve a la venta.
-                await settle.HandleAsync(attempt.OrderId, "rejected", found.ProviderPaymentId, ct: ct);
+                // Y el uso del cupón vuelve.
+                await couponUses.ReleaseIfFailedAsync(
+                    await settle.HandleAsync(attempt.OrderId, "rejected", found.ProviderPaymentId, ct: ct), ct);
                 break;
 
             case PaywayPaymentStatus.Refunded:
                 // Anulado antes de que nos enteráramos del cobro: no quedó plata.
-                await settle.HandleAsync(attempt.OrderId, "cancelled", found.ProviderPaymentId, ct: ct);
+                await couponUses.ReleaseIfFailedAsync(
+                    await settle.HandleAsync(attempt.OrderId, "cancelled", found.ProviderPaymentId, ct: ct), ct);
                 break;
 
             default:

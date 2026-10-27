@@ -552,7 +552,7 @@ export const VENTAS = {
         heading: 'Buenas prácticas',
         paragraphs: [
           'Usá códigos cortos y memorables. Poné vigencia para generar urgencia. La columna “Usos” de la lista muestra cuántas veces se usó cada uno (y el máximo, si le pusiste), y el reporte de cupones (Estadísticas → Reporte de cupones) cuánta plata moviste con ellos.',
-          'Desde el menú de cada cupón lo pausás sin borrarlo (“Pausar” / “Activar”) o lo eliminás. El límite de usos es total, no por cliente, y un uso se cuenta cuando la venta se cobra, no cuando alguien lo prueba en el carrito.',
+          'Desde el menú de cada cupón lo pausás sin borrarlo (“Pausar” / “Activar”) o lo eliminás. El límite de usos es total, no por cliente. Un uso se toma cuando el comprador confirma la compra (no cuando lo prueba en el carrito) y vuelve solo si esa venta se cancela, vence o le rechazan el pago. Así, un cupón de un solo uso lo usa una sola compra aunque varias lleguen a la vez.',
         ],
         blocks: [
           {

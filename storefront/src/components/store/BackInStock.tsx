@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
+import { Captcha } from './Captcha';
 import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
 
@@ -26,6 +27,11 @@ export function BackInStock({ variantId, label }: { variantId: string; label?: s
   const [website, setWebsite] = useState(''); // honeypot
   const [state, setState] = useState<State>('idle');
   const [message, setMessage] = useState<string | null>(null);
+  // El mismo captcha que contacto y registro: cada aviso termina en un email a
+  // la dirección cargada. null = pendiente; el token sirve una vez, así que
+  // tras un rechazo se pide otro (`captchaKey`).
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   useEffect(() => {
     setEmail(readJson<string>(emailKey(tenantId), ''));
@@ -33,25 +39,29 @@ export function BackInStock({ variantId, label }: { variantId: string; label?: s
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (state === 'sending') return;
+    if (state === 'sending' || captcha === null) return;
     setState('sending');
     setMessage(null);
+    const failed = (text: string) => {
+      setMessage(text);
+      setState('error');
+      setCaptcha(null);
+      setCaptchaKey((k) => k + 1);
+    };
     try {
       const res = await fetch(`${apiUrl()}/api/v1/back-in-stock`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ variantId, email: email.trim(), website }),
+        body: JSON.stringify({ variantId, email: email.trim(), website, captcha: captcha || undefined }),
       });
       if (res.ok) {
         writeJson(emailKey(tenantId), email.trim());
         setState('done');
       } else {
-        setMessage(await problemMessage(res, 'No se pudo guardar. Probá de nuevo.'));
-        setState('error');
+        failed(await problemMessage(res, 'No se pudo guardar. Probá de nuevo.'));
       }
     } catch {
-      setMessage('No se pudo guardar. Probá de nuevo.');
-      setState('error');
+      failed('No se pudo guardar. Probá de nuevo.');
     }
   };
 
@@ -96,11 +106,14 @@ export function BackInStock({ variantId, label }: { variantId: string; label?: s
         />
         <button
           type="submit"
-          disabled={state === 'sending'}
+          disabled={state === 'sending' || captcha === null}
           className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg disabled:opacity-60"
         >
           {state === 'sending' ? 'Guardando…' : 'Avisarme'}
         </button>
+      </div>
+      <div className="mt-2 empty:hidden">
+        <Captcha key={captchaKey} onToken={setCaptcha} />
       </div>
       {state === 'error' && message && (
         <p role="alert" className="mt-1.5 text-xs font-medium">

@@ -66,7 +66,7 @@ public static class SearchSettingsEndpoints
             var results = await products.CountMatchingAsync(tenant.TenantId, term, ct);
             await repository.RecordQueryAsync(tenant.TenantId, term, results, ct);
             return Results.NoContent();
-        });
+        }).RequireRateLimiting("search");
 
         // Tienda: "Búsquedas populares" del buscador y de la página sin
         // resultados. Solo lo que encuentra algo y buscó más de una persona.

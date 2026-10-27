@@ -238,7 +238,7 @@ public static class AndreaniEndpoints
             }
 
             return Results.Ok(new { available = true, options });
-        }).RequireTenant();
+        }).RequireTenant().RequireRateLimiting("shipping-quote");
     }
 
     // ------------------------------------------- Envío desde una venta

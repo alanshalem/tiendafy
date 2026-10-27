@@ -75,15 +75,25 @@ public sealed class Coupon
     }
 
     public void SetActive(bool active) => Active = active;
-    public void RegisterUse() => UsedCount++;
 
-    /// <summary>Evalúa el cupón contra un subtotal y devuelve el descuento o el motivo del rechazo.</summary>
-    public CouponEvaluation Evaluate(long subtotal, DateTime now)
+    /// <summary>El motivo del rechazo de un cupón sin usos disponibles.</summary>
+    public const string LimitReachedMessage = "El cupón alcanzó su límite de usos.";
+
+    /// <summary>
+    /// Evalúa el cupón contra un subtotal y devuelve el descuento o el motivo del rechazo.
+    /// Los usos no se suman acá: los toma CouponRedemptions en la base, sin carreras.
+    /// </summary>
+    /// <param name="useAlreadyTaken">
+    /// La compra ya tiene tomado un uso de este cupón: el límite no corre contra
+    /// ella (el uso que lo completa es el suyo).
+    /// </param>
+    public CouponEvaluation Evaluate(long subtotal, DateTime now, bool useAlreadyTaken = false)
     {
         if (!Active) return CouponEvaluation.Invalid("El cupón no está activo.");
         if (StartsAtUtc is { } s && now < s) return CouponEvaluation.Invalid("El cupón todavía no está vigente.");
         if (EndsAtUtc is { } e && now > e) return CouponEvaluation.Invalid("El cupón venció.");
-        if (MaxUses is { } m && UsedCount >= m) return CouponEvaluation.Invalid("El cupón alcanzó su límite de usos.");
+        if (!useAlreadyTaken && MaxUses is { } m && UsedCount >= m)
+            return CouponEvaluation.Invalid(LimitReachedMessage) with { LimitReached = true };
         if (subtotal < MinPurchase)
             return CouponEvaluation.Invalid($"Compra mínima de ${ArgentineNumbers.Number(MinPurchase / 100m)} para usar este cupón.");
 
@@ -121,6 +131,9 @@ public sealed class Coupon
 
 public sealed record CouponEvaluation(bool Valid, string? Error, long Discount, bool FreeShipping)
 {
+    /// <summary>Se rechazó porque no le quedan usos (y no por vigencia, mínimo o pausa).</summary>
+    public bool LimitReached { get; init; }
+
     public static CouponEvaluation Invalid(string error) => new(false, error, 0, false);
     public static CouponEvaluation Ok(long discount, bool freeShipping) => new(true, null, discount, freeShipping);
 }

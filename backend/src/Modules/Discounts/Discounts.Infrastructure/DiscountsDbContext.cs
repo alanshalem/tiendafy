@@ -15,6 +15,7 @@ public sealed class DiscountsDbContext : DbContext
     }
 
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponRedemption> CouponRedemptions => Set<CouponRedemption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,5 +38,16 @@ public sealed class DiscountsDbContext : DbContext
         coupon.Property(c => c.UsedCount);
         coupon.Property(c => c.Active);
         coupon.Property(c => c.CreatedAtUtc);
+
+        // Un uso por compra: el índice único es lo que hace idempotentes tomar,
+        // devolver y confirmar el uso (ver CouponRedemptions). Sin FK al cupón:
+        // borrar un cupón ya usado no tiene que fallar.
+        var redemption = modelBuilder.Entity<CouponRedemption>();
+        redemption.ToTable("coupon_redemptions");
+        redemption.HasKey(r => r.Id);
+        redemption.Property(r => r.Id).ValueGeneratedNever();
+        redemption.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        redemption.HasIndex(r => new { r.TenantId, r.CheckoutSessionId }).IsUnique();
+        redemption.HasIndex(r => r.CouponId);
     }
 }

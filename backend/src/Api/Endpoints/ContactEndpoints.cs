@@ -176,11 +176,13 @@ public static class ContactEndpoints
         var news = group.MapGroup("/newsletter").RequireTenant();
 
         news.MapPost("/", async (
-            NewsletterRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+            NewsletterRequest req, ITenantContext tenant, ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
         {
             // Trampa para bots: el campo va oculto por CSS, una persona no lo completa.
             // Se responde OK igual para no enseñarle al bot cuál era el problema.
             if (!string.IsNullOrWhiteSpace(req.Website)) return Results.Ok(new { ok = true });
+            // Y el captcha, como contacto: el honeypot solo frena a los bots tontos.
+            if (!await captcha.VerifyAsync(req.Captcha, ct)) return CaptchaProblem.Failed();
 
             var email = (req.Email ?? string.Empty).Trim().ToLowerInvariant();
             if (email.Length is < 3 or > 200 || !email.Contains('@'))
@@ -238,8 +240,8 @@ public static class ContactEndpoints
     }
 }
 
-/// <summary>Suscripción a novedades. `Website` es el honeypot (siempre vacío).</summary>
-public sealed record NewsletterRequest(string? Email, string? Source = null, string? Website = null);
+/// <summary>Suscripción a novedades. `Website` es el honeypot (siempre vacío); `Captcha`, el token de Turnstile.</summary>
+public sealed record NewsletterRequest(string? Email, string? Source = null, string? Website = null, string? Captcha = null);
 
 /// <summary>Respuesta por email a un mensaje del formulario de contacto.</summary>
 public sealed record ContactReplyRequest(string? Body);

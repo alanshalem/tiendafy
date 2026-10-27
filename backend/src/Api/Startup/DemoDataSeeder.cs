@@ -408,17 +408,13 @@ public sealed class DemoDataSeeder(
             .ToListAsync(ct);
         if (uses.Count == 0) return;
 
-        var coupons = await discounts.Coupons
-            .Where(c => c.TenantId == tenantId.Value)
-            .ToListAsync(ct);
-
-        foreach (var coupon in coupons)
+        // Los usos los suma la base, no la entidad (ver CouponRedemptions).
+        foreach (var use in uses)
         {
-            var count = uses.FirstOrDefault(u => u.Code == coupon.Code)?.Count ?? 0;
-            for (var i = 0; i < count; i++) coupon.RegisterUse();
+            await discounts.Coupons
+                .Where(c => c.TenantId == tenantId.Value && c.Code == use.Code)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.UsedCount, c => c.UsedCount + use.Count), ct);
         }
-
-        await discounts.SaveChangesAsync(ct);
     }
 
     // --------------------------------------------------- Carritos abandonados

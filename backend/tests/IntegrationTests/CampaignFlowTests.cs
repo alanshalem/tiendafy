@@ -103,9 +103,29 @@ public sealed partial class CampaignFlowTests
         var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var pixel = await anonymous.GetAsync(Link(mail.Html, "/api/v1/marketing/o.gif"));
         Assert.Equal("image/gif", pixel.Content.Headers.ContentType?.MediaType);
-        var click = await anonymous.GetAsync(Link(mail.Html, "/api/v1/marketing/c"));
+        var clickLink = Link(mail.Html, "/api/v1/marketing/c");
+        var click = await anonymous.GetAsync(clickLink);
         Assert.Equal(HttpStatusCode.Redirect, click.StatusCode);
+        Assert.Equal("https://tienda.example.com/ofertas", click.Headers.Location?.ToString());
         Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.GetAsync("/api/v1/marketing/c?u=javascript:alert(1)")).StatusCode);
+
+        // No es un redirector abierto: sin un token de campaña válido no lleva
+        // a ningún lado, y con uno lleva solo a los links que la campaña tiene
+        // (o a la tienda). Cambiar el destino del link manda a la tienda.
+        var t = HttpUtility.ParseQueryString(new Uri("http://x" + clickLink).Query)["t"]!;
+        const string phishing = "https://evil.example/login";
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await anonymous.GetAsync($"/api/v1/marketing/c?u={Uri.EscapeDataString(phishing)}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await anonymous.GetAsync($"/api/v1/marketing/c?t=trucho&u={Uri.EscapeDataString(phishing)}")).StatusCode);
+        var tampered = await anonymous.GetAsync(
+            $"/api/v1/marketing/c?t={Uri.EscapeDataString(t)}&u={Uri.EscapeDataString(phishing)}");
+        Assert.Equal(HttpStatusCode.Redirect, tampered.StatusCode);
+        Assert.Equal($"{merchant.Subdomain}.localhost", tampered.Headers.Location?.Host);
+        // La card de producto (y cualquier página de la tienda) sí.
+        var card = $"http://{merchant.Subdomain}.localhost/productos/remera";
+        var toCard = await anonymous.GetAsync($"/api/v1/marketing/c?t={Uri.EscapeDataString(t)}&u={Uri.EscapeDataString(card)}");
+        Assert.Equal(card, toCard.Headers.Location?.ToString());
 
         var unsubscribe = Link(mail.Html, "/api/v1/marketing/unsubscribe");
         Assert.Contains("Sí, darme de baja", await anonymous.GetStringAsync(unsubscribe));

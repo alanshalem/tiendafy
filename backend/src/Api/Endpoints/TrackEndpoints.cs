@@ -14,7 +14,7 @@ public static class TrackEndpoints
             db.PageViews.Add(PageView.Create(tenant.TenantId.Value, req.Path, req.Referrer, req.VisitorId, req.SessionId, req.UtmSource));
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequireRateLimiting("track");
 
         return group;
     }

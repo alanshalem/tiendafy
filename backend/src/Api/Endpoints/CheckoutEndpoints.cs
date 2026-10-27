@@ -35,7 +35,7 @@ public static class CheckoutEndpoints
             return result.IsSuccess
                 ? Results.Created($"/api/v1/checkout/{result.Value.Id}", ToDto(result.Value))
                 : result.Error.ToProblem();
-        });
+        }).RequireRateLimiting("checkout");
 
         // Los datos de contacto que el comprador va dejando antes de pagar (el
         // email apenas lo escribe). Sigue con la compra abierta que el checkout
@@ -148,7 +148,7 @@ public static class CheckoutEndpoints
                 request.Name, request.LastName, request.Phone, request.DocNumber, request.Notes,
                 request.ShippingMethodId, request.Address, quote, request.AcceptsWhatsApp), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
-        });
+        }).RequireRateLimiting("checkout");
 
         MapSettings(group);
 

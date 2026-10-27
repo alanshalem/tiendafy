@@ -318,26 +318,39 @@ public static class CampaignEndpoints
             return Results.File(PixelGif, "image/gif");
         });
 
-        // Redirect de click trackeado. Solo destinos http(s).
+        // Redirect de click trackeado. Solo destinos http(s), y no es un
+        // redirector abierto: sin un token de campaña válido no lleva a ningún
+        // lado (antes redirigía a cualquier `u` aunque el token fuera trucho,
+        // y un link "de la tienda" servía para phishing). Con token, lleva a
+        // un link que la campaña realmente tiene o a una página propia; a
+        // cualquier otro destino, a la tienda.
         group.MapGet("/marketing/c", async (
-            string? t, string? u, IDataProtectionProvider dp, NotificationsDbContext db, CancellationToken ct) =>
+            string? t, string? u, IDataProtectionProvider dp, NotificationsDbContext db,
+            StoreLinks links, IConfiguration cfg, CancellationToken ct) =>
         {
             if (string.IsNullOrEmpty(u) || !Uri.TryCreate(u, UriKind.Absolute, out var target)
                 || (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps))
                 return Results.BadRequest();
 
             var payload = t is null ? null : TrackToken.Unprotect(dp, t);
-            if (payload is not null)
+            if (payload is null) return Results.BadRequest();
+            var campaign = await db.EmailCampaigns.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == payload.CampaignId, ct);
+            if (campaign is null) return Results.BadRequest();
+
+            var recipient = await db.CampaignRecipients.FirstOrDefaultAsync(
+                r => r.CampaignId == payload.CampaignId && r.Email == payload.Email, ct);
+            if (recipient is not null && recipient.ClickedAtUtc is null)
             {
-                var recipient = await db.CampaignRecipients.FirstOrDefaultAsync(
-                    r => r.CampaignId == payload.CampaignId && r.Email == payload.Email, ct);
-                if (recipient is not null && recipient.ClickedAtUtc is null)
-                {
-                    recipient.MarkClicked();
-                    await db.SaveChangesAsync(ct);
-                }
+                recipient.MarkClicked();
+                await db.SaveChangesAsync(ct);
             }
-            return Results.Redirect(target.ToString());
+
+            var storeBase = await links.CampaignStoreBaseAsync(campaign.TenantId, ct);
+            var allowed = SafeRedirect.IsOwnHost(target.Host, cfg)
+                || CampaignEmailComposer.TrackedLinks(
+                    campaign.BodyHtml, CampaignEmailComposer.ParseProducts(campaign.ProductsJson), storeBase).Contains(u);
+            return Results.Redirect(allowed ? target.ToString() : storeBase);
         });
 
         // ------------------------- Webhook de Resend: bounces y quejas → supresión

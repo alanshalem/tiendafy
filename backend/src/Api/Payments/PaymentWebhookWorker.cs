@@ -82,6 +82,10 @@ public sealed class PaymentWebhookWorker(
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);
                 break;
+            case SettleOutcome.Failed:
+                // Rechazado sin cobrarse: el uso del cupón vuelve.
+                await sp.GetRequiredService<Api.Orders.OrderCouponUses>().ReleaseAsync(order, ct);
+                break;
         }
 
         // La nota de crédito del tramo devuelto (total o parcial), como un

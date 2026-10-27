@@ -25,11 +25,13 @@ public static class BackInStockEndpoints
         var alerts = group.MapGroup("/back-in-stock");
 
         alerts.MapPost("/", async (
-            BackInStockRequest req, ITenantContext tenant, ICatalogCheckoutQuery catalog,
-            IStockRepository stock, CustomersDbContext db, CancellationToken ct) =>
+            BackInStockRequest req, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha,
+            ICatalogCheckoutQuery catalog, IStockRepository stock, CustomersDbContext db, CancellationToken ct) =>
         {
             // Trampa para bots (campo oculto), como el newsletter: OK sin hacer nada.
             if (!string.IsNullOrWhiteSpace(req.Website)) return Results.Ok(new { ok = true });
+            // Y el captcha: cada aviso termina en un email a la dirección que se cargó.
+            if (!await captcha.VerifyAsync(req.Captcha, ct)) return Api.Captcha.CaptchaProblem.Failed();
 
             var email = (req.Email ?? string.Empty).Trim().ToLowerInvariant();
             if (email.Length is < 5 or > 200 || !email.Contains('@') || email.Contains(' '))
@@ -166,7 +168,7 @@ public static class BackInStockEndpoints
     }
 }
 
-public sealed record BackInStockRequest(Guid VariantId, string? Email, string? Website = null);
+public sealed record BackInStockRequest(Guid VariantId, string? Email, string? Website = null, string? Captcha = null);
 
 /// <summary>Baja de los avisos de stock: la tienda y el email, firmados.</summary>
 public sealed record BackInStockUnsubscribePayload(Guid TenantId, string Email);

@@ -313,7 +313,7 @@ public static partial class ProductEndpoints
                     }),
                 },
             });
-        });
+        }).RequireRateLimiting("search");
 
         products.MapGet("/{id:guid}", async (
             Guid id,

@@ -29,6 +29,7 @@ public sealed class OfflinePaymentService(
     IInventoryService inventory,
     OrderNotifier notifier,
     PaidOrderSideEffects paidEffects,
+    OrderCouponUses couponUses,
     ILogger<OfflinePaymentService> logger)
 {
     /// <summary>
@@ -83,6 +84,7 @@ public sealed class OfflinePaymentService(
             order.CancelUnpaid();
             await orders.SaveChangesAsync(ct);
             await ReleaseAsync(order, ct);
+            await couponUses.ReleaseAsync(order, ct);
             return Result.Failure<Order>(Error.Conflict("Checkout.ReservationLost",
                 "Se nos venció la reserva de algún producto. Volvé a empezar la compra desde el carrito."));
         }
@@ -181,6 +183,7 @@ public sealed class OfflinePaymentService(
 
             var order = await ordersDb.Orders.AsNoTracking().FirstAsync(o => o.Id == id, ct);
             await ReleaseAsync(order, ct);
+            await couponUses.ReleaseAsync(order, ct);
             await NotifyCancelledAsync(order, ct);
             cancelled++;
             logger.LogInformation("Orden {OrderId} cancelada: venció el plazo para pagarla.", id);

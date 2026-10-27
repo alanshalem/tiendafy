@@ -9,6 +9,7 @@ public static class DiscountsModule
     public static IServiceCollection AddDiscountsModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddModuleDbContext<DiscountsDbContext>(configuration);
+        services.AddScoped<CouponRedemptions>();
 
         return services;
     }

@@ -48,7 +48,10 @@ public sealed class SaveCheckoutContactHandler(ICheckoutRepository repository, S
             command.Phone, command.AcceptsWhatsApp, now);
         if (saved.IsFailure) return Result.Failure<CheckoutSession>(saved.Error);
 
-        await repository.SaveChangesAsync(ct);
+        // La compra cambió en el medio (se envió desde otra pestaña): no se pisa.
+        if (!await repository.TrySaveChangesAsync(ct))
+            return Result.Failure<CheckoutSession>(Error.Conflict("Checkout.Concurrent",
+                "La compra cambió mientras guardábamos tus datos. Probá de nuevo."));
         return session;
     }
 }

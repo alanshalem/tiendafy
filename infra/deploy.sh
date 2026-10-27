@@ -40,6 +40,17 @@ ENV_FILE=".env.$ENVIRONMENT"
 compose() { docker compose -f docker-compose.stack.yml --env-file "$ENV_FILE" "$@"; }
 APP_ENV="$(sed -n 's/^APP_ENV=//p' "$ENV_FILE" | tail -1)"
 
+# El captcha (Cloudflare Turnstile) de los formularios públicos: login,
+# registro, contacto, newsletter, reseñas y "avisame cuando ingrese". Sin las
+# dos claves la API deja pasar todo (para no cortar las ventas) y lo grita en
+# su log al arrancar; acá se avisa antes de levantar, sin frenar el deploy.
+env_value() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -1 | tr -d "\"' \r"; }
+for key in TURNSTILE_SECRET TURNSTILE_SITE_KEY; do
+  if [ -z "$(env_value "$key")" ]; then
+    echo "AVISO: $ENV_FILE no tiene $key: los formularios públicos quedan sin captcha (anti-bots)." >&2
+  fi
+done
+
 # Los backups los escribe pg-backup, que corre como root: la carpeta del
 # ambiente queda de root y el usuario que corre esto (deploy) no puede escribir
 # ahí. Se la devuelve con un contenedor del mismo servicio, que ya la monta

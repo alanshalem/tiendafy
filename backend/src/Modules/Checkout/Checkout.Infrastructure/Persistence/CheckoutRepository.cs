@@ -14,4 +14,19 @@ public sealed class CheckoutRepository(CheckoutDbContext context) : ICheckoutRep
 
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         context.SaveChangesAsync(ct);
+
+    public async Task<bool> TrySaveChangesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await context.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Lo de este pedido no se guardó: que no quede a medias en el contexto.
+            context.ChangeTracker.Clear();
+            return false;
+        }
+    }
 }

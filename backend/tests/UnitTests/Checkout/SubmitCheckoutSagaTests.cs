@@ -12,10 +12,38 @@ public class SubmitCheckoutSagaTests
     private sealed class FakeCheckoutRepository(CheckoutSession session) : ICheckoutRepository
     {
         public int Saves { get; private set; }
+        /// <summary>Otro pedido guardó la misma compra primero (como el choque de xmin).</summary>
+        public bool Conflict { get; init; }
         public Task<CheckoutSession?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
             Task.FromResult<CheckoutSession?>(session.Id == id ? session : null);
         public Task AddAsync(CheckoutSession s, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) { Saves++; return Task.CompletedTask; }
+        public Task<bool> TrySaveChangesAsync(CancellationToken ct = default)
+        {
+            if (Conflict) return Task.FromResult(false);
+            Saves++;
+            return Task.FromResult(true);
+        }
+    }
+
+    /// <summary>
+    /// Dos envíos simultáneos de la misma compra: el que pierde el guardado
+    /// devuelve lo que reservó. Antes las dos reservas quedaban y la del que
+    /// perdía bloqueaba stock sin compra durante media hora.
+    /// </summary>
+    [Fact]
+    public async Task Submit_que_choca_con_otro_envio_devuelve_sus_reservas()
+    {
+        var session = TwoItemSession(out _, out _);
+        var inventory = new FakeInventory();
+        var repository = new FakeCheckoutRepository(session) { Conflict = true };
+        var handler = new SubmitCheckoutHandler(repository, new FakeShippingMethods(), inventory);
+
+        var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com"));
+
+        Assert.Equal("Checkout.Concurrent", result.Error.Code);
+        Assert.Equal(2, inventory.Reserved.Count);
+        Assert.Equal(inventory.Reserved, inventory.Released);
     }
 
     private sealed class FakeInventory : IInventoryService

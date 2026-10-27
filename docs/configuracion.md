@@ -20,7 +20,7 @@ Dos niveles que no se mezclan:
 | Mercado Pago | App marketplace: Client ID, Client Secret, Webhook Secret | [Panel de desarrolladores](https://www.mercadopago.com.ar/developers). Redirect: `https://api.TUDOMINIO/api/v1/payments/mercadopago/callback` | Plataforma | Para cobrar con MP |
 | Resend | API key + dominio verificado (SPF/DKIM) | [resend.com](https://resend.com) | Plataforma | Sí en prod (sin key, los mails van al log) |
 | Webhook de Resend | Signing secret (`whsec_…`) | Resend → Webhooks, eventos `email.bounced` y `email.complained` → `https://api.TUDOMINIO/api/v1/webhooks/resend` | Plataforma | Recomendado (suprime rebotes) |
-| Cloudflare Turnstile | Site key + secret | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (captcha en contacto y login) |
+| Cloudflare Turnstile | Site key + secret | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (captcha en login, registro, contacto, newsletter, reseñas y "avisame") |
 | Google OAuth | Client ID + secret | [Google Cloud Console](https://console.cloud.google.com/apis/credentials), cliente web. Redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores) |
 | Sentry | Un DSN por app (API, tienda, panel) | [sentry.io](https://sentry.io) | Plataforma | Opcional |
 | Mercado Libre | App: Client ID + secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar). Redirect: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Para el canal ML |
@@ -73,6 +73,9 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `RateLimiting:GlobalPermitLimit` | Pedidos por minuto por IP | `300` (dev: `5000`, en `appsettings.Development.json`) | No se mapea (usa 300) |
 | `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta: formularios públicos (login, registro, contacto, cupón, reseñas, "avisame"); pagos de la tienda | `10` / `15` | No se mapea |
 | `RateLimiting:CheckoutContactPermitLimit` | Guardados del email del checkout (`POST /checkout/contact`) cada 5 min por IP | `30` (dev: `1000`) | No se mapea |
+| `RateLimiting:CheckoutPermitLimit` | Armar (`POST /checkout`) y enviar (`/checkout/{id}/submit`) un checkout cada 10 min por IP y ruta (el id no cuenta: otra compra no da cupo nuevo) | `10` (dev: `1000`) | No se mapea |
+| `RateLimiting:ShippingQuotePermitLimit` | Cotizaciones de envío (Correo, Zipnova, Andreani) cada 5 min por IP y carrier | `30` (dev: `1000`) | No se mapea |
+| `RateLimiting:SearchPermitLimit` / `:TrackPermitLimit` | Por minuto por IP y ruta: búsqueda de la tienda (`products/search`, `products/suggest`, `search/log`) / beacon de visitas (`POST /track`). El storefront por la red interna no tiene cupo | `120` / `120` (dev: `5000`) | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
 | `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 
@@ -93,7 +96,7 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Email:WebhookSecret` | Firma (svix) del webhook de Resend | Vacío = el webhook responde 404 | `EMAIL_WEBHOOK_SECRET` |
 | `Email:MaxRetries` | Reintentos de envío | `2` | No se mapea |
 | `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas para el costo estimado del panel | `0.40` / `0.034` | No se mapea |
-| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` |
+| `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | Vacío = sin captcha (fuera de Development la API lo loguea como Critical al arrancar y `deploy.sh` avisa, sin frenar) | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` |
 
 ### Medios de pago y canales
 

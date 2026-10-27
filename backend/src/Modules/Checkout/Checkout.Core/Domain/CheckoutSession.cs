@@ -16,7 +16,7 @@ public enum CheckoutStatus
 /// momento de armar el carrito — si el merchant cambia el precio después,
 /// esta sesión conserva el que vio el comprador.
 /// </summary>
-public sealed class CheckoutSession : AggregateRoot
+public sealed partial class CheckoutSession : AggregateRoot
 {
     public static readonly TimeSpan Ttl = TimeSpan.FromMinutes(30);
 
@@ -39,6 +39,13 @@ public sealed class CheckoutSession : AggregateRoot
     /// compra suya más nueva). Evita volver a mirarla.
     /// </summary>
     public DateTime? RecoveryEmailSentAtUtc { get; private set; }
+
+    /// <summary>
+    /// Cuándo le salió de verdad el recordatorio (email o WhatsApp) por esta
+    /// compra; null si se resolvió sin mandarlo. Con esto se cuenta el tope de
+    /// un recordatorio por email y tienda por período.
+    /// </summary>
+    public DateTime? RecoveryReminderSentAtUtc { get; private set; }
 
     // Datos del destinatario / facturación (checkout en pasos).
     public string? BuyerName { get; private set; }
@@ -193,14 +200,24 @@ public sealed class CheckoutSession : AggregateRoot
     public bool HasLines(IEnumerable<(Guid VariantId, int Quantity)> lines) =>
         CartKey.Of(_items.Select(i => (i.VariantId, i.Quantity))) == CartKey.Of(lines);
 
-    /// <summary>El email sin espacios alrededor, o el error si no parece un email.</summary>
+    /// <summary>Largo de la columna del email: uno más largo no se puede guardar.</summary>
+    public const int EmailMaxLength = 200;
+
+    /// <summary>
+    /// El email sin espacios alrededor, o el error si no parece un email: algo,
+    /// una arroba, un dominio con punto y nada de espacios, y que entre en la
+    /// columna (antes uno de más de 200 caracteres llegaba a la base y daba 500).
+    /// </summary>
     public static Result<string> NormalizeEmail(string? email)
     {
         var trimmed = (email ?? string.Empty).Trim();
-        return trimmed.Length < 5 || !trimmed.Contains('@')
+        return trimmed.Length is < 5 or > EmailMaxLength || !EmailShape().IsMatch(trimmed)
             ? Result.Failure<string>(Error.Validation("Checkout.InvalidEmail", "Ingresá un email válido."))
             : trimmed;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s.]+$")]
+    private static partial System.Text.RegularExpressions.Regex EmailShape();
 
     /// <summary>Snapshot del envío elegido: el costo queda congelado en la sesión.</summary>
     public Result SetShipping(Guid methodId, string methodName, Money cost, string? address)
@@ -256,7 +273,13 @@ public sealed class CheckoutSession : AggregateRoot
         return Result.Success();
     }
 
-    public void MarkRecoveryEmailed() => RecoveryEmailSentAtUtc = DateTime.UtcNow;
+    /// <param name="reminded">Si el recordatorio salió (y no se resolvió sin mandarlo).</param>
+    public void MarkRecoveryEmailed(bool reminded = false)
+    {
+        var now = DateTime.UtcNow;
+        RecoveryEmailSentAtUtc = now;
+        if (reminded) RecoveryReminderSentAtUtc = now;
+    }
 }
 
 /// <summary>Línea del checkout: snapshot de producto y precio.</summary>

@@ -79,6 +79,10 @@ public class ApiFactory : WebApplicationFactory<Program>
         // que en producción es justamente lo que se quiere.
         builder.UseSetting("RateLimiting:AuthPermitLimit", "10000");
         builder.UseSetting("RateLimiting:CheckoutContactPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:CheckoutPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:ShippingQuotePermitLimit", "10000");
+        builder.UseSetting("RateLimiting:SearchPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:TrackPermitLimit", "10000");
         builder.UseSetting("RateLimiting:AiPermitLimit", "10000");
         builder.UseSetting("RateLimiting:AiJobsPermitLimit", "10000");
         builder.UseSetting("RateLimiting:GlobalPermitLimit", "100000");
