@@ -24,6 +24,7 @@ interface Matrix {
 const ROLES = '/api/v1/members/roles';
 const matrix = fixture<Matrix>(ROLES);
 const me = fixture<{ role: string; permissions: Perm[] }>('/api/v1/me/permissions');
+const authMe = fixture<Record<string, unknown>>('/api/v1/auth/me');
 const roleRow = (role: string) => matrix.roles.find((r) => r.role === role)!;
 
 const body = (api: MockApi, method: string, path: string) =>
@@ -38,9 +39,11 @@ async function open(path: string, setup?: (api: MockApi) => void) {
   return { api, user };
 }
 
-/** Pisa los permisos de quien mira el panel. */
-const as = (role: string, permissions: Perm[]) => (api: MockApi) =>
+/** Pisa los permisos de quien mira el panel (un miembro del equipo, no superadmin). */
+const as = (role: string, permissions: Perm[]) => (api: MockApi) => {
   api.on('GET', '/api/v1/me/permissions', { role, permissions });
+  api.on('GET', '/api/v1/auth/me', { ...authMe, isSuperAdmin: false });
+};
 
 describe('roles y permisos: la matriz', () => {
   it('la columna del dueño no se edita; las demás sí', async () => {
