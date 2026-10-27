@@ -304,7 +304,8 @@ flowchart LR
 
 - El dominio pelado lo atiende la tienda de `PRIMARY_STORE_SUBDOMAIN`.
 - Panel: cookie de sesión `tiendafy.session` + `X-Tenant-Id` de la tienda
-  elegida. Comprador: cookie HttpOnly por tienda (`/shop/auth`).
+  elegida. Comprador: cookie HttpOnly por tienda (`/shop/auth`), que solo vale
+  desde un host de esa tienda o sin `Origin` (`Api/Shop/StoreOrigins`).
 - Las escrituras con cookie de comprador exigen `Origin` propio
   (`RequireSameOriginForWrites`).
 - El editor de diseño muestra la tienda en un iframe con el borrador, vía

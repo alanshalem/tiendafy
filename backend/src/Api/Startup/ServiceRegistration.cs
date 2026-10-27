@@ -141,9 +141,14 @@ public static class ServiceRegistration
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddSingleton<Api.Shop.ShopperMailDispatch>();
+        // Tope de mails de la cuenta del comprador por dirección y tienda.
+        services.AddSingleton<Api.Shop.ShopperMailThrottle>();
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
         services.AddScoped<Api.Fiscal.CreditNoteIssuer>();
         services.AddScoped<StoreLinks>();
+        // Los hosts de cada tienda: desde dónde vale la sesión del comprador y
+        // adónde apuntan los links de los mails de su cuenta.
+        services.AddScoped<Api.Shop.StoreOrigins>();
         services.AddScoped<BrandedEmailSender>();
         services.AddScoped<OrderItemImages>();
         services.AddHttpClient<WhatsAppSender>();
@@ -319,6 +324,8 @@ public static class ServiceRegistration
         var shippingQuote = configuration?.GetValue("RateLimiting:ShippingQuotePermitLimit", 30) ?? 30;
         var search = configuration?.GetValue("RateLimiting:SearchPermitLimit", 120) ?? 120;
         var track = configuration?.GetValue("RateLimiting:TrackPermitLimit", 120) ?? 120;
+        var shopSession = configuration?.GetValue("RateLimiting:ShopSessionPermitLimit", 120) ?? 120;
+        var googleAuth = configuration?.GetValue("RateLimiting:GoogleAuthPermitLimit", 20) ?? 20;
 
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
         static RateLimitPartition<string> PerIpPerPath(HttpContext ctx, int permitLimit) =>
@@ -394,6 +401,14 @@ public static class ServiceRegistration
             // por página): holgados, contra el abuso y no contra quien navega.
             options.AddPolicy("search", ctx => PerIpPerRoute(ctx, search, TimeSpan.FromMinutes(1)));
             options.AddPolicy("track", ctx => PerIpPerRoute(ctx, track, TimeSpan.FromMinutes(1)));
+
+            // La sesión del comprador (/shop/auth/me, una vez por página): holgado,
+            // contra quien la martilla y no contra quien navega.
+            options.AddPolicy("shop-session", ctx => PerIpPerRoute(ctx, shopSession, TimeSpan.FromMinutes(1)));
+            // "Entrar con Google": arrancar firma un state y deja una cookie, y la
+            // vuelta le pega a Google con nuestras credenciales. Una persona lo
+            // hace un par de veces; 20 cada 5 minutos por IP y ruta.
+            options.AddPolicy("google-auth", ctx => PerIpPerRoute(ctx, googleAuth, TimeSpan.FromMinutes(5)));
         });
         return services;
     }

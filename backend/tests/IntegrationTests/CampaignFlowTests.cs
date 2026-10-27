@@ -177,7 +177,7 @@ public sealed partial class CampaignFlowTests
         var merchant = await Merchant.CreateAsync(_factory, "cms");
         var shopper = new Shopper(merchant);
         var subscriber = $"news-{merchant.Subdomain}@mail.com";
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/newsletter", new { email = subscriber, source = "footer" });
+        await shopper.SubscribeConfirmedAsync(subscriber);
 
         // Programar: tiene que ser en el futuro.
         var draft = await merchant.PostAsync("/api/v1/admin/campaigns", Campaign("Programada", audience: "subscribers"));
@@ -190,7 +190,7 @@ public sealed partial class CampaignFlowTests
         // Llega la hora: el worker la arranca y la manda.
         await BackdateScheduleAsync(id);
         await RunUntilAsync(id, "sent");
-        Assert.Single(_factory.ExternalHttp.EmailsTo(subscriber));
+        Assert.Single(_factory.ExternalHttp.EmailsTo(subscriber), m => !m.Html.Contains("/suscripcion/confirmar", StringComparison.Ordinal));
 
         // Una programada que llega a la hora sin nadie a quien mandarle se cancela sola.
         var empty = await merchant.PostAsync("/api/v1/admin/campaigns", Campaign("Vacía", audience: "custom", emails: ["nadie@x.com"]));

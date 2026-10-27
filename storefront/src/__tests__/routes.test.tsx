@@ -306,13 +306,13 @@ describe('newsletter', () => {
       source: 'footer',
       website: '',
     });
-    expect(screen.getByText(/Te vamos a escribir cuando haya novedades/)).toBeInTheDocument();
+    expect(screen.getByText(/Te mandamos un mail para confirmar tu suscripción/)).toBeInTheDocument();
   });
 
   it('si la API rechaza o no hay red, lo dice', async () => {
     api.on('POST', '/api/v1/newsletter', {}, 429);
     await subscribe();
-    expect(screen.queryByText(/Te vamos a escribir/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Te mandamos un mail para confirmar/)).not.toBeInTheDocument();
     expect(screen.getByRole('button')).toBeEnabled();
   });
 });

@@ -77,6 +77,8 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `RateLimiting:CheckoutPermitLimit` | Armar (`POST /checkout`) y enviar (`/checkout/{id}/submit`) un checkout cada 10 min por IP y ruta (el id no cuenta: otra compra no da cupo nuevo). Holgado por el CGNAT de los celulares | `30` (dev: `1000`) | No se mapea |
 | `RateLimiting:ShippingQuotePermitLimit` | Cotizaciones de envío (Correo, Zipnova, Andreani) cada 5 min por IP y carrier | `30` (dev: `1000`) | No se mapea |
 | `RateLimiting:SearchPermitLimit` / `:TrackPermitLimit` | Por minuto por IP y ruta: búsqueda de la tienda (`products/search`, `products/suggest`, `search/log`) / beacon de visitas (`POST /track`). El storefront por la red interna no tiene cupo | `120` / `120` (dev: `5000`) | No se mapea |
+| `RateLimiting:ShopSessionPermitLimit` / `:GoogleAuthPermitLimit` | Por IP y ruta: la sesión del comprador (`GET /shop/auth/me`) por minuto / "Entrar con Google" (`google/start` y `google/callback`) cada 5 min | `120` / `20` (dev: `5000` / `20`) | No se mapea |
+| `RateLimiting:AccountMailsPerEmailPerHour` | Mails de la cuenta del comprador (activación, "ya tenés cuenta", cambio de contraseña, reenvío, confirmación del newsletter) por dirección y tienda, por hora. Pasado el tope el endpoint contesta igual y no manda nada. En memoria. El login del comprador, además, se bloquea 15 min por cuenta después de 10 contraseñas mal puestas (fijo, `ShopAuth.MaxFailedLogins`) | `3` | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
 | `Sentry:Dsn` | Errores de la API | Vacío = apagado | `SENTRY_DSN_BACKEND` (y `Sentry:Environment` = `APP_ENV`) |
 
@@ -85,7 +87,8 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | Clave | Para qué | Default / dev | En `.env.prod` |
 | --- | --- | --- | --- |
 | `PublicApiBaseUrl` | Base de los links de baja y de seguimiento de los emails | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
-| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo | Vacío = el mail va sin link | `https://admin.${STACK_DOMAIN}` (lo arma el compose) |
+| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo y base de los links de los mails de la cuenta del panel (verificar el email, restablecer la contraseña, la bienvenida de alguien del equipo; nunca el `Origin` del pedido) | Vacío = el aviso de stock va sin link y los de la cuenta van a `https://admin.<dominio>` (en dev, `http://localhost:5173`) | `https://admin.${STACK_DOMAIN}` (lo arma el compose) |
+| `Tenancy:PrimaryStoreSubdomain` | La tienda que atiende el dominio pelado, como `PRIMARY_STORE_SUBDOMAIN` de la tienda y el panel: sus links de cuenta van al dominio pelado y su comprador puede usar la sesión desde ahí (`Api/Shop/StoreOrigins`). Los links de la cuenta del comprador usan el dominio propio de la tienda, el pelado si es la principal, o `<tienda>.<dominio>` (en dev, con el puerto 3000) | Vacío (dev: también lee `PRIMARY_STORE_SUBDOMAIN`; sin ninguna, `localhost` vale para cualquier tienda solo en Development) | `PRIMARY_STORE_SUBDOMAIN` (lo arma el compose) |
 | `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso a la tienda para que un diseño publicado o un cambio de catálogo se vea al toque. Vacío = apagado: la tienda vence su caché sola en 30 a 60 s | Dev: `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | URL fija `http://storefront:3000/internal/revalidate`; secreto `REVALIDATE_SECRET` (el mismo que usa la tienda) |
 
 ### Email y notificaciones

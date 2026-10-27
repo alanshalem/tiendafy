@@ -9,6 +9,13 @@ import { INPUT_10 } from './styles';
 type State = 'idle' | 'sending' | 'done' | 'error';
 
 /**
+ * La suscripción queda pendiente hasta que la persona toca el link del mail
+ * (doble confirmación: así nadie anota el email de otro). Se dice siempre,
+ * también debajo del mensaje propio de la sección.
+ */
+const CONFIRM_HINT = 'Te mandamos un mail para confirmar tu suscripción: tocá el link y listo.';
+
+/**
  * Suscripción a novedades. Se usa en la sección del inicio, en el pie y en la
  * pantalla de "en construcción".
  *
@@ -84,7 +91,10 @@ function Form({ tenantId, source, compact, align, successMessage }: FormOptions 
   if (state === 'done')
     return (
       <p role="status" className={`text-sm font-medium whitespace-pre-line ${compact ? '' : 'mt-4'}`}>
-        {successMessage?.trim() || '¡Listo! Te vamos a escribir cuando haya novedades.'}
+        {successMessage?.trim()
+          ? `${successMessage.trim()}
+${CONFIRM_HINT}`
+          : `¡Casi listo! ${CONFIRM_HINT}`}
       </p>
     );
 

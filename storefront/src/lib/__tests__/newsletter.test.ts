@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { subscribeNewsletter } from '../newsletter';
+import { confirmNewsletter, subscribeNewsletter } from '../newsletter';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -27,5 +27,27 @@ describe('subscribeNewsletter', () => {
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     expect(await subscribeNewsletter('t1', 'a@b.com', 'home')).toBe(false);
+  });
+});
+
+describe('confirmNewsletter', () => {
+  it('manda el token con el header de la tienda y devuelve null si salió bien', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"ok":true}'));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await confirmNewsletter('t1', 'tok')).toBeNull();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/v1/newsletter/confirm');
+    expect(init.headers['X-Tenant-Id']).toBe('t1');
+    expect(JSON.parse(init.body)).toEqual({ token: 'tok' });
+  });
+
+  it('devuelve el motivo del servidor, o uno genérico sin red', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: 'El link venció.' }), { status: 400 })),
+    );
+    expect(await confirmNewsletter('t1', 'tok')).toBe('El link venció.');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    expect(await confirmNewsletter('t1', 'tok')).toMatch(/No pudimos confirmar/);
   });
 });

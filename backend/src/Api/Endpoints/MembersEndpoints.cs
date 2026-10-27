@@ -113,7 +113,7 @@ public static class MembersEndpoints
         members.MapPost("/", async (
             AddMemberRequest req, HttpContext http, ITenantContext tenant, IMembershipService memberships,
             IAccessService accessService, IAuditLog audit, UserManager<AppUser> users,
-            Api.Notifications.IEmailSender mailer, IConfiguration cfg, CancellationToken ct) =>
+            Api.Notifications.IEmailSender mailer, CancellationToken ct) =>
         {
             var tenantId = tenant.TenantId.Value;
             var role = (req.Role ?? string.Empty).Trim().ToLowerInvariant();
@@ -148,7 +148,7 @@ public static class MembersEndpoints
                         .GroupBy(e => e.Code)
                         .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
 
-                await SendWelcomeAsync(user, http, users, mailer, cfg, ct);
+                await SendWelcomeAsync(user, http, users, mailer, ct);
             }
 
             if (await memberships.AddAsync(user.Id, tenantId, role, ct) == MembershipChange.AlreadyMember)
@@ -358,13 +358,13 @@ public static class MembersEndpoints
     /// </summary>
     private static async Task SendWelcomeAsync(
         AppUser user, HttpContext http, UserManager<AppUser> users,
-        Api.Notifications.IEmailSender mailer, IConfiguration cfg, CancellationToken ct)
+        Api.Notifications.IEmailSender mailer, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(user.Email)) return;
 
         var token = await users.GeneratePasswordResetTokenAsync(user);
-        var origin = http.Request.Headers.Origin.ToString();
-        var baseUrl = AuthEndpoints.SafeAdminBaseUrl(origin, cfg);
+        // El panel de Admin:BaseUrl, nunca el Origin del pedido (ver OriginRules.PanelBaseUrl).
+        var baseUrl = http.RequestServices.GetRequiredService<Api.Auth.OriginRules>().PanelBaseUrl;
         var link = $"{baseUrl}/restablecer?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
 
         await mailer.SendAsync(user.Email, "Te sumaron al panel de tu tienda",

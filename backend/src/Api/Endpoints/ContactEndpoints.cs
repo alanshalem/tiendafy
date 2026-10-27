@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Api.Auth;
 using Api.Captcha;
 using Api.Notifications;
+using Api.Shop;
 using Customers.Infrastructure;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -173,10 +174,17 @@ public static class ContactEndpoints
         // Suscripción a novedades desde la tienda (anónima). El formulario estaba
         // en el storefront desde el principio pero no guardaba nada: quien lo
         // usaba creía estar armando una lista y no tenía ninguna.
+        //
+        // Con doble confirmación: el alta queda pendiente y sale un mail con el
+        // link; recién al tocarlo (POST /newsletter/confirm) le llegan las
+        // campañas. Sin eso cualquiera anotaba el email de otro. La respuesta
+        // es la misma en todos los casos (nueva, pendiente, ya confirmada) y el
+        // mail sale después de contestar: no dice quién está suscripto.
         var news = group.MapGroup("/newsletter").RequireTenant();
 
         news.MapPost("/", async (
-            NewsletterRequest req, ITenantContext tenant, ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
+            NewsletterRequest req, ITenantContext tenant, ICaptchaVerifier captcha, CustomersDbContext db,
+            ShopperMailThrottle throttle, ShopperMailDispatch dispatch, CancellationToken ct) =>
         {
             // Trampa para bots: el campo va oculto por CSS, una persona no lo completa.
             // Se responde OK igual para no enseñarle al bot cuál era el problema.
@@ -189,20 +197,49 @@ public static class ContactEndpoints
                 return Problem("Newsletter.InvalidEmail", "Revisá el email.");
 
             var tid = tenant.TenantId.Value;
-            var already = await db.NewsletterSubscribers.AnyAsync(x => x.TenantId == tid && x.Email == email, ct);
-            if (!already)
+            var existing = await db.NewsletterSubscribers.FirstOrDefaultAsync(x => x.TenantId == tid && x.Email == email, ct);
+            // Ya confirmada: nada que hacer. Con el tope de mails por dirección
+            // (ShopperMailThrottle) alcanzado, tampoco: no se le llena la casilla.
+            if (existing is { IsConfirmed: true } || !throttle.TryAcquire(tid, email))
+                return Results.Ok(new { ok = true });
+
+            var token = ShopAuth.NewToken();
+            if (existing is null) db.NewsletterSubscribers.Add(NewsletterSubscriber.CreatePending(tid, email, req.Source, token));
+            else existing.IssueConfirmToken(token);
+            try
             {
-                db.NewsletterSubscribers.Add(NewsletterSubscriber.Create(tid, email, req.Source));
-                try
-                {
-                    await db.SaveChangesAsync(ct);
-                }
-                catch (DbUpdateException)
-                {
-                    // Dos envíos a la vez chocan contra el índice único: ya está suscripto,
-                    // que es exactamente lo que pedía.
-                }
+                await db.SaveChangesAsync(ct);
             }
+            catch (DbUpdateException)
+            {
+                // Dos envíos a la vez chocan contra el índice único: el otro ya
+                // dejó la suscripción pendiente y mandó su mail.
+                return Results.Ok(new { ok = true });
+            }
+
+            dispatch.Run(tid, async (sp, stop) =>
+            {
+                var link = await ShopAuthEndpoints.AccountLinkAsync(sp, tid, "/suscripcion/confirmar", token, stop);
+                await sp.GetRequiredService<ShopperAccountEmails>().SendNewsletterConfirmAsync(tid, email, link, stop);
+            });
+            return Results.Ok(new { ok = true });
+        }).RequireRateLimiting("auth");
+
+        // El link del mail: confirma la suscripción. El token es de un solo uso
+        // y de esta tienda; vence a los 7 días (suscribirse de nuevo manda otro).
+        news.MapPost("/confirm", async (NewsletterConfirmRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        {
+            var tid = tenant.TenantId.Value;
+            if (string.IsNullOrEmpty(req.Token))
+                return Problem("Newsletter.InvalidToken", "El link no es válido o ya se usó. Si ya confirmaste, ya estás suscripto.");
+            var hash = ShopperTokenHash.Of(req.Token);
+            var subscriber = await db.NewsletterSubscribers.FirstOrDefaultAsync(x => x.TenantId == tid && x.ConfirmTokenHash == hash, ct);
+            if (subscriber is null)
+                return Problem("Newsletter.InvalidToken", "El link no es válido o ya se usó. Si ya confirmaste, ya estás suscripto.");
+            if (subscriber.IsConfirmTokenExpired(DateTime.UtcNow))
+                return Problem("Newsletter.TokenExpired", "El link venció. Volvé a suscribirte para recibir uno nuevo.");
+            subscriber.Confirm();
+            await db.SaveChangesAsync(ct);
             return Results.Ok(new { ok = true });
         }).RequireRateLimiting("auth");
 
@@ -242,6 +279,9 @@ public static class ContactEndpoints
 
 /// <summary>Suscripción a novedades. `Website` es el honeypot (siempre vacío); `Captcha`, el token de Turnstile.</summary>
 public sealed record NewsletterRequest(string? Email, string? Source = null, string? Website = null, string? Captcha = null);
+
+/// <summary>El token del link del mail de "Confirmá tu suscripción".</summary>
+public sealed record NewsletterConfirmRequest(string? Token);
 
 /// <summary>Respuesta por email a un mensaje del formulario de contacto.</summary>
 public sealed record ContactReplyRequest(string? Body);

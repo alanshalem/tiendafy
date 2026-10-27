@@ -13,6 +13,22 @@ public static class AuthEndpoints
     {
         var auth = group.MapGroup("/auth");
 
+        // Entrar, salir, el segundo paso, configurarlo, la contraseña: todo lo
+        // que escribe en /auth se acepta solo desde el panel (o sin Origin: un
+        // pedido que no sale de un navegador). La cookie del panel ya no vale
+        // desde una tienda (OriginRules), pero estos pedidos son anónimos: sin
+        // esto, un script en una tienda podía cerrarle la sesión al admin que
+        // la visita o dejarlo logueado con una cuenta ajena (login CSRF).
+        auth.AddEndpointFilter(async (ctx, next) =>
+        {
+            var request = ctx.HttpContext.Request;
+            if (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method)
+                || ctx.HttpContext.RequestServices.GetRequiredService<OriginRules>().AllowsPanelSession(request))
+                return await next(ctx);
+            return Results.Problem(title: "Auth.ForeignOrigin",
+                detail: "Esto solo se puede hacer desde el panel.", statusCode: StatusCodes.Status403Forbidden);
+        });
+
         // Esta plataforma es de UNA empresa, no un SaaS con registro abierto: el
         // alta la hace un dueño desde Usuarios. La única excepción es el
         // arranque — en una instalación sin ningún usuario hay que poder crear
@@ -27,7 +43,6 @@ public static class AuthEndpoints
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
             Api.Notifications.IEmailSender email,
-            IConfiguration cfg,
             TwoFactorRequirement requirement,
             CancellationToken ct) =>
         {
@@ -60,7 +75,7 @@ public static class AuthEndpoints
             // verificado — sin esto cualquiera registra una cuenta con email ajeno.
             if (!string.IsNullOrEmpty(user.Email))
             {
-                var (subject, html) = await VerificationEmailAsync(user, http, userManager, cfg);
+                var (subject, html) = await VerificationEmailAsync(user, http, userManager);
                 await email.SendAsync(user.Email, subject, html, ct: ct);
             }
 
@@ -84,12 +99,12 @@ public static class AuthEndpoints
         // Reenvía el email de verificación. Respuesta uniforme (204) → no enumera.
         // El email sale fuera del request (PanelAccountEmails): esperar a Resend
         // solo cuando la cuenta existe delataba por el tiempo de respuesta.
-        auth.MapPost("/resend-verification", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails, IConfiguration cfg) =>
+        auth.MapPost("/resend-verification", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails) =>
         {
             var user = await userManager.FindByEmailAsync(req.Email ?? string.Empty);
             if (user is not null && !user.EmailConfirmed && !string.IsNullOrEmpty(user.Email))
             {
-                var (subject, html) = await VerificationEmailAsync(user, http, userManager, cfg);
+                var (subject, html) = await VerificationEmailAsync(user, http, userManager);
                 emails.Enqueue(user.Email, subject, html);
             }
             return Results.NoContent();
@@ -161,14 +176,13 @@ public static class AuthEndpoints
         // ¿Olvidaste tu contraseña? (admin). Respuesta uniforme (204) → no enumera.
         // Y el mismo tiempo: el email sale fuera del request (PanelAccountEmails);
         // antes se esperaba a Resend solo cuando la cuenta existía.
-        auth.MapPost("/forgot", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails, IConfiguration cfg) =>
+        auth.MapPost("/forgot", async (ForgotRequest req, HttpContext http, UserManager<AppUser> userManager, PanelAccountEmails emails) =>
         {
             var user = await userManager.FindByEmailAsync(req.Email ?? string.Empty);
             if (user is not null && !string.IsNullOrEmpty(user.Email))
             {
                 var token = await userManager.GeneratePasswordResetTokenAsync(user);
-                var origin = http.Request.Headers.Origin.ToString();
-                var baseUrl = IsSafeAdminOrigin(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
+                var baseUrl = http.RequestServices.GetRequiredService<OriginRules>().PanelBaseUrl;
                 var link = $"{baseUrl}/restablecer?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
                 emails.Enqueue(user.Email, "Restablecé tu contraseña (admin)",
                     $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Restablecé tu contraseña</h2><p>El link vence en poco. Si no fuiste vos, ignorá este email.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Cambiar contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""");
@@ -212,26 +226,15 @@ public static class AuthEndpoints
 
     /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>
     private static async Task<(string Subject, string Html)> VerificationEmailAsync(
-        AppUser user, HttpContext http, UserManager<AppUser> userManager, IConfiguration cfg)
+        AppUser user, HttpContext http, UserManager<AppUser> userManager)
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var origin = http.Request.Headers.Origin.ToString();
-        var baseUrl = IsSafeAdminOrigin(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
+        // La base es la del panel (Admin:BaseUrl), nunca el Origin del pedido:
+        // quien pide el mail de otro no elige adónde va el link con su token.
+        var baseUrl = http.RequestServices.GetRequiredService<OriginRules>().PanelBaseUrl;
         var link = $"{baseUrl}/verificar?email={Uri.EscapeDataString(user.Email ?? string.Empty)}&token={Uri.EscapeDataString(token)}";
         return ("Verificá tu email — Tiendafy",
             $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>¡Bienvenido a Tiendafy!</h2><p>Confirmá tu email para asegurar tu cuenta y poder iniciar sesión.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Verificar mi email</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""");
-    }
-
-    /// <summary>Base para los links del panel: el Origin si es propio, o vacío.</summary>
-    internal static string SafeAdminBaseUrl(string? origin, IConfiguration cfg) =>
-        IsSafeAdminOrigin(origin, cfg) ? (origin ?? string.Empty).TrimEnd('/') : string.Empty;
-
-    /// <summary>Origin propio del admin (localhost/*.localhost o dominio de plataforma).</summary>
-    private static bool IsSafeAdminOrigin(string? origin, IConfiguration cfg)
-    {
-        if (string.IsNullOrWhiteSpace(origin) || !Uri.TryCreate(origin, UriKind.Absolute, out var u)) return false;
-        if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;
-        return SafeRedirect.IsOwnHost(u.Host, cfg);
     }
 }
 

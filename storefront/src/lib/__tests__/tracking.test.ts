@@ -31,7 +31,13 @@ describe('shouldLoad', () => {
   it('nunca carga en las páginas que se abren con un token en la URL', () => {
     // GA4 y Meta mandan la URL completa y Clarity graba la sesión: con el token
     // de activación o de reset, quien lo reciba entra a la cuenta del comprador.
-    for (const pathname of ['/cuenta/verificar', '/cuenta/reset', '/seguimiento', '/resenas/escribir']) {
+    for (const pathname of [
+      '/cuenta/verificar',
+      '/cuenta/reset',
+      '/seguimiento',
+      '/resenas/escribir',
+      '/suscripcion/confirmar',
+    ]) {
       expect(shouldLoad({ ...base, pathname })).toBe(false);
       expect(shouldLoad({ ...base, pathname, requireConsent: false })).toBe(false);
       expect(shouldAskConsent({ ...base, pathname, decision: null })).toBe(false);

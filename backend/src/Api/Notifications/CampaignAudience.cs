@@ -147,10 +147,12 @@ public sealed class CampaignAudienceService(
             .ToDictionary(g => g.Key, g => g.First().Name);
 
         // Suscriptores a novedades: dejaron el email en la tienda sin comprar todavía.
-        // Solo se cargan si la campaña los pide (una consulta menos en el resto).
+        // Solo los que confirmaron con el link del mail (doble confirmación; los
+        // de antes de que existiera quedaron confirmados): un email anotado por
+        // otro no recibe campañas. Solo se cargan si la campaña los pide.
         var subscribers = spec.Type is "subscribers" or "customers"
             ? await customers.NewsletterSubscribers.AsNoTracking()
-                .Where(x => x.TenantId == tenantId.Value)
+                .Where(x => x.TenantId == tenantId.Value && x.ConfirmedAtUtc != null)
                 .Select(x => x.Email)
                 .ToListAsync(ct)
             : [];

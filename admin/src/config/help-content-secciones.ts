@@ -363,7 +363,7 @@ export const SECCIONES = {
       {
         heading: 'Newsletter',
         paragraphs: [
-          'Un formulario para que te dejen el email, con título, texto, una imagen opcional (al costado o todo centrado), el mensaje que ven al suscribirse y una letra chica. Los emails que deja la gente entran a la audiencia de tus campañas de email.',
+          'Un formulario para que te dejen el email, con título, texto, una imagen opcional (al costado o todo centrado), el mensaje que ven al suscribirse y una letra chica. A quien deja su email le llega un mail para confirmarlo (debajo de tu mensaje la tienda le avisa que lo revise) y, cuando toca el link, entra a la audiencia de tus campañas de email. Sin confirmar no recibe campañas: así nadie puede anotar el email de otro.',
         ],
         blocks: [
           {

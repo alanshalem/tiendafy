@@ -8,6 +8,8 @@ using Customers.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
+using Tenancy.Core.Domain;
+using Tenancy.Infrastructure.Persistence;
 
 namespace Api.Endpoints;
 
@@ -39,7 +41,7 @@ public static class ShopAuthEndpoints
         // una cuenta (con contraseña o Google), contesta exactamente lo mismo
         // sin tocar nada y al dueño le llega un aviso. Los dos caminos mandan
         // un mail y contestan lo mismo.
-        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -51,6 +53,10 @@ public static class ShopAuthEndpoints
             if (created.IsFailure) return created.Error.ToProblem();
             var fresh = created.Value;
 
+            // Tope de mails por dirección (no solo por IP): pasado, contesta lo
+            // mismo sin tocar nada ni mandar otro mail.
+            if (!throttle.TryAcquire(tid, fresh.Email)) return Registered();
+
             var rows = await db.Customers
                 .Where(c => c.TenantId == tid && c.Email == fresh.Email)
                 .OrderBy(c => c.CreatedAtUtc)
@@ -58,7 +64,7 @@ public static class ShopAuthEndpoints
             // Una cuenta de comprador es la que tiene contraseña o Google.
             if (rows.FirstOrDefault(c => c.PasswordHash != null || c.GoogleSubject != null) is { } owner)
             {
-                await emails.SendRegistrationAttemptAsync(tid, owner.Email!, owner.Name, StoreLink(http, cfg, "/cuenta"), ct);
+                await emails.SendRegistrationAttemptAsync(tid, owner.Email!, owner.Name, await AccountLinkAsync(http.RequestServices, tid, "/cuenta", token: null, ct), ct);
                 return Registered();
             }
 
@@ -76,14 +82,14 @@ public static class ShopAuthEndpoints
             await db.SaveChangesAsync(ct);
             // Con la plantilla "Activación de cuenta" de la tienda (sale siempre).
             await emails.SendActivationAsync(tid, customer.Email!, customer.Name,
-                BuildLink(http, cfg, "/cuenta/verificar", verifyTok), ct);
+                await AccountLinkAsync(http.RequestServices, tid, "/cuenta/verificar", verifyTok, ct), ct);
             return Registered();
         }).RequireRateLimiting("auth");
 
         // ¿Olvidaste tu contraseña? Manda email con link de reset. Respuesta
         // uniforme (204) exista o no el email, y en el mismo tiempo: el token y
         // el mail se arman después de contestar (ShopperMailDispatch).
-        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -93,9 +99,8 @@ public static class ShopAuthEndpoints
                 .Where(c => c.TenantId == tid && c.Email == addr && (c.PasswordHash != null || c.GoogleSubject != null))
                 .Select(c => (Guid?)c.Id)
                 .FirstOrDefaultAsync(ct);
-            if (customerId is { } id)
+            if (customerId is { } id && throttle.TryAcquire(tid, addr))
             {
-                var linkBase = LinkBase(http, cfg);
                 dispatch.Run(tid, async (sp, token) =>
                 {
                     var scoped = sp.GetRequiredService<CustomersDbContext>();
@@ -106,7 +111,7 @@ public static class ShopAuthEndpoints
                     await scoped.SaveChangesAsync(token);
                     // Con la plantilla "Cambio de contraseña" de la tienda (sale siempre).
                     await sp.GetRequiredService<ShopperAccountEmails>().SendPasswordResetAsync(
-                        tid, customer.Email, customer.Name, $"{linkBase}/cuenta/reset?token={Uri.EscapeDataString(tok)}", token);
+                        tid, customer.Email, customer.Name, await AccountLinkAsync(sp, tid, "/cuenta/reset", tok, token), token);
                 });
             }
             return Results.NoContent();
@@ -129,6 +134,7 @@ public static class ShopAuthEndpoints
 
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified(); // resetear prueba acceso al email
+            customer.ClearFailedLogins();
             row.Consume();
             await ShopAuth.RevokeSessionsAsync(db, customer.Id, ct);
             var session = IssueSession(db, customer.Id, tid);
@@ -163,6 +169,7 @@ public static class ShopAuthEndpoints
 
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified();
+            customer.ClearFailedLogins();
             row.Consume();
             await ShopAuth.RevokeSessionsAsync(db, customer.Id, ct);
             var session = IssueSession(db, customer.Id, tid);
@@ -173,18 +180,19 @@ public static class ShopAuthEndpoints
 
         // Reenvía el mail de activación a la cuenta logueada (entró con su
         // contraseña sin haber verificado el email). Solo a su propio email.
-        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, ShopperMailThrottle throttle, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             if (customer is null) return Results.Unauthorized();
             if (customer.EmailVerified || string.IsNullOrEmpty(customer.Email)) return Results.NoContent();
             var tid = tenant.TenantId.Value;
+            if (!throttle.TryAcquire(tid, customer.Email)) return Results.NoContent();
             var tok = ShopAuth.NewToken();
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, tok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
             await emails.SendActivationAsync(tid, customer.Email, customer.Name,
-                BuildLink(http, cfg, "/cuenta/verificar", tok), ct);
+                await AccountLinkAsync(http.RequestServices, tid, "/cuenta/verificar", tok, ct), ct);
             return Results.NoContent();
         }).RequireRateLimiting("auth");
 
@@ -197,13 +205,20 @@ public static class ShopAuthEndpoints
             // Solo cuentas con contraseña: un registro de la agenda con el mismo
             // email no tiene clave y respondería más rápido que el hash.
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == email && c.PasswordHash != null, ct);
-            if (customer is null)
+            // Bloqueada por intentos fallidos: ni se prueba la contraseña, y se
+            // contesta lo mismo que a una contraseña mal puesta (no se avisa
+            // del bloqueo, que también diría que la cuenta existe).
+            if (customer is null || customer.IsLoginLocked(DateTime.UtcNow))
             {
                 ShopAuth.BurnPassword(req.Password ?? string.Empty); // iguala timing
-                return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
+                return InvalidCredentials();
             }
             if (!ShopAuth.VerifyPassword(customer, req.Password ?? string.Empty))
-                return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
+            {
+                await ShopAuth.RegisterFailedLoginAsync(db, customer.Id, ct);
+                return InvalidCredentials();
+            }
+            customer.ClearFailedLogins();
             var token = IssueSession(db, customer.Id, tid);
             await db.SaveChangesAsync(ct);
             ShopAuth.SetSessionCookie(http, tid, token);
@@ -220,7 +235,7 @@ public static class ShopAuthEndpoints
         {
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             return customer is null ? Results.Unauthorized() : Results.Ok(ToDto(customer));
-        });
+        }).RequireRateLimiting("shop-session");
 
         // ¿Está configurado el login con Google? Lo usa el modal para mostrar/ocultar el botón.
         auth.MapGet("/google/configured", (IConfiguration cfg) =>
@@ -228,12 +243,15 @@ public static class ShopAuthEndpoints
 
         // --- Google OAuth (authorization code). Gated por config del server. ---
         // `tenant` va por query (no header): el browser navega acá directo, sin XHR.
-        auth.MapGet("/google/start", (IConfiguration cfg, HttpContext http, IDataProtectionProvider dp, string tenant, string? @return) =>
+        auth.MapGet("/google/start", async (IConfiguration cfg, HttpContext http, IDataProtectionProvider dp, TenancyDbContext tenancy, string tenant, string? @return, CancellationToken ct) =>
         {
             if (!Guid.TryParse(tenant, out var tid)) return Problem("ShopAuth.BadTenant", "Tenant inválido.", 400);
             var clientId = cfg["Authentication:Google:ClientId"];
             if (string.IsNullOrEmpty(clientId))
                 return Problem("ShopAuth.GoogleNotConfigured", "Login con Google no está configurado en el servidor.", 501);
+            // Solo para una tienda que existe y está abierta: si no, el callback
+            // daba de alta clientes de cualquier GUID que alguien inventara.
+            if (!await IsActiveStoreAsync(tenancy, tid, ct)) return NoStore();
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
 
             // El state va atado a ESTE navegador: lleva un nonce que también
@@ -251,9 +269,9 @@ public static class ShopAuthEndpoints
                 "&response_type=code&scope=openid%20email%20profile&access_type=online&prompt=select_account" +
                 $"&state={Uri.EscapeDataString(state)}";
             return Results.Redirect(url);
-        });
+        }).RequireRateLimiting("google-auth");
 
-        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
+        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, TenancyDbContext tenancy, HttpContext http, CancellationToken ct) =>
         {
             var clientId = cfg["Authentication:Google:ClientId"];
             var clientSecret = cfg["Authentication:Google:ClientSecret"];
@@ -279,6 +297,8 @@ public static class ShopAuthEndpoints
             if (string.IsNullOrEmpty(browserNonce)
                 || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(browserNonce), Encoding.UTF8.GetBytes(nonce)))
                 return Problem("ShopAuth.GoogleError", "El ingreso con Google no se empezó en este navegador. Probá de nuevo.", 400);
+            // La tienda pudo cerrarse (o borrarse) entre el arranque y la vuelta.
+            if (!await IsActiveStoreAsync(tenancy, tid, ct)) return NoStore();
 
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
             var client = httpFactory.CreateClient();
@@ -306,11 +326,20 @@ public static class ShopAuthEndpoints
             if (string.IsNullOrEmpty(sub) || string.IsNullOrEmpty(email) || !gp.EmailVerified)
                 return Problem("ShopAuth.GoogleError", "Google no devolvió un email verificado.", 502);
 
-            // La cuenta de comprador antes que un registro de la agenda con el mismo email.
-            var customer = await db.Customers
-                .Where(c => c.TenantId == tid && c.Email == email)
-                .OrderByDescending(c => c.PasswordHash != null || c.GoogleSubject != null)
-                .FirstOrDefaultAsync(ct);
+            // Primero la cuenta ya vinculada a ESTA cuenta de Google (aunque Google
+            // ahora le dé otro email); si no, por email: la cuenta de comprador
+            // antes que un registro de la agenda con el mismo email.
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.GoogleSubject == sub, ct)
+                ?? await db.Customers
+                    .Where(c => c.TenantId == tid && c.Email == email)
+                    .OrderByDescending(c => c.PasswordHash != null || c.GoogleSubject != null)
+                    .FirstOrDefaultAsync(ct);
+            // Una cuenta vinculada a OTRA cuenta de Google no se pisa: si la
+            // dirección cambió de dueño en Google (un dominio de Workspace que
+            // pasó a otro, una cuenta recreada), el nuevo dueño entraría a la
+            // cuenta del anterior, con sus pedidos y direcciones.
+            if (customer?.GoogleSubject is { } linked && linked != sub)
+                return Problem("ShopAuth.GoogleAccountMismatch", "Esa cuenta ya está vinculada a otra cuenta de Google.", 409);
             if (customer is null)
             {
                 var created = Customer.CreateShopper(tid, name, email, emailVerified: true);
@@ -333,10 +362,17 @@ public static class ShopAuthEndpoints
             ShopAuth.SetSessionCookie(http, tid, token);
             var dest = IsSafeReturnUrl(returnUrl, cfg) ? returnUrl : "/";
             return Results.Redirect(dest);
-        });
+        }).RequireRateLimiting("google-auth");
 
         return group;
     }
+
+    private static Task<bool> IsActiveStoreAsync(TenancyDbContext tenancy, Guid tid, CancellationToken ct) =>
+        tenancy.Tenants.AsNoTracking().AnyAsync(t => t.Id == tid && t.Status == TenantStatus.Active, ct);
+
+    private static IResult NoStore() => Problem("ShopAuth.BadTenant", "La tienda no existe o no está abierta.", 404);
+
+    private static IResult InvalidCredentials() => Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
 
     private static IResult Registered() => Results.Json(new { message = RegisterMessage }, statusCode: StatusCodes.Status202Accepted);
 
@@ -388,20 +424,17 @@ public static class ShopAuthEndpoints
 
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
 
-    /// <summary>La tienda según el Origin del request (validado). Vacío si no es propio: el link queda relativo.</summary>
-    private static string LinkBase(HttpContext http, IConfiguration cfg)
+    /// <summary>
+    /// Link a una página de la cuenta en la tienda (con el token, si lo hay),
+    /// sobre la URL canónica de la tienda (<see cref="StoreOrigins"/>). Nunca
+    /// el Origin del pedido: quien pide el mail de otro no elige adónde va el
+    /// link con su token.
+    /// </summary>
+    internal static async Task<string> AccountLinkAsync(IServiceProvider services, Guid tid, string path, string? token, CancellationToken ct)
     {
-        var origin = http.Request.Headers.Origin.ToString();
-        return IsSafeReturnUrl(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
+        var baseUrl = await services.GetRequiredService<StoreOrigins>().CanonicalBaseAsync(tid, ct) ?? string.Empty;
+        return token is null ? $"{baseUrl}{path}" : $"{baseUrl}{path}?token={Uri.EscapeDataString(token)}";
     }
-
-    /// <summary>Link a la tienda con el token, usando el Origin del request (validado).</summary>
-    private static string BuildLink(HttpContext http, IConfiguration cfg, string path, string token) =>
-        $"{LinkBase(http, cfg)}{path}?token={Uri.EscapeDataString(token)}";
-
-    /// <summary>Link a una página de la tienda, sin token.</summary>
-    private static string StoreLink(HttpContext http, IConfiguration cfg, string path) =>
-        $"{LinkBase(http, cfg)}{path}";
 
     internal static object ToDto(Customer c) => new { id = c.Id, name = c.Name, email = c.Email, emailVerified = c.EmailVerified };
 }

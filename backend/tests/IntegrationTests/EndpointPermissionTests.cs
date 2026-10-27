@@ -36,6 +36,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/contact/submit",
             "POST /api/v1/coupons/validate",
             "POST /api/v1/newsletter/",
+            "POST /api/v1/newsletter/confirm", // el link del mail de "Confirmá tu suscripción" (doble confirmación)
             "POST /api/v1/shipping/andreani/quote",
             "POST /api/v1/shipping/correo/quote",
             "POST /api/v1/shipping/zipnova/quote",
