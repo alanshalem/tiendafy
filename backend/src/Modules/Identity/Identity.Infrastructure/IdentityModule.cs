@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SharedKernel.Persistence;
 
 namespace Identity.Infrastructure;
@@ -26,8 +27,14 @@ public static class IdentityModule
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppIdentityDbContext>()
+            // Búsqueda por email con NFKC y rescate de las claves viejas (ver AppUserManager).
+            .AddUserManager<AppUserManager>()
             .AddSignInManager()
             .AddDefaultTokenProviders(); // tokens de reset de contraseña / 2FA
+
+        // NFKC + mayúsculas en vez de solo mayúsculas (AddIdentityCore registra
+        // el de fábrica con TryAdd: este lo reemplaza).
+        services.Replace(ServiceDescriptor.Scoped<ILookupNormalizer, PanelLookupNormalizer>());
 
         // Sesión server-side con cookie httpOnly (ADR sección 9):
         // revocable al instante, sin JWT para el admin.
