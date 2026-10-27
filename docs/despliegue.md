@@ -289,13 +289,20 @@ Notas de build (ya resueltas en los Dockerfiles):
   del store, e install `--frozen-lockfile --offline` del workspace completo (un
   install filtrado deja a tsc sin los tipos compartidos).
 - **Contenedores endurecidos** (`docker-compose.stack.yml`): `api`,
-  `storefront` y `admin` corren con `no-new-privileges`, `cap_drop: ALL` y
-  el sistema de archivos de solo lectura; lo que escriben va a un tmpfs: `/tmp`
-  en los tres, la caché de Next (`.next/cache`, con tope de 128 MB que cuenta
-  para el límite de memoria) en la tienda y, en el panel, `config.js` y su CSP
-  de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). `/keys` de
-  la API es un volumen. Si agregás algo que escribe a disco, declaralo ahí: con
-  el sistema de solo lectura falla con `EROFS`.
+  `storefront` y `admin` corren con `no-new-privileges` y `cap_drop: ALL`.
+  Solo el panel (y los de backup) tienen además el sistema de archivos de solo
+  lectura; lo que escriben va a un tmpfs: `/tmp`, y en el panel `config.js` y
+  su CSP de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). Si
+  agregás algo que escribe a disco en uno de esos, declaralo ahí: con el
+  sistema de solo lectura falla con `EROFS`.
+  - La **API** no es de solo lectura y su `/tmp` es el disco del contenedor:
+    la importación de fotos extrae ahí el ZIP (hasta 2 GB descomprimidos),
+    Kestrel guarda los archivos grandes de un multipart (hasta 1 GB) y
+    QuestPDF/Skia escriben su caché de fuentes. En un tmpfs eso sería memoria
+    del contenedor y una subida grande la mataría por OOM. `/keys` es un
+    volumen.
+  - La **tienda** tampoco: Next escribe su caché (`.next/cache`) en runtime y
+    crece con el catálogo.
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
 - Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
