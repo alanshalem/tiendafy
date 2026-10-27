@@ -19,7 +19,7 @@ public static partial class LogValue
     private static partial Regex BearerRx();
 
     // access_token=abc, "access_token":"abc", token: abc, client_secret=...
-    [GeneratedRegex("""(?i)(["']?(?:access_token|refresh_token|client_secret|api_key|apikey|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',&}]+""")]
+    [GeneratedRegex("""(?i)(["']?(?:access_token|refresh_token|client_secret|api_key|apikey|token|secret|password|authorization)["']?\s*[:=]\s*["']?(?:Bearer\s+)?)[^\s"',&}]+""")]
     private static partial Regex KeyValueSecretRx();
 
     [GeneratedRegex(@"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+")]
@@ -36,8 +36,8 @@ public static partial class LogValue
     public static string Body(string? body, int max = 500)
     {
         if (string.IsNullOrWhiteSpace(body)) return string.Empty;
-        var s = BearerRx().Replace(body, "Bearer ***");
-        s = KeyValueSecretRx().Replace(s, "$1***");
+        var s = KeyValueSecretRx().Replace(body, "$1***");
+        s = BearerRx().Replace(s, "Bearer ***");
         s = EmailRx().Replace(s, "***@***");
         s = LongNumberRx().Replace(s, "***");
         s = Safe(s, max);
