@@ -87,6 +87,17 @@ funciona si el registro está abierto (`GET /api/v1/auth/registration-open`).
 `MEDIA_PRIVATE_BUCKET` faltan en `.env.staging` o valen lo mismo que en
 producción (los valores por defecto del compose son los de producción): sin
 esto, un borrado de prueba en staging se llevaría una foto de producción.
+Los buckets propios no alcanzan: el **token de R2/MinIO**
+(`MEDIA_ACCESS_KEY`/`MEDIA_SECRET_KEY`) también tiene que ser el de staging, con
+permiso solo sobre sus buckets (el freno compara nombres de bucket, no
+credenciales). Con un token de producción, staging escribiría en producción.
+
+**Valores de relleno.** `deploy.sh` (staging y producción) se niega a seguir si
+el `.env` conserva algún valor de relleno del ejemplo (`cambiar-por-uno-fuerte`,
+`<ACCOUNT_ID>`…): el `:?` de compose solo mira que la variable no esté vacía.
+Y la API en `Production` no arranca si la cadena de conexión trae la contraseña
+de desarrollo (`Password=tiendafy`, la de `appsettings.json`): el compose arma la
+cadena con `POSTGRES_PASSWORD`, y esto cubre levantar la API sin ese entorno.
 
 ## Dónde está cada cosa en el servidor
 
@@ -295,7 +306,9 @@ Notas de build (ya resueltas en los Dockerfiles):
   lectura; lo que escriben va a un tmpfs: `/tmp`, y en el panel `config.js` y
   su CSP de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). Si
   agregás algo que escribe a disco en uno de esos, declaralo ahí: con el
-  sistema de solo lectura falla con `EROFS`.
+  sistema de solo lectura falla con `EROFS`. Todos tienen además `pids_limit:
+  512` (también `postgres`, que lleva `no-new-privileges` pero no `cap_drop`:
+  su entrypoint arranca como root y baja a `postgres` con `gosu`).
   - La **API** no es de solo lectura y su `/tmp` es el disco del contenedor:
     la importación de fotos extrae ahí el ZIP (hasta 2 GB descomprimidos),
     Kestrel guarda los archivos grandes de un multipart (hasta 1 GB) y
@@ -383,17 +396,20 @@ cd ../.. && ./infra/deploy.sh prod sha-EL_ANTERIOR
 Con `--single-transaction` y `--exit-on-error`, si algo falla la base queda
 como estaba.
 
-**Paso único después del deploy de oct-2026 (sanitizador de SVG):** el
-sanitizador nuevo y el `Content-Disposition: attachment` solo se aplican a lo
-que se sube de ahí en adelante; los `.svg` que ya estaban en el bucket público
-pasaron por el sanitizador viejo (con bypass conocidos) y se sirven en línea.
-Una vez, con la versión nueva ya arriba, desde `infra/docker`:
+**Sanitizador de SVG (`resanitize-svg`): corre solo en cada deploy.** El
+sanitizador y el `Content-Disposition: attachment` solo se aplican a lo que se
+sube de ahí en adelante; los `.svg` que ya estaban en el bucket público
+pasaron por el sanitizador de antes (en su momento, uno con bypass conocidos) y
+se sirven en línea. Por eso `deploy.sh` corre, al final de cada deploy, con la
+API ya sana:
 
 ```bash
-docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm api dotnet Api.dll resanitize-svg
+docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm --no-deps api dotnet Api.dll resanitize-svg
 ```
 
-Recorre los `.svg` del bucket de media, los re-sanea y los vuelve a subir en la
+Si falla, el deploy avisa (`AVISO: resanitize-svg falló`) y sigue: es
+mantenimiento, no puede tumbar un deploy que anda. En ese caso, corrélo a mano
+con el comando de arriba (desde `infra/docker`). Recorre los `.svg` del bucket de media, los re-sanea y los vuelve a subir en la
 misma clave (las URLs no cambian) con `attachment`. Es idempotente: lo que ya
 está bien no se toca, así que se puede volver a correr. Lo que el sanitizador
 rechaza no se borra (es el logo de alguien): queda con `attachment` y sale en el
@@ -434,7 +450,11 @@ Todos los días, `pg-backup` (ver `infra/docker/backup.sh`) deja en
 > ningún lado (la copia fuera del servidor ya sale cifrada con rclone crypt) y
 > tratá cualquier copia como si fuera la base de producción. Los contenedores
 > de backup corren con `BACKUP_UID`/`BACKUP_GID` (los de `deploy`, que
-> `deploy.sh` exporta). `pg-backup` es el único que sigue como root, con
+> `deploy.sh` exporta; `pg-upgrade.sh` también). Si levantás o recreás algo a
+mano con `docker compose` sin pasar por esos scripts, **exportá antes
+`BACKUP_UID="$(id -u)" BACKUP_GID="$(id -g)"`**: sin ellos el compose cae a
+1000:1000 y, si `deploy` es otro usuario, `backup-offsite` no puede leer los
+backups. `pg-backup` es el único que sigue como root, con
 > `DAC_OVERRIDE` y `CHOWN` y nada más, porque las claves de `/keys` son
 > 0600 del usuario de la API.
 
@@ -526,6 +546,26 @@ los secretos de adentro **dejen de valer**. El orden:
    primer arranque. La vieja queda en el keyring, solo para descifrar. Ensayalo
    primero en staging y verificá en `/keys` que apareció un `key-*.xml` nuevo.
    Hacé un backup del volumen antes (a un lugar cifrado).
+
+   **Rotá también el `security_stamp` de todos los usuarios del panel.** La
+   clave vieja sigue en el keyring (hace falta para descifrar la base) y sigue
+   sirviendo para validar lo que se firmó con ella: quien se llevó el keyring y
+   un dump (que trae `users.security_stamp`) puede forjar la cookie de sesión
+   de un administrador con el stamp vigente. Cambiar el stamp invalida esas
+   cookies, porque la API las revalida contra él:
+
+   ```bash
+   docker compose -f docker-compose.stack.yml --env-file .env.prod exec -T postgres \
+     psql -U tiendafy -d tiendafy -c "UPDATE users SET security_stamp = gen_random_uuid()::text, concurrency_stamp = gen_random_uuid()::text"
+   ```
+
+   Es la misma sentencia que usa la sección 3b de `infra/sql/anonymize-staging.sql`.
+   La revalidación de la cookie es periódica (cada 30 minutos por defecto),
+   así que una sesión robada puede durar hasta ese plazo; todos los usuarios
+   del panel van a tener que volver a iniciar sesión. Las sesiones de los
+   compradores no se firman con la clave: son un valor al azar guardado como
+   hash en la base (`customer_sessions`), así que no se forjan con el keyring;
+   si querés cortarlas igual, `DELETE FROM customer_sessions`.
 3. **Re-cifrar lo que se pueda.** Se vuelve a cifrar solo lo que la aplicación
    vuelve a guardar; no hay un comando que recorra la base:
    - Se reconecta o se vuelve a cargar a mano en cada tienda (la clave nueva
@@ -540,14 +580,16 @@ los secretos de adentro **dejen de valer**. El orden:
      viejo es el que el atacante pudo leer, así que volver a cifrarlo no
      alcanza.
    - Lo que **no** se re-cifra solo: los datos personales de los clientes
-     (`Customers.PII.v1`: teléfono, dirección). Siguen cifrados con la clave
+     (`Customers.PII.v1`: teléfono, DNI, dirección). Siguen cifrados con la clave
      vieja y, si esa clave se filtró, son legibles para quien tenga el dump.
      Re-cifrarlos exige un script que los lea y los guarde de nuevo, que hoy no
      existe: se escribe con el equipo, no se improvisa en la emergencia.
-   - Lo efímero se corta solo, sin hacer nada: sesiones del panel y de la
-     tienda, links firmados (cotizaciones de envío, recuperar contraseña,
-     estado de OAuth, vista previa del editor). Quedan inválidos y es lo
-     esperado.
+   - Lo efímero **no** se corta solo con la rotación: la clave vieja sigue en
+     el keyring y todavía valida lo firmado con ella (links de cotizaciones de
+     envío, estado de OAuth, vista previa del editor y la cookie del panel).
+     Las cookies del panel se cortan con el `security_stamp` del paso 2; los
+     links firmados vencen por su propio plazo, o recién cuando se saca la
+     clave vieja (paso 4).
 4. **Sacar la clave vieja** recién cuando todo lo cifrado con ella se haya
    vuelto a guardar (y lo de los clientes, resuelto): se la revoca (se saca su
    archivo del volumen **después** de confirmar con un backup que se puede

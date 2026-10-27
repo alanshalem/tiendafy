@@ -27,4 +27,13 @@
 	}
 }
 
+# /internal/* es de la red interna (la API avisa a la tienda por
+# http://storefront:3000/internal/revalidate, sin pasar por acá): desde afuera
+# no existe. Sin esto, /internal/revalidate quedaba alcanzable desde internet,
+# protegida solo por su secreto.
+(block_internal) {
+	@internal path /internal /internal/*
+	respond @internal 404
+}
+
 import sites/*.caddy

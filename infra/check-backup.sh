@@ -64,8 +64,13 @@ echo "restaurado: $TABLES tablas, $TENANTS tiendas"
   exit 1
 }
 
-if [ -n "$KEYS" ] && tar tzf "$KEYS" | grep -q 'key-.*\.xml'; then
-  echo "keyring: $KEYS ($(tar tzf "$KEYS" | grep -c 'key-.*\.xml') claves)"
+# El listado a una variable y de ahí a grep -c: con `tar tzf | grep -q`, grep
+# corta al primer acierto, tar muere por SIGPIPE y con pipefail el `if` daba
+# falso (el falso "FALLA") aunque el keyring estuviera bien.
+KEY_COUNT=0
+[ -n "$KEYS" ] && KEY_COUNT="$(tar tzf "$KEYS" | grep -c 'key-.*\.xml' || true)"
+if [ "${KEY_COUNT:-0}" -gt 0 ]; then
+  echo "keyring: $KEYS ($KEY_COUNT claves)"
 else
   echo "FALLA: no hay copia legible del keyring (dpkeys-*.tgz) en $DIR." >&2
   exit 1
