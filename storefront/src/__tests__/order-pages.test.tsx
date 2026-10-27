@@ -174,6 +174,17 @@ describe('Seguí tu pedido', () => {
     expect(await screen.findByRole('heading', { name: 'Pedido #1042' })).toBeInTheDocument();
   });
 
+  it('saca el link firmado de la URL (ni historial, ni Referer, ni medición)', async () => {
+    window.history.replaceState(null, '', '/seguimiento?t=bueno&pedido=1042');
+    api.on('POST', '/api/v1/shop/track-order', (body: unknown) =>
+      (body as { token?: string }).token === 'bueno' ? order() : undefined,
+    );
+    await show(<OrderTracker token="bueno" initialNumber="1042" />);
+    expect(await screen.findByRole('heading', { name: 'Pedido #1042' })).toBeInTheDocument();
+    expect(window.location.search).toBe('?pedido=1042');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('link vencido', async () => {
     api.on('POST', '/api/v1/shop/track-order', { title: 'Order.NotFound' }, 404);
     await show(<OrderTracker token="viejo" />);

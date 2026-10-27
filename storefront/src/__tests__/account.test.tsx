@@ -461,6 +461,24 @@ describe('el link de activación: elegí tu contraseña', () => {
     expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
   });
 
+  it('saca el token de la URL apenas lo lee, y lo sigue usando al guardar', async () => {
+    // El token abre la cuenta: no tiene que quedar en el historial ni en el
+    // Referer, ni llegarle a una herramienta de medición.
+    window.history.replaceState(null, '', '/cuenta/verificar?token=tok-url&utm_source=mail');
+    api.on('POST', '/api/v1/shop/auth/verify', { customer: { ...me, emailVerified: true } });
+    const { user, save } = await openLink('tok-url');
+    expect(window.location.search).toBe('?utm_source=mail');
+
+    // Como hace Next al sincronizar replaceState: useSearchParams ya no lo ve.
+    nav.at('/cuenta/verificar?utm_source=mail');
+    await user.type(screen.getByLabelText('Contraseña'), 'mi-clave-larga');
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'mi-clave-larga');
+    await user.click(save());
+    await settle(1);
+    expect(posted('/shop/auth/verify')).toEqual([{ token: 'tok-url', password: 'mi-clave-larga' }]);
+    window.history.replaceState(null, '', '/');
+  });
+
   it('sin token no muestra el formulario', async () => {
     anonymous();
     nav.at('/cuenta/verificar');

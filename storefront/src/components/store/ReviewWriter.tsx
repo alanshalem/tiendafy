@@ -9,6 +9,7 @@ import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { Captcha } from './Captcha';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
+import { TOKEN_PAGES, useScrubUrlParams } from '@/lib/scrub-url';
 import { Stars } from './ReviewStars';
 import { BTN_PRIMARY_BLOCK, INPUT_11, TEXTAREA } from './styles';
 
@@ -47,7 +48,16 @@ const STAR_LABELS = ['Muy malo', 'Malo', 'Normal', 'Bueno', 'Excelente'];
  * suya, que esté despachada, una reseña por producto): acá solo se arma el
  * formulario.
  */
-export function ReviewWriter({ token, orderId }: { token: string | null; orderId: string | null }) {
+export function ReviewWriter({
+  token: tokenProp,
+  orderId,
+}: {
+  token: string | null;
+  orderId: string | null;
+}) {
+  // El token del link del mail se guarda al montar y se saca de la URL (ver lib/scrub-url).
+  const [token] = useState(tokenProp);
+  useScrubUrlParams(TOKEN_PAGES['/resenas/escribir']);
   const { tenantId } = useCart();
   const href = usePreviewHref();
   const [load, setLoad] = useState<Load>({ kind: 'loading' });

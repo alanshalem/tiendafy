@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isPaymentPage, shouldAskConsent, shouldLoad } from '@/components/store/TrackingTags';
+import {
+  isPaymentPage,
+  isUnmeasuredPage,
+  shouldAskConsent,
+  shouldLoad,
+} from '@/components/store/TrackingTags';
 
 const base = {
   hasAnyTag: true,
@@ -21,6 +26,17 @@ describe('shouldLoad', () => {
   it('sí carga en las pantallas de resultado: ahí ya no hay datos de tarjeta', () => {
     expect(shouldLoad({ ...base, pathname: '/checkout/success' })).toBe(true);
     expect(shouldLoad({ ...base, pathname: '/checkout/pending' })).toBe(true);
+  });
+
+  it('nunca carga en las páginas que se abren con un token en la URL', () => {
+    // GA4 y Meta mandan la URL completa y Clarity graba la sesión: con el token
+    // de activación o de reset, quien lo reciba entra a la cuenta del comprador.
+    for (const pathname of ['/cuenta/verificar', '/cuenta/reset', '/seguimiento', '/resenas/escribir']) {
+      expect(shouldLoad({ ...base, pathname })).toBe(false);
+      expect(shouldLoad({ ...base, pathname, requireConsent: false })).toBe(false);
+      expect(shouldAskConsent({ ...base, pathname, decision: null })).toBe(false);
+    }
+    expect(shouldLoad({ ...base, pathname: '/cuenta' })).toBe(true);
   });
 
   it('sin permiso no carga nada', () => {
@@ -61,5 +77,15 @@ describe('isPaymentPage', () => {
     expect(isPaymentPage('/checkout')).toBe(true);
     expect(isPaymentPage('/checkout/success')).toBe(false);
     expect(isPaymentPage('/productos')).toBe(false);
+  });
+});
+
+describe('isUnmeasuredPage', () => {
+  it('es el pago y las páginas con token, nada más', () => {
+    expect(isUnmeasuredPage('/checkout')).toBe(true);
+    expect(isUnmeasuredPage('/cuenta/verificar')).toBe(true);
+    expect(isUnmeasuredPage('/cuenta/reset')).toBe(true);
+    expect(isUnmeasuredPage('/cuenta/pedidos')).toBe(false);
+    expect(isUnmeasuredPage('/productos')).toBe(false);
   });
 });

@@ -284,7 +284,7 @@ export const TIENDA = {
         paragraphs: [
           'En otras plataformas hay una caja para pegar el fragmento que te da Google o Meta. Acá no, y es a propósito: el formulario donde tu cliente escribe el número de tarjeta está dentro de tu propia tienda, y un código de afuera metido en esa pantalla es exactamente la forma en que se roban tarjetas en el comercio electrónico.',
           'Vos cargás el identificador —una cadena corta como G-ABCD123456— y el código lo escribe Tiendafy. Si no tiene la forma que corresponde (por ejemplo, pegaste el fragmento entero), no te deja guardar y te dice qué forma espera. Cuando una herramienta tiene identificador, su tarjeta dice “Activo”.',
-          'Ninguna de estas herramientas se carga en el checkout (la pantalla donde tu cliente completa sus datos y paga), ni siquiera si el visitante ya aceptó. Por eso Clarity no graba lo que pasa ahí.',
+          'Ninguna de estas herramientas se carga en el checkout (la pantalla donde tu cliente completa sus datos y paga), ni siquiera si el visitante ya aceptó. Por eso Clarity no graba lo que pasa ahí. Tampoco en las páginas que se abren desde un link personal de un mail (activar la cuenta, cambiar la contraseña, seguir un pedido u opinar de una compra): ese link da acceso a la cuenta o a la compra de tu cliente y no tiene que llegarle a nadie más.',
         ],
         blocks: [
           { type: 'path', segments: ['Configuración', 'Medición y píxeles'] },

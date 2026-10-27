@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Loader2, Search, Undo2 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
+import { TOKEN_PAGES, useScrubUrlParams } from '@/lib/scrub-url';
 import { OrderSummary, OrderTimeline } from './OrderSummary';
 import { OrderPaymentInstructions } from './OrderPaymentInstructions';
 import { BTN_SUBMIT_PUBLIC, INPUT_THEMED_11 } from './styles';
@@ -15,7 +16,16 @@ import { repentHref, trackOrder, type OrderView } from '@/lib/orders';
  * pedido, o directo con el link firmado de los mails (`?t=`). `?pedido=`
  * deja el número ya escrito.
  */
-export function OrderTracker({ token, initialNumber }: { token?: string; initialNumber?: string }) {
+export function OrderTracker({
+  token: tokenProp,
+  initialNumber,
+}: {
+  token?: string;
+  initialNumber?: string;
+}) {
+  // El link firmado se guarda al montar y se saca de la URL (ver lib/scrub-url).
+  const [token] = useState(tokenProp);
+  useScrubUrlParams(TOKEN_PAGES['/seguimiento']);
   const { tenantId } = useCart();
   const href = usePreviewHref();
   const id = useId();
