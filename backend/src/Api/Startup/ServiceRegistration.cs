@@ -68,6 +68,9 @@ public static class ServiceRegistration
     public static IServiceCollection AddAllModules(
         this IServiceCollection services, IConfiguration configuration, bool isProduction = false)
     {
+        ProductionConfigGuard.RejectDevelopmentDatabasePassword(
+            configuration.GetConnectionString("Default"), isProduction);
+
         services.AddTenancyModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddCatalogModule(configuration);
