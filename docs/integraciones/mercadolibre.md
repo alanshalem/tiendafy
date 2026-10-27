@@ -267,6 +267,10 @@ real (ver Pendiente).
 - Access token de ~6 h (`expires_in`, 21600 por defecto si no viene).
 - El endpoint de autorización cuelga de la base de auth (`/authorization`), a
   diferencia de los otros OAuth de la plataforma.
+- **Qué se encola.** Solo avisos con `application_id` igual a `MercadoLibre:ClientId`
+  y `user_id` de un vendedor con cuenta conectada; el resto recibe 200 y se descarta.
+  Un aviso idéntico (topic, resource, vendedor) pendiente de los últimos 30 s no se
+  duplica. Con la integración sin configurar no se compara la app.
 - **Los webhooks no traen datos ni vienen firmados**: siempre se re-consulta el
   resource con el token del vendedor. ML pide contestar 200 enseguida (la doc
   vigente da 20 s de plazo; versiones anteriores hablaban de 500 ms) y, si no,

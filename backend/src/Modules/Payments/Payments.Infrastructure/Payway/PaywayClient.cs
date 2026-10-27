@@ -129,7 +129,7 @@ public sealed class PaywayClient(
             }
 
             logger.LogError("Payway rechazó el cobro {SiteTransactionId} con {Status}: {Body}",
-                row.SiteTransactionId, (int)response.StatusCode, json);
+                row.SiteTransactionId, (int)response.StatusCode, LogValue.Body(json));
             await SettleAsync(row, Unknown(request.AmountMinor, $"http_{(int)response.StatusCode}"), ct);
 
             // El token de Payway es de un solo uso y vive 15 minutos: reusarlo
@@ -227,7 +227,7 @@ public sealed class PaywayClient(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogError("Payway rechazó la devolución de {PaymentId} con {Status}: {Body}",
-                    providerPaymentId, (int)response.StatusCode, json);
+                    providerPaymentId, (int)response.StatusCode, LogValue.Body(json));
                 return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundFailed",
                     "Payway no pudo procesar la devolución."));
             }
@@ -239,7 +239,7 @@ public sealed class PaywayClient(
             // Un 2xx con la devolución rechazada adentro no es una devolución.
             if (status.Equals("rejected", StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogError("Payway rechazó la devolución de {PaymentId}: {Body}", providerPaymentId, json);
+                logger.LogError("Payway rechazó la devolución de {PaymentId}: {Body}", providerPaymentId, LogValue.Body(json));
                 return Result.Failure<PaywayRefundResult>(new Error("Payway.RefundFailed",
                     "Payway no pudo procesar la devolución."));
             }

@@ -957,7 +957,39 @@ public sealed class MercadoLibreFlowTests
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>
     private Task<(Merchant Merchant, long UserId)> ConnectedAsync(string tag) => MeliAccount.ConnectAsync(_factory, tag);
 
+    [Fact]
+    public async Task El_webhook_solo_encola_avisos_de_nuestra_app_y_de_vendedores_conectados()
+    {
+        var (merchant, userId) = await ConnectedAsync("mlw");
+        var resource = $"/orders/{userId * 10 + 5}";
+        var client = _factory.CreateClient();
+
+        async Task<int> PendingAsync()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var meli = scope.ServiceProvider.GetRequiredService<MercadoLibre.Infrastructure.MeliDbContext>();
+            return await meli.Notifications.AsNoTracking().CountAsync(n => n.Resource == resource);
+        }
+
+        // De otra app: 200, pero no se encola.
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/webhooks/meli",
+            new { topic = "orders_v2", resource, user_id = userId, application_id = 999 })).StatusCode);
+        // Sin application_id: tampoco.
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/webhooks/meli",
+            new { topic = "orders_v2", resource, user_id = userId })).StatusCode);
+        // De nuestra app pero de un vendedor sin conexión: tampoco.
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/webhooks/meli",
+            new { topic = "orders_v2", resource, user_id = userId + 987_654, application_id = "test-meli-client" })).StatusCode);
+        Assert.Equal(0, await PendingAsync());
+
+        // De nuestra app y un vendedor conectado: se encola, y el mismo aviso
+        // repetido enseguida no se duplica.
+        Assert.Equal(HttpStatusCode.OK, (await NotifyAsync(userId, resource)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await NotifyAsync(userId, resource)).StatusCode);
+        Assert.Equal(1, await PendingAsync());
+    }
+
     private Task<HttpResponseMessage> NotifyAsync(long userId, string resource) =>
         _factory.CreateClient().PostAsJsonAsync("/api/v1/webhooks/meli",
-            new { topic = "orders_v2", resource, user_id = userId, application_id = 1, attempts = 1 });
+            new { topic = "orders_v2", resource, user_id = userId, application_id = "test-meli-client", attempts = 1 });
 }

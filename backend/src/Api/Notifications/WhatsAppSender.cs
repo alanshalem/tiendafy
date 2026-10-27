@@ -80,7 +80,7 @@ public sealed class WhatsAppSender(HttpClient http, ILogger<WhatsAppSender> logg
                     // 4xx definitivo: plantilla inexistente/no aprobada, token vencido,
                     // número no habilitado… reintentar no ayuda.
                     logger.LogError("WhatsApp Cloud API {Status} → {To} · {Template}: {Body}",
-                        (int)resp.StatusCode, toLog, templateName, body.Replace(toE164, toLog, StringComparison.Ordinal));
+                        (int)resp.StatusCode, toLog, templateName, LogValue.Body(body.Replace(toE164, toLog, StringComparison.Ordinal)));
                     return false;
                 }
                 logger.LogWarning("WhatsApp {Status} transitorio, reintento {Attempt} → {To}",

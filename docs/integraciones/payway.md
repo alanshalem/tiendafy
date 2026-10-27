@@ -65,7 +65,7 @@ Hosts (`PaywayConnection.BaseUrl`):
 
 - Sandbox: `https://developers.decidir.com/api/v2`
 - Producción: `https://live.decidir.com/api/v2` (ver el gotcha del host abajo)
-- `baseUrlOverride`: reemplaza al anterior sin deploy. Solo HTTPS.
+- `baseUrlOverride`: reemplaza al anterior sin deploy. Solo HTTPS, solo hosts de Payway (`decidir.com` o `payway.com.ar` y sus subdominios), sin usuario, sin puerto ni query. Un valor guardado que no cumpla se ignora al leerlo y rige el del ambiente.
 
 El navegador tokeniza contra ese mismo host, así que el CSP de la tienda
 (`storefront/src/lib/csp.ts`) permite en `connect-src` exactamente

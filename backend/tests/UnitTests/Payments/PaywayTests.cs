@@ -179,6 +179,48 @@ public class PaywayConnectionTests
         Assert.Equal("Payway.InsecureBaseUrl", result.Error.Code);
     }
 
+    [Theory]
+    [InlineData("https://evil.example.com/api/v2")]
+    [InlineData("https://decidir.com.evil.com/api/v2")]
+    [InlineData("https://evildecidir.com/api/v2")]
+    [InlineData("https://user:pass@live.decidir.com/api/v2")]
+    [InlineData("https://live.decidir.com:8443/api/v2")]
+    [InlineData("https://127.0.0.1/api/v2")]
+    public void ElHostAlternativoSoloPuedeSerDePayway(string url)
+    {
+        var connection = Sandbox();
+        var result = connection.Update("00020220", PaywayEnvironment.Production, "pub", null, url, null, null);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Payway.BadBaseUrl", result.Error.Code);
+    }
+
+    [Theory]
+    [InlineData("https://live.decidir.com/api/v2")]
+    [InlineData("https://developers.decidir.com/api/v2/")]
+    [InlineData("https://ventasonline.payway.com.ar/api/v2")]
+    [InlineData("https://live.decidir.com:443/api/v2")]
+    public void ElHostAlternativoDePaywayEsValido(string url)
+    {
+        var connection = Sandbox();
+        var result = connection.Update("00020220", PaywayEnvironment.Production, "pub", null, url, null, null);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(url.TrimEnd('/'), connection.BaseUrl);
+    }
+
+    [Fact]
+    public void UnHostGuardadoQueNoEsDePaywaySeIgnoraAlLeer()
+    {
+        // Datos viejos: antes se aceptaba cualquier https. Al leerlo se usa el default.
+        var connection = Sandbox();
+        typeof(PaywayConnection).GetProperty(nameof(PaywayConnection.BaseUrlOverride))!
+            .SetValue(connection, "https://evil.example.com/api/v2");
+
+        Assert.Equal(PaywayConnection.SandboxBaseUrl, connection.BaseUrl);
+        Assert.Null(connection.EffectiveBaseUrlOverride);
+    }
+
     [Fact]
     public void EditarSinClavePrivadaNoLaBorra()
     {
