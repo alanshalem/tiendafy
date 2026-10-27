@@ -127,6 +127,7 @@ public static class ServiceRegistration
         services.AddHttpClient<IEmailSender, EmailSender>();
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
+        services.AddSingleton<Api.Shop.ShopperMailDispatch>();
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
         services.AddScoped<Api.Fiscal.CreditNoteIssuer>();
         services.AddScoped<StoreLinks>();

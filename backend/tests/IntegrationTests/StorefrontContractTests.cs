@@ -41,6 +41,7 @@ public sealed class StorefrontContractTests
         "/api/v1/shop/auth/forgot",
         "/api/v1/shop/auth/reset",
         "/api/v1/shop/auth/verify",
+        "/api/v1/shop/auth/verify/resend",
         "/api/v1/shop/auth/logout",
         "/api/v1/shop/favorites/merge",
         "/api/v1/shop/support/conversations",
@@ -60,7 +61,7 @@ public sealed class StorefrontContractTests
         var store = await SeededStore.GetAsync(_factory);
         var shopper = new Shopper(store);
         var credentials = new { name = "Contrato", email = $"contrato-{Guid.NewGuid():N}@mail.com", password = "una-clave-larga" };
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register", credentials);
+        await shopper.RegisterVerifiedAsync(credentials.email, credentials.name, credentials.password);
 
         // Puede responder 400 (cuerpo vacío) o 404; no puede responder 401. El
         // login, con sus credenciales: vacío, el 401 sería el suyo.

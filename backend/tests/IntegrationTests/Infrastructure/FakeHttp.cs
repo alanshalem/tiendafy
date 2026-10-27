@@ -60,6 +60,23 @@ public sealed class FakeHttp
                     ? tags[0].GetProperty("value").GetString()
                     : null))];
 
+    /// <summary>
+    /// Espera el email que la API manda DESPUÉS de contestar (el de "¿Olvidaste
+    /// tu contraseña?" sale fuera del request para tardar lo mismo exista o no la
+    /// cuenta). Falla si en unos segundos no llegó.
+    /// </summary>
+    public async Task<Email> WaitForEmailAsync(string address, Func<Email, bool> match, TimeSpan? timeout = null)
+    {
+        var until = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            var found = EmailsTo(address).LastOrDefault(match);
+            if (found is not null) return found;
+            if (DateTime.UtcNow > until) throw new TimeoutException($"No llegó el email esperado a {address}.");
+            await Task.Delay(50);
+        }
+    }
+
     public static HttpResponseMessage Json(object body, HttpStatusCode status = HttpStatusCode.OK) => new(status)
     {
         Content = new StringContent(

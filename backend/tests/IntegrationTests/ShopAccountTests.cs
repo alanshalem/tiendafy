@@ -30,8 +30,7 @@ public sealed class ShopAccountTests(ApiFactory factory)
     private static async Task<Shopper> RegisteredAsync(Merchant merchant, string email)
     {
         var shopper = new Shopper(merchant);
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Ana Pérez", email, password = "una-clave-larga" });
+        await shopper.RegisterVerifiedAsync(email);
         return shopper;
     }
 

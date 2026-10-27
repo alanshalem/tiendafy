@@ -69,6 +69,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/shop/auth/register",
             "POST /api/v1/shop/auth/reset",
             "POST /api/v1/shop/auth/verify",
+            "POST /api/v1/shop/auth/verify/resend",
             "POST /api/v1/shop/favorites/merge",
             "PUT /api/v1/shop/favorites/{productId:guid}",
             "DELETE /api/v1/shop/favorites/{productId:guid}",

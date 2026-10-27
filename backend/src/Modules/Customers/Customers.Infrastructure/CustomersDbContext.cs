@@ -71,8 +71,9 @@ public sealed class CustomersDbContext : DbContext
         s.ToTable("customer_sessions");
         s.HasKey(x => x.Id);
         s.Property(x => x.Id).ValueGeneratedNever();
-        s.HasIndex(x => x.Token).IsUnique();
-        s.Property(x => x.Token).HasMaxLength(120).IsRequired();
+        // El hash del token (64 hex), nunca el token: ver ShopperTokenHash.
+        s.HasIndex(x => x.TokenHash).IsUnique();
+        s.Property(x => x.TokenHash).HasMaxLength(120).IsRequired();
 
         var f = modelBuilder.Entity<CustomerFavorite>();
         f.ToTable("customer_favorites");
@@ -84,8 +85,8 @@ public sealed class CustomersDbContext : DbContext
         t.ToTable("customer_tokens");
         t.HasKey(x => x.Id);
         t.Property(x => x.Id).ValueGeneratedNever();
-        t.HasIndex(x => x.Token).IsUnique();
-        t.Property(x => x.Token).HasMaxLength(120).IsRequired();
+        t.HasIndex(x => x.TokenHash).IsUnique();
+        t.Property(x => x.TokenHash).HasMaxLength(120).IsRequired();
         t.Property(x => x.Purpose).HasMaxLength(20).IsRequired();
 
         var cm = modelBuilder.Entity<ContactMessage>();

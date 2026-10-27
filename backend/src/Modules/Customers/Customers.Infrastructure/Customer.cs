@@ -89,10 +89,21 @@ public sealed class Customer
 
     public void SetPasswordHash(string hash) => PasswordHash = hash;
     public void MarkEmailVerified() => EmailVerified = true;
-    public void LinkGoogle(string subject)
+    /// <summary>
+    /// Vincula la cuenta de Google (con el email verificado por Google). Si la
+    /// cuenta todavía no tenía el email verificado, la contraseña se borra:
+    /// cualquiera pudo haberla creado con un email ajeno antes de que llegara
+    /// su dueño (pre-registro), y la clave sería suya. El dueño entra con
+    /// Google o elige una nueva con "¿Olvidaste tu contraseña?". Quien llama
+    /// cierra también las sesiones que tenía abiertas (devuelve true en ese caso).
+    /// </summary>
+    public bool LinkGoogle(string subject)
     {
+        var claimed = !EmailVerified;
+        if (claimed) PasswordHash = null;
         GoogleSubject = subject;
         EmailVerified = true;
+        return claimed;
     }
 
     public Result Update(string? name, string? email, string? phone, string? address, string? notes)

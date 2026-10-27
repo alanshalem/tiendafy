@@ -46,8 +46,7 @@ public sealed class CampaignAudienceTests(ApiFactory factory)
         // Carla se hizo cuenta y guardó la creatina sin comprarla.
         var carla = $"carla-{merchant.Subdomain}@mail.com";
         var shopper = new Shopper(merchant);
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Carla", email = carla, password = "una-clave-larga" });
+        await shopper.RegisterVerifiedAsync(carla, "Carla");
         await shopper.ExpectOkAsync(HttpMethod.Put, $"/api/v1/shop/favorites/{creatine}");
 
         var favorited = await merchant.PostAsync("/api/v1/admin/campaigns/audience/preview",

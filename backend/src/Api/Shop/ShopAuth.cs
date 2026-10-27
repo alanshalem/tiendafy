@@ -83,8 +83,9 @@ public static class ShopAuth
         var token = ReadToken(http);
         if (!string.IsNullOrEmpty(token))
         {
-            var session = await db.CustomerSessions.AsNoTracking().FirstOrDefaultAsync(s => s.Token == token, ct);
-            await db.CustomerSessions.Where(s => s.Token == token).ExecuteDeleteAsync(ct);
+            var hash = ShopperTokenHash.Of(token);
+            var session = await db.CustomerSessions.AsNoTracking().FirstOrDefaultAsync(s => s.TokenHash == hash, ct);
+            await db.CustomerSessions.Where(s => s.TokenHash == hash).ExecuteDeleteAsync(ct);
             if (session is not null) ClearSessionCookie(http, session.TenantId);
         }
         if (http.Request.Headers.TryGetValue("X-Tenant-Id", out var rt) && Guid.TryParse(rt.ToString(), out var tid))
@@ -97,7 +98,8 @@ public static class ShopAuth
         var token = ReadToken(http);
         if (string.IsNullOrEmpty(token)) return null;
 
-        var session = await db.CustomerSessions.AsNoTracking().FirstOrDefaultAsync(s => s.Token == token, ct);
+        var hash = ShopperTokenHash.Of(token);
+        var session = await db.CustomerSessions.AsNoTracking().FirstOrDefaultAsync(s => s.TokenHash == hash, ct);
         if (session is null || session.IsExpired) return null;
 
         // La sesión queda atada a su tienda: no se puede reusar un bearer de la
@@ -109,10 +111,32 @@ public static class ShopAuth
 
         return await db.Customers.FirstOrDefaultAsync(c => c.Id == session.CustomerId, ct);
     }
+
+    /// <summary>
+    /// Cierra todas las sesiones del comprador. Se usa cuando cambia quién
+    /// controla la cuenta (verificó el email, eligió otra contraseña, entró con
+    /// Google sobre una cuenta sin verificar): una sesión abierta antes, con una
+    /// contraseña que pudo poner otro, no puede pasar a ver sus compras.
+    /// </summary>
+    public static Task RevokeSessionsAsync(CustomersDbContext db, Guid customerId, CancellationToken ct) =>
+        db.CustomerSessions.Where(s => s.CustomerId == customerId).ExecuteDeleteAsync(ct);
+
+    /// <summary>
+    /// ¿Es suyo el pedido? Los pedidos se atan a la cuenta por el email de la
+    /// compra, así que solo cuenta si la cuenta probó que el email es suyo
+    /// (<see cref="Customer.EmailVerified"/>): si no, cualquiera que se
+    /// registre con el email de otro vería sus compras, su factura y su
+    /// dirección. Todo endpoint de la tienda que vincule un pedido con el
+    /// comprador logueado pasa por acá.
+    /// </summary>
+    public static bool OwnsOrder(Customer? customer, string? buyerEmail) =>
+        customer is { EmailVerified: true }
+        && NormalizeEmail(customer.Email) is { } mine
+        && NormalizeEmail(buyerEmail) == mine;
 }
 
 public sealed record ShopRegisterRequest(string Name, string Email, string Password, string? Captcha = null);
 public sealed record ShopLoginRequest(string Email, string Password, string? Captcha = null);
-public sealed record ShopForgotRequest(string Email);
+public sealed record ShopForgotRequest(string Email, string? Captcha = null);
 public sealed record ShopResetRequest(string Token, string Password);
 public sealed record ShopVerifyRequest(string Token);

@@ -140,8 +140,7 @@ public sealed partial class ApiFixturesExport
     {
         const string email = "comprador@demo.local";
         var shopper = new Shopper(store);
-        await shopper.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Comprador Demo", email, password = "una-clave-larga" });
+        await shopper.RegisterVerifiedAsync(email, "Comprador Demo");
 
         var order = await store.PostAsync("/api/v1/orders/manual", new
         {

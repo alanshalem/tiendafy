@@ -40,7 +40,8 @@ como Content o Reviews):
 
 - **Comprador** (tienda): sesión de comprador (cookie HttpOnly por tienda,
   `ShopAuth`). Solo ve las conversaciones con su `CustomerId`; para abrir una
-  nueva, el pedido tiene que ser de su email y estar pagado. Las escrituras
+  nueva, el pedido tiene que ser de su email (con el email de la cuenta
+  verificado, `ShopAuth.OwnsOrder`) y estar pagado. Las escrituras
   exigen `Origin` propio (`RequireSameOriginForWrites`).
 - **Equipo** (panel): `RequirePermission(Permission.SupportChat)` en todo el
   grupo (`support.chat`: sesión + membresía de la tienda del `X-Tenant-Id` +

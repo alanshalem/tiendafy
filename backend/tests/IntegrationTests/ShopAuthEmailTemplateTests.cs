@@ -45,7 +45,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound,
             (await merchant.SendAsync(HttpMethod.Put, "/api/v1/email-templates/confirmacion-compra", new { enabled = true })).StatusCode);
 
-        foreach (var type in new[] { "activacion-cuenta", "cambio-contrasena" })
+        foreach (var type in new[] { "activacion-cuenta", "cambio-contrasena", "intento-registro" })
         {
             var t = Template(list, type)!.Value;
             Assert.True(t.GetProperty("alwaysOn").GetBoolean());
@@ -106,7 +106,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent,
             (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/forgot", new { email })).StatusCode);
-        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email), m => m.Subject.StartsWith("Tu clave", StringComparison.Ordinal));
+        var mail = await factory.ExternalHttp.WaitForEmailAsync(email, m => m.Subject.StartsWith("Tu clave", StringComparison.Ordinal));
         Assert.Equal($"Tu clave de Tienda {merchant.Subdomain}", mail.Subject);
         Assert.Contains("Hola Beto, escribinos si no fuiste vos.", mail.Html, StringComparison.Ordinal);
         Assert.Contains("Cambiar contraseña", mail.Html, StringComparison.Ordinal);

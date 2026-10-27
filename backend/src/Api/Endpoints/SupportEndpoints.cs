@@ -50,9 +50,9 @@ public static class SupportEndpoints
                 return Results.Ok(ToDto(existing));
             }
 
-            // Solo órdenes del propio cliente y efectivamente compradas.
+            // Solo órdenes del propio cliente (email verificado) y efectivamente compradas.
             var order = await orders.GetByIdAsync(tenant.TenantId, req.OrderId, ct);
-            if (order is null || !string.Equals(order.BuyerEmail, customer.Email, StringComparison.OrdinalIgnoreCase))
+            if (order is null || !ShopAuth.OwnsOrder(customer, order.BuyerEmail))
                 return Results.NotFound();
             if (order.PaidAtUtc is null)
                 return Error.Conflict("Support.OrderNotPaid",

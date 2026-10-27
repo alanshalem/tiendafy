@@ -85,6 +85,15 @@ public static class EmailTemplateCatalog
             Wrap("Restablecé tu contraseña", "<p>Hola {{name}}, pediste cambiar tu contraseña. El link vence en 1 hora. Si no fuiste vos, ignorá este email.</p>" + Cta("Cambiar contraseña")),
             AlwaysOn: true),
 
+        // El registro contesta igual exista o no la cuenta (así no se puede
+        // averiguar quién compra en la tienda); el aviso de que el email ya
+        // tenía cuenta le llega solo al dueño. {{link}} es la cuenta en la tienda.
+        new("intento-registro", "Cuenta de usuarios", "Intento de registro",
+            "Avisa a quien ya tiene cuenta que alguien intentó crear otra con su email. Sale siempre.", true,
+            "Ya tenés una cuenta en {{store}}",
+            Wrap("Ya tenés una cuenta", "<p>Hola {{name}}, alguien intentó crear una cuenta en {{store}} con tu email, pero ya tenés una. Si fuiste vos, entrá con tu contraseña o, si no te la acordás, tocá “¿Olvidaste tu contraseña?” para elegir una nueva. Si no fuiste vos, ignorá este email: tu cuenta sigue igual.</p>" + Cta("Ir a mi cuenta")),
+            AlwaysOn: true),
+
         // Encendida por defecto: sin este email el que eligió transferencia no
         // tiene adónde mirar los datos de la cuenta si cierra la pestaña.
         new("instrucciones-pago", "Ventas", "Instrucciones de pago",
