@@ -104,6 +104,11 @@ public sealed class UrlRedirect
         var value = (raw ?? string.Empty).Trim();
         if (value.Length == 0 || value.Length > MaxPathLength) return null;
 
+        // Los navegadores leen "\" como "/": "/\otro-sitio.com" sería "//otro-sitio.com"
+        // (un destino externo disfrazado de ruta local). Y un carácter de control
+        // (tab, salto de línea) lo descartan al interpretar la URL, con el mismo efecto.
+        if (value.Contains('\\') || value.Any(char.IsControl)) return null;
+
         if (value.Contains("://", StringComparison.Ordinal))
             return IsHttpUrl(value, out var absolute) ? absolute.ToString() : null;
 
