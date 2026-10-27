@@ -89,11 +89,15 @@ public static class DatabaseMigrator
 
     private static async Task RestateCustomersAsync(IServiceProvider sp, ILogger logger)
     {
-        var tenants = await sp.GetRequiredService<CustomersDbContext>().Customers.AsNoTracking()
+        // Sin tienda en el scope: las tiendas se buscan con IgnoreQueryFilters y
+        // cada una se recalcula con su tienda fijada.
+        var tenants = await sp.GetRequiredService<CustomersDbContext>().Customers.IgnoreQueryFilters().AsNoTracking()
             .Select(c => c.TenantId).Distinct().ToListAsync();
         var directory = sp.GetRequiredService<Api.Crm.CustomerDirectory>();
+        var tenantScope = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var tenantId in tenants)
         {
+            tenantScope.Set(SharedKernel.Common.TenantId.From(tenantId));
             try
             {
                 var changed = await directory.RestateAllAsync(tenantId);

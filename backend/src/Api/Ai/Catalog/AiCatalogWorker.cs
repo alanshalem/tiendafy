@@ -71,6 +71,9 @@ public sealed class AiCatalogWorker(
     {
         await using var scope = scopes.CreateAsyncScope();
         var sp = scope.ServiceProvider;
+        // El trabajo es de una tienda: lo que se lea en este scope (presupuesto,
+        // configuración) es de ella.
+        sp.GetRequiredService<TenantContextHolder>().Set(TenantId.From(tenantId));
         var ai = sp.GetRequiredService<AiDbContext>();
 
         var status = await ai.CatalogJobs.IgnoreQueryFilters().AsNoTracking()

@@ -56,7 +56,7 @@ public sealed class FiscalEnvironmentSwitchTests(ApiFactory factory)
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
-            Assert.Empty(await db.Documents.AsNoTracking().Where(d => d.OrderId == sale).ToListAsync());
+            Assert.Empty(await db.Documents.IgnoreQueryFilters().AsNoTracking().Where(d => d.OrderId == sale).ToListAsync());
         }
 
         // Volver a homologación recupera su certificado, que nunca se borró.

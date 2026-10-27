@@ -42,6 +42,10 @@ public sealed class PaymentWebhookWorker(
             return; // sin conexión no es reintentable útil; lo marcamos done
         }
 
+        // De acá en adelante todo es de la tienda de esa conexión: el scope del
+        // worker no tiene tienda y sin ella los filtros no devuelven nada.
+        sp.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(connection.TenantId);
+
         var mp = sp.GetRequiredService<IMercadoPagoPaymentService>();
         var payment = await mp.GetPaymentAsync(connection.TenantId, ev.DataId, ct);
         if (payment.IsFailure)

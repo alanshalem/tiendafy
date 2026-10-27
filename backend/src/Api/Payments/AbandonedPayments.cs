@@ -47,6 +47,7 @@ public sealed class AbandonedPaymentService(
     SettlePaymentHandler settle,
     PaidOrderSideEffects paidEffects,
     OrderCouponUses couponUses,
+    Api.Middleware.TenantContextHolder tenantScope,
     ILogger<AbandonedPaymentService> logger)
 {
     /// <summary>
@@ -82,7 +83,9 @@ public sealed class AbandonedPaymentService(
         var cutoff = nowUtc - AbandonAfter;
         // Solo las del checkout de la tienda: un link de pago de una venta
         // manual o de un presupuesto lo mandó el comercio y lo cancela él.
-        var candidates = await ordersDb.Orders.AsNoTracking()
+        // Todas las tiendas (corre en el worker, sin tienda en el scope); cada
+        // venta se resuelve después con su tienda fijada.
+        var candidates = await ordersDb.Orders.IgnoreQueryFilters().AsNoTracking()
             .Where(o => o.Status == OrderStatus.PendingPayment
                 && o.Channel == Order.ChannelWeb
                 && o.PaymentDueAtUtc == null
@@ -98,6 +101,7 @@ public sealed class AbandonedPaymentService(
         {
             try
             {
+                tenantScope.Set(order.TenantId);
                 var decision = await DecideAsync(order, nowUtc, ct);
                 if (decision == Decision.Cancel && await CancelAsync(order, nowUtc, ct))
                     cancelled++;

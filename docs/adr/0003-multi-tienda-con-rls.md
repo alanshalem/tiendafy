@@ -21,8 +21,11 @@ El aislamiento hoy son tres capas de aplicación:
    tenant que resuelve el header `X-Tenant-Id` (`ITenantContext`).
 2. **Query filters globales de EF Core** (`HasQueryFilter`) en todos los
    `DbContext` con tablas de tienda: acotan cada consulta del request al
-   tenant actual aunque falte el `.Where`. Se apagan solo cuando no hay tenant
-   en scope (workers que recorren todas las tiendas, migraciones).
+   tenant actual aunque falte el `.Where`. Desde el 27-oct-2026 están cerrados
+   por defecto: sin tenant en scope no devuelven filas (antes se apagaban, y un
+   endpoint nuevo sin tienda habría leído las de todas). Lo que recorre varias
+   tiendas (workers, plataforma, backfills) usa `IgnoreQueryFilters()` con su
+   propio filtro o fija la tienda del ítem en el scope.
 3. **`TenantQueryFilterTests`** (desde el 11-oct): recorre el modelo de EF de
    todos los contextos y falla si una entidad con `TenantId` no tiene filtro.
    Las excepciones están escritas con su motivo: `Tenant` (es la tienda

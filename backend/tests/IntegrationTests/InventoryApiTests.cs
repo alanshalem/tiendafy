@@ -15,9 +15,9 @@ namespace IntegrationTests;
 public sealed class InventoryApiTests(ApiFactory factory)
 {
     /// <summary>Las reservas las toma el checkout por el contrato del módulo, no por HTTP.</summary>
-    private async Task<T> WithInventoryAsync<T>(Func<IInventoryService, Task<T>> action)
+    private async Task<T> WithInventoryAsync<T>(Guid tenantId, Func<IInventoryService, Task<T>> action)
     {
-        using var scope = factory.Services.CreateScope();
+        await using var scope = factory.Services.CreateTenantScope(tenantId);
         return await action(scope.ServiceProvider.GetRequiredService<IInventoryService>());
     }
 
@@ -39,19 +39,19 @@ public sealed class InventoryApiTests(ApiFactory factory)
         Assert.Equal(6, set.GetProperty("available").GetInt32());
 
         // Reservar, confirmar, liberar.
-        var reservation = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 2));
+        var reservation = await WithInventoryAsync(merchant.TenantId, i => i.ReserveAsync(merchant.TenantId, variant, 2));
         Assert.Equal("ACTIVE", reservation.Value!.Status);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
-        Assert.True((await WithInventoryAsync(i => i.ConfirmReservationAsync(merchant.TenantId, reservation.Value.Id))).IsSuccess);
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ConfirmReservationAsync(merchant.TenantId, reservation.Value.Id))).IsSuccess);
 
-        var released = await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 1));
-        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, released.Value!.Id))).IsSuccess);
+        var released = await WithInventoryAsync(merchant.TenantId, i => i.ReserveAsync(merchant.TenantId, variant, 1));
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ReleaseReservationAsync(merchant.TenantId, released.Value!.Id))).IsSuccess);
         Assert.Equal(4, await merchant.AvailableAsync(variant));
 
         // No se reserva más de lo que hay, ni se confirma/libera lo que no existe.
-        Assert.True((await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 50))).IsFailure);
-        Assert.True((await WithInventoryAsync(i => i.ConfirmReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
-        Assert.True((await WithInventoryAsync(i => i.ReleaseReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ReserveAsync(merchant.TenantId, variant, 50))).IsFailure);
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ConfirmReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ReleaseReservationAsync(merchant.TenantId, Guid.NewGuid()))).IsFailure);
 
         // El libro cuenta la historia: carga inicial, conteo, reservas.
         var ledger = (await merchant.GetAsync($"/api/v1/inventory/{variant}/ledger")).GetProperty("items");
@@ -103,7 +103,7 @@ public sealed class InventoryApiTests(ApiFactory factory)
         var (_, variant) = await merchant.CreateProductAsync("Barra olímpica", stock: 5);
 
         // La pantalla cargó 5; mientras se editaba, el checkout reservó 2.
-        Assert.True((await WithInventoryAsync(i => i.ReserveAsync(merchant.TenantId, variant, 2))).IsSuccess);
+        Assert.True((await WithInventoryAsync(merchant.TenantId, i => i.ReserveAsync(merchant.TenantId, variant, 2))).IsSuccess);
 
         // Guardar con lo que se vio (5) no pisa la venta: 409 con el stock real.
         var stale = await merchant.SendAsync(HttpMethod.Put, $"/api/v1/inventory/{variant}",

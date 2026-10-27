@@ -187,7 +187,7 @@ public sealed class MercadoPagoFlowTests
         using (var scope = _factory.Services.CreateScope())
         {
             var orders = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
-            var fee = await orders.Orders.AsNoTracking().Where(o => o.Id == paidOrderId).Select(o => o.MpFeeAmount).SingleAsync();
+            var fee = await orders.Orders.IgnoreQueryFilters().AsNoTracking().Where(o => o.Id == paidOrderId).Select(o => o.MpFeeAmount).SingleAsync();
             Assert.Equal(1_800_00, fee?.AmountInMinorUnits);
         }
 
@@ -248,7 +248,7 @@ public sealed class MercadoPagoFlowTests
         // Sigue habiendo una sola fila por pago.
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        var ev = await db.PaymentWebhookEvents.AsNoTracking().SingleAsync(e => e.DataId == paymentId.ToString());
+        var ev = await db.PaymentWebhookEvents.IgnoreQueryFilters().AsNoTracking().SingleAsync(e => e.DataId == paymentId.ToString());
         Assert.Equal(InboxEntry.StatusDone, ev.Status);
     }
 
@@ -561,7 +561,7 @@ public sealed class MercadoPagoFlowTests
         {
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
             var now = DateTime.UtcNow;
-            await db.PaymentWebhookEvents.Where(e => e.DataId == mpPayment.ToString())
+            await db.PaymentWebhookEvents.IgnoreQueryFilters().Where(e => e.DataId == mpPayment.ToString())
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(e => e.Status, InboxEntry.StatusPending)
                     .SetProperty(e => e.NextAttemptAtUtc, now));
@@ -684,7 +684,7 @@ public sealed class MercadoPagoFlowTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<global::Fiscal.Infrastructure.Persistence.FiscalDbContext>();
-        return await db.Documents.AsNoTracking()
+        return await db.Documents.IgnoreQueryFilters().AsNoTracking()
             .Where(d => d.OrderId == orderId && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized
                         && d.CbteTipo == global::Fiscal.Core.Domain.CbteTipo.NotaCreditoB)
             .OrderBy(d => d.ImpTotal).Select(d => d.ImpTotal).ToListAsync();
@@ -730,13 +730,13 @@ public sealed class MercadoPagoFlowTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-            var ev = await db.PaymentWebhookEvents.AsNoTracking().SingleAsync(e => e.DataId == paymentId);
+            var ev = await db.PaymentWebhookEvents.IgnoreQueryFilters().AsNoTracking().SingleAsync(e => e.DataId == paymentId);
             Assert.Equal(1, ev.Attempts);
             Assert.Contains("No se pudo consultar el pago", ev.LastError);
             eventId = ev.Id;
 
             // Agotó los reintentos: queda muerto, que es lo que el panel tiene que mostrar.
-            await db.PaymentWebhookEvents.Where(e => e.Id == eventId)
+            await db.PaymentWebhookEvents.IgnoreQueryFilters().Where(e => e.Id == eventId)
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, InboxEntry.StatusDead));
         }
 

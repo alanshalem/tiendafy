@@ -31,6 +31,8 @@ public sealed class CampaignWorker(
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<NotificationsDbContext>();
 
+        // Las campañas de todas las tiendas (sin tienda en el scope): se buscan
+        // con IgnoreQueryFilters y cada una se procesa con su tienda fijada.
         await PromoteScheduledAsync(sp, db, ct);
         await ProcessSendingAsync(sp, db, ct);
     }
@@ -38,7 +40,7 @@ public sealed class CampaignWorker(
     private async Task PromoteScheduledAsync(IServiceProvider sp, NotificationsDbContext db, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
-        var due = await db.EmailCampaigns
+        var due = await db.EmailCampaigns.IgnoreQueryFilters()
             .Where(c => c.Status == "scheduled" && c.ScheduledAtUtc <= now)
             .OrderBy(c => c.ScheduledAtUtc)
             .Take(3)
@@ -46,8 +48,10 @@ public sealed class CampaignWorker(
         if (due.Count == 0) return;
 
         var audienceService = sp.GetRequiredService<CampaignAudienceService>();
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var campaign in due)
         {
+            tenant.Set(TenantId.From(campaign.TenantId));
             var spec = AudienceSpec.Parse(campaign.AudienceJson, campaign.Audience);
             var members = await audienceService.ResolveAsync(TenantId.From(campaign.TenantId), spec, ct);
             if (members.Count == 0)
@@ -72,11 +76,12 @@ public sealed class CampaignWorker(
         var links = sp.GetRequiredService<StoreLinks>();
         var apiBase = links.ApiBase;
 
-        var campaign = await db.EmailCampaigns
+        var campaign = await db.EmailCampaigns.IgnoreQueryFilters()
             .Where(c => c.Status == "sending")
             .OrderBy(c => c.CreatedAtUtc)
             .FirstOrDefaultAsync(ct);
         if (campaign is null) return;
+        sp.GetRequiredService<Api.Middleware.TenantContextHolder>().Set(TenantId.From(campaign.TenantId));
 
         var batch = await db.CampaignRecipients
             .Where(r => r.CampaignId == campaign.Id && r.Status == "pending")

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using MercadoLibre.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Support.Infrastructure;
 
@@ -202,9 +203,9 @@ public sealed class InboxTests(ApiFactory factory)
 
     private async Task AddCustomerMessageAsync(Guid tenantId, Guid conversationId, string text)
     {
-        using var scope = factory.Services.CreateScope();
+        await using var scope = factory.Services.CreateTenantScope(tenantId);
         var db = scope.ServiceProvider.GetRequiredService<SupportDbContext>();
-        var conversation = db.Conversations.Single(c => c.Id == conversationId);
+        var conversation = db.Conversations.IgnoreQueryFilters().Single(c => c.Id == conversationId);
         db.Messages.Add(SupportMessage.Create(conversationId, tenantId, isFromStaff: false, conversation.CustomerEmail, text));
         conversation.RegisterMessage(fromStaff: false);
         await db.SaveChangesAsync();

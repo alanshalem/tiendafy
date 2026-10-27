@@ -60,8 +60,11 @@ public static class AbandonedCarts
         // La orden de la propia sesión (aunque haya pagado con otro email), o
         // una del mismo comprador hecha después.
         // Con onlyTenant (el listado del panel y el asistente) las dos lecturas
-        // quedan acotadas a esa tienda aunque el filtro global esté apagado.
-        var ordersQuery = ordersDb.Orders.AsNoTracking()
+        // quedan acotadas a esa tienda; sin él (el worker, que mira las compras
+        // de todas las tiendas) se pide explícito con IgnoreQueryFilters.
+        var orders0 = onlyTenant is null ? ordersDb.Orders.IgnoreQueryFilters() : ordersDb.Orders;
+        var sessions0 = onlyTenant is null ? checkoutDb.Sessions.IgnoreQueryFilters() : checkoutDb.Sessions;
+        var ordersQuery = orders0.AsNoTracking()
             .Where(o => o.CreatedAtUtc >= since
                 && (ids.Contains(o.CheckoutSessionId) || emails.Contains(o.BuyerEmail.ToLower())))
             .Where(ClosesCart);
@@ -70,7 +73,7 @@ public static class AbandonedCarts
             .Select(o => new { o.TenantId, o.BuyerEmail, o.CheckoutSessionId, o.CreatedAtUtc })
             .ToListAsync(ct);
 
-        var newerQuery = checkoutDb.Sessions.AsNoTracking()
+        var newerQuery = sessions0.AsNoTracking()
             .Where(s => s.Email != null && s.CreatedAtUtc >= since && emails.Contains(s.Email.ToLower()));
         if (onlyTenant is { } newerTenant) newerQuery = newerQuery.Where(s => s.TenantId == newerTenant);
         var newer = emails.Count == 0

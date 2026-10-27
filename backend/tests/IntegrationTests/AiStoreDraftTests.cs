@@ -91,10 +91,10 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
 
         using var scope = factory.Services.CreateScope();
         var conversation = await scope.ServiceProvider.GetRequiredService<SupportDbContext>()
-            .Conversations.AsNoTracking().SingleAsync(c => c.Id == conversationId);
+            .Conversations.IgnoreQueryFilters().AsNoTracking().SingleAsync(c => c.Id == conversationId);
         Assert.Equal(1, conversation.UnreadForStaff);
         var message = await scope.ServiceProvider.GetRequiredService<CustomersDbContext>()
-            .ContactMessages.AsNoTracking().SingleAsync(m => m.Id == contactId);
+            .ContactMessages.IgnoreQueryFilters().AsNoTracking().SingleAsync(m => m.Id == contactId);
         Assert.False(message.Read);
     }
 
@@ -341,7 +341,7 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
-        var order = await db.Orders.SingleAsync(o => o.Id == orderId);
+        var order = await db.Orders.IgnoreQueryFilters().SingleAsync(o => o.Id == orderId);
         order.SetShippingAndBuyer(new SharedKernel.Common.Money(shippingMinor, order.Currency), "Envío", "CALLE-SECRETA 123",
             "NOMBRE-SECRETO", "11 5555-0000", null, null, pickup);
         await db.SaveChangesAsync();
@@ -381,7 +381,7 @@ public sealed class AiStoreDraftTests(ApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
-        return (await db.Orders.AsNoTracking().SingleAsync(o => o.Id == orderId)).Label;
+        return (await db.Orders.IgnoreQueryFilters().AsNoTracking().SingleAsync(o => o.Id == orderId)).Label;
     }
 
     /// <summary>Lo que Claude suele escribir antes de llamar a una herramienta: nunca va al borrador.</summary>

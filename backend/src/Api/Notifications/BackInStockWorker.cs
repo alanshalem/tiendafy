@@ -57,9 +57,13 @@ public sealed class BackInStockWorker(
             .ToListAsync(ct);
 
         var budget = MaxPerPass;
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var tenantId in tenantIds)
         {
             if (budget <= 0) break;
+            // Lo de cada tienda (stock, plantilla, remitente) con su tienda fijada:
+            // el scope del worker no tiene una y sin ella los filtros no devuelven nada.
+            tenant.Set(TenantId.From(tenantId));
             try { budget -= await RunTenantAsync(sp, db, tenantId, budget, ct); }
             catch (Exception ex)
             {

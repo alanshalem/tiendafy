@@ -87,7 +87,7 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         using (var scope = factory.Services.CreateScope())
         {
             var inventory = scope.ServiceProvider.GetRequiredService<Inventory.Infrastructure.Persistence.InventoryDbContext>();
-            var reservations = await inventory.Reservations.AsNoTracking()
+            var reservations = await inventory.Reservations.IgnoreQueryFilters().AsNoTracking()
                 .Where(r => r.VariantId == variantId && r.Status == Inventory.Core.Domain.ReservationStatus.Active).ToListAsync();
             Assert.All(reservations, r => Assert.True(r.ExpiresAtUtc > DateTime.UtcNow.AddHours(48)));
         }

@@ -217,16 +217,16 @@ public sealed class PanelTwoFactorTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        var id = (await db.Users.SingleAsync(u => u.Email == email)).Id;
-        return await db.UserTokens.Where(t => t.UserId == id).Select(t => t.Value ?? string.Empty).ToListAsync();
+        var id = (await db.Users.IgnoreQueryFilters().SingleAsync(u => u.Email == email)).Id;
+        return await db.UserTokens.IgnoreQueryFilters().Where(t => t.UserId == id).Select(t => t.Value ?? string.Empty).ToListAsync();
     }
 
     private async Task<List<string>> StoredTokenNamesAsync(string email)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        var id = (await db.Users.SingleAsync(u => u.Email == email)).Id;
-        return await db.UserTokens.Where(t => t.UserId == id).Select(t => t.Name).ToListAsync();
+        var id = (await db.Users.IgnoreQueryFilters().SingleAsync(u => u.Email == email)).Id;
+        return await db.UserTokens.IgnoreQueryFilters().Where(t => t.UserId == id).Select(t => t.Name).ToListAsync();
     }
 
     private static async Task<string?> TitleAsync(HttpResponseMessage res) =>

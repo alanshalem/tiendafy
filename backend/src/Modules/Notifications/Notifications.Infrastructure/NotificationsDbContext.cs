@@ -5,13 +5,18 @@ namespace Notifications.Infrastructure;
 
 public sealed class NotificationsDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public NotificationsDbContext(DbContextOptions<NotificationsDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
@@ -31,7 +36,7 @@ public sealed class NotificationsDbContext : DbContext
         t.Property(x => x.Type).HasMaxLength(40);
         t.Property(x => x.Subject).HasMaxLength(255);
         t.Property(x => x.BodyHtml).HasColumnType("text");
-        t.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        t.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         t.HasIndex(x => new { x.TenantId, x.Type }).IsUnique();
 
         var wc = modelBuilder.Entity<WhatsAppConnection>();
@@ -41,7 +46,7 @@ public sealed class NotificationsDbContext : DbContext
         wc.Property(x => x.PhoneNumberId).HasMaxLength(40).IsRequired();
         wc.Property(x => x.AccessTokenEncrypted).HasColumnType("text").IsRequired();
         wc.Property(x => x.DisplayPhoneNumber).HasMaxLength(40);
-        wc.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        wc.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         wc.HasIndex(x => x.TenantId).IsUnique();
 
         var wt = modelBuilder.Entity<WhatsAppTemplate>();
@@ -51,7 +56,7 @@ public sealed class NotificationsDbContext : DbContext
         wt.Property(x => x.Type).HasMaxLength(40).IsRequired();
         wt.Property(x => x.MetaTemplateName).HasMaxLength(120).IsRequired();
         wt.Property(x => x.LanguageCode).HasMaxLength(10).IsRequired();
-        wt.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        wt.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         wt.HasIndex(x => new { x.TenantId, x.Type }).IsUnique();
 
         var ec = modelBuilder.Entity<EmailCampaign>();
@@ -65,7 +70,7 @@ public sealed class NotificationsDbContext : DbContext
         ec.Property(x => x.CouponCode).HasMaxLength(40);
         ec.Property(x => x.ProductsJson).HasColumnType("text");
         ec.Property(x => x.Status).HasMaxLength(20);
-        ec.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        ec.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         ec.HasIndex(x => new { x.TenantId, x.CreatedAtUtc });
         // El worker cruza tenants buscando "sending" (sin filtro en su scope).
         ec.HasIndex(x => x.Status);
@@ -76,7 +81,7 @@ public sealed class NotificationsDbContext : DbContext
         cr.Property(x => x.Id).ValueGeneratedNever();
         cr.Property(x => x.Email).HasMaxLength(200).IsRequired();
         cr.Property(x => x.Status).HasMaxLength(10);
-        cr.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        cr.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         cr.HasIndex(x => new { x.CampaignId, x.Status });
         cr.HasIndex(x => new { x.CampaignId, x.Email }).IsUnique();
 
@@ -86,7 +91,7 @@ public sealed class NotificationsDbContext : DbContext
         es.Property(x => x.Id).ValueGeneratedNever();
         es.Property(x => x.Email).HasMaxLength(200).IsRequired();
         es.Property(x => x.Reason).HasMaxLength(20);
-        es.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        es.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         es.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
 
         var ne = modelBuilder.Entity<NotificationEvent>();
@@ -95,7 +100,7 @@ public sealed class NotificationsDbContext : DbContext
         ne.Property(x => x.Id).ValueGeneratedNever();
         ne.Property(x => x.Channel).HasMaxLength(10).IsRequired();
         ne.Property(x => x.Template).HasMaxLength(40);
-        ne.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        ne.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
         // Consultas del panel de uso: conteos por tienda/canal/rango de fechas.
         ne.HasIndex(x => new { x.TenantId, x.Channel, x.CreatedAtUtc });
     }

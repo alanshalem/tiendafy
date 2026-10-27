@@ -5,13 +5,18 @@ namespace Finance.Infrastructure;
 
 public sealed class FinanceDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public FinanceDbContext(DbContextOptions<FinanceDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<FinancialAccount> Accounts => Set<FinancialAccount>();
@@ -25,7 +30,7 @@ public sealed class FinanceDbContext : DbContext
         account.ToTable("financial_accounts");
         account.HasKey(a => a.Id);
         account.Property(a => a.Id).ValueGeneratedNever();
-        account.HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
+        account.HasQueryFilter(a => FilterByTenant && a.TenantId == TenantGuid);
         account.Property(a => a.Name).HasMaxLength(80).IsRequired();
         account.Property(a => a.Currency).HasMaxLength(3).IsRequired();
         account.Property(a => a.Detail).HasMaxLength(200);
@@ -36,7 +41,7 @@ public sealed class FinanceDbContext : DbContext
         movement.ToTable("account_movements");
         movement.HasKey(m => m.Id);
         movement.Property(m => m.Id).ValueGeneratedNever();
-        movement.HasQueryFilter(m => !_filterByTenant || m.TenantId == _tenantGuid);
+        movement.HasQueryFilter(m => FilterByTenant && m.TenantId == TenantGuid);
         movement.Property(m => m.Concept).HasMaxLength(200).IsRequired();
         movement.Property(m => m.Reference).HasMaxLength(120);
         movement.Property(m => m.Currency).HasMaxLength(3).IsRequired();
@@ -50,7 +55,7 @@ public sealed class FinanceDbContext : DbContext
         ledger.ToTable("ledger_entries");
         ledger.HasKey(l => l.Id);
         ledger.Property(l => l.Id).ValueGeneratedNever();
-        ledger.HasQueryFilter(l => !_filterByTenant || l.TenantId == _tenantGuid);
+        ledger.HasQueryFilter(l => FilterByTenant && l.TenantId == TenantGuid);
         ledger.Property(l => l.DocLabel).HasMaxLength(120).IsRequired();
         ledger.Property(l => l.Notes).HasMaxLength(500);
         ledger.Property(l => l.Currency).HasMaxLength(3).IsRequired();
@@ -67,7 +72,7 @@ public sealed class FinanceDbContext : DbContext
         receipt.ToTable("receipts");
         receipt.HasKey(r => r.Id);
         receipt.Property(r => r.Id).ValueGeneratedNever();
-        receipt.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        receipt.HasQueryFilter(r => FilterByTenant && r.TenantId == TenantGuid);
         receipt.Property(r => r.Number).HasMaxLength(20).IsRequired();
         receipt.Property(r => r.PartyName).HasMaxLength(160).IsRequired();
         receipt.Property(r => r.Currency).HasMaxLength(3).IsRequired();

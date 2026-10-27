@@ -54,12 +54,19 @@ public static class PaymentsEndpoints
             string? code,
             string? state,
             OAuthCallbackHandler handler,
+            global::Payments.Core.Abstractions.IOAuthStateProtector stateProtector,
+            Api.Middleware.TenantContextHolder tenantScope,
             IOptions<MercadoPagoOptions> options,
             CancellationToken ct) =>
         {
             var returnUrl = options.Value.AdminReturnUrl;
             if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
                 return Results.Redirect($"{returnUrl}?mp=error");
+
+            // La vuelta de MP no trae el header de la tienda: la tienda es la del
+            // state firmado (sin ella, la conexión existente no se encontraría y
+            // se intentaría crear otra).
+            if (stateProtector.TryUnprotect(state) is { } stateTenant) tenantScope.Set(stateTenant);
 
             var result = await handler.HandleAsync(code, state, ct);
             return Results.Redirect($"{returnUrl}?mp={(result.IsSuccess ? "connected" : "error")}");

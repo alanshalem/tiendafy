@@ -5,13 +5,18 @@ namespace Social.Infrastructure;
 
 public sealed class SocialDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public SocialDbContext(DbContextOptions<SocialDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<SocialAccount> Accounts => Set<SocialAccount>();
@@ -23,7 +28,7 @@ public sealed class SocialDbContext : DbContext
         account.ToTable("social_accounts");
         account.HasKey(a => a.Id);
         account.Property(a => a.Id).ValueGeneratedNever();
-        account.HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
+        account.HasQueryFilter(a => FilterByTenant && a.TenantId == TenantGuid);
         account.Property(a => a.Provider).HasMaxLength(30);
         account.Property(a => a.ProviderId).HasMaxLength(80);
         account.Property(a => a.Name).HasMaxLength(200);
@@ -38,7 +43,7 @@ public sealed class SocialDbContext : DbContext
         post.ToTable("social_posts");
         post.HasKey(p => p.Id);
         post.Property(p => p.Id).ValueGeneratedNever();
-        post.HasQueryFilter(p => !_filterByTenant || p.TenantId == _tenantGuid);
+        post.HasQueryFilter(p => FilterByTenant && p.TenantId == TenantGuid);
         post.Property(p => p.Content).HasMaxLength(10_000);
         post.Property(p => p.MediaUrlsJson).HasMaxLength(8000);
         post.Property(p => p.CouponCode).HasMaxLength(40);

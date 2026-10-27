@@ -63,7 +63,7 @@ public sealed class CheckoutExpiryTests(ApiFactory factory)
         Assert.Equal("SUBMITTED", await StatusAsync(shopper, checkoutId));
 
         // La reserva vuelve al stock (lo que hace el job de Inventario al vencer).
-        using (var scope = factory.Services.CreateScope())
+        await using (var scope = factory.Services.CreateTenantScope(merchant.TenantId))
         {
             var checkoutDb = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
             var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();

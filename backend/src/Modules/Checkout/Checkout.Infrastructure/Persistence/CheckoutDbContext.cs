@@ -9,17 +9,19 @@ namespace Checkout.Infrastructure.Persistence;
 
 public sealed class CheckoutDbContext : DbContext
 {
-    // Filtro multi-tenant global (ver OrdersDbContext). Bypass sin tenant en scope
-    // (el AbandonedCartWorker recorre sesiones de todos los tenants).
-    private readonly bool _filterByTenant;
-    private readonly TenantId _currentTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private TenantId CurrentTenant => FilterByTenant ? _tenant!.TenantId : default;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public CheckoutDbContext(DbContextOptions<CheckoutDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
-        _tenantGuid = _currentTenant.Value;
+        _tenant = tenant;
     }
 
     // Teléfono, documento y dirección del comprador cifrados en reposo, como en
@@ -63,7 +65,7 @@ public sealed class CheckoutDbContext : DbContext
         session.HasKey(s => s.Id);
         session.Property(s => s.Id).ValueGeneratedNever();
         session.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        session.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
+        session.HasQueryFilter(s => FilterByTenant && s.TenantId == CurrentTenant);
         session.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
         // Token de concurrencia optimista sobre xmin (columna de sistema de
         // Postgres, sin DDL), como Order: dos envíos simultáneos de la misma
@@ -99,7 +101,7 @@ public sealed class CheckoutDbContext : DbContext
         settings.HasKey(x => x.Id);
         settings.Property(x => x.Id).ValueGeneratedNever();
         settings.Property(x => x.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        settings.HasQueryFilter(x => !_filterByTenant || x.TenantId == _currentTenant);
+        settings.HasQueryFilter(x => FilterByTenant && x.TenantId == CurrentTenant);
         // Una sola configuración por tienda: el índice único lo garantiza aunque
         // dos pedidos entren a la vez y los dos vean que no existe.
         settings.HasIndex(x => x.TenantId).IsUnique();
@@ -111,7 +113,7 @@ public sealed class CheckoutDbContext : DbContext
         payment.HasKey(x => x.Id);
         payment.Property(x => x.Id).ValueGeneratedNever();
         payment.Property(x => x.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        payment.HasQueryFilter(x => !_filterByTenant || x.TenantId == _currentTenant);
+        payment.HasQueryFilter(x => FilterByTenant && x.TenantId == CurrentTenant);
         // Una por tienda, igual que las opciones del checkout.
         payment.HasIndex(x => x.TenantId).IsUnique();
         payment.Property(x => x.BankName).HasMaxLength(80);
@@ -128,7 +130,7 @@ public sealed class CheckoutDbContext : DbContext
         shipping.HasKey(m => m.Id);
         shipping.Property(m => m.Id).ValueGeneratedNever();
         shipping.Property(m => m.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
-        shipping.HasQueryFilter(m => !_filterByTenant || m.TenantId == _currentTenant);
+        shipping.HasQueryFilter(m => FilterByTenant && m.TenantId == CurrentTenant);
         shipping.Property(m => m.Kind).HasConversion<string>().HasMaxLength(10);
         shipping.Property(m => m.Name).HasMaxLength(120).IsRequired();
         shipping.Property(m => m.Description).HasMaxLength(300);
@@ -149,7 +151,7 @@ public sealed class CheckoutDbContext : DbContext
         correo.HasKey(c => c.Id);
         correo.Property(c => c.Id).ValueGeneratedNever();
         correo.HasIndex(c => c.TenantId).IsUnique();
-        correo.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        correo.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         correo.Property(c => c.CustomerId).HasMaxLength(20).IsRequired();
         correo.Property(c => c.UserTokenEncrypted).IsRequired();
         correo.Property(c => c.PasswordTokenEncrypted).IsRequired();
@@ -161,7 +163,7 @@ public sealed class CheckoutDbContext : DbContext
         zipnova.HasKey(c => c.Id);
         zipnova.Property(c => c.Id).ValueGeneratedNever();
         zipnova.HasIndex(c => c.TenantId).IsUnique();
-        zipnova.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        zipnova.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         zipnova.Property(c => c.ApiTokenEncrypted).IsRequired();
         zipnova.Property(c => c.ApiSecretEncrypted).IsRequired();
         zipnova.Property(c => c.Country).HasMaxLength(2);
@@ -173,7 +175,7 @@ public sealed class CheckoutDbContext : DbContext
         zipShipment.Property(s => s.Id).ValueGeneratedNever();
         // Guard de idempotencia: un envío Zipnova por orden, garantizado por índice.
         zipShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
-        zipShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        zipShipment.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         zipShipment.Property(s => s.CarrierName).HasMaxLength(120);
         zipShipment.Property(s => s.CarrierTrackingId).HasMaxLength(80);
         zipShipment.Property(s => s.TrackingUrl).HasMaxLength(500);
@@ -184,7 +186,7 @@ public sealed class CheckoutDbContext : DbContext
         andreani.HasKey(c => c.Id);
         andreani.Property(c => c.Id).ValueGeneratedNever();
         andreani.HasIndex(c => c.TenantId).IsUnique();
-        andreani.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        andreani.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         andreani.Property(c => c.Username).HasMaxLength(120).IsRequired();
         andreani.Property(c => c.PasswordEncrypted).IsRequired();
         andreani.Property(c => c.ClientCode).HasMaxLength(20);
@@ -208,7 +210,7 @@ public sealed class CheckoutDbContext : DbContext
         andreaniShipment.ToTable("andreani_shipments");
         andreaniShipment.HasKey(s => s.Id);
         andreaniShipment.Property(s => s.Id).ValueGeneratedNever();
-        andreaniShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        andreaniShipment.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         // Andreani no tiene idempotencia ni cancelación: un envío duplicado no
         // se puede deshacer y se factura igual. El índice garantiza una fila por
         // venta; que no se llame dos veces a Andreani lo garantiza shipment_claims.
@@ -226,7 +228,7 @@ public sealed class CheckoutDbContext : DbContext
         correoShipment.ToTable("correo_shipments");
         correoShipment.HasKey(s => s.Id);
         correoShipment.Property(s => s.Id).ValueGeneratedNever();
-        correoShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        correoShipment.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         // Un alta por venta: no se sabe si MiCorreo deduplica por extOrderId.
         correoShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
         correoShipment.Property(s => s.DeliveryType).HasMaxLength(1).IsRequired();
@@ -239,7 +241,7 @@ public sealed class CheckoutDbContext : DbContext
         claim.ToTable("shipment_claims");
         claim.HasKey(c => c.Id);
         claim.Property(c => c.Id).ValueGeneratedNever();
-        claim.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        claim.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         claim.HasIndex(c => new { c.TenantId, c.OrderId, c.Carrier }).IsUnique();
         claim.Property(c => c.Carrier).HasMaxLength(20).IsRequired();
         claim.Property(c => c.Status).HasMaxLength(20).IsRequired();

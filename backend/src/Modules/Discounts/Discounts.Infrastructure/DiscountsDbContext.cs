@@ -5,13 +5,18 @@ namespace Discounts.Infrastructure;
 
 public sealed class DiscountsDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public DiscountsDbContext(DbContextOptions<DiscountsDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<Coupon> Coupons => Set<Coupon>();
@@ -23,7 +28,7 @@ public sealed class DiscountsDbContext : DbContext
         coupon.ToTable("coupons");
         coupon.HasKey(c => c.Id);
         coupon.Property(c => c.Id).ValueGeneratedNever();
-        coupon.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        coupon.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
 
         // Código único por tenant (índice arranca en tenant_id).
         coupon.HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
@@ -46,7 +51,7 @@ public sealed class DiscountsDbContext : DbContext
         redemption.ToTable("coupon_redemptions");
         redemption.HasKey(r => r.Id);
         redemption.Property(r => r.Id).ValueGeneratedNever();
-        redemption.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        redemption.HasQueryFilter(r => FilterByTenant && r.TenantId == TenantGuid);
         redemption.HasIndex(r => new { r.TenantId, r.CheckoutSessionId }).IsUnique();
         redemption.HasIndex(r => r.CouponId);
     }

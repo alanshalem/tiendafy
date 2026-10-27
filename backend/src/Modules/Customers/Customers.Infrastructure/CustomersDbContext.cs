@@ -7,15 +7,18 @@ namespace Customers.Infrastructure;
 
 public sealed class CustomersDbContext : DbContext
 {
-    // Filtro multi-tenant global (defensa en profundidad). Bypass sin tenant en
-    // scope (design-time). Todas las entidades acá usan Guid TenantId.
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public CustomersDbContext(DbContextOptions<CustomersDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     // Cifrado de PII en reposo. Lo setea el host (Program) antes de migrar/servir.
@@ -141,13 +144,13 @@ public sealed class CustomersDbContext : DbContext
         sa.HasIndex(x => new { x.TenantId, x.ProductId });
 
         // Filtro multi-tenant global en todas las entidades tenant-scoped.
-        c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        f.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        t.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        cm.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        ns.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        ad.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
-        sa.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        c.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        s.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        f.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        t.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        cm.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        ns.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        ad.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
+        sa.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
     }
 }

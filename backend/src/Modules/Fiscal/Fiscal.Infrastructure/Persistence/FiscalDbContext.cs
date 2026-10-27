@@ -10,16 +10,18 @@ namespace Fiscal.Infrastructure.Persistence;
 
 public sealed class FiscalDbContext : DbContext
 {
-    // Filtro multi-tenant global (defensa en profundidad). Bypass sin tenant en
-    // scope (workers de emisión/reconciliación, migraciones). Todas las entidades
-    // usan Guid TenantId.
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public FiscalDbContext(DbContextOptions<FiscalDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     // El documento del comprador cifrado en reposo, como en ventas y checkouts
@@ -82,7 +84,7 @@ public sealed class FiscalDbContext : DbContext
         cfg.Property(x => x.Environment).HasConversion<string>().HasMaxLength(15);
         cfg.Property(x => x.Trigger).HasConversion<string>().HasMaxLength(20);
         cfg.HasIndex(x => x.TenantId).IsUnique();
-        cfg.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        cfg.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var pos = modelBuilder.Entity<FiscalPointOfSale>();
         pos.ToTable("fiscal_points_of_sale");
@@ -90,7 +92,7 @@ public sealed class FiscalDbContext : DbContext
         pos.Property(x => x.Id).ValueGeneratedNever();
         pos.Property(x => x.Label).HasMaxLength(80).IsRequired();
         pos.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
-        pos.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        pos.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var cert = modelBuilder.Entity<FiscalCertificate>();
         cert.ToTable("fiscal_certificates");
@@ -103,7 +105,7 @@ public sealed class FiscalDbContext : DbContext
         cert.Property(x => x.CertificatePemEncrypted).HasColumnType("text");
         cert.Property(x => x.SubjectCn).HasMaxLength(200);
         cert.HasIndex(x => new { x.TenantId, x.Environment });
-        cert.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        cert.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var ta = modelBuilder.Entity<FiscalAccessToken>();
         ta.ToTable("fiscal_access_tokens");
@@ -116,7 +118,7 @@ public sealed class FiscalDbContext : DbContext
         ta.Property(x => x.TokenEncrypted).HasColumnType("text").IsRequired();
         ta.Property(x => x.SignEncrypted).HasColumnType("text").IsRequired();
         ta.HasIndex(x => new { x.TenantId, x.Cuit, x.Service, x.Environment }).IsUnique();
-        ta.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        ta.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var doc = modelBuilder.Entity<FiscalDocument>();
         doc.ToTable("fiscal_documents");
@@ -146,7 +148,7 @@ public sealed class FiscalDbContext : DbContext
         doc.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo, x.Number })
             .IsUnique()
             .HasFilter("result = 'Authorized'");
-        doc.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        doc.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var job = modelBuilder.Entity<FiscalEmissionJob>();
         job.ToTable("fiscal_emission_jobs");
@@ -166,7 +168,7 @@ public sealed class FiscalDbContext : DbContext
         job.HasIndex(x => new { x.TenantId, x.OrderId, x.Kind, x.IdempotencyKey }).IsUnique();
         // El worker barre pendientes listos para reintentar.
         job.HasIndex(x => new { x.Status, x.NextAttemptUtc });
-        job.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        job.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var seq = modelBuilder.Entity<FiscalSequence>();
         seq.ToTable("fiscal_sequences");
@@ -175,7 +177,7 @@ public sealed class FiscalDbContext : DbContext
         seq.Property(x => x.Environment).HasConversion<string>().HasMaxLength(15);
         seq.Property(x => x.CbteTipo).HasConversion<int>();
         seq.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo }).IsUnique();
-        seq.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        seq.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
 
         var legal = modelBuilder.Entity<StoreLegalInfo>();
         legal.ToTable("store_legal_info");
@@ -191,6 +193,6 @@ public sealed class FiscalDbContext : DbContext
         legal.Property(x => x.DataFiscalUrl).HasMaxLength(500);
         legal.Property(x => x.DataFiscalImageUrl).HasMaxLength(500);
         legal.Ignore(x => x.TaxDivisor);
-        legal.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        legal.HasQueryFilter(x => FilterByTenant && x.TenantId == TenantGuid);
     }
 }

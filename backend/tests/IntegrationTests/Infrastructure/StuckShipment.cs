@@ -12,7 +12,7 @@ public static class StuckShipment
 {
     public static async Task LeaveAsync(ApiFactory factory, Guid tenantId, Guid orderId, string carrier, string note)
     {
-        using var scope = factory.Services.CreateScope();
+        await using var scope = factory.Services.CreateTenantScope(tenantId);
         var claims = scope.ServiceProvider.GetRequiredService<IShipmentClaimRepository>();
         var (outcome, claimId) = await claims.TryClaimAsync(tenantId, orderId, carrier, DateTime.UtcNow.AddMinutes(-5));
         Assert.Equal(ShipmentClaimOutcome.Claimed, outcome);

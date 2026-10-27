@@ -57,6 +57,9 @@ public sealed class AbandonedCartWorker(
         var tenancy = sp.GetRequiredService<TenancyDbContext>();
         var email = sp.GetRequiredService<BrandedEmailSender>();
         var templates = sp.GetRequiredService<IEmailTemplates>();
+        // Corre sin tienda en el scope: las búsquedas recorren todas a propósito
+        // (IgnoreQueryFilters) y cada compra se avisa con su tienda fijada.
+        var tenantScope = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
 
         var now = DateTime.UtcNow;
         var oldest = now - MaxAge;
@@ -65,7 +68,7 @@ public sealed class AbandonedCartWorker(
         // La espera se cuenta desde lo último que hizo el comprador, no desde
         // que armó la compra: el email llega apenas lo escribe, y alguien que
         // sigue completando el checkout no abandonó nada.
-        var candidates = await checkoutDb.Sessions
+        var candidates = await checkoutDb.Sessions.IgnoreQueryFilters()
             .Where(s => s.Email != null
                 && s.RecoveryEmailSentAtUtc == null
                 && s.Status != CheckoutStatus.Completed
@@ -106,7 +109,7 @@ public sealed class AbandonedCartWorker(
         // compras a su nombre. Cuenta lo que salió de verdad, no lo resuelto
         // sin mandar (compró, o había una compra suya más nueva).
         var remindedSince = now - ReminderEvery;
-        var recentlyReminded = (await checkoutDb.Sessions.AsNoTracking()
+        var recentlyReminded = (await checkoutDb.Sessions.IgnoreQueryFilters().AsNoTracking()
                 .Where(s => s.RecoveryReminderSentAtUtc != null && s.RecoveryReminderSentAtUtc >= remindedSince
                     && s.Email != null && addresses.Contains(s.Email.ToLower()))
                 .Select(s => new { s.TenantId, s.Email })
@@ -117,6 +120,7 @@ public sealed class AbandonedCartWorker(
         var sent = 0;
         foreach (var s in candidates)
         {
+            tenantScope.Set(s.TenantId);
             // Compró, o el recordatorio es de una compra suya más nueva.
             if (outcomes[s.Id] != AbandonedCarts.Outcome.Abandoned) { s.MarkRecoveryEmailed(); continue; }
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
@@ -178,6 +182,7 @@ public sealed class AbandonedCartWorker(
                 .ToList();
             foreach (var (s, reminded) in marked)
             {
+                tenantScope.Set(s.TenantId);
                 await checkoutDb.Entry(s).ReloadAsync(ct);
                 s.MarkRecoveryEmailed(reminded);
             }

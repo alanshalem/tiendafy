@@ -5,13 +5,18 @@ namespace Themes.Infrastructure;
 
 public sealed class ThemesDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public ThemesDbContext(DbContextOptions<ThemesDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<ThemeDocument> Themes => Set<ThemeDocument>();
@@ -23,7 +28,7 @@ public sealed class ThemesDbContext : DbContext
         theme.ToTable("themes");
         theme.HasKey(t => t.Id);
         theme.Property(t => t.Id).ValueGeneratedNever();
-        theme.HasQueryFilter(t => !_filterByTenant || t.TenantId == _tenantGuid);
+        theme.HasQueryFilter(t => FilterByTenant && t.TenantId == TenantGuid);
         theme.HasIndex(t => t.TenantId).IsUnique();
         theme.Property(t => t.PublishedConfig).HasColumnType("jsonb");
         theme.Property(t => t.DraftConfig).HasColumnType("jsonb");
@@ -36,7 +41,7 @@ public sealed class ThemesDbContext : DbContext
         version.ToTable("theme_versions");
         version.HasKey(v => v.Id);
         version.Property(v => v.Id).ValueGeneratedNever();
-        version.HasQueryFilter(v => !_filterByTenant || v.TenantId == _tenantGuid);
+        version.HasQueryFilter(v => FilterByTenant && v.TenantId == TenantGuid);
         version.HasIndex(v => new { v.TenantId, v.PublishedAtUtc });
         version.Property(v => v.Config).HasColumnType("jsonb");
     }

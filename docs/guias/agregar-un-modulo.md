@@ -44,7 +44,11 @@ unitarios (`backend/tests/UnitTests/Architecture/`):
 2. **Entidades y `MimoduloDbContext`**: toda tabla de una tienda lleva
    `TenantId`, y el contexto recibe `ITenantContext? tenant = null` y declara
    `HasQueryFilter` en cada una de esas entidades. Copiá el patrón de
-   `SupportDbContext.cs`: el filtro es lo que impide leer filas de otra tienda.
+   `SupportDbContext.cs`: el filtro es lo que impide leer filas de otra tienda,
+   y sin tienda en el scope no devuelve nada. Un worker del módulo que recorre
+   todas las tiendas usa `IgnoreQueryFilters()` con su propio `Where`, y lo que
+   hace para una tienda va en un scope con esa tienda fijada
+   (`IServiceScopeFactory.CreateTenantScope`, en `Api/Workers/TenantScopes.cs`).
 
 3. **Registro**, en `MimoduloModule.cs`:
 

@@ -33,7 +33,7 @@ public sealed class InboxClaimTests
 
         await InboxDrain.DrainAsync(
             db,
-            db.PaymentWebhookEvents.Where(e => e.Id == eventId),
+            db.PaymentWebhookEvents.IgnoreQueryFilters().Where(e => e.Id == eventId),
             _ => onProcess(),
             (_, _) => { },
             CancellationToken.None);
@@ -85,7 +85,7 @@ public sealed class InboxClaimTests
 
         using var check = _factory.Services.CreateScope();
         var final = await check.ServiceProvider.GetRequiredService<PaymentsDbContext>()
-            .PaymentWebhookEvents.AsNoTracking().FirstAsync(e => e.Id == eventId);
+            .PaymentWebhookEvents.IgnoreQueryFilters().AsNoTracking().FirstAsync(e => e.Id == eventId);
         Assert.Equal(InboxEntry.StatusDone, final.Status);
     }
 
@@ -113,7 +113,7 @@ public sealed class InboxClaimTests
 
         using var check = _factory.Services.CreateScope();
         var final = await check.ServiceProvider.GetRequiredService<PaymentsDbContext>()
-            .PaymentWebhookEvents.AsNoTracking().FirstAsync(e => e.Id == eventId);
+            .PaymentWebhookEvents.IgnoreQueryFilters().AsNoTracking().FirstAsync(e => e.Id == eventId);
         Assert.Equal(InboxEntry.StatusPending, final.Status);
         Assert.Equal(1, final.Attempts);
     }

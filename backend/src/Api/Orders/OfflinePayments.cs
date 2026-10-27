@@ -30,6 +30,7 @@ public sealed class OfflinePaymentService(
     OrderNotifier notifier,
     PaidOrderSideEffects paidEffects,
     OrderCouponUses couponUses,
+    Api.Middleware.TenantContextHolder tenantScope,
     ILogger<OfflinePaymentService> logger)
 {
     /// <summary>
@@ -158,20 +159,23 @@ public sealed class OfflinePaymentService(
     /// cualquier tienda. Cada una se reclama con un UPDATE condicional (sigue
     /// pendiente → cancelada): dos instancias del worker, o el comercio
     /// registrando el pago en el mismo segundo, nunca la procesan dos veces.
+    /// Corre en el scope del worker, sin tienda: la búsqueda recorre todas
+    /// (IgnoreQueryFilters) y cada venta se procesa con su tienda fijada.
     /// </summary>
     public async Task<int> ExpireDueAsync(DateTime nowUtc, CancellationToken ct)
     {
-        var due = await ordersDb.Orders.AsNoTracking()
+        var due = await ordersDb.Orders.IgnoreQueryFilters().AsNoTracking()
             .Where(o => o.Status == OrderStatus.PendingPayment
                 && o.PaymentDueAtUtc != null && o.PaymentDueAtUtc <= nowUtc)
             .OrderBy(o => o.PaymentDueAtUtc)
-            .Select(o => o.Id)
+            .Select(o => new { o.Id, o.TenantId })
             .Take(50)
             .ToListAsync(ct);
 
         var cancelled = 0;
-        foreach (var id in due)
+        foreach (var (id, tenantId) in due.Select(d => (d.Id, d.TenantId)))
         {
+            tenantScope.Set(tenantId);
             var claimed = await ordersDb.Orders
                 .Where(o => o.Id == id && o.Status == OrderStatus.PendingPayment)
                 .ExecuteUpdateAsync(s => s

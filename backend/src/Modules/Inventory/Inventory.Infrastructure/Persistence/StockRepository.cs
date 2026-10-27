@@ -331,8 +331,9 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
 
     public async Task<int> ReleaseExpiredAsync(DateTime nowUtc, CancellationToken ct = default)
     {
-        // Lote chico por pasada: el job corre seguido; sin locks largos.
-        var expired = await context.Reservations
+        // Lote chico por pasada: el job corre seguido; sin locks largos. Corre
+        // sin tienda en el scope y mira las de todas: lo pide explícito.
+        var expired = await context.Reservations.IgnoreQueryFilters()
             .Where(r => r.Status == ReservationStatus.Active && r.ExpiresAtUtc <= nowUtc)
             .OrderBy(r => r.ExpiresAtUtc)
             .Take(100)
@@ -349,7 +350,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
             // esto, dos instancias del job leen la misma reserva vencida y las
             // dos suman la cantidad a available: stock inflado de la nada, y
             // encima vendible. Si otra llegó primero, vuelven 0 filas.
-            var claimed = await context.Reservations
+            var claimed = await context.Reservations.IgnoreQueryFilters()
                 .Where(r => r.Id == reservation.Id && r.Status == ReservationStatus.Active)
                 .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, ReservationStatus.Released), ct);
 
@@ -357,7 +358,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
 
             reservation.Release(); // alinea la entidad trackeada con la base
 
-            await context.StockItems
+            await context.StockItems.IgnoreQueryFilters()
                 .Where(s => s.TenantId == reservation.TenantId && s.VariantId == reservation.VariantId)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.Reserved, x => x.Reserved - reservation.Quantity)

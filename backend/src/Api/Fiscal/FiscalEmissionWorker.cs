@@ -10,8 +10,9 @@ namespace Api.Fiscal;
 /// Procesa el outbox de emisión fiscal: toma jobs pendientes listos para intentar,
 /// pide el CAE a ARCA (vía IInvoiceEmitter) y marca el resultado. Reintenta los
 /// fallos transitorios (red/TA) con backoff exponencial; manda a dead-letter los
-/// rechazos de ARCA (datos) y los que agotan reintentos. Corre sin tenant en scope
-/// (el filtro global queda bypasseado; se filtra por tenant explícito). Sobrevive
+/// rechazos de ARCA (datos) y los que agotan reintentos. Recorre los jobs de todas
+/// las tiendas (IgnoreQueryFilters) y emite cada uno con su tienda fijada en el
+/// scope, así el emisor y el email ven solo lo de esa tienda. Sobrevive
 /// reinicios: el estado vive en Postgres, y un job que quedó tomado por un
 /// proceso que murió vuelve a la cola pasado el lease (<see cref="ProcessingLease"/>).
 /// </summary>
@@ -39,13 +40,12 @@ public sealed class FiscalEmissionWorker(
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<FiscalDbContext>();
-        var emitter = sp.GetRequiredService<IInvoiceEmitter>();
-        var invoiceEmail = sp.GetRequiredService<InvoiceEmail>();
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
 
         await ReleaseStaleLeasesAsync(db, ct);
 
         var now = DateTime.UtcNow;
-        var due = await db.EmissionJobs
+        var due = await db.EmissionJobs.IgnoreQueryFilters()
             .Where(j => j.Status == FiscalJobStatus.Pending && j.NextAttemptUtc <= now)
             .OrderBy(j => j.NextAttemptUtc)
             .Take(BatchSize)
@@ -53,8 +53,17 @@ public sealed class FiscalEmissionWorker(
 
         foreach (var job in due)
         {
+            var jobTenant = SharedKernel.Common.TenantId.From(job.TenantId);
+            tenant.Set(jobTenant);
             job.MarkProcessing();
             await db.SaveChangesAsync(ct); // reclama el job antes de llamar a ARCA
+
+            // Cada emisión en su propio scope, con la tienda del job: un guardado
+            // que falla adentro del emisor (un número que ARCA ya tenía) no queda
+            // pendiente en el contexto de los jobs y no tira abajo la pasada.
+            using var jobScope = scopeFactory.CreateTenantScope(jobTenant);
+            var emitter = jobScope.ServiceProvider.GetRequiredService<IInvoiceEmitter>();
+            var invoiceEmail = jobScope.ServiceProvider.GetRequiredService<InvoiceEmail>();
 
             try
             {
@@ -154,7 +163,7 @@ public sealed class FiscalEmissionWorker(
     private async Task ReleaseStaleLeasesAsync(FiscalDbContext db, CancellationToken ct)
     {
         var staleBefore = DateTime.UtcNow - ProcessingLease;
-        var stale = await db.EmissionJobs
+        var stale = await db.EmissionJobs.IgnoreQueryFilters()
             .Where(j => j.Status == FiscalJobStatus.Processing && j.UpdatedAtUtc < staleBefore)
             .ToListAsync(ct);
         if (stale.Count == 0) return;

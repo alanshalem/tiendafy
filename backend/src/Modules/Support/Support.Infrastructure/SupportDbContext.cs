@@ -5,13 +5,18 @@ namespace Support.Infrastructure;
 
 public sealed class SupportDbContext : DbContext
 {
-    private readonly bool _filterByTenant;
-    private readonly Guid _tenantGuid;
+    // Filtro multi-tenant global, cerrado por defecto: sin tienda en el scope,
+    // las entidades con TenantId no devuelven filas. Lo que recorre varias
+    // tiendas (workers, endpoints de plataforma, backfills) lo pide explícito
+    // con IgnoreQueryFilters() y su propio filtro, o fija la tienda en el scope
+    // (TenantContextHolder). La tienda se lee en cada consulta, no al construir.
+    private readonly ITenantContext? _tenant;
+    private bool FilterByTenant => _tenant?.HasTenant == true;
+    private Guid TenantGuid => FilterByTenant ? _tenant!.TenantId.Value : default;
 
     public SupportDbContext(DbContextOptions<SupportDbContext> options, ITenantContext? tenant = null) : base(options)
     {
-        _filterByTenant = tenant?.HasTenant == true;
-        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+        _tenant = tenant;
     }
 
     public DbSet<Conversation> Conversations => Set<Conversation>();
@@ -25,7 +30,7 @@ public sealed class SupportDbContext : DbContext
         conv.ToTable("support_conversations");
         conv.HasKey(c => c.Id);
         conv.Property(c => c.Id).ValueGeneratedNever();
-        conv.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        conv.HasQueryFilter(c => FilterByTenant && c.TenantId == TenantGuid);
         conv.Property(c => c.Status).HasConversion<string>().HasMaxLength(10);
         conv.Property(c => c.CustomerEmail).HasMaxLength(200).IsRequired();
         conv.HasIndex(c => new { c.TenantId, c.OrderId }).IsUnique(); // una por orden
@@ -41,7 +46,7 @@ public sealed class SupportDbContext : DbContext
         msg.Property(m => m.AttachmentKey).HasMaxLength(300);
         msg.Property(m => m.AttachmentName).HasMaxLength(255);
         msg.Property(m => m.AttachmentContentType).HasMaxLength(60);
-        msg.HasQueryFilter(m => !_filterByTenant || m.TenantId == _tenantGuid);
+        msg.HasQueryFilter(m => FilterByTenant && m.TenantId == TenantGuid);
         msg.HasIndex(m => new { m.ConversationId, m.CreatedAtUtc }); // paginado del hilo
 
         // Bandeja unificada: una fila por conversación de cualquier canal.
@@ -53,7 +58,7 @@ public sealed class SupportDbContext : DbContext
         state.Property(s => s.ExternalId).HasMaxLength(64).IsRequired();
         state.Property(s => s.AssignedUserName).HasMaxLength(200);
         state.Property(s => s.Title).HasMaxLength(200);
-        state.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        state.HasQueryFilter(s => FilterByTenant && s.TenantId == TenantGuid);
         state.HasIndex(s => new { s.TenantId, s.Channel, s.ExternalId }).IsUnique();
         state.HasIndex(s => new { s.TenantId, s.AssignedUserId }); // "asignadas a mí"
 
@@ -65,7 +70,7 @@ public sealed class SupportDbContext : DbContext
         reply.Property(r => r.ExternalId).HasMaxLength(64).IsRequired();
         reply.Property(r => r.AuthorName).HasMaxLength(200).IsRequired();
         reply.Property(r => r.Body).HasMaxLength(4000).IsRequired();
-        reply.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        reply.HasQueryFilter(r => FilterByTenant && r.TenantId == TenantGuid);
         reply.HasIndex(r => new { r.TenantId, r.Channel, r.ExternalId, r.CreatedAtUtc });
     }
 }

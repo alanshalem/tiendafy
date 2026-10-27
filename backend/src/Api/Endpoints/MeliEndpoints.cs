@@ -162,7 +162,8 @@ public static class MeliEndpoints
         group.MapGet("/meli/oauth/callback", async (
             string? code, string? state,
             MeliClient client, MeliTokenService tokens, MeliDbContext db, MeliSyncService sync,
-            IOptions<MeliOptions> options, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            IOptions<MeliOptions> options, ILoggerFactory loggerFactory, Api.Middleware.TenantContextHolder tenantScope,
+            CancellationToken ct) =>
         {
             var logger = loggerFactory.CreateLogger("MeliOAuth");
             var returnUrl = options.Value.AdminReturnUrl;
@@ -171,6 +172,9 @@ public static class MeliEndpoints
 
             var tenantId = tokens.TryUnprotectState(state);
             if (tenantId is null) return Results.Redirect($"{returnUrl}?meli=error");
+            // La vuelta del proveedor no trae el header de la tienda: la tienda
+            // es la del state firmado, y el resto del pedido corre con ella.
+            tenantScope.Set(SharedKernel.Common.TenantId.From(tenantId.Value));
 
             try
             {

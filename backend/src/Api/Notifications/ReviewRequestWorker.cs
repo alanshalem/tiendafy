@@ -92,8 +92,12 @@ public sealed class ReviewRequestWorker(
         if (due.Count == 0) return;
 
         var sent = 0;
+        var tenant = sp.GetRequiredService<Api.Middleware.TenantContextHolder>();
         foreach (var tenantOrders in due.GroupBy(o => o.TenantId.Value))
         {
+            // Cada tienda con su tienda fijada en el scope (plantilla, fotos,
+            // remitente): sin ella, los filtros no devuelven nada.
+            tenant.Set(SharedKernel.Common.TenantId.From(tenantOrders.Key));
             try { sent += await RunTenantAsync(sp, reviewsDb, tenantOrders.Key, [.. tenantOrders], ct); }
             catch (Exception ex)
             {

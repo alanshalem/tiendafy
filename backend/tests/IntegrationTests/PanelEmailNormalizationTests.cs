@@ -41,7 +41,7 @@ public sealed class PanelEmailNormalizationTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId);
+            var user = await db.Users.IgnoreQueryFilters().AsNoTracking().SingleAsync(u => u.Id == userId);
             Assert.Equal(legacyEmail.Normalize(NormalizationForm.FormKC).ToUpperInvariant(), user.NormalizedEmail);
             Assert.Equal(user.NormalizedEmail, user.NormalizedUserName);
         }
@@ -74,7 +74,7 @@ public sealed class PanelEmailNormalizationTests
         var placeholder = await CreateUserAsync("legacy");
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        var user = await db.Users.SingleAsync(u => u.Email == placeholder);
+        var user = await db.Users.IgnoreQueryFilters().SingleAsync(u => u.Email == placeholder);
         user.Email = email;
         user.UserName = email;
         user.NormalizedEmail = email.ToUpperInvariant();
