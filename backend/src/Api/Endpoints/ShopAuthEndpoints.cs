@@ -39,7 +39,7 @@ public static class ShopAuthEndpoints
         // una cuenta (con contraseña o Google), contesta exactamente lo mismo
         // sin tocar nada y al dueño le llega un aviso. Los dos caminos mandan
         // un mail y contestan lo mismo.
-        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperAccountEmails emails, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -58,7 +58,7 @@ public static class ShopAuthEndpoints
             // Una cuenta de comprador es la que tiene contraseña o Google.
             if (rows.FirstOrDefault(c => c.PasswordHash != null || c.GoogleSubject != null) is { } owner)
             {
-                await emails.SendRegistrationAttemptAsync(tid, owner.Email!, owner.Name, StoreLink(http, cfg, "/cuenta"), ct);
+                await emails.SendRegistrationAttemptAsync(tid, owner.Email!, owner.Name, await AccountLinkAsync(http.RequestServices, tid, "/cuenta", token: null, ct), ct);
                 return Registered();
             }
 
@@ -76,14 +76,14 @@ public static class ShopAuthEndpoints
             await db.SaveChangesAsync(ct);
             // Con la plantilla "Activación de cuenta" de la tienda (sale siempre).
             await emails.SendActivationAsync(tid, customer.Email!, customer.Name,
-                BuildLink(http, cfg, "/cuenta/verificar", verifyTok), ct);
+                await AccountLinkAsync(http.RequestServices, tid, "/cuenta/verificar", verifyTok, ct), ct);
             return Registered();
         }).RequireRateLimiting("auth");
 
         // ¿Olvidaste tu contraseña? Manda email con link de reset. Respuesta
         // uniforme (204) exista o no el email, y en el mismo tiempo: el token y
         // el mail se arman después de contestar (ShopperMailDispatch).
-        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, ShopperMailDispatch dispatch, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
@@ -95,7 +95,6 @@ public static class ShopAuthEndpoints
                 .FirstOrDefaultAsync(ct);
             if (customerId is { } id)
             {
-                var linkBase = LinkBase(http, cfg);
                 dispatch.Run(tid, async (sp, token) =>
                 {
                     var scoped = sp.GetRequiredService<CustomersDbContext>();
@@ -106,7 +105,7 @@ public static class ShopAuthEndpoints
                     await scoped.SaveChangesAsync(token);
                     // Con la plantilla "Cambio de contraseña" de la tienda (sale siempre).
                     await sp.GetRequiredService<ShopperAccountEmails>().SendPasswordResetAsync(
-                        tid, customer.Email, customer.Name, $"{linkBase}/cuenta/reset?token={Uri.EscapeDataString(tok)}", token);
+                        tid, customer.Email, customer.Name, await AccountLinkAsync(sp, tid, "/cuenta/reset", tok, token), token);
                 });
             }
             return Results.NoContent();
@@ -173,7 +172,7 @@ public static class ShopAuthEndpoints
 
         // Reenvía el mail de activación a la cuenta logueada (entró con su
         // contraseña sin haber verificado el email). Solo a su propio email.
-        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, IConfiguration cfg, CancellationToken ct) =>
+        auth.MapPost("/verify/resend", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, ShopperAccountEmails emails, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
@@ -184,7 +183,7 @@ public static class ShopAuthEndpoints
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, tok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
             await emails.SendActivationAsync(tid, customer.Email, customer.Name,
-                BuildLink(http, cfg, "/cuenta/verificar", tok), ct);
+                await AccountLinkAsync(http.RequestServices, tid, "/cuenta/verificar", tok, ct), ct);
             return Results.NoContent();
         }).RequireRateLimiting("auth");
 
@@ -388,20 +387,17 @@ public static class ShopAuthEndpoints
 
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
 
-    /// <summary>La tienda según el Origin del request (validado). Vacío si no es propio: el link queda relativo.</summary>
-    private static string LinkBase(HttpContext http, IConfiguration cfg)
+    /// <summary>
+    /// Link a una página de la cuenta en la tienda (con el token, si lo hay),
+    /// sobre la URL canónica de la tienda (<see cref="StoreOrigins"/>). Nunca
+    /// el Origin del pedido: quien pide el mail de otro no elige adónde va el
+    /// link con su token.
+    /// </summary>
+    internal static async Task<string> AccountLinkAsync(IServiceProvider services, Guid tid, string path, string? token, CancellationToken ct)
     {
-        var origin = http.Request.Headers.Origin.ToString();
-        return IsSafeReturnUrl(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
+        var baseUrl = await services.GetRequiredService<StoreOrigins>().CanonicalBaseAsync(tid, ct) ?? string.Empty;
+        return token is null ? $"{baseUrl}{path}" : $"{baseUrl}{path}?token={Uri.EscapeDataString(token)}";
     }
-
-    /// <summary>Link a la tienda con el token, usando el Origin del request (validado).</summary>
-    private static string BuildLink(HttpContext http, IConfiguration cfg, string path, string token) =>
-        $"{LinkBase(http, cfg)}{path}?token={Uri.EscapeDataString(token)}";
-
-    /// <summary>Link a una página de la tienda, sin token.</summary>
-    private static string StoreLink(HttpContext http, IConfiguration cfg, string path) =>
-        $"{LinkBase(http, cfg)}{path}";
 
     internal static object ToDto(Customer c) => new { id = c.Id, name = c.Name, email = c.Email, emailVerified = c.EmailVerified };
 }

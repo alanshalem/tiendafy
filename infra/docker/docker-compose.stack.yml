@@ -186,6 +186,9 @@ services:
       # cifrados (certificados ARCA, tokens MP). Backupear junto a la DB.
       DataProtection__KeyPath: /keys
       Tenancy__PlatformBaseDomain: ${STACK_DOMAIN:?definir en el .env del ambiente}
+      # La tienda del dominio pelado: sus links de cuenta van ahí y su comprador
+      # usa la sesión desde ahí (la tienda y el panel leen la misma variable).
+      Tenancy__PrimaryStoreSubdomain: ${PRIMARY_STORE_SUBDOMAIN:-}
       Email__From: ${EMAIL_FROM:-}
       # Sin API key los emails se escriben en el log en vez de enviarse. Es el
       # default de staging a propósito: nadie le manda un mail a un cliente

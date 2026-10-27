@@ -85,7 +85,8 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | Clave | Para qué | Default / dev | En `.env.prod` |
 | --- | --- | --- | --- |
 | `PublicApiBaseUrl` | Base de los links de baja y de seguimiento de los emails | `http://localhost:5080` | `https://api.<STACK_DOMAIN>` |
-| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo | Vacío = el mail va sin link | `https://admin.${STACK_DOMAIN}` (lo arma el compose) |
+| `Admin:BaseUrl` | Link al panel en el aviso de stock bajo y base de los links de los mails de la cuenta del panel (verificar el email, restablecer la contraseña, la bienvenida de alguien del equipo; nunca el `Origin` del pedido) | Vacío = el aviso de stock va sin link y los de la cuenta van a `https://admin.<dominio>` (en dev, `http://localhost:5173`) | `https://admin.${STACK_DOMAIN}` (lo arma el compose) |
+| `Tenancy:PrimaryStoreSubdomain` | La tienda que atiende el dominio pelado, como `PRIMARY_STORE_SUBDOMAIN` de la tienda y el panel: sus links de cuenta van al dominio pelado y su comprador puede usar la sesión desde ahí (`Api/Shop/StoreOrigins`). Los links de la cuenta del comprador usan el dominio propio de la tienda, el pelado si es la principal, o `<tienda>.<dominio>` (en dev, con el puerto 3000) | Vacío (dev: también lee `PRIMARY_STORE_SUBDOMAIN`; sin ninguna, `localhost` vale para cualquier tienda solo en Development) | `PRIMARY_STORE_SUBDOMAIN` (lo arma el compose) |
 | `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso a la tienda para que un diseño publicado o un cambio de catálogo se vea al toque. Vacío = apagado: la tienda vence su caché sola en 30 a 60 s | Dev: `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | URL fija `http://storefront:3000/internal/revalidate`; secreto `REVALIDATE_SECRET` (el mismo que usa la tienda) |
 
 ### Email y notificaciones

@@ -141,6 +141,9 @@ public static class ServiceRegistration
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
         services.AddScoped<Api.Fiscal.CreditNoteIssuer>();
         services.AddScoped<StoreLinks>();
+        // Los hosts de cada tienda: desde dónde vale la sesión del comprador y
+        // adónde apuntan los links de los mails de su cuenta.
+        services.AddScoped<Api.Shop.StoreOrigins>();
         services.AddScoped<BrandedEmailSender>();
         services.AddScoped<OrderItemImages>();
         services.AddHttpClient<WhatsAppSender>();

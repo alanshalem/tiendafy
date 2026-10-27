@@ -46,7 +46,20 @@ public sealed class OriginRules
         var admin = Normalize(configuration["Admin:BaseUrl"]);
         if (admin is not null) _panel.Add(admin);
         else if (_platform != "localhost") _panel.Add($"https://admin.{_platform}:443");
+
+        PanelBaseUrl = configuration["Admin:BaseUrl"]?.Trim().TrimEnd('/') is { Length: > 0 } configured
+            ? configured
+            : _platform != "localhost" ? $"https://admin.{_platform}" : "http://localhost:5173";
     }
+
+    /// <summary>
+    /// La base de los links al panel que salen por mail (verificar el email,
+    /// restablecer la contraseña, la bienvenida de alguien del equipo):
+    /// <c>Admin:BaseUrl</c>; sin configurar, <c>admin.&lt;dominio&gt;</c> (o el
+    /// panel de dev en localhost). Nunca el <c>Origin</c> del pedido: quien pide
+    /// el mail de otro elegiría adónde va el link con su token.
+    /// </summary>
+    public string PanelBaseUrl { get; }
 
     /// <summary>¿Es el origen del panel? En desarrollo, además, localhost con cualquier puerto.</summary>
     public bool IsPanel(string? origin)
