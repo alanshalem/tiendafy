@@ -403,7 +403,11 @@ staging, lo mismo con `.env.staging`.
 El cifrado de los datos del comprador que estaban en claro no corre en
 `migrate` sino al arrancar la versión nueva (`BuyerPiiBackfillService`, con
 `Workers:Enabled`): mientras corre `migrate` sigue atendiendo la versión vieja,
-que no sabe descifrar.
+que no sabe descifrar. La migración del documento en Fiscal
+(`EncryptBuyerDocInFiscal`, oct-2026) pasa `fiscal_documents.doc_nro` de número
+a texto: en esos segundos la versión vieja no puede leer comprobantes (el
+panel de facturación da error y el worker de emisión reintenta después); lo
+que guarda en ese rato queda en claro y lo cifra la versión nueva al arrancar.
 
 **Actualizar Postgres dentro de la misma major** (18.6 → 18.7, parches de
 seguridad): el deploy no lo hace solo, a propósito, porque reinicia la base.
@@ -540,7 +544,9 @@ los secretos de adentro **dejen de valer**. El orden:
      viejo es el que el atacante pudo leer, así que volver a cifrarlo no
      alcanza.
    - Lo que **no** se re-cifra solo: los datos personales de los clientes
-     (`Customers.PII.v1`: teléfono, dirección). Siguen cifrados con la clave
+     (`Customers.PII.v1`: teléfono, dirección; y los del comprador en ventas,
+     checkouts y comprobantes fiscales: `Orders.PII.v1`, `Checkout.PII.v1`,
+     `Fiscal.PII.v1`). Siguen cifrados con la clave
      vieja y, si esa clave se filtró, son legibles para quien tenga el dump.
      Re-cifrarlos exige un script que los lea y los guarde de nuevo, que hoy no
      existe: se escribe con el equipo, no se improvisa en la emergencia.
@@ -678,9 +684,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 - **PII en reposo**: teléfono y dirección de los clientes van cifrados por
   columna (DataProtection, purpose `Customers.PII.v1`). En ventas y checkouts,
   el teléfono, el documento y la dirección del comprador también (purposes
-  `Orders.PII.v1` y `Checkout.PII.v1`); el email y el nombre quedan en claro
+  `Orders.PII.v1` y `Checkout.PII.v1`), y su documento en Fiscal (el número
+  del receptor de cada comprobante, el SOAP crudo de ARCA y el job de
+  emisión; purpose `Fiscal.PII.v1`); el email y el nombre quedan en claro
   porque se buscan y vinculan. Las filas de antes del cifrado se leen igual y
-  las cifra el paso `migrate` (y una pasada al arrancar la API), por lotes.
+  las cifra la versión nueva al arrancar (no el paso `migrate`), por lotes.
 - **Archivos privados** (adjuntos del chat de soporte): bucket aparte, nunca
   público, servido con URLs firmadas de vida corta.
 - **CSS del tema**: `customCss` se sanea al guardar (quita `<`, `@import`,

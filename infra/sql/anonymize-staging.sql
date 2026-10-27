@@ -73,6 +73,15 @@ UPDATE checkout_sessions SET
     doc_number = NULL,
     shipping_address = 'Dirección de prueba 123';
 
+-- Comprobantes fiscales: el documento del receptor y el SOAP crudo van
+-- cifrados con las claves de producción (Fiscal.PII.v1); en staging no se
+-- pueden leer y el número no se puede interpretar. Quedan a consumidor final.
+UPDATE fiscal_documents SET
+    doc_tipo = 99,
+    doc_nro = '0',
+    request_payload = NULL,
+    response_payload = NULL;
+
 -- Presupuestos: a quién se le mandó.
 UPDATE quotes SET
     customer_name = 'Cliente de prueba',
