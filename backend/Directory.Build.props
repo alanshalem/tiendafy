@@ -17,5 +17,11 @@
          (60+ sitios; la plata y lo fiscal ya usan InvariantCulture explícito).
          CA1822/1725/1068: estilo/firmas — no pagan el churn. -->
     <NoWarn>$(NoWarn);CA1707;CA1304;CA1305;CA1310;CA1311;CA1862;CA1822;CA1725;CA1068</NoWarn>
+    <!-- Lock de NuGet (packages.lock.json por proyecto): CI y la imagen restauran
+         exactamente lo que se probó, como pnpm con su lockfile congelado. Estricto solo
+         en CI (GitHub pone CI=true) y en el build de Docker (la imagen del SDK pone
+         DOTNET_RUNNING_IN_CONTAINER): en local, sumar un paquete actualiza el lock. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true' Or '$(DOTNET_RUNNING_IN_CONTAINER)' == 'true'">true</RestoreLockedMode>
   </PropertyGroup>
 </Project>
