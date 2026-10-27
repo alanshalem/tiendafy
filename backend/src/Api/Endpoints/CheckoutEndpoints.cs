@@ -77,6 +77,8 @@ public static class CheckoutEndpoints
             ICorreoArgentinoConfigRepository correoConfigs,
             ShippingSecretProtector protector,
             MiCorreoClient correoClient,
+            Api.Shop.CheckoutReservationQuota reservations,
+            HttpContext http,
             CancellationToken ct) =>
         {
             // El token es opaco: se prueba contra cada carrier (propósitos de
@@ -143,10 +145,32 @@ public static class CheckoutEndpoints
                 return cpError.ToProblem();
             }
 
+            // Tope de compras con stock reservado a la vez por cliente: el lugar
+            // se toma antes de reservar (dos envíos simultáneos no pasan los
+            // dos) y se devuelve si la compra no llegó a reservar nada.
+            var client = reservations.ClientOf(http);
+            if (client is not null
+                && !reservations.TryTake(client, id, DateTime.UtcNow + CheckoutSession.Ttl, out var retryAfter))
+            {
+                http.Response.Headers.RetryAfter = ((int)Math.Ceiling(Math.Max(1, retryAfter.TotalSeconds)))
+                    .ToString(System.Globalization.CultureInfo.InvariantCulture);
+                return Results.Problem(
+                    title: "Checkout.TooManyOpen",
+                    detail: "Ya hay varias compras esperando el pago desde esta conexión. Terminá alguna o esperá unos minutos y probá de nuevo.",
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+
             var result = await handler.HandleAsync(new SubmitCheckoutCommand(
                 tenant.TenantId, id, request.Email ?? string.Empty,
                 request.Name, request.LastName, request.Phone, request.DocNumber, request.Notes,
                 request.ShippingMethodId, request.Address, quote, request.AcceptsWhatsApp), ct);
+            if (client is not null)
+            {
+                if (result.IsSuccess && result.Value.Items.Any(i => i.ReservationId is not null))
+                    reservations.TryTake(client, id, result.Value.ExpiresAtUtc, out _);
+                else
+                    reservations.Release(client, id);
+            }
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         }).RequireRateLimiting("checkout");
 

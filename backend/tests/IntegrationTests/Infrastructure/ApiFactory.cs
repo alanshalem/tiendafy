@@ -80,6 +80,7 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("RateLimiting:AuthPermitLimit", "10000");
         builder.UseSetting("RateLimiting:CheckoutContactPermitLimit", "10000");
         builder.UseSetting("RateLimiting:CheckoutPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:CheckoutReservationsPerIp", "10000");
         builder.UseSetting("RateLimiting:ShippingQuotePermitLimit", "10000");
         builder.UseSetting("RateLimiting:SearchPermitLimit", "10000");
         builder.UseSetting("RateLimiting:TrackPermitLimit", "10000");

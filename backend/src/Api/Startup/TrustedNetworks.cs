@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.RateLimiting;
 
 namespace Api.Startup;
@@ -37,6 +38,23 @@ public static class TrustedNetworks
     }
 
     /// <summary>
+    /// A quién se le cuenta un pedido en los cupos por IP. IPv4, la dirección
+    /// (una IPv4 escrita como IPv6 cuenta como IPv4). IPv6, el prefijo /64: un
+    /// proveedor le da a cada cliente una red /64 entera, así que contar por
+    /// dirección le daba a un script 2^64 cupos nuevos con solo cambiarla.
+    /// </summary>
+    public static string ClientKey(IPAddress? address)
+    {
+        if (address is null) return "unknown";
+        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+        if (address.AddressFamily != AddressFamily.InterNetworkV6) return address.ToString();
+
+        var bytes = address.GetAddressBytes();
+        Array.Clear(bytes, 8, 8);
+        return $"{new IPAddress(bytes)}/64";
+    }
+
+    /// <summary>
     /// La partición del techo global de pedidos: por IP del cliente, salvo
     /// nuestros servidores hablando por la red interna, que no tienen techo.
     /// </summary>
@@ -48,7 +66,7 @@ public static class TrustedNetworks
             return RateLimitPartition.GetNoLimiter("internal");
 
         return RateLimitPartition.GetFixedWindowLimiter(
-            ip?.ToString() ?? "unknown",
+            ClientKey(ip),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
     }
 }

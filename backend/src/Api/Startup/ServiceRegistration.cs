@@ -318,7 +318,7 @@ public static class ServiceRegistration
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
         static RateLimitPartition<string> PerIpPerPath(HttpContext ctx, int permitLimit) =>
             RateLimitPartition.GetFixedWindowLimiter(
-                $"{ctx.Connection.RemoteIpAddress}:{ctx.Request.Path}",
+                $"{TrustedNetworks.ClientKey(ctx.Connection.RemoteIpAddress)}:{ctx.Request.Path}",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 });
 
         // Por IP y por ruta, contando el PATRÓN de la ruta y no el path: un
@@ -327,6 +327,13 @@ public static class ServiceRegistration
         // interna (el storefront armando la página de búsqueda) no tienen cupo,
         // como en el techo global: son todos los compradores juntos.
         var internalNetworks = TrustedNetworks.From(configuration);
+
+        // Compras con stock reservado a la vez por cliente (ver CheckoutReservationQuota).
+        var reservationsPerClient = configuration?.GetValue<int?>("RateLimiting:CheckoutReservationsPerIp")
+            ?? Api.Shop.CheckoutReservationQuota.DefaultLimit;
+        services.AddSingleton(sp => new Api.Shop.CheckoutReservationQuota(
+            reservationsPerClient, internalNetworks, sp.GetService<TimeProvider>() ?? TimeProvider.System));
+
         RateLimitPartition<string> PerIpPerRoute(HttpContext ctx, int permitLimit, TimeSpan window)
         {
             var ip = ctx.Connection.RemoteIpAddress;
@@ -334,7 +341,7 @@ public static class ServiceRegistration
                 return RateLimitPartition.GetNoLimiter("internal");
             var route = (ctx.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? ctx.Request.Path.Value;
             return RateLimitPartition.GetFixedWindowLimiter(
-                $"{ip}:{route}",
+                $"{TrustedNetworks.ClientKey(ip)}:{route}",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = window, QueueLimit = 0 });
         }
 
