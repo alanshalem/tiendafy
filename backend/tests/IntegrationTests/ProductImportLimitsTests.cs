@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -47,6 +48,25 @@ public sealed class ProductImportLimitsTests
         var res = await SendAsync(merchant, form);
 
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Con_la_tienda_llena_de_subidas_pendientes_otra_se_rechaza_sin_gastar_disco()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "pend");
+        var queue = _factory.Services.GetRequiredService<Api.Import.ImageImportQueue>();
+        // Dos jobs que nadie procesa (no se encolan en el canal): quedan pendientes.
+        for (var i = 0; i < Api.Import.ImageImportQueue.MaxPendingPerTenant; i++)
+            Assert.NotNull(queue.TryCreate(merchant.TenantId, Path.GetTempPath(), 1));
+
+        using var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(TestImages.Png), "files", "foto.png" },
+        };
+        var res = await SendAsync(merchant, form);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, res.StatusCode);
+        Assert.Contains("Import.TooManyPending", await res.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -109,6 +129,46 @@ public sealed class ProductImportLimitsTests
         Assert.StartsWith(ApiFactory.Storage, await ImageOf("liviana"), StringComparison.Ordinal);
         Assert.Equal(0, honest.BytesRead);
         Assert.InRange(liar.BytesRead, 5 * 1024 * 1024, 5 * 1024 * 1024 + 81_920);
+    }
+
+    [Fact]
+    public async Task Una_fila_con_mas_fotos_que_la_galeria_no_baja_las_que_sobran()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "gal");
+        var tag = merchant.Subdomain;
+        _factory.ExternalHttp.On(HttpMethod.Get, "https://203.0.113.30/", (_, _) => TestImages.PngResponse());
+
+        // 14 URLs para una galería de 10: antes se bajaban y subían las 14 y
+        // recién después AddImage rechazaba las últimas (objetos huérfanos en el bucket).
+        var urls = string.Join("|", Enumerable.Range(1, 14).Select(i => $"https://203.0.113.30/foto{i}.png"));
+        var csv = string.Join("\n",
+            "Identificador de URL;Nombre;Precio;SKU;Mostrar en tienda;Imágenes",
+            $"galeria-{tag};Galería;1000;GAL-{tag};SI;{urls}");
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(csv), "file", "productos.csv" },
+            { new StringContent("false"), "updateStock" },
+        };
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/products/import") { Content = form };
+        req.Headers.Add("X-Tenant-Id", merchant.TenantId.ToString());
+        var accepted = await merchant.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var jobId = (await accepted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("jobId").GetString();
+
+        JsonElement job;
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        do
+        {
+            await Task.Delay(200);
+            job = await merchant.GetAsync($"/api/v1/products/import/{jobId}");
+        }
+        while (job.GetProperty("status").GetString() is "queued" or "processing" && DateTime.UtcNow < deadline);
+        Assert.Equal("completed", job.GetProperty("status").GetString());
+
+        var product = await merchant.GetAsync($"/api/v1/products/by-slug/galeria-{tag}");
+        Assert.Equal(10, product.GetProperty("images").GetArrayLength());
+        Assert.Equal(10, _factory.ExternalHttp.SentTo("https://203.0.113.30/").Count);
     }
 
     private static Task<HttpResponseMessage> SendAsync(Merchant merchant, HttpContent form)

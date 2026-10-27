@@ -59,6 +59,10 @@ public abstract class JobQueue<TJob> where TJob : class, IImportJob
         return _jobs.TryGetValue(jobId, out var job) ? job : null;
     }
 
+    /// <summary>Jobs sin terminar (en cola o procesándose), de una tienda o de todas (<c>null</c>).</summary>
+    protected int PendingCount(Guid? tenantId) =>
+        _jobs.Values.Count(j => j.FinishedAtUtc is null && (tenantId is null || j.TenantId == tenantId));
+
     /// <summary>Saca los jobs que terminaron hace más de <see cref="FinishedRetention"/>.</summary>
     private void EvictFinished()
     {

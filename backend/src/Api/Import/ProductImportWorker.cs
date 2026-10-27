@@ -39,16 +39,21 @@ public sealed class ProductImportWorker(
             catScope.ServiceProvider.GetRequiredService<CatalogDbContext>(),
             tenant, ct);
 
+        // Tope de descargas y de tiempo de todo el job: el worker es uno para
+        // todas las tiendas y no puede quedar horas con las URLs de una planilla.
+        var downloads = new ImageDownloadBudget();
+
         foreach (var model in models)
         {
             ct.ThrowIfCancellationRequested();
+            downloads.BeginRow();
             try
             {
                 using var scope = scopeFactory.CreateScope();
                 var repo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
                 var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
                 var stock = scope.ServiceProvider.GetRequiredService<IStockRepository>();
-                await ProcessProductAsync(model, tenant, job, repo, db, stock, resolver, ct);
+                await ProcessProductAsync(model, tenant, job, repo, db, stock, resolver, downloads, ct);
             }
             catch (Exception ex)
             {
@@ -71,7 +76,7 @@ public sealed class ProductImportWorker(
     private async Task ProcessProductAsync(
         ImportProduct model, TenantId tenant, ImportJob job,
         IProductRepository repo, CatalogDbContext db, IStockRepository stock,
-        CategoryResolver resolver, CancellationToken ct)
+        CategoryResolver resolver, ImageDownloadBudget downloads, CancellationToken ct)
     {
         var desired = !string.IsNullOrWhiteSpace(model.Handle) ? model.Handle : model.Name;
         var slugResult = Slug.Create(desired);
@@ -93,14 +98,14 @@ public sealed class ProductImportWorker(
             return;
         }
 
-        await CreateProductAsync(model, slugResult.IsSuccess ? slugResult.Value : null, tenant, job, repo, db, stock, resolver, ct);
+        await CreateProductAsync(model, slugResult.IsSuccess ? slugResult.Value : null, tenant, job, repo, db, stock, resolver, downloads, ct);
         job.Created++;
     }
 
     private async Task CreateProductAsync(
         ImportProduct model, Slug? slug, TenantId tenant, ImportJob job,
         IProductRepository repo, CatalogDbContext db, IStockRepository stock,
-        CategoryResolver resolver, CancellationToken ct)
+        CategoryResolver resolver, ImageDownloadBudget downloads, CancellationToken ct)
     {
         var created = Product.Create(tenant, model.Name, model.Description);
         if (created.IsFailure)
@@ -144,9 +149,13 @@ public sealed class ProductImportWorker(
             if (pub.IsFailure) job.AddError(model.Line, model.Handle, pub.Error.Message);
         }
 
-        foreach (var src in model.ImageUrls)
+        // Con la galería llena no se baja nada más (antes se descargaba y subía
+        // al bucket igual, y recién AddImage lo rechazaba). Y los intentos por
+        // producto tienen techo: una fila con miles de URLs no es una galería.
+        foreach (var src in model.ImageUrls.Take(Product.MaxImages * 2))
         {
-            var url = await ResolveImageAsync(tenant.Value, src, ct);
+            if (product.Images.Count >= Product.MaxImages) break;
+            var url = await ResolveImageAsync(tenant.Value, src, downloads, ct);
             if (url is null) continue;
             var img = product.AddImage(url, null);
             if (img.IsSuccess) job.ImagesImported++;
@@ -316,10 +325,17 @@ public sealed class ProductImportWorker(
     /// Descarga la imagen y la sube a nuestro storage; devuelve la URL propia.
     /// Si algo falla, cae a la URL original (si es válida). null = imagen descartada.
     /// </summary>
-    private async Task<string?> ResolveImageAsync(Guid tenantId, string src, CancellationToken ct)
+    private async Task<string?> ResolveImageAsync(
+        Guid tenantId, string src, ImageDownloadBudget downloads, CancellationToken ct)
     {
         try
         {
+            // Sin presupuesto (descargas o tiempo del job o de la fila) la imagen
+            // no se baja: queda la URL original, como cuando la descarga falla.
+            // Sin pasar por la red, solo se descarta lo evidentemente interno.
+            if (!downloads.TryTake())
+                return PublicUrlGuard.IsPlausiblyPublic(src) ? Fallback(tenantId, src) : null;
+
             // Anti-SSRF: solo http(s) a hosts públicos. Bloquea metadata de cloud
             // (169.254.169.254), loopback y rangos privados de la red interna.
             if (!await PublicUrlGuard.IsFetchableAsync(src, ct)) return null;

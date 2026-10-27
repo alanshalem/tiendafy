@@ -92,6 +92,19 @@ public static class ProductImportEndpointHelpers
         try
         {
             await using var stream = file.OpenReadStream();
+
+            // El ZipArchive carga el directorio central entero: lo que declara se
+            // mira antes, para no armar millones de entradas solo para rechazarlas.
+            switch (ZipDirectoryGuard.Inspect(stream, limits.MaxEntries - budget.Entries))
+            {
+                case ZipDirectoryGuard.Verdict.TooManyEntries or ZipDirectoryGuard.Verdict.DirectoryTooLarge:
+                    return Result.Failure<int>(Error.Validation("Import.ZipTooManyFiles",
+                        $"El .zip trae demasiados archivos: el máximo es {ArgentineNumbers.Number(limits.MaxEntries)} por subida."));
+                case ZipDirectoryGuard.Verdict.Corrupt:
+                    return Result.Failure<int>(Error.Validation("Import.ZipCorrupt",
+                        "No pudimos abrir el .zip: está dañado o no es un .zip."));
+            }
+
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
             foreach (var entry in archive.Entries)
             {
