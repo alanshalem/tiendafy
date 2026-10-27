@@ -109,14 +109,22 @@ export interface CspOptions {
    * desde el panel, así que es el único sitio ajeno que puede enmarcarla.
    */
   adminOrigin?: string;
+  /**
+   * DSN de Sentry del navegador (`PUBLIC_SENTRY_DSN`). Su host de ingesta va al
+   * connect-src: sin él el navegador bloquea el envío y los errores de la
+   * tienda se pierden en silencio.
+   */
+  sentryDsn?: string;
   /** Solo en `next dev`: React usa eval() para reconstruir los stacks en desarrollo. */
   dev?: boolean;
 }
 
 export function buildCsp(apiUrl: string, options: CspOptions = {}): string {
-  const { cardChallenge = false, adminOrigin = '', dev = false } = options;
+  const { cardChallenge = false, adminOrigin = '', sentryDsn = '', dev = false } = options;
   const api = apiOrigin(apiUrl);
   const admin = apiOrigin(adminOrigin);
+  // El origen sale del DSN (https://clave@host/proyecto): la clave no es parte de él.
+  const sentry = sentryDsn ? apiOrigin(sentryDsn) : null;
   // Nadie más puede enmarcar la tienda (clickjacking): ella misma y el panel.
   const frameAncestors = ["'self'", admin].filter(Boolean).join(' ');
   // Ver isCardChallengePage: el desafío 3DS del banco, solo en la página de pago.
@@ -145,6 +153,7 @@ export function buildCsp(apiUrl: string, options: CspOptions = {}): string {
       'https://challenges.cloudflare.com',
       PAYWAY_CONNECT,
       TRACKING_CONNECT,
+      sentry,
     ]
       .filter(Boolean)
       .join(' '),

@@ -49,6 +49,28 @@ describe('CSP de la tienda', () => {
     expect(directive(csp, 'script-src')).toContain('https://sdk.mercadopago.com');
   });
 
+  it('deja que el Sentry del navegador mande sus errores: el host del DSN va al connect-src', () => {
+    const dsn = 'https://clavepublica@o123.ingest.sentry.io/456';
+    const connect = directive(buildCsp('https://api.x.com', { sentryDsn: dsn }), 'connect-src');
+    expect(connect.split(' ')).toContain('https://o123.ingest.sentry.io');
+    // Solo el origen: ni la clave ni el proyecto.
+    expect(connect).not.toContain('clavepublica');
+    expect(connect).not.toContain('/456');
+    expect(connect).not.toMatch(/ {2}/);
+    // Sin DSN, o con uno que no sirve, no se suma nada.
+    expect(directive(buildCsp('https://api.x.com'), 'connect-src')).not.toContain('sentry');
+    expect(
+      directive(buildCsp('https://api.x.com', { sentryDsn: 'no es una url' }), 'connect-src'),
+    ).not.toMatch(/ {2}/);
+  });
+
+  it('el proxy toma el DSN de Sentry del entorno del contenedor', () => {
+    vi.stubEnv('PUBLIC_SENTRY_DSN', 'https://k@o9.ingest.sentry.io/1');
+    const csp =
+      proxy(new NextRequest('https://tienda-de-prueba.com/')).headers.get('Content-Security-Policy') ?? '';
+    expect(directive(csp, 'connect-src')).toContain('https://o9.ingest.sentry.io');
+  });
+
   it('next.config no vuelve a fijar un CSP al compilar (pisaría al del proxy)', async () => {
     const rules = (await nextConfig.headers?.()) ?? [];
     const keys = rules.flatMap((r) => r.headers.map((h) => h.key.toLowerCase()));
