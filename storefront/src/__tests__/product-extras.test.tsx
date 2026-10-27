@@ -298,6 +298,9 @@ describe('escribir una opinión', () => {
     const file = new File(['x'], 'foto.png', { type: 'image/png' });
     await u.upload(screen.getByLabelText(/Sumar/), file);
     expect(await screen.findByRole('button', { name: 'Quitar la foto' })).toBeInTheDocument();
+    // El link viaja en un encabezado: la API lo valida antes de leer la foto.
+    const upload = api.calls.find((c) => c.path === '/api/v1/reviews/photos');
+    expect(upload?.headers['x-review-token']).toBe('tok');
     await u.click(screen.getByRole('button', { name: 'Publicar mi opinión' }));
 
     expect(await screen.findByText('¡Gracias! Tu opinión ya está publicada.')).toBeInTheDocument();

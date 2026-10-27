@@ -221,12 +221,12 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
     setUploading(true);
     for (const file of Array.from(files).slice(0, MAX_PHOTOS - photos.length)) {
       const form = new FormData();
-      form.append('token', token);
       form.append('file', file);
       try {
         const res = await fetch(`${apiUrl()}/api/v1/reviews/photos`, {
           method: 'POST',
-          headers: tenantHeaders(tenantId),
+          // En un encabezado: la API valida el link antes de leer la foto.
+          headers: { ...tenantHeaders(tenantId), 'X-Review-Token': token },
           body: form,
         });
         if (!res.ok) {

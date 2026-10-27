@@ -37,6 +37,7 @@ www.{$TIENDAFY_DOMAIN} {
 # tienda por subdominio.
 {$TIENDAFY_DOMAIN}, *.{$TIENDAFY_DOMAIN} {
 	import security_headers
+	import block_internal
 	import tiendafy_tls
 	reverse_proxy 127.0.0.1:3000
 }
@@ -46,6 +47,7 @@ www.{$TIENDAFY_DOMAIN} {
 # específico, así que esto no le quita nada a los otros sistemas del servidor.
 https:// {
 	import security_headers
+	import block_internal
 	tls {
 		on_demand
 	}

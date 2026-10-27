@@ -262,14 +262,44 @@ public sealed partial class ReviewsFlowTests(ApiFactory factory)
 
     private static async Task<string> UploadPhotoAsync(Shopper shopper, string token)
     {
-        using var form = new MultipartFormDataContent
-        {
-            { new StringContent(token), "token" },
-            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "file", "foto.png" },
-        };
-        var res = await shopper.SendAsync(HttpMethod.Post, "/api/v1/reviews/photos", form);
+        var res = await SendPhotoAsync(shopper, token);
         Assert.True(res.IsSuccessStatusCode, await res.Content.ReadAsStringAsync());
         return (await res.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("url").GetString()!;
+    }
+
+    /// <summary>La foto con el link en el encabezado (la API lo valida antes de leer el form). Sin link: sin encabezado.</summary>
+    private static Task<HttpResponseMessage> SendPhotoAsync(Shopper shopper, string? token)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "file", "foto.png" },
+        };
+        if (token is not null) form.Headers.Add("X-Review-Token", token);
+        return shopper.SendAsync(HttpMethod.Post, "/api/v1/reviews/photos", form);
+    }
+
+    [Fact]
+    public async Task Las_fotos_de_la_resena_piden_el_link_en_el_encabezado_y_tienen_tope_por_compra()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "revfoto");
+        var (_, variantId) = await merchant.CreateProductAsync($"Taza {merchant.Subdomain}");
+        var buyerEmail = $"foto-{merchant.Subdomain}@mail.com";
+        var orderId = await SaleAsync(merchant, variantId, buyerEmail, "Foto Uno", fulfill: true);
+        var buyer = new Shopper(merchant);
+        await buyer.RegisterVerifiedAsync(buyerEmail, "Foto");
+        var anonymous = new Shopper(merchant);
+        var (token, _) = await InviteAsync(buyer, anonymous, orderId);
+
+        // Sin link o con uno inventado: se corta antes de leer el cuerpo.
+        var none = await SendPhotoAsync(anonymous, null);
+        Assert.Equal(HttpStatusCode.BadRequest, none.StatusCode);
+        Assert.Contains("Review.InvalidLink", await none.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendPhotoAsync(anonymous, "inventado")).StatusCode);
+
+        for (var i = 0; i < 20; i++) await UploadPhotoAsync(anonymous, token);
+        var over = await SendPhotoAsync(anonymous, token);
+        Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
+        Assert.Contains("Review.PhotoLimit", await over.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     /// <summary>Una denuncia desde "otra persona" (otro navegador, misma IP de test).</summary>

@@ -84,6 +84,11 @@ public static partial class ProductEndpoints
             if (!req.HasFormContentType)
                 return MultipartExpected();
 
+            // Antes de leer nada: con la tienda (o el servidor) llena de jobs sin
+            // procesar, otra subida solo gastaría disco.
+            if (!queue.HasRoom(tenant.TenantId.Value))
+                return TooManyImageImports();
+
             // Subida grande: cientos/miles de imágenes en un POST. Se levanta el
             // tope de tamaño (default 30MB) y el de partes del multipart
             // (default 1024), pero hasta un límite: sin él, un solo pedido
@@ -112,50 +117,57 @@ public static partial class ProductEndpoints
             if (form.Files.Count == 0)
                 return Error.Validation("Import.NoFiles", "No se subió ninguna imagen.").ToProblem();
 
-            var jobId = Guid.NewGuid();
-            var tempDir = Path.Combine(Path.GetTempPath(), "tiendafy-img-import", jobId.ToString("N"));
+            var tempDir = ImageImportTemp.NewJobDir(Guid.NewGuid());
             Directory.CreateDirectory(tempDir);
 
-            var total = 0;
-            var budget = new ProductImportEndpointHelpers.ExtractionBudget(limits);
-            foreach (var file in form.Files)
+            // El dir temporal se borra en cualquier salida que no encole el job:
+            // error de validación, pedido cancelado a mitad de la extracción o
+            // excepción. Una vez encolado, es del worker.
+            var enqueued = false;
+            try
             {
-                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                if (ext == ".zip")
+                var total = 0;
+                var budget = new ProductImportEndpointHelpers.ExtractionBudget(limits);
+                foreach (var file in form.Files)
                 {
-                    var extracted = await ProductImportEndpointHelpers.ExtractZipAsync(file, tempDir, budget, ct);
-                    if (extracted.IsFailure)
+                    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (ext == ".zip")
                     {
-                        try { Directory.Delete(tempDir, true); } catch { /* best effort */ }
-                        return extracted.Error.ToProblem();
+                        var extracted = await ProductImportEndpointHelpers.ExtractZipAsync(file, tempDir, budget, ct);
+                        if (extracted.IsFailure)
+                            return extracted.Error.ToProblem();
+                        total += extracted.Value;
                     }
-                    total += extracted.Value;
+                    else if (ext == ".csv")
+                    {
+                        // CSV de mapeo (handle → archivos). El worker lo usa para asociar exacto.
+                        await using var fs = File.Create(Path.Combine(tempDir, "__mapping.csv"));
+                        await file.CopyToAsync(fs, ct);
+                    }
+                    else if (ImportMedia.ImageExtensions.Contains(ext))
+                    {
+                        var dest = Path.Combine(tempDir, ProductImportEndpointHelpers.SafeFileName(file.FileName));
+                        await using var fs = File.Create(dest);
+                        await file.CopyToAsync(fs, ct);
+                        total++;
+                    }
                 }
-                else if (ext == ".csv")
-                {
-                    // CSV de mapeo (handle → archivos). El worker lo usa para asociar exacto.
-                    await using var fs = File.Create(Path.Combine(tempDir, "__mapping.csv"));
-                    await file.CopyToAsync(fs, ct);
-                }
-                else if (ImportMedia.ImageExtensions.Contains(ext))
-                {
-                    var dest = Path.Combine(tempDir, ProductImportEndpointHelpers.SafeFileName(file.FileName));
-                    await using var fs = File.Create(dest);
-                    await file.CopyToAsync(fs, ct);
-                    total++;
-                }
-            }
 
-            if (total == 0)
+                if (total == 0)
+                    return Error.Validation("Import.NoImages", "No se encontraron imágenes (JPG, PNG, WebP o AVIF) ni un ZIP con imágenes.").ToProblem();
+
+                var job = queue.TryCreate(tenant.TenantId.Value, tempDir, total);
+                if (job is null) return TooManyImageImports();
+
+                enqueued = true;
+                queue.Enqueue(job.Id);
+                return Results.Accepted($"/api/v1/products/images/import/{job.Id}",
+                    new { jobId = job.Id, totalFiles = total });
+            }
+            finally
             {
-                try { Directory.Delete(tempDir, true); } catch { /* best effort */ }
-                return Error.Validation("Import.NoImages", "No se encontraron imágenes (JPG, PNG, WebP o AVIF) ni un ZIP con imágenes.").ToProblem();
+                if (!enqueued) ImageImportTemp.TryDelete(tempDir);
             }
-
-            var job = queue.Create(tenant.TenantId.Value, tempDir, total);
-            queue.Enqueue(job.Id);
-            return Results.Accepted($"/api/v1/products/images/import/{job.Id}",
-                new { jobId = job.Id, totalFiles = total });
         }).DisableAntiforgery();
 
         products.MapGet("/images/import/{jobId:guid}", (
@@ -198,6 +210,12 @@ public static partial class ProductEndpoints
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
         }).RequirePermission(Permission.CatalogWrite);
     }
+
+    private static IResult TooManyImageImports() =>
+        Results.Problem(
+            title: "Import.TooManyPending",
+            detail: "Ya hay subidas de fotos esperando su turno. Esperá a que terminen y volvé a subir.",
+            statusCode: StatusCodes.Status429TooManyRequests);
 
     private static IResult ImageUploadTooLarge() =>
         Results.Problem(

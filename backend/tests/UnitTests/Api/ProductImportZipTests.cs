@@ -107,6 +107,92 @@ public sealed class ProductImportZipTests : IDisposable
         Assert.Equal("Import.ZipTooLarge", result.Error.Code);
     }
 
+    private static FormFile AsForm(byte[] bytes) =>
+        new(new MemoryStream(bytes), 0, bytes.Length, "files", "fotos.zip");
+
+    private static byte[] ManyEmptyEntries(int count)
+    {
+        var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+            for (var i = 0; i < count; i++)
+                zip.CreateEntry($"f{i}.jpg", CompressionLevel.NoCompression);
+        return ms.ToArray();
+    }
+
+    /// <summary>Solo el final de un .zip: un EOCD que declara lo que se le antoje.</summary>
+    private static byte[] Eocd(ushort entries, uint directorySize, uint directoryOffset)
+    {
+        var b = new byte[22];
+        BitConverter.GetBytes(0x06054b50u).CopyTo(b, 0);
+        BitConverter.GetBytes(entries).CopyTo(b, 10);
+        BitConverter.GetBytes(directorySize).CopyTo(b, 12);
+        BitConverter.GetBytes(directoryOffset).CopyTo(b, 16);
+        return b;
+    }
+
+    [Fact]
+    public async Task Un_zip_con_muchas_entradas_se_rechaza_antes_de_abrirlo()
+    {
+        var result = await ExtractAsync(AsForm(ManyEmptyEntries(20_000)));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Import.ZipTooManyFiles", result.Error.Code);
+        Assert.Empty(Directory.GetFiles(_dir));
+    }
+
+    [Fact]
+    public async Task Un_zip64_con_mas_de_65535_entradas_se_rechaza()
+    {
+        var bytes = ManyEmptyEntries(70_000);
+
+        // El .zip es de verdad ZIP64: el EOCD trae los campos saturados.
+        Assert.Equal(ushort.MaxValue, BitConverter.ToUInt16(bytes, bytes.Length - 22 + 10));
+        var result = await ExtractAsync(AsForm(bytes));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Import.ZipTooManyFiles", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task La_cuenta_de_entradas_del_eocd_se_mira_sin_leer_el_directorio()
+    {
+        // Ni siquiera hay directorio: alcanza con lo que el final declara.
+        var result = await ExtractAsync(AsForm(Eocd(entries: 60_000, directorySize: 60_000 * 50, directoryOffset: 0)));
+
+        Assert.Equal("Import.ZipTooManyFiles", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Un_directorio_desproporcionado_para_sus_entradas_se_rechaza()
+    {
+        // 3 entradas que dicen ocupar 100 MB de directorio.
+        var result = await ExtractAsync(AsForm(Eocd(entries: 3, directorySize: 100 * 1024 * 1024, directoryOffset: 0)));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Import.ZipTooManyFiles", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Las_entradas_del_eocd_cuentan_contra_lo_que_queda_de_cupo()
+    {
+        var budget = new ProductImportEndpointHelpers.ExtractionBudget(Limits.Default with { MaxEntries = 10 });
+        budget.Entries = 8;
+
+        var result = await ProductImportEndpointHelpers.ExtractZipAsync(
+            AsForm(ManyEmptyEntries(5)), _dir, budget, CancellationToken.None);
+
+        Assert.Equal("Import.ZipTooManyFiles", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Un_zip_vacio_valido_no_se_toma_por_danado()
+    {
+        var result = await ExtractAsync(AsForm(ManyEmptyEntries(0)));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.Value);
+    }
+
     [Fact]
     public async Task Un_zip_danado_se_rechaza_sin_romper()
     {

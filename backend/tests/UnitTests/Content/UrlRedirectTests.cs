@@ -26,6 +26,13 @@ public sealed class UrlRedirectTests
     [InlineData("data:text/html,hola")]
     [InlineData("file:///etc/passwd")]
     [InlineData("ftp://servidor.com/archivo")]
+    [InlineData(@"/\otro-sitio.com")]
+    [InlineData(@"\otro-sitio.com")]
+    [InlineData(@"\\otro-sitio.com/x")]
+    [InlineData(@"/productos\..\x")]
+    [InlineData(@"https://nueva.com\@otro.com/")]
+    [InlineData("/\totro-sitio.com")]
+    [InlineData("/\notro-sitio.com")]
     public void El_destino_rechaza_lo_que_no_es_una_ruta_ni_http(string raw) =>
         Assert.Null(UrlRedirect.NormalizeTo(raw));
 

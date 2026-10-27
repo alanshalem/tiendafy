@@ -129,7 +129,7 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("MiCorreo {Path} devolvió {Status}: {Body}",
-                    LogValue.Safe(path), (int)response.StatusCode, LogValue.Safe(body, 300));
+                    LogValue.Safe(path), (int)response.StatusCode, LogValue.Body(body, 300));
                 throw new MiCorreoException(ExtractMessage(body, $"MiCorreo devolvió {(int)response.StatusCode}."), response.StatusCode);
             }
 

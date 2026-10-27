@@ -153,7 +153,7 @@ desarrollo porque Next las hornea al compilar.
 | `APP_ENV` | Ambiente en Sentry | `NODE_ENV` | `APP_ENV` |
 | `PLATFORM_BASE_DOMAIN` | Dominio base para resolver la tienda por host | `localhost` | `STACK_DOMAIN` |
 | `PRIMARY_STORE_SUBDOMAIN` | Qué tienda atiende el dominio pelado | Sin setear = "tienda no encontrada" en `localhost:3000` (`.env.example` trae `puenteoriente`) | `PRIMARY_STORE_SUBDOMAIN` |
-| `REVALIDATE_SECRET` | Secreto de `/internal/revalidate` (el mismo que `Storefront:RevalidateSecret` de la API) | Sin setear = `dev-revalidate-secret` | `REVALIDATE_SECRET`; vacío = ruta apagada |
+| `REVALIDATE_SECRET` | Secreto de `/internal/revalidate` (el mismo que `Storefront:RevalidateSecret` de la API) | Sin setear = `dev-revalidate-secret` | `REVALIDATE_SECRET`; vacío = ruta apagada. Caddy responde 404 a `/internal/*` desde afuera (`infra/edge/Caddyfile`): la API llega por la red interna |
 
 **Panel** (`admin/.env.local` en dev, ver `admin/.env.example`; en prod, el
 contenedor escribe `/config.js` al arrancar con `admin/docker-config.sh`, así

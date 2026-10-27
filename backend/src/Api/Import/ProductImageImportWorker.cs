@@ -23,6 +23,14 @@ public sealed partial class ProductImageImportWorker(
     [GeneratedRegex(@"^(.*)-(\d+)$")]
     private static partial Regex SuffixRegex();
 
+    /// <summary>La cola es en memoria: lo que dejó un proceso anterior en el disco ya no es de ningún job.</summary>
+    public override Task StartAsync(CancellationToken cancellationToken)
+    {
+        var swept = ImageImportTemp.SweepOrphans(ImageImportTemp.Root, logger);
+        if (swept > 0) logger.LogInformation("Import imágenes: {Count} carpetas huérfanas borradas", swept);
+        return base.StartAsync(cancellationToken);
+    }
+
     /// <summary>Los archivos subidos se borran del disco pase lo que pase.</summary>
     protected override void OnFinished(ImageImportJob job) => TryCleanup(job.TempDir);
 
@@ -227,9 +235,5 @@ public sealed partial class ProductImageImportWorker(
             _ => null,
         };
 
-    private void TryCleanup(string dir)
-    {
-        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
-        catch (Exception ex) { logger.LogWarning(ex, "No pude limpiar {Dir}", dir); }
-    }
+    private void TryCleanup(string dir) => ImageImportTemp.TryDelete(dir, logger);
 }

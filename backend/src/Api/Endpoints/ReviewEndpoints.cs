@@ -36,6 +36,12 @@ namespace Api.Endpoints;
 public static class ReviewEndpoints
 {
     /// <summary>Lo único que se acepta como foto de una reseña.</summary>
+    /// <summary>Encabezado con el link para opinar al subir una foto (se valida antes de leer el cuerpo).</summary>
+    public const string ReviewPhotoTokenHeader = "X-Review-Token";
+
+    /// <summary>Fotos que se aceptan por compra en 24 h: varias líneas, con reintentos y reemplazos.</summary>
+    private const int MaxPhotoUploadsPerOrder = 20;
+
     private static readonly HashSet<string> PhotoTypes = ["image/jpeg", "image/png", "image/webp"];
 
     private const int PublicPageSize = 5;
@@ -200,14 +206,26 @@ public static class ReviewEndpoints
         // imágenes y solo con un link válido (no es un hosting abierto).
         reviews.MapPost("/photos", async (
             HttpRequest request, ITenantContext tenant, IDataProtectionProvider dp, IMediaStorage storage,
-            OrdersDbContext orders, CancellationToken ct) =>
+            OrdersDbContext orders, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, CancellationToken ct) =>
         {
+            // El link se valida ANTES de leer el cuerpo: ReadFormAsync bufferiza
+            // hasta 30 MB, y no se le gasta eso a quien no tiene un link válido.
+            // Por eso el token viaja en un encabezado y no dentro del form.
+            var tid = tenant.TenantId.Value;
+            var payload = ReviewInviteToken.Unprotect(dp, request.Headers[ReviewPhotoTokenHeader].ToString(), tid);
+            if (payload is null) return InvalidLink();
+
             if (!request.HasFormContentType)
                 return Error.Validation("Review.MultipartExpected", "Se espera multipart/form-data.").ToProblem();
+
+            // Tope de fotos por compra: sin él, un link válido era un hosting abierto.
+            var counterKey = $"review-photos:{tid:N}:{payload.OrderId:N}";
+            var uploaded = cache.TryGetValue(counterKey, out var n) && n is int count ? count : 0;
+            if (uploaded >= MaxPhotoUploadsPerOrder)
+                return Error.Validation("Review.PhotoLimit",
+                    "Ya subiste muchas fotos de esta compra. Probá de nuevo mañana.").ToProblem();
+
             var form = await request.ReadFormAsync(ct);
-            var tid = tenant.TenantId.Value;
-            var payload = ReviewInviteToken.Unprotect(dp, form["token"].ToString(), tid);
-            if (payload is null) return InvalidLink();
 
             var order = await orders.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == payload.OrderId && o.TenantId == TenantId.From(tid), ct);
@@ -231,6 +249,8 @@ public static class ReviewEndpoints
             buffer.Seek(0, SeekOrigin.Begin);
 
             var upload = await storage.UploadAsync(tid, buffer, file.ContentType, buffer.Length, ct);
+            if (upload.IsSuccess)
+                Microsoft.Extensions.Caching.Memory.CacheExtensions.Set(cache, counterKey, uploaded + 1, TimeSpan.FromHours(24));
             return upload.IsSuccess ? Results.Ok(new { url = upload.Value }) : upload.Error.ToProblem();
         }).RequireRateLimiting("auth").DisableAntiforgery();
 

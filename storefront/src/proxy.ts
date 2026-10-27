@@ -27,6 +27,7 @@ export function proxy(request: NextRequest) {
     buildCsp(runtime.apiUrl, {
       cardChallenge: isCardChallengePage(request.nextUrl.pathname),
       adminOrigin: runtime.adminOrigin,
+      sentryDsn: runtime.sentryDsn,
       dev: process.env.NODE_ENV === 'development',
     }),
   );

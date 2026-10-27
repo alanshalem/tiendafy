@@ -113,6 +113,24 @@ staging_buckets_guard() {
 if [ "$ENVIRONMENT" = staging ]; then
   staging_buckets_guard "$ENV_FILE" .env.prod
 fi
+# Los valores de relleno del ejemplo (cambiar-por-uno-fuerte, <ACCOUNT_ID>…) los
+# acepta el `:?` de compose, que solo mira que la variable no esté vacía: la base
+# quedaría con la contraseña que dice el ejemplo y la API con un endpoint
+# inválido. Se cortan antes de tocar nada. Recibe el archivo del ambiente.
+placeholder_guard() {
+  local file="$1" var value found=""
+  for var in $(sed -n 's/^[[:space:]]*\(export[[:space:]][[:space:]]*\)\{0,1\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*=.*/\2/p' "$file" | sort -u); do
+    value="$(env_file_value "$file" "$var")"
+    if printf '%s' "$value" | grep -Eiq '^cambiar([-_]|$)|<[A-Za-z_]+>'; then
+      found="$found $var"
+    fi
+  done
+  if [ -n "$found" ]; then
+    echo "$file todavía tiene valores de relleno del ejemplo en:$found. Completalos con los reales (una contraseña fuerte, el ID de tu cuenta de R2…)." >&2
+    exit 1
+  fi
+}
+placeholder_guard "$ENV_FILE"
 # Tag de una imagen "registro/nombre:tag" (lo que va después de los últimos dos puntos).
 tag_of() { echo "${1##*:}"; }
 
@@ -178,10 +196,13 @@ compose pull api storefront admin
 # diarios (tiendafy-*.dump), así entra en la misma retención.
 if [ -n "$PG_ID" ]; then
   backups_writable
-  PREDEPLOY_DUMP="backups/$APP_ENV/tiendafy-predeploy-$(date +%Y%m%d-%H%M)-$NEW_TAG.dump"
-  echo "==> copia de la base antes de migrar ($PREDEPLOY_DUMP)"
-  (umask 077 && docker exec "$PG_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$PREDEPLOY_DUMP.tmp")
-  mv "$PREDEPLOY_DUMP.tmp" "$PREDEPLOY_DUMP"
+  dump_file="backups/$APP_ENV/tiendafy-predeploy-$(date +%Y%m%d-%H%M)-$NEW_TAG.dump"
+  echo "==> copia de la base antes de migrar ($dump_file)"
+  (umask 077 && docker exec "$PG_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$dump_file.tmp")
+  mv "$dump_file.tmp" "$dump_file"
+  # Recién ahora existe: el aviso de rollback no sugiere restaurar un archivo
+  # que no se llegó a crear (si pg_dump falla, queda solo el .tmp).
+  PREDEPLOY_DUMP="$dump_file"
 fi
 
 echo "==> migraciones"
@@ -233,6 +254,15 @@ for svc in storefront:3000 admin:8080; do
   fi
   echo "==> ${svc%%:*} OK (HTTP $code)"
 done
+
+# Re-sanear los SVG que ya estaban en el bucket público (idempotente): el
+# sanitizador actual solo se aplica a lo que se sube desde ahora, y los .svg
+# viejos pasaron por el anterior. Corre en cada deploy, con la API ya sana. Si
+# falla, avisa y sigue: es mantenimiento, no puede tumbar un deploy que anda.
+echo "==> re-saneando los SVG del bucket"
+if ! compose run --rm --no-deps api dotnet Api.dll resanitize-svg; then
+  echo "AVISO: resanitize-svg falló; el deploy sigue. Corrélo a mano (docs/despliegue.md → SVG)." >&2
+fi
 
 compose ps
 if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$NEW_TAG" ]; then

@@ -175,21 +175,34 @@ public sealed class S3MediaStorage(
             // con solo lo que dibuja (ver SvgSanitizer) y subimos esa versión.
             // Defensa en profundidad: logo/favicon se renderizan por <img>/<link
             // rel=icon>, que no ejecutan scripts igual.
-            using var raw = new MemoryStream();
-            await content.CopyToAsync(raw, ct);
+            using var raw = await BufferCappedAsync(content, max, ct);
+            if (raw is null) return TooLarge(max);
             var sanitized = SvgSanitizer.Sanitize(raw.ToArray());
             if (sanitized.IsFailure)
                 return Result.Failure<string>(sanitized.Error);
             sanitizedStream = new MemoryStream(sanitized.Value);
             upload = sanitizedStream;
         }
-        else if (content.CanSeek)
+        else
         {
+            // Un stream que no se puede rebobinar no deja leer los primeros bytes
+            // y después subirlos: antes se salteaba la verificación (fallaba
+            // abierto). Ahora se pasa a memoria, con tope, y se verifica igual.
+            if (!content.CanSeek)
+            {
+                sanitizedStream = await BufferCappedAsync(content, max, ct);
+                if (sanitizedStream is null) return TooLarge(max);
+                upload = sanitizedStream;
+            }
+
             // El content-type del cliente no es confiable: verificamos "magic bytes" del
             // contenido real para que no suban un script/HTML disfrazado de imagen.
-            if (!await MagicBytes.VerifyAsync(content, type, ct))
+            if (!await MagicBytes.VerifyAsync(upload, type, ct))
+            {
+                sanitizedStream?.Dispose();
                 return Result.Failure<string>(Error.Validation(
                     "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
+            }
         }
 
         try
@@ -221,6 +234,32 @@ public sealed class S3MediaStorage(
         }
     }
 
+    private static Result<string> TooLarge(long max) =>
+        Result.Failure<string>(Error.Validation(
+            "Media.TooLarge", $"El archivo pesa demasiado: el máximo es {max / 1024 / 1024} MB."));
+
+    /// <summary>
+    /// Lee el stream a memoria hasta <paramref name="max"/> bytes (el largo
+    /// declarado no se cree). null si trae más; el stream queda en el principio.
+    /// </summary>
+    private static async Task<MemoryStream?> BufferCappedAsync(Stream source, long max, CancellationToken ct)
+    {
+        var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = await source.ReadAsync(chunk, ct)) > 0)
+        {
+            if (buffer.Length + read > max)
+            {
+                buffer.Dispose();
+                return null;
+            }
+            buffer.Write(chunk, 0, read);
+        }
+        buffer.Position = 0;
+        return buffer;
+    }
+
     public const long MaxAttachmentBytes = 10 * 1024 * 1024; // 10 MB (adjuntos de chat)
 
     private static readonly Dictionary<string, string> AttachmentTypes = new()
@@ -242,13 +281,18 @@ public sealed class S3MediaStorage(
             return Result.Failure<string>(Error.Validation(
                 "Media.TooLarge", $"El archivo debe pesar hasta {MaxAttachmentBytes / 1024 / 1024} MB."));
 
-        // Extensión declarada no confiable: verificar magic bytes del contenido real.
-        if (content.CanSeek)
+        // Extensión declarada no confiable: verificar magic bytes del contenido
+        // real. Un stream que no se puede rebobinar se pasa a memoria, con tope:
+        // antes se salteaba la verificación.
+        using var buffered = content.CanSeek ? null : await BufferCappedAsync(content, MaxAttachmentBytes, ct);
+        if (!content.CanSeek)
         {
-            if (!await MagicBytes.VerifyAsync(content, type, ct))
-                return Result.Failure<string>(Error.Validation(
-                    "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
+            if (buffered is null) return TooLarge(MaxAttachmentBytes);
+            content = buffered;
         }
+        if (!await MagicBytes.VerifyAsync(content, type, ct))
+            return Result.Failure<string>(Error.Validation(
+                "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
 
         var safePrefix = string.Join('/', prefix.Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => new string([.. s.Where(char.IsLetterOrDigit)])));

@@ -39,6 +39,10 @@ x-hardening: &hardening
   cap_drop:
     - ALL
   read_only: true
+  # Tope de procesos e hilos: una fuga de hilos o un fork bomb dentro del
+  # contenedor no tumba el servidor entero. Muy por arriba de lo que usan (la
+  # API y la tienda andan en pocas decenas).
+  pids_limit: 512
 
 # Quién lee los backups afuera: el usuario que corre deploy.sh (que exporta
 # BACKUP_UID/BACKUP_GID). La carpeta es suya, con 0700, y los archivos son suyos
@@ -65,6 +69,13 @@ services:
       # aparte, infra/pg-upgrade.sh, y deploy.sh se niega a seguir sin él.
       - pgdata18:/var/lib/postgresql
     mem_limit: ${PG_MEM_LIMIT:-1g}
+    # Sin cap_drop ni read_only: el entrypoint de la imagen arranca como root,
+    # le da el dueño al directorio de datos y baja a postgres con gosu (setuid
+    # directo, no un binario setuid), así que no-new-privileges no lo afecta.
+    # Un proceso por conexión: 512 deja lugar de sobra a max_connections.
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tiendafy -d tiendafy']
       interval: 10s
