@@ -648,8 +648,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
 referrer, permissions policy y el CSP con `frame-ancestors 'none'`; al arrancar,
-`docker-config.sh` suma un segundo CSP que acota `connect-src` a la API y a
-Sentry del ambiente, y el navegador aplica los dos). La API manda nosniff,
+`docker-config.sh` suma un segundo CSP que acota `connect-src` a la API, a
+Sentry del ambiente y a Turnstile, y el navegador aplica los dos; el CSP y el
+meta de `index.html` permiten el script y el iframe de
+`https://challenges.cloudflare.com`, o con el captcha configurado nadie entra
+al panel). La API manda nosniff,
 `X-Frame-Options: DENY`, `frame-ancestors 'none'` y `Referrer-Policy:
 no-referrer` (`SecurityHeadersMiddleware`; en Development `/scalar` queda sin
 CSP). La tienda desde `storefront/next.config.ts`

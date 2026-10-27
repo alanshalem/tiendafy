@@ -27,7 +27,8 @@ window.__TIENDAFY_CONFIG__ = {
 };
 JS
 
-# connect-src acotado a ESTE ambiente: la API y, si hay, el host de Sentry.
+# connect-src acotado a ESTE ambiente: la API, si hay, el host de Sentry, y
+# Turnstile (el captcha del login: su script le habla a challenges.cloudflare.com).
 # El header estático (security-headers.conf) deja connect-src 'self' https:; los
 # navegadores aplican las dos políticas y gana la más estricta. Solo el origen
 # (esquema + host + puerto): una URL con ruta o comillas no puede colar nada.
@@ -41,7 +42,7 @@ case "${VITE_SENTRY_DSN:-}" in
   https://*@*) sentry_origin="$(origin_of "https://$(printf '%s' "$VITE_SENTRY_DSN" | sed 's#^https://[^@]*@##')")" ;;
 esac
 {
-  printf "add_header Content-Security-Policy \"connect-src 'self'"
+  printf "add_header Content-Security-Policy \"connect-src 'self' https://challenges.cloudflare.com"
   [ -n "$api_origin" ] && printf ' %s' "$api_origin"
   [ -n "$sentry_origin" ] && printf ' %s' "$sentry_origin"
   printf "\" always;\n"
