@@ -221,7 +221,7 @@ public static class ShopAuthEndpoints
         {
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             return customer is null ? Results.Unauthorized() : Results.Ok(ToDto(customer));
-        });
+        }).RequireRateLimiting("shop-session");
 
         // ¿Está configurado el login con Google? Lo usa el modal para mostrar/ocultar el botón.
         auth.MapGet("/google/configured", (IConfiguration cfg) =>
@@ -255,7 +255,7 @@ public static class ShopAuthEndpoints
                 "&response_type=code&scope=openid%20email%20profile&access_type=online&prompt=select_account" +
                 $"&state={Uri.EscapeDataString(state)}";
             return Results.Redirect(url);
-        });
+        }).RequireRateLimiting("google-auth");
 
         auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, TenancyDbContext tenancy, HttpContext http, CancellationToken ct) =>
         {
@@ -348,7 +348,7 @@ public static class ShopAuthEndpoints
             ShopAuth.SetSessionCookie(http, tid, token);
             var dest = IsSafeReturnUrl(returnUrl, cfg) ? returnUrl : "/";
             return Results.Redirect(dest);
-        });
+        }).RequireRateLimiting("google-auth");
 
         return group;
     }

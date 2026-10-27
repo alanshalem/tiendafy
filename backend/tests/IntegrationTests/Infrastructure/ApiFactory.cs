@@ -87,6 +87,8 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("RateLimiting:ShippingQuotePermitLimit", "10000");
         builder.UseSetting("RateLimiting:SearchPermitLimit", "10000");
         builder.UseSetting("RateLimiting:TrackPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:ShopSessionPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:GoogleAuthPermitLimit", "10000");
         builder.UseSetting("RateLimiting:AiPermitLimit", "10000");
         builder.UseSetting("RateLimiting:AiJobsPermitLimit", "10000");
         builder.UseSetting("RateLimiting:GlobalPermitLimit", "100000");
