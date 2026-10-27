@@ -1,5 +1,6 @@
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.Extensions.Logging;
 using SharedKernel.Common;
 
 namespace Media.Infrastructure;
@@ -51,6 +52,41 @@ public sealed record MediaOptions
         var prefix = PublicBaseUrl.TrimEnd('/') + "/";
         return url.StartsWith(prefix, StringComparison.Ordinal) ? url[prefix.Length..] : null;
     }
+
+    /// <summary>
+    /// Clave de un objeto de ESTA tienda, o null. Exige que la URL sea
+    /// exactamente la que armamos (<see cref="PublicUrl"/>) para una clave
+    /// bajo <c>{tenantId}/</c>, sin segmentos vacíos, "." ni ".." ni nada que
+    /// el cliente de S3 o el navegador puedan reinterpretar: con
+    /// <see cref="KeyFromUrl"/> solo, la URL de una foto de otra tienda daba
+    /// una clave de esa tienda, y borrarla borraba su foto.
+    /// </summary>
+    public string? TenantKeyFromUrl(Guid tenantId, string url)
+    {
+        var key = KeyFromUrl(url);
+        if (key is null
+            || !key.StartsWith($"{tenantId}/", StringComparison.Ordinal)
+            || !string.Equals(PublicUrl(key), url, StringComparison.Ordinal))
+            return null;
+
+        if (key.IndexOfAny(['\\', '?', '#', '%']) >= 0
+            || key.Split('/').Any(segment => segment is "" or "." or ".."))
+            return null;
+
+        return key;
+    }
+
+    /// <summary>
+    /// ¿Es una URL de nuestro bucket que NO es de esta tienda? Una foto de un
+    /// proveedor (otro host) no lo es: esas sí se pueden usar.
+    /// </summary>
+    public bool IsForeignMedia(Guid tenantId, string url)
+    {
+        var key = KeyFromUrl(url);
+        if (key is null || !string.Equals(PublicUrl(key), url, StringComparison.Ordinal))
+            return false;
+        return TenantKeyFromUrl(tenantId, url) is null;
+    }
 }
 
 public interface IMediaStorage
@@ -70,8 +106,11 @@ public interface IMediaStorage
     /// <summary>URL firmada de lectura, de vida corta, para una clave privada.</summary>
     string GetSignedUrl(string key, TimeSpan validFor);
 
-    /// <summary>Borra el objeto de una URL nuestra (best-effort; ignora URLs externas).</summary>
-    Task DeleteAsync(string url, CancellationToken ct = default);
+    /// <summary>
+    /// Borra el objeto de una URL nuestra de ESTA tienda (best-effort). Ignora
+    /// las URLs externas y no borra nada de otra tienda (lo loguea).
+    /// </summary>
+    Task DeleteAsync(Guid tenantId, string url, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -79,7 +118,8 @@ public interface IMediaStorage
 /// Claves por tenant: {tenantId}/{guid}.{ext} — el aislamiento real
 /// es a nivel clave; el bucket es público de solo lectura.
 /// </summary>
-public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaStorage
+public sealed class S3MediaStorage(
+    IAmazonS3 s3, MediaOptions options, ILogger<S3MediaStorage>? logger = null) : IMediaStorage
 {
     // Sin firmar el contenido y sin checksum al final: sobre https, AWSSDK.S3
     // manda el cuerpo en trozos firmados con el checksum al final (Streaming
@@ -131,10 +171,10 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
 
         if (isSvg)
         {
-            // SVG es texto (no tiene magic bytes): lo leemos entero, lo saneamos
-            // (sacamos <script>, on*, foreignObject, DOCTYPE/ENTITY, javascript:) y
-            // subimos la versión limpia. Defensa en profundidad: logo/favicon se
-            // renderizan por <img>/<link rel=icon>, que no ejecutan scripts igual.
+            // SVG es texto (no tiene magic bytes): lo leemos entero, lo reescribimos
+            // con solo lo que dibuja (ver SvgSanitizer) y subimos esa versión.
+            // Defensa en profundidad: logo/favicon se renderizan por <img>/<link
+            // rel=icon>, que no ejecutan scripts igual.
             using var raw = new MemoryStream();
             await content.CopyToAsync(raw, ct);
             var sanitized = SvgSanitizer.Sanitize(raw.ToArray());
@@ -156,15 +196,22 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
         {
             var key = $"{tenantId}/{Guid.NewGuid():N}.{extension}";
 
-            await s3.PutObjectAsync(new PutObjectRequest
+            var put = new PutObjectRequest
             {
                 BucketName = options.Bucket,
                 Key = key,
                 InputStream = upload,
-                ContentType = contentType,
+                // El tipo ya validado (en minúsculas), no el texto que mandó el cliente.
+                ContentType = type,
                 DisablePayloadSigning = unsignedPayload,
                 DisableDefaultChecksumValidation = true,
-            }, ct);
+            };
+            // Un SVG abierto por su URL directa es un documento del origen del
+            // bucket: con "attachment" el navegador lo descarga en vez de
+            // renderizarlo. En <img> y <link rel=icon> se sigue viendo igual.
+            if (isSvg) put.Headers.ContentDisposition = "attachment";
+
+            await s3.PutObjectAsync(put, ct);
 
             return options.PublicUrl(key);
         }
@@ -236,12 +283,22 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
                 : Protocol.HTTPS,
         });
 
-    public async Task DeleteAsync(string url, CancellationToken ct = default)
+    public async Task DeleteAsync(Guid tenantId, string url, CancellationToken ct = default)
     {
         try
         {
-            var key = options.KeyFromUrl(url);
-            if (key is null) return; // URL externa (no re-hospedada): no la tocamos.
+            if (options.KeyFromUrl(url) is null) return; // URL externa (no re-hospedada): no la tocamos.
+
+            // El bucket es uno para todas las tiendas: solo se borra lo que
+            // está bajo la carpeta de la tienda que pide.
+            var key = options.TenantKeyFromUrl(tenantId, url);
+            if (key is null)
+            {
+                logger?.LogWarning(
+                    "Media: no se borra {Url}, no es un objeto de la tienda {TenantId}.",
+                    LogValue.Safe(url), tenantId);
+                return;
+            }
             await s3.DeleteObjectAsync(options.Bucket, key, ct);
         }
         catch

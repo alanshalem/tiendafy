@@ -45,6 +45,7 @@ public static partial class ProductEndpoints
         });
 
         products.MapGet("/", async (
+            HttpContext http,
             ITenantContext tenant,
             IProductRepository repository,
             Inventory.Infrastructure.Persistence.InventoryDbContext inventoryDb,
@@ -63,7 +64,11 @@ public static partial class ProductEndpoints
             Guid? categoryId = null,
             string? sort = null) =>
         {
-            var statusFilter = ProductStatusExtensions.ParseApi(status);
+            // Lo que no se publicó lo ve solo el equipo de la tienda; para el
+            // resto (la tienda, un anónimo) el listado es de publicados,
+            // pida el estado que pida.
+            var seesUnpublished = await SeesUnpublishedAsync(http);
+            var statusFilter = seesUnpublished ? ProductStatusExtensions.ParseApi(status) : ProductStatus.Active;
             limit = Math.Clamp(limit, 1, 100);
 
             // Resolver por id: lo usan los selectores para poner el nombre de lo
@@ -81,7 +86,9 @@ public static partial class ProductEndpoints
                 if (wanted.Count == 0) return Results.Ok(new { items = Array.Empty<object>(), total = 0 });
 
                 // Una consulta, no una por id: eran hasta cien idas a la base.
-                var found = await repository.ListByIdsAsync(tenant.TenantId, wanted, ct);
+                var found = (await repository.ListByIdsAsync(tenant.TenantId, wanted, ct))
+                    .Where(p => seesUnpublished || p.Status == ProductStatus.Active)
+                    .ToList();
                 return Results.Ok(new { items = found.Select(p => p.ToDto()).ToList(), total = found.Count });
             }
 
@@ -310,12 +317,17 @@ public static partial class ProductEndpoints
 
         products.MapGet("/{id:guid}", async (
             Guid id,
+            HttpContext http,
             ITenantContext tenant,
             IProductRepository repository,
             CancellationToken ct) =>
         {
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
-            return product is null ? Results.NotFound() : Results.Ok(product.ToDto());
+            if (product is null) return Results.NotFound();
+            // Un borrador o un archivado, solo para el equipo (como el listado).
+            if (product.Status != ProductStatus.Active && !await SeesUnpublishedAsync(http))
+                return Results.NotFound();
+            return Results.Ok(product.ToDto());
         });
 
         products.MapPatch("/{id:guid}", async (
@@ -380,8 +392,16 @@ public static partial class ProductEndpoints
             AddImageRequest request,
             ITenantContext tenant,
             UpdateProductHandler handler,
+            Media.Infrastructure.MediaOptions media,
             CancellationToken ct) =>
         {
+            // Una foto de nuestro bucket que es de otra tienda: además de
+            // mostrar lo ajeno, al borrar el catálogo se intentaba borrar ese
+            // objeto. Las de un proveedor (otro host) sí se aceptan.
+            if (request.Url is { } url && media.IsForeignMedia(tenant.TenantId.Value, url.Trim()))
+                return Error.Validation("Image.ForeignMedia",
+                    "Esa imagen no es de tu tienda. Subila desde tu computadora.").ToProblem();
+
             var result = await handler.AddImageAsync(
                 new AddImageCommand(tenant.TenantId, id, request.Url, request.AltText), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
@@ -460,7 +480,7 @@ public static partial class ProductEndpoints
             // Borrar las imágenes re-hospedadas del storage (best-effort).
             foreach (var product in all)
                 foreach (var image in product.Images)
-                    await media.DeleteAsync(image.Url, ct);
+                    await media.DeleteAsync(tid.Value, image.Url, ct);
 
             db.Products.RemoveRange(all);
             await db.SaveChangesAsync(ct);
@@ -582,6 +602,16 @@ public static partial class ProductEndpoints
         currency = v.Price.Currency,
     };
 
+
+    /// <summary>
+    /// ¿Quien pide es del equipo de la tienda del header? Entonces ve también
+    /// borradores y archivados. Alcanza con ser del equipo, con cualquier rol:
+    /// el listado lo usan el inventario (vendedor), los buscadores de compras
+    /// (finanzas), las campañas y los presupuestos, no solo quien edita el
+    /// catálogo. La tienda y un anónimo, solo lo publicado.
+    /// </summary>
+    private static async Task<bool> SeesUnpublishedAsync(HttpContext http) =>
+        await http.GetAccessAsync() is not null;
 
     /// <summary>Orden del listado del panel. Sin valor válido, lo más nuevo primero.</summary>
     private static AdminProductSort ParseSort(string? sort) => sort?.ToLowerInvariant() switch

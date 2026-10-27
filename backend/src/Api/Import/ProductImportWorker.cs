@@ -17,6 +17,7 @@ public sealed class ProductImportWorker(
     ProductImportQueue queue,
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
+    MediaOptions mediaOptions,
     IHttpClientFactory httpFactory,
     IStorefrontRevalidator storefront,
     ILogger<ProductImportWorker> logger) : ImportQueueWorker<ImportJob>(queue, logger)
@@ -325,27 +326,48 @@ public sealed class ProductImportWorker(
 
             var http = httpFactory.CreateClient(PublicUrlGuard.HttpClientName);
             http.Timeout = TimeSpan.FromSeconds(20);
+            // El Timeout del cliente llega hasta los encabezados; este cubre
+            // también el cuerpo, que puede venir de a gotas.
+            using var download = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            download.CancelAfter(TimeSpan.FromSeconds(30));
 
-            using var resp = await http.GetAsync(src, ct);
-            if (!resp.IsSuccessStatusCode) return Fallback(src);
+            // Solo los encabezados: el cuerpo se lee después, con tope. Antes se
+            // leía entero a memoria, y una URL de la planilla que devolviera
+            // gigas (o no terminara nunca) se comía la RAM del servidor.
+            using var resp = await http.GetAsync(src, HttpCompletionOption.ResponseHeadersRead, download.Token);
+            if (!resp.IsSuccessStatusCode) return Fallback(tenantId, src);
+            if (resp.Content.Headers.ContentLength > S3MediaStorage.MaxImageBytes) return Fallback(tenantId, src);
 
             var contentType = resp.Content.Headers.ContentType?.MediaType ?? GuessContentType(src);
             if (contentType == "image/jpg") contentType = "image/jpeg";
 
-            var bytes = await resp.Content.ReadAsByteArrayAsync(ct);
-            using var ms = new MemoryStream(bytes);
+            // El largo declarado no se cree: se cuenta lo que llega y se corta al pasarse.
+            using var ms = new MemoryStream();
+            await using (var body = await resp.Content.ReadAsStreamAsync(download.Token))
+            {
+                if (await ProductImportEndpointHelpers.CopyCappedAsync(body, ms, S3MediaStorage.MaxImageBytes, download.Token) is null)
+                    return Fallback(tenantId, src);
+            }
+            ms.Position = 0;
 
-            var upload = await media.UploadAsync(tenantId, ms, contentType, bytes.Length, ct);
-            return upload.IsSuccess ? upload.Value : Fallback(src);
+            var upload = await media.UploadAsync(tenantId, ms, contentType, ms.Length, ct);
+            return upload.IsSuccess ? upload.Value : Fallback(tenantId, src);
         }
         catch
         {
-            return Fallback(src);
+            return Fallback(tenantId, src);
         }
     }
 
-    private static string? Fallback(string src) =>
-        Uri.IsWellFormedUriString(src, UriKind.Absolute) && src.Length is >= 10 and <= 500 ? src : null;
+    /// <summary>
+    /// La URL original, si sirve como foto. Nunca la de un objeto de nuestro
+    /// bucket de otra tienda: esa foto no es de esta tienda.
+    /// </summary>
+    private string? Fallback(Guid tenantId, string src) =>
+        Uri.IsWellFormedUriString(src, UriKind.Absolute) && src.Length is >= 10 and <= 500
+            && !mediaOptions.IsForeignMedia(tenantId, src)
+            ? src
+            : null;
 
     private static string GuessContentType(string url)
     {
