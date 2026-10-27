@@ -123,7 +123,7 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
         if (!response.IsSuccessStatusCode)
         {
             logger.LogWarning("Zipnova {Path} devolvió {Status}: {Body}",
-                LogValue.Safe(path), (int)response.StatusCode, LogValue.Safe(body, 300));
+                LogValue.Safe(path), (int)response.StatusCode, LogValue.Body(body, 300));
             throw new ZipnovaException(ExtractMessage(body, response.StatusCode), response.StatusCode);
         }
         return body;

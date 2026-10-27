@@ -257,6 +257,41 @@ public class AndreaniClientRoutesTests
         Assert.Equal("tok", sent.Headers.GetValues("x-authorization-token").Single());
     }
 
+    private sealed class ListLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId,
+            TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
+    }
+
+    [Fact]
+    public async Task ElErrorDeLaOrdenNoLogueaDatosPersonalesDelComprador()
+    {
+        // Andreani suele repetir en el error el destinatario, el documento y el
+        // domicilio: el log del servidor no los guarda.
+        var handler = new Recorder(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                """{"message":"Destinatario inválido","email":"juan.perez@gmail.com","documento":"30712345678","token":"abc123secreto"}"""),
+        });
+        var log = new ListLogger<AndreaniClient>();
+        var client = new AndreaniClient(new HttpClient(handler), log);
+
+        await Assert.ThrowsAsync<AndreaniException>(() =>
+            client.CreateShipmentAsync(Config(), "tok", new { contrato = "300006611" }, CancellationToken.None));
+
+        var logged = string.Join("\n", log.Messages);
+        Assert.Contains("Destinatario inválido", logged, StringComparison.Ordinal);
+        Assert.DoesNotContain("juan.perez", logged, StringComparison.Ordinal);
+        Assert.DoesNotContain("30712345678", logged, StringComparison.Ordinal);
+        Assert.DoesNotContain("abc123secreto", logged, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task LasTrazasVanAV2ConElNumeroDeEnvio()
     {

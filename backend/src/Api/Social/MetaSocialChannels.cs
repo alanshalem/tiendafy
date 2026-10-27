@@ -50,7 +50,7 @@ public sealed class MetaSocialConnector(HttpClient http, IOptions<SocialOptions>
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            logger.LogError("Meta pages error {Status}: {Body}", (int)resp.StatusCode, json);
+            logger.LogError("Meta pages error {Status}: {Body}", (int)resp.StatusCode, LogValue.Body(json));
             return Result.Failure<IReadOnlyList<SocialAccountCandidate>>(new Error("Social.MetaPages", "No se pudieron listar las páginas."));
         }
 

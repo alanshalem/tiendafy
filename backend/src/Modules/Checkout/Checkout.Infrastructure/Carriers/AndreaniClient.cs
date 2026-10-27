@@ -122,7 +122,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Andreani /v1/tarifas devolvió {Status} para el contrato {Contract}: {Body}",
-                    (int)response.StatusCode, LogValue.Safe(contract), LogValue.Safe(body, 200));
+                    (int)response.StatusCode, LogValue.Safe(contract), LogValue.Body(body, 200));
                 return null;
             }
 
@@ -209,7 +209,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         if (!response.IsSuccessStatusCode)
         {
             logger.LogError("Andreani rechazó la orden de envío con {Status}: {Body}",
-                (int)response.StatusCode, LogValue.Safe(body, 400));
+                (int)response.StatusCode, LogValue.Body(body, 400));
             throw new AndreaniException(DescribeError(body, response.StatusCode), response.StatusCode);
         }
 
