@@ -131,10 +131,10 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
 
         if (isSvg)
         {
-            // SVG es texto (no tiene magic bytes): lo leemos entero, lo saneamos
-            // (sacamos <script>, on*, foreignObject, DOCTYPE/ENTITY, javascript:) y
-            // subimos la versión limpia. Defensa en profundidad: logo/favicon se
-            // renderizan por <img>/<link rel=icon>, que no ejecutan scripts igual.
+            // SVG es texto (no tiene magic bytes): lo leemos entero, lo reescribimos
+            // con solo lo que dibuja (ver SvgSanitizer) y subimos esa versión.
+            // Defensa en profundidad: logo/favicon se renderizan por <img>/<link
+            // rel=icon>, que no ejecutan scripts igual.
             using var raw = new MemoryStream();
             await content.CopyToAsync(raw, ct);
             var sanitized = SvgSanitizer.Sanitize(raw.ToArray());
@@ -156,15 +156,22 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
         {
             var key = $"{tenantId}/{Guid.NewGuid():N}.{extension}";
 
-            await s3.PutObjectAsync(new PutObjectRequest
+            var put = new PutObjectRequest
             {
                 BucketName = options.Bucket,
                 Key = key,
                 InputStream = upload,
-                ContentType = contentType,
+                // El tipo ya validado (en minúsculas), no el texto que mandó el cliente.
+                ContentType = type,
                 DisablePayloadSigning = unsignedPayload,
                 DisableDefaultChecksumValidation = true,
-            }, ct);
+            };
+            // Un SVG abierto por su URL directa es un documento del origen del
+            // bucket: con "attachment" el navegador lo descarga en vez de
+            // renderizarlo. En <img> y <link rel=icon> se sigue viendo igual.
+            if (isSvg) put.Headers.ContentDisposition = "attachment";
+
+            await s3.PutObjectAsync(put, ct);
 
             return options.PublicUrl(key);
         }

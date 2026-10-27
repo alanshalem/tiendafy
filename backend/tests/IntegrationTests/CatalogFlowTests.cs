@@ -74,16 +74,28 @@ public sealed class CatalogFlowTests
         Assert.Equal(imageIds[1], reordered.GetProperty("images")[0].GetProperty("id").GetGuid());
         await merchant.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/products/{id}/images/{imageIds[0]}");
 
-        // SVG (logos): se guarda saneado, sin scripts ni manejadores de eventos.
-        var svg = """<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)"><rect width="1" height="1"/></a><foreignObject><div/></foreignObject></svg>"""u8.ToArray();
-        await UploadAsync(merchant, svg, "image/svg+xml", "logo.svg");
-        var uploadedSvg = _factory.ExternalHttp.SentTo($"{ApiFactory.Storage}/tiendafy-media/").Last(r => r.Method == HttpMethod.Put).Body!;
+        // Una foto se sirve para mostrarse.
+        var photoPut = _factory.ExternalHttp.SentTo($"{ApiFactory.Storage}/tiendafy-media/").Last(r => r.Method == HttpMethod.Put);
+        Assert.Equal("image/png", photoPut.Headers["Content-Type"]);
+        Assert.False(photoPut.Headers.ContainsKey("Content-Disposition"));
+
+        // SVG (logos): se guarda saneado, sin scripts ni manejadores de eventos
+        // (los bypass uno por uno, en SvgSanitizerTests), y abrir su URL directa
+        // lo descarga en vez de renderizarlo.
+        var svg = """<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><s:script xmlns:s="http://www.w3.org/2000/svg">alert(4)</s:script><a href="javascript:alert(3)"><circle r="1"/></a><use href="&#106;avascript:alert(5)"/><rect width="1" height="1"/><foreignObject><div/></foreignObject></svg>"""u8.ToArray();
+        await UploadAsync(merchant, svg, "IMAGE/SVG+XML", "logo.svg");
+        var svgPut = _factory.ExternalHttp.SentTo($"{ApiFactory.Storage}/tiendafy-media/").Last(r => r.Method == HttpMethod.Put);
+        var uploadedSvg = svgPut.Body!;
         Assert.Contains("<rect", uploadedSvg);
-        Assert.DoesNotContain("<script", uploadedSvg);
+        Assert.DoesNotContain("script", uploadedSvg);
+        Assert.DoesNotContain("alert", uploadedSvg);
         Assert.DoesNotContain("onload", uploadedSvg);
         Assert.DoesNotContain("javascript:", uploadedSvg);
         Assert.DoesNotContain("foreignObject", uploadedSvg);
+        Assert.Equal("image/svg+xml", svgPut.Headers["Content-Type"]);
+        Assert.Equal("attachment", svgPut.Headers["Content-Disposition"]);
         Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, "no es svg"u8.ToArray(), "image/svg+xml", "x.svg")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, "<svg/onload=alert(1)>"u8.ToArray(), "image/svg+xml", "x.svg")).StatusCode);
 
         // El storage rechaza lo que no es una imagen de verdad.
         Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, "no soy un png"u8.ToArray(), "image/png", "x.png")).StatusCode);

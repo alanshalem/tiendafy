@@ -85,7 +85,9 @@ public sealed class FakeHttp
         // quien lo hace: sin esto, dos llamadas "en paralelo" corrían de a una.
         await Task.Yield();
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
-        var headers = request.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
+        // Con los del contenido (Content-Type, Content-Disposition): son los que dicen cómo se sirve un archivo subido.
+        var headers = request.Headers.Concat(request.Content?.Headers ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>())
+            .ToDictionary(h => h.Key, h => string.Join(",", h.Value));
         _requests.Enqueue(new Recorded(request.Method, request.RequestUri!, body, headers));
 
         var url = request.RequestUri!.ToString();
