@@ -8,7 +8,7 @@ import { formatDayShort, formatPercent } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { ChartCard } from '../../components/charts';
 import { BarChart, RankBars } from '../../components/charts/viz';
-import { KpiCard, KPI_GRID } from '../../components/stats/StatsToolbar';
+import { KpiCard } from '../../components/stats/StatsToolbar';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 
 /** El consumo del mes de esta tienda, o la suma de todas las que son tuyas. */
@@ -60,7 +60,9 @@ export function AiUsageCard({ tasks }: { tasks: AiTaskOptions[] }) {
         </p>
       ) : (
         <>
-          <div className={KPI_GRID}>
+          {/* Un solo KPI: en la compu va al lado del gráfico por día, del mismo alto,
+              en vez de quedar solo en una grilla de cuatro. */}
+          <div className="grid gap-4 lg:grid-cols-4">
             <KpiCard
               title="Gastado este mes"
               value={formatUsd(data.spentMicroUsd)}
@@ -68,22 +70,25 @@ export function AiUsageCard({ tasks }: { tasks: AiTaskOptions[] }) {
             >
               <Budget spent={data.spentMicroUsd} budget={data.budgetMicroUsd} />
             </KpiCard>
+            <ChartCard
+              title="Por día"
+              info="Lo gastado cada día del mes, en dólares."
+              className="lg:col-span-3"
+            >
+              <BarChart
+                data={data.byDay.map((d) => ({
+                  label: formatDayShort(d.day),
+                  value: d.microUsd,
+                  title: `${formatDayShort(d.day)}: ${formatUsd(d.microUsd)}`,
+                }))}
+                format={formatUsd}
+              />
+            </ChartCard>
           </div>
 
-          <ChartCard title="Por día" info="Lo gastado cada día del mes, en dólares.">
-            <BarChart
-              data={data.byDay.map((d) => ({
-                label: formatDayShort(d.day),
-                value: d.microUsd,
-                title: `${formatDayShort(d.day)}: ${formatUsd(d.microUsd)}`,
-              }))}
-              format={formatUsd}
-            />
-          </ChartCard>
-
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {data.stores && (
-              <ChartCard title="Por tienda" className="lg:col-span-2">
+              <ChartCard title="Por tienda" className="lg:col-span-2 xl:col-span-3">
                 <RankBars
                   rows={data.stores.map((s) => ({
                     label: s.name,
@@ -114,7 +119,7 @@ export function AiUsageCard({ tasks }: { tasks: AiTaskOptions[] }) {
                 }))}
               />
             </ChartCard>
-            <ChartCard title="Por persona" className="lg:col-span-2">
+            <ChartCard title="Por persona" className="lg:col-span-2 xl:col-span-1">
               <RankBars
                 emptyLabel="Todavía no se usó la inteligencia artificial este mes."
                 rows={data.byUser.map((r) => ({

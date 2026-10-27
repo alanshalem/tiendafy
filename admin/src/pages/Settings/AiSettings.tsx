@@ -6,7 +6,7 @@ import type { AiConfig } from '../../lib/ai';
 import { qk } from '../../lib/queryKeys';
 import { useStore } from '../../context/StoreContext';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
-import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
+import { SETTINGS_CARD } from '../../lib/styles';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
 import { AiProvidersCard } from './AiProvidersCard';
@@ -50,23 +50,31 @@ export function AiSettingsPage() {
         </p>
       ) : (
         // key: lo que se tipeó y no se guardó (clave, modelos, tope) es de esta tienda; al cambiar de tienda se descarta.
-        <div key={store?.id} className={SETTINGS_COLUMNS}>
-          <AiProvidersCard providers={config.providers} />
-          <AiModelsCard tasks={config.tasks} assignments={config.assignments} />
-          <AiBudgetCard settings={config.settings} />
-          <AiUsageCard tasks={config.tasks} />
-          <section className={SETTINGS_CARD}>
-            <h2 className="text-base font-semibold text-fg">Copiar a mis otras tiendas</h2>
-            <p className="mt-1 text-sm text-fg-muted">
-              Si tenés más de una tienda, pasá las claves, los modelos o el presupuesto de esta a las otras
-              sin cargarlos de nuevo.
-            </p>
-            <div className="mt-3">
-              <Button variant="secondary" onClick={() => setCopyOpen(true)}>
-                Copiar a mis otras tiendas
-              </Button>
+        <div key={store?.id} className="space-y-5">
+          {/* En pantallas anchas, dos columnas parejas: claves, presupuesto y copiar
+              apiladas a la izquierda, y los modelos (la tarjeta más alta) a la derecha
+              a lo alto de las tres. El alto que sobre va a la última fila, no entre
+              tarjetas. Más angosto, una abajo de otra en el orden de armado. */}
+          <div className="grid items-start gap-4 2xl:grid-cols-2 2xl:grid-rows-[auto_auto_1fr]">
+            <AiProvidersCard providers={config.providers} />
+            <div className="2xl:col-start-2 2xl:row-span-3 2xl:row-start-1">
+              <AiModelsCard tasks={config.tasks} assignments={config.assignments} />
             </div>
-          </section>
+            <AiBudgetCard settings={config.settings} />
+            <section className={SETTINGS_CARD}>
+              <h2 className="text-base font-semibold text-fg">Copiar a mis otras tiendas</h2>
+              <p className="mt-1 text-sm text-fg-muted">
+                Si tenés más de una tienda, pasá las claves, los modelos o el presupuesto de esta a las otras
+                sin cargarlos de nuevo.
+              </p>
+              <div className="mt-3">
+                <Button variant="secondary" onClick={() => setCopyOpen(true)}>
+                  Copiar a mis otras tiendas
+                </Button>
+              </div>
+            </section>
+          </div>
+          <AiUsageCard tasks={config.tasks} />
           <AiCopyDialog open={copyOpen} onClose={() => setCopyOpen(false)} />
           <HelpLink id="ia" />
         </div>
