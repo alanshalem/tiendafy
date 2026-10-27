@@ -56,6 +56,28 @@ describe('CSP de la tienda', () => {
     expect(keys).toContain('x-content-type-options');
   });
 
+  it('sin unsafe-eval fuera de desarrollo, y con unsafe-inline (la caché impide los nonces)', () => {
+    const prod = directive(buildCsp('https://api.x.com'), 'script-src').split(' ');
+    expect(prod).not.toContain("'unsafe-eval'");
+    expect(prod).toContain("'unsafe-inline'");
+    expect(directive(buildCsp('https://api.x.com', { dev: true }), 'script-src')).toContain("'unsafe-eval'");
+  });
+
+  it('solo ella misma y el panel pueden enmarcar la tienda', () => {
+    const csp = buildCsp('https://api.x.com', { adminOrigin: 'https://admin.x.com/' });
+    expect(directive(csp, 'frame-ancestors')).toBe("frame-ancestors 'self' https://admin.x.com");
+    expect(directive(buildCsp('https://api.x.com'), 'frame-ancestors')).toBe("frame-ancestors 'self'");
+    expect(directive(csp, 'base-uri')).toBe("base-uri 'self'");
+    expect(directive(csp, 'object-src')).toBe("object-src 'none'");
+  });
+
+  it('el proxy toma el origen del panel del entorno del contenedor', () => {
+    vi.stubEnv('PUBLIC_ADMIN_ORIGIN', 'https://admin.tienda-de-prueba.com');
+    const csp =
+      proxy(new NextRequest('https://tienda-de-prueba.com/')).headers.get('Content-Security-Policy') ?? '';
+    expect(directive(csp, 'frame-ancestors')).toContain('https://admin.tienda-de-prueba.com');
+  });
+
   it('deja cargar el SDK de Payway y tokenizar contra sus hosts, y nada más de Payway', () => {
     const csp = buildCsp('https://api.x.com');
     const scripts = directive(csp, 'script-src');

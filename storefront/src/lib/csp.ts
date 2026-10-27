@@ -101,17 +101,34 @@ export function apiOrigin(apiUrl: string): string | null {
   }
 }
 
-export function buildCsp(
-  apiUrl: string,
-  { cardChallenge = false }: { cardChallenge?: boolean } = {},
-): string {
+export interface CspOptions {
+  /** Ver isCardChallengePage: el desafío 3DS del banco, solo en la página de pago. */
+  cardChallenge?: boolean;
+  /**
+   * Origen del panel. El editor de diseño muestra la tienda en un iframe
+   * desde el panel, así que es el único sitio ajeno que puede enmarcarla.
+   */
+  adminOrigin?: string;
+  /** Solo en `next dev`: React usa eval() para reconstruir los stacks en desarrollo. */
+  dev?: boolean;
+}
+
+export function buildCsp(apiUrl: string, options: CspOptions = {}): string {
+  const { cardChallenge = false, adminOrigin = '', dev = false } = options;
   const api = apiOrigin(apiUrl);
+  const admin = apiOrigin(adminOrigin);
+  // Nadie más puede enmarcar la tienda (clickjacking): ella misma y el panel.
+  const frameAncestors = ["'self'", admin].filter(Boolean).join(' ');
   // Ver isCardChallengePage: el desafío 3DS del banco, solo en la página de pago.
   const challenge = cardChallenge ? ' https:' : '';
   return [
     "default-src 'self'",
-    // 'unsafe-inline'/'unsafe-eval' los necesita Next (bootstrap inline + webpack).
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com ${MP_BRICKS_ASSETS} https://challenges.cloudflare.com ${PAYWAY_SDK_URL} ${TRACKING_SCRIPT}`,
+    // 'unsafe-inline' se queda: Next mete scripts inline (bootstrap y datos del
+    // render) y la alternativa son nonces, que obligan a renderizar TODAS las
+    // páginas en forma dinámica; la tienda vive de la caché (Data Cache y ISR),
+    // así que no se pueden usar. 'unsafe-eval' solo en desarrollo: en
+    // producción Next no hace eval().
+    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''} https://sdk.mercadopago.com https://*.mercadopago.com ${MP_BRICKS_ASSETS} https://challenges.cloudflare.com ${PAYWAY_SDK_URL} ${TRACKING_SCRIPT}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: http:",
     // Videos de hero (webm/mp4): vienen del bucket de media (MinIO http en dev,
@@ -135,6 +152,7 @@ export function buildCsp(
     `frame-src https://*.mercadopago.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.instagram.com${challenge}`,
     "object-src 'none'",
     "base-uri 'self'",
+    `frame-ancestors ${frameAncestors}`,
     `form-action 'self' https://*.mercadopago.com${challenge}`,
   ].join('; ');
 }
