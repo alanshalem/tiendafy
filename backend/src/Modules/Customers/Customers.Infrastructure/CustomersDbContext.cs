@@ -110,6 +110,9 @@ public sealed class CustomersDbContext : DbContext
         ns.Property(x => x.Source).HasMaxLength(20).IsRequired();
         // Único por tienda: suscribirse dos veces no crea dos filas ni manda dos veces.
         ns.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
+        // El link de confirmación se busca por el hash de su token.
+        ns.Property(x => x.ConfirmTokenHash).HasMaxLength(120);
+        ns.HasIndex(x => x.ConfirmTokenHash).IsUnique().HasFilter("confirm_token_hash IS NOT NULL");
 
         // Direcciones guardadas: todo lo que ubica a la persona va cifrado (text,
         // sin índice); la etiqueta y el "predeterminada" quedan en claro.

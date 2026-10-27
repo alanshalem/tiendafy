@@ -20,6 +20,7 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
     public const string Activation = "activacion-cuenta";
     public const string PasswordReset = "cambio-contrasena";
     public const string RegistrationAttempt = "intento-registro";
+    public const string NewsletterConfirm = "confirmar-suscripcion";
 
     /// <summary>Email para verificar la dirección de una cuenta recién creada.</summary>
     public Task SendActivationAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
@@ -36,6 +37,10 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
     public Task SendRegistrationAttemptAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
         SendAsync(tenantId, to, RegistrationAttempt, name, link, "Ir a mi cuenta", ct);
 
+    /// <summary>Doble confirmación del newsletter: el link (de un solo uso) que deja la suscripción confirmada.</summary>
+    public Task SendNewsletterConfirmAsync(Guid tenantId, string to, string link, CancellationToken ct) =>
+        SendAsync(tenantId, to, NewsletterConfirm, name: null, link, "Confirmar suscripción", ct);
+
     private async Task SendAsync(
         Guid tenantId, string to, string template, string? name, string link, string ctaLabel, CancellationToken ct)
     {
@@ -48,7 +53,7 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
             ["link"] = safeLink,
         };
 
-        // Las tres claves están en el catálogo y son AlwaysOn: siempre hay
+        // Las claves están en el catálogo y son AlwaysOn: siempre hay
         // render y siempre está prendido. El default es solo red de seguridad.
         var rendered = await templates.RenderAsync(tenantId, template, vars, ct);
         var def = EmailTemplateCatalog.Find(template);

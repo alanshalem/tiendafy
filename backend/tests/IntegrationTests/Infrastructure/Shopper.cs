@@ -63,6 +63,17 @@ public sealed class Shopper(Merchant store)
         return await ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html), password });
     }
 
+    /// <summary>
+    /// Se suscribe al newsletter y confirma con el link del mail, como la
+    /// persona (doble confirmación): recién ahí le llegan las campañas.
+    /// </summary>
+    public async Task SubscribeConfirmedAsync(string email, string source = "footer")
+    {
+        await ExpectJsonAsync(HttpMethod.Post, "/api/v1/newsletter", new { email, source });
+        var mail = await store.Factory.ExternalHttp.WaitForEmailAsync(email, m => m.Html.Contains("/suscripcion/confirmar?token=", StringComparison.Ordinal));
+        await ExpectJsonAsync(HttpMethod.Post, "/api/v1/newsletter/confirm", new { token = TokenFrom(mail.Html) });
+    }
+
     /// <summary>El token del link de un mail de la cuenta (verificar, reset).</summary>
     public static string TokenFrom(string html) =>
         System.Text.RegularExpressions.Regex.Match(html, @"token=([A-Za-z0-9_\-%]+)").Groups[1].Value;

@@ -67,7 +67,7 @@ describe('newsletter', () => {
     await waitFor(() => expect(button).toBeEnabled());
     await u.click(button);
 
-    expect(await screen.findByRole('status')).toHaveTextContent('¡Listo!');
+    expect(await screen.findByRole('status')).toHaveTextContent('¡Casi listo!');
     expect(bodyOf('/api/v1/newsletter')[0]).toMatchObject({ email: 'ana@mail.com', captcha: 'tok-1' });
   });
 
@@ -96,7 +96,7 @@ describe('newsletter', () => {
     const button = screen.getByRole('button', { name: 'Suscribirme' });
     await waitFor(() => expect(button).toBeEnabled());
     await u.click(button);
-    expect(await screen.findByRole('status')).toHaveTextContent('¡Listo!');
+    expect(await screen.findByRole('status')).toHaveTextContent('¡Casi listo!');
     expect(bodyOf('/api/v1/newsletter')[0]).not.toHaveProperty('captcha');
   });
 });

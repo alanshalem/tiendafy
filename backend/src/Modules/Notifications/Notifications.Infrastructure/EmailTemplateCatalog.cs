@@ -69,6 +69,15 @@ public static class EmailTemplateCatalog
             Wrap("¡Ya ingresó lo que esperabas! 🎉",
                 "<p>Hola, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p>Si todavía lo querés, ahora es el momento.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
 
+        // Doble confirmación del newsletter: el alta queda pendiente hasta que
+        // la persona toca el link (así nadie anota el email de otro). Sale
+        // siempre; sin él nadie queda suscripto. {{link}} es el link con el token.
+        new("confirmar-suscripcion", "Promociones", "Confirmar suscripción",
+            "Le pide a quien dejó su email en la tienda que confirme que quiere recibir novedades. Sale siempre.", true,
+            "Confirmá tu suscripción a {{store}}",
+            Wrap("Confirmá tu suscripción", "<p>Hola, dejaste este email en {{store}} para recibir novedades. Tocá el botón para confirmarlo. Si no fuiste vos, ignorá este email: no te vamos a escribir.</p>" + Cta("Confirmar suscripción")),
+            AlwaysOn: true),
+
         // Emails de seguridad del login de la tienda: salen siempre (AlwaysOn).
         // Sin el de activación nadie verifica su email; sin el de cambio de
         // contraseña, quien la olvidó pierde la cuenta. {{link}} es el link

@@ -179,7 +179,7 @@ export const CLIENTES = {
               ],
               [
                 'Promociones',
-                'Carritos abandonados, Avisame cuando ingrese (cuando vuelve el stock de lo que alguien pidió), Bajó un favorito y Volvió un favorito',
+                'Confirmar suscripción (el mail con el link que confirma a quien dejó su email en el formulario de novedades; sale siempre, sin él nadie queda suscripto), Carritos abandonados, Avisame cuando ingrese (cuando vuelve el stock de lo que alguien pidió), Bajó un favorito y Volvió un favorito',
               ],
             ],
           },
@@ -337,7 +337,7 @@ export const CLIENTES = {
         heading: 'Crear y enviar una campaña',
         steps: [
           'En Email marketing → Nueva campaña, escribí el asunto y el contenido. La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu logo y colores.',
-          'Elegí la audiencia: compradores (compraron alguna vez), todos los contactos con email, suscriptores a novedades (los que dejaron su email en el formulario de novedades: la sección del inicio, la ventana de promoción, el pie o la página de “en construcción”) o una selección manual. Afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo, si compró alguno de ciertos productos o si los tiene en favoritos. El conteo se actualiza en vivo.',
+          'Elegí la audiencia: compradores (compraron alguna vez), todos los contactos con email, suscriptores a novedades (los que dejaron su email en el formulario de novedades: la sección del inicio, la ventana de promoción, el pie o la página de “en construcción”, y lo confirmaron con el link del mail que les llega; hasta que lo tocan no reciben campañas, así nadie anota el email de otro. Los que se suscribieron antes de que existiera la confirmación siguen recibiendo) o una selección manual. Afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo, si compró alguno de ciertos productos o si los tiene en favoritos. El conteo se actualiza en vivo.',
           'Sumá productos destacados: se muestran como tarjetas con foto, precio y link a tu tienda.',
           'Asociá un cupón (opcional): después el detalle te dice cuántas ventas y cuánta plata generó la campaña.',
           'Con “Enviar prueba” te la mandás a vos, y después “Enviar ahora” o “Programar” para una fecha y hora. “Guardar borrador” la deja para seguir otro día.',

@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 /**
  * Las páginas que se abren con un token en la URL: el link de activación
  * (elige la contraseña y abre la sesión), el de "olvidé mi contraseña", el
- * seguimiento de un pedido sin cuenta y la invitación a opinar. Quien tenga
+ * seguimiento de un pedido sin cuenta, la invitación a opinar y la
+ * confirmación del newsletter. Quien tenga
  * esa URL entra a la cuenta o ve la compra.
  *
  * Por eso, en estas páginas: la medición de terceros (GA4, Meta, Clarity) no
@@ -17,6 +18,7 @@ export const TOKEN_PAGES: Record<string, readonly string[]> = {
   '/cuenta/reset': ['token'],
   '/seguimiento': ['t'],
   '/resenas/escribir': ['t'],
+  '/suscripcion/confirmar': ['token'],
 };
 
 export const isTokenPage = (pathname: string) => Object.hasOwn(TOKEN_PAGES, pathname);

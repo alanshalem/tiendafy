@@ -408,6 +408,19 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("ConfirmTokenExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirm_token_expires_at_utc");
+
+                    b.Property<string>("ConfirmTokenHash")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("confirm_token_hash");
+
+                    b.Property<DateTime?>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at_utc");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -430,6 +443,11 @@ namespace Customers.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_newsletter_subscribers");
+
+                    b.HasIndex("ConfirmTokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_newsletter_subscribers_confirm_token_hash")
+                        .HasFilter("confirm_token_hash IS NOT NULL");
 
                     b.HasIndex("TenantId", "Email")
                         .IsUnique()
