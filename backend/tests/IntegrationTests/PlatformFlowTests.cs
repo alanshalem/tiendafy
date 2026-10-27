@@ -44,9 +44,9 @@ public sealed partial class PlatformFlowTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/v1/auth/login", new { email = "nadie@test.local", password = "x" })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Clave-larga-123" })).StatusCode);
 
-        // Reenvía el link, lo sigue, y entra.
+        // Reenvía el link, lo sigue, y entra. El email sale fuera del request.
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/v1/auth/resend-verification", new { email })).StatusCode);
-        var verify = TokenFrom(_factory.ExternalHttp.EmailsTo(email).Last().Html);
+        var verify = TokenFrom((await NextEmailAsync(email, already: 0)).Html);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/verify", new { email, token = "trucho" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/verify", new { email = "nadie@test.local", token = verify })).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/v1/auth/verify", new { email, token = verify })).StatusCode);
@@ -63,7 +63,7 @@ public sealed partial class PlatformFlowTests
         var origin = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/forgot") { Content = JsonContent.Create(new { email }) };
         origin.Headers.Add("Origin", "http://localhost:5173");
         Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(origin)).StatusCode);
-        var resetMail = _factory.ExternalHttp.EmailsTo(email).Last();
+        var resetMail = await NextEmailAsync(email, already: 1);
         Assert.Contains("http://localhost:5173/restablecer", resetMail.Html); // link al panel
         var reset = TokenFrom(resetMail.Html);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/reset", new { email, token = "trucho", password = "Nueva-clave-456" })).StatusCode);
@@ -223,6 +223,22 @@ public sealed partial class PlatformFlowTests
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var created = await users.CreateAsync(new AppUser { UserName = email, Email = email, DisplayName = "Test", EmailConfirmed = confirmed }, password);
         Assert.True(created.Succeeded);
+    }
+
+    /// <summary>
+    /// El email número <paramref name="already"/> + 1 a esa dirección. Los de la
+    /// cuenta del panel pedidos sin sesión salen fuera del request
+    /// (PanelAccountEmails): se espera a que lleguen.
+    /// </summary>
+    private async Task<FakeHttp.Email> NextEmailAsync(string to, int already)
+    {
+        for (var i = 0; i < 200; i++)
+        {
+            var sent = _factory.ExternalHttp.EmailsTo(to);
+            if (sent.Count > already) return sent[already];
+            await Task.Delay(25);
+        }
+        throw new TimeoutException($"No llegó el email {already + 1} a {to}.");
     }
 
     /// <summary>El token del link del mail (viene escapado para URL).</summary>

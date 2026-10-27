@@ -125,6 +125,12 @@ public static class ServiceRegistration
         // Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddHttpClient<IEmailSender, EmailSender>();
+        // Emails de la cuenta del panel pedidos sin sesión (olvidé mi contraseña,
+        // reenviar la verificación): salen fuera del request, así el tiempo de
+        // respuesta no delata si el email tiene cuenta. No es un worker de
+        // polling: su cola vive junto al request, como la de importación.
+        services.AddSingleton<Api.Auth.PanelAccountEmails>();
+        services.AddHostedService<Api.Auth.PanelAccountEmailWorker>();
         services.AddScoped<OrderNotifier>();
         services.AddScoped<ShopperAccountEmails>();
         services.AddScoped<Api.Fiscal.InvoiceEmail>();
