@@ -106,7 +106,19 @@ Cada persona tiene **una sola cuenta** (email + contraseña) para toda la
 plataforma; el acceso es **por tienda**: una fila en `tenant_memberships` con
 su rol. Sumar a alguien como vendedor en una tienda no le da nada en las demás.
 Las contraseñas se guardan hasheadas: nadie (ni el dueño) las ve; quien la
-olvida la restablece por email.
+olvida la restablece por email. El email se busca con NFKC + mayúsculas
+(`PanelLookupNormalizer`); las cuentas guardadas con la clave vieja (solo
+mayúsculas) las encuentra `AppUserManager` y les guarda la nueva.
+
+**Verificación en dos pasos** (opcional, de cada persona, desde "Mi cuenta"):
+código de 6 dígitos de una app de autenticación (TOTP de ASP.NET Identity) y
+10 códigos de recuperación de un solo uso. Con ella activa, `POST /auth/login`
+no abre sesión: deja la cookie intermedia `tiendafy.2fa` (5 minutos) y responde
+`{ twoFactorRequired: true }`; la sesión la abre `POST /auth/login/2fa` con el
+código. Cada código mal puesto cuenta para el bloqueo por intentos, como la
+contraseña. La clave de la app va cifrada (purpose
+`Tiendafy.Identity.AuthenticatorKey.v1`) y los códigos de recuperación como
+hash (`AppUserStore`). Endpoints en `AuthTwoFactorEndpoints.cs`.
 
 Crear una tienda nueva es de quien ya es **dueño** de alguna (`TeamRules.CanCreateStore`;
 la única excepción es la primera tienda de una instalación nueva). Editar,

@@ -1,4 +1,5 @@
 using Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,8 @@ public static class IdentityModule
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppIdentityDbContext>()
+            // Secretos del segundo factor protegidos en la base (ver AppUserStore).
+            .AddUserStore<AppUserStore>()
             // Búsqueda por email con NFKC y rescate de las claves viejas (ver AppUserManager).
             .AddUserManager<AppUserManager>()
             .AddSignInManager()
@@ -65,6 +68,19 @@ public static class IdentityModule
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return Task.CompletedTask;
             };
+        });
+
+        // Entre la contraseña y el código del segundo factor: una cookie aparte,
+        // de 5 minutos, que solo dice quién pasó la contraseña. No abre sesión:
+        // ningún endpoint la acepta salvo el que valida el código.
+        services.Configure<CookieAuthenticationOptions>(IdentityConstants.TwoFactorUserIdScheme, options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.Name = "tiendafy.2fa";
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+            options.SlidingExpiration = false;
         });
 
         services.AddAuthorization();

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Api.Auth;
 using Identity.Infrastructure;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -95,6 +96,7 @@ public static class AuthEndpoints
 
         auth.MapPost("/login", async (
             LoginRequest request,
+            HttpContext http,
             Api.Captcha.ICaptchaVerifier captcha,
             SignInManager<AppUser> signInManager,
             UserManager<AppUser> userManager) =>
@@ -122,9 +124,20 @@ public static class AuthEndpoints
                     detail: "Verificá tu email para entrar: te mandamos un link al registrarte. ¿No te llegó? Podés reenviarlo.",
                     statusCode: 403);
 
+            // Con la verificación en dos pasos activa, la contraseña sola no
+            // abre sesión: queda la cookie intermedia de Identity (5 minutos) y
+            // la sesión la abre /login/2fa con el código (AuthTwoFactorEndpoints).
+            if (user.TwoFactorEnabled)
+            {
+                await http.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, PanelTwoFactor.PendingPrincipal(user));
+                return Results.Ok(new { twoFactorRequired = true });
+            }
+
             await signInManager.SignInAsync(user, isPersistent: true);
             return Results.Ok(ToDto(user));
         }).RequireRateLimiting("auth");
+
+        auth.MapTwoFactorEndpoints();
 
         auth.MapPost("/logout", async (SignInManager<AppUser> signInManager) =>
         {
@@ -170,12 +183,13 @@ public static class AuthEndpoints
         return group;
     }
 
-    private static object ToDto(AppUser user) => new
+    internal static object ToDto(AppUser user) => new
     {
         id = user.Id,
         email = user.Email,
         name = user.DisplayName,
         emailVerified = user.EmailConfirmed,
+        twoFactorEnabled = user.TwoFactorEnabled,
     };
 
     /// <summary>Email de verificación del merchant con link a {admin}/verificar (asunto y cuerpo).</summary>
