@@ -22,15 +22,17 @@ function directives(policy: string): Map<string, string[]> {
 }
 
 function metaPolicy(): string {
-  const match = read('index.html').match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/);
-  if (!match) throw new Error('index.html sin meta CSP');
-  return match[1];
+  const policy = read('index.html').match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)?.[1];
+  if (!policy) throw new Error('index.html sin meta CSP');
+  return policy;
 }
 
 function headerPolicy(): string {
-  const match = read('nginx-security-headers.conf').match(/add_header Content-Security-Policy "([^"]+)"/);
-  if (!match) throw new Error('nginx-security-headers.conf sin CSP');
-  return match[1];
+  const policy = read('nginx-security-headers.conf').match(
+    /add_header Content-Security-Policy "([^"]+)"/,
+  )?.[1];
+  if (!policy) throw new Error('nginx-security-headers.conf sin CSP');
+  return policy;
 }
 
 const TURNSTILE = 'https://challenges.cloudflare.com';
