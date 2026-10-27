@@ -206,6 +206,12 @@ public sealed class ManualOrderService(
                 string.IsNullOrWhiteSpace(i.VariantDescription) ? i.ProductName : $"{i.ProductName} · {i.VariantDescription}",
                 i.Quantity, i.UnitPrice.ToDecimal()))
             .ToList();
+        // El envío, como en el checkout: sin él, el link cobraba menos que el
+        // total y el pago no alcanzaba para dar la venta por cobrada.
+        if (order.ShippingCost.AmountInMinorUnits > 0)
+            prefItems.Add(new PreferenceItem(
+                order.ShippingMethodName is { Length: > 0 } sm ? $"Envío · {sm}" : "Envío",
+                1, order.ShippingCost.ToDecimal()));
         var pref = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
             tenantId, order.Id, order.Currency, prefItems, order.BuyerEmail,
             SuccessUrl: $"{baseUrl}/checkout/success?order={order.Id}",

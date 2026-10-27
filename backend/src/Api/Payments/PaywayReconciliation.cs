@@ -107,7 +107,11 @@ public sealed class PaywayReconciliationService(
         switch (found.Status)
         {
             case PaywayPaymentStatus.Approved when found.ProviderPaymentId is { } paymentId:
-                var paid = await settle.HandleAsync(attempt.OrderId, "approved", paymentId, ct: ct);
+                // Payway no manda avisos: el cobro lo armamos nosotros por el total
+                // y se busca por nuestro id de operación con las credenciales de
+                // la tienda del intento. Igual se exige que la venta sea de esa tienda.
+                var paid = await settle.HandleAsync(attempt.OrderId, "approved", paymentId,
+                    origin: new PaymentOrigin(TenantId.From(attempt.TenantId)), ct: ct);
                 await paidEffects.RunIfJustPaidAsync(paid, ct);
 
                 // Payway cobró, pero la orden ya se había cobrado por otro lado:

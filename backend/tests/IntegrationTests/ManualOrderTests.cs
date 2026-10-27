@@ -122,12 +122,16 @@ public sealed class ManualOrderTests(ApiFactory factory)
 
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{MercadoPago}/checkout/preferences",
             new { id = "pref-manual", init_point = "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-manual" });
-        var sale = await merchant.PostAsync("/api/v1/orders/manual", Sale(variant, "link", quantity: 2, extra: new() { ["returnUrl"] = returnUrl }));
+        var sale = await merchant.PostAsync("/api/v1/orders/manual", Sale(variant, "link", quantity: 2,
+            extra: new() { ["returnUrl"] = returnUrl, ["shippingCostMinor"] = 2_500_00 }));
         Assert.Equal("PENDINGPAYMENT", sale.GetProperty("status").GetString());
         Assert.Contains("pref-manual", sale.GetProperty("paymentLink").GetString());
 
         var preference = factory.ExternalHttp.SentTo($"{MercadoPago}/checkout/preferences").Last().Body!;
         Assert.Contains("Kettlebell", preference, StringComparison.Ordinal);
+        // El envío va en el link: si no, el pago no cubre el total y la venta
+        // no se da por cobrada.
+        Assert.Contains("\"unit_price\":2500", preference, StringComparison.Ordinal);
         Assert.Contains($"{returnUrl}/checkout/success?order={sale.GetProperty("id").GetGuid()}", preference, StringComparison.Ordinal);
         Assert.Equal(3, await merchant.AvailableAsync(variant)); // reservado hasta que pague
     }

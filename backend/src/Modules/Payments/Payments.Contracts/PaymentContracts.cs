@@ -60,7 +60,9 @@ public sealed record PaymentStatusDto(
     decimal TransactionAmountRefunded = 0m,
     // Lo que MP le acredita al seller (transaction_details.net_received_amount).
     // TransactionAmount − esto = comisión REAL del pago → rentabilidad.
-    decimal? NetReceivedAmount = null)
+    decimal? NetReceivedAmount = null,
+    // currency_id del pago: lo aprobado cubre la venta solo en su misma moneda.
+    string? CurrencyId = null)
 {
     /// <summary>Comisión total de MP en el pago; null si MP no informó el neto.</summary>
     public decimal? FeeAmount =>

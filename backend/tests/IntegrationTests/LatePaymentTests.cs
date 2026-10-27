@@ -149,7 +149,7 @@ public sealed class LatePaymentTests(ApiFactory factory)
         var buyer = $"abandono-{merchant.Subdomain}@test.local";
         var orderId = await PayWithCheckoutProAsync(shopper, variantId, email: buyer);
         var preferenceId = await PreferenceOfAsync(orderId);
-        SearchReturns(orderId); // nunca hubo un pago
+        await SearchReturnsAsync(orderId); // nunca hubo un pago
         factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/checkout/preferences/{preferenceId}", new { id = preferenceId });
 
         // Recién creada no se toca.
@@ -185,12 +185,12 @@ public sealed class LatePaymentTests(ApiFactory factory)
 
         // Un cupón de Rapipago todavía sin pagar: no se cancela.
         var paymentId = NewPaymentId();
-        SearchReturns(orderId, (paymentId, "pending"));
+        await SearchReturnsAsync(orderId, (paymentId, "pending"));
         await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
         Assert.Equal("PENDINGPAYMENT", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
 
         // Se pagó, pero el aviso nunca llegó: la consulta lo encuentra y la venta queda pagada.
-        SearchReturns(orderId, (paymentId, "approved"));
+        await SearchReturnsAsync(orderId, (paymentId, "approved"));
         await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
         var order = await merchant.GetAsync($"/api/v1/orders/{orderId}");
         Assert.Equal("PAID", order.GetProperty("status").GetString());
@@ -203,7 +203,7 @@ public sealed class LatePaymentTests(ApiFactory factory)
         var (merchant, mpUserId, shopper) = await StoreAsync("tabv");
         var (_, variantId) = await merchant.CreateProductAsync("Banqueta", priceMinor: 7_000_00, stock: 1);
         var orderId = await PayWithCheckoutProAsync(shopper, variantId);
-        SearchReturns(orderId);
+        await SearchReturnsAsync(orderId);
         await AgeAsync(orderId);
         await Workers.RunOnceAsync<AbandonedPaymentWorker>(factory);
         Assert.Equal("CANCELLED", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
@@ -270,7 +270,9 @@ public sealed class LatePaymentTests(ApiFactory factory)
     }
 
     /// <summary>Lo que contesta la búsqueda de pagos de Mercado Pago para esa venta.</summary>
-    private void SearchReturns(Guid orderId, params (string Id, string Status)[] payments) =>
+    private async Task SearchReturnsAsync(Guid orderId, params (string Id, string Status)[] payments)
+    {
+        var total = await TotalOfAsync(orderId);
         factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/search?external_reference={orderId}", new
         {
             paging = new { total = payments.Length, limit = 50, offset = 0 },
@@ -280,10 +282,21 @@ public sealed class LatePaymentTests(ApiFactory factory)
                 status = p.Status,
                 status_detail = p.Status == "pending" ? "pending_waiting_payment" : "accredited",
                 external_reference = orderId.ToString(),
-                transaction_amount = 1_000m,
+                transaction_amount = total,
+                currency_id = "ARS",
                 transaction_amount_refunded = 0m,
             }),
         });
+    }
+
+    /// <summary>El total de la venta: lo que Mercado Pago informa como aprobado.</summary>
+    private async Task<decimal> TotalOfAsync(Guid orderId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var order = await scope.ServiceProvider.GetRequiredService<global::Orders.Core.Domain.IOrderRepository>()
+            .GetByIdAnyTenantAsync(orderId);
+        return order!.Total.ToDecimal();
+    }
 
     private async Task<string> PreferenceOfAsync(Guid orderId)
     {
@@ -325,13 +338,15 @@ public sealed class LatePaymentTests(ApiFactory factory)
     /// <summary>MP avisa un pago de la venta con ese estado y el worker lo aplica.</summary>
     private async Task NotifyAsync(long mpUserId, Guid orderId, string paymentId, string status)
     {
+        var total = await TotalOfAsync(orderId);
         factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{paymentId}", new
         {
             id = long.Parse(paymentId),
             status,
             status_detail = status == "approved" ? "accredited" : "cc_rejected_other_reason",
             external_reference = orderId.ToString(),
-            transaction_amount = 1_000m,
+            transaction_amount = total,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
         });
         await MercadoPagoWebhooks.SendAsync(factory, paymentId, mpUserId);

@@ -98,6 +98,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "accredited",
             external_reference = orderId.ToString(),
             transaction_amount = 40_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
             transaction_details = new { net_received_amount = 37_500m },
         });
@@ -176,6 +177,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "accredited",
             external_reference = paidOrderId.ToString(),
             transaction_amount = 30_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
             transaction_details = new { net_received_amount = 28_200m },
         });
@@ -227,6 +229,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = status == "approved" ? "accredited" : "pending_review_manual",
             external_reference = orderId.ToString(),
             transaction_amount = 40_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
         };
 
@@ -247,6 +250,65 @@ public sealed class MercadoPagoFlowTests
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var ev = await db.PaymentWebhookEvents.AsNoTracking().SingleAsync(e => e.DataId == paymentId.ToString());
         Assert.Equal(InboxEntry.StatusDone, ev.Status);
+    }
+
+    /// <summary>
+    /// El <c>external_reference</c> lo pone quien crea el pago y el <c>user_id</c>
+    /// del aviso no lo cubre la firma. Otro comercio, con su propia cuenta, crea
+    /// un pago chico con el id de una venta ajena: no la deja pagada. Y un pago de
+    /// la propia cuenta que no cubre el total tampoco (queda para revisar).
+    /// </summary>
+    [Fact]
+    public async Task Un_pago_de_otra_cuenta_o_que_no_cubre_el_total_no_cobra_la_venta()
+    {
+        var victim = await Merchant.CreateAsync(_factory, "mpv");
+        var victimUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await victim.ConnectMercadoPagoAsync(victimUserId);
+        var attacker = await Merchant.CreateAsync(_factory, "mpa");
+        var attackerUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await attacker.ConnectMercadoPagoAsync(attackerUserId);
+
+        var (_, variantId) = await victim.CreateProductAsync("Campera ajena", priceMinor: 40_000_00);
+        var shopper = new Shopper(victim);
+        var checkoutId = await shopper.CheckoutAsync(variantId);
+        var pending = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/v1/payments",
+            new { id = pending, status = "in_process", status_detail = "pending_review_manual" });
+        var orderId = (await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{checkoutId}/pay-onsite",
+            new { token = "card-token", paymentMethodId = "visa" })).GetProperty("orderId").GetGuid();
+
+        object Approved(long id, decimal amount) => new
+        {
+            id,
+            status = "approved",
+            status_detail = "accredited",
+            external_reference = orderId.ToString(),
+            transaction_amount = amount,
+            transaction_amount_refunded = 0m,
+            currency_id = "ARS",
+        };
+
+        // 1. El pago lo informa la cuenta del otro comercio (por el total, igual).
+        var foreign = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{foreign}", Approved(foreign, 40_000m));
+        Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(foreign.ToString(), attackerUserId)).StatusCode);
+        await DrainWebhooksAsync();
+        Assert.Equal("PENDINGPAYMENT", await StatusAsync(shopper, orderId));
+
+        // 2. Un pago de la propia cuenta por menos del total.
+        var shortPay = Random.Shared.NextInt64(100_000_000, 999_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{shortPay}", Approved(shortPay, 1m));
+        await WebhookAsync(shortPay.ToString(), victimUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("PENDINGPAYMENT", await StatusAsync(shopper, orderId));
+        var order = await victim.GetAsync($"/api/v1/orders/{orderId}");
+        Assert.Contains($"(#{shortPay})", order.GetProperty("reviewNote").GetString());
+
+        // 3. El pago de verdad sí la cobra.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/{pending}", Approved(pending, 40_000m));
+        await WebhookAsync(pending.ToString(), victimUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("PAID", await StatusAsync(shopper, orderId));
     }
 
     /// <summary>
@@ -308,6 +370,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "accredited",
             external_reference = approvedOrder.ToString(),
             transaction_amount = 50_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
         });
         await WebhookAsync(approvedPayment.ToString(), mpUserId);
@@ -323,6 +386,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "cc_rejected_3ds_challenge",
             external_reference = rejectedOrder.ToString(),
             transaction_amount = 50_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
         });
         await WebhookAsync(rejectedPayment.ToString(), mpUserId);
@@ -382,6 +446,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "refunded",
             external_reference = mpOrder.ToString(),
             transaction_amount = 15_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 15_000m,
         });
         await WebhookAsync(mpPayment.ToString(), mpUserId);
@@ -422,6 +487,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "refunded",
             external_reference = mpOrder.ToString(),
             transaction_amount = 15_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 15_000m,
         });
         await WebhookAsync(mpPayment.ToString(), mpUserId);
@@ -478,6 +544,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "partially_refunded",
             external_reference = mpOrder.ToString(),
             transaction_amount = 15_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 4_000m,
         });
         await WebhookAsync(mpPayment.ToString(), mpUserId);
@@ -540,6 +607,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = "accredited",
             external_reference = orderId.ToString(),
             transaction_amount = 9_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = 0m,
         });
         await WebhookAsync(paymentId.ToString(), mpUserId);
@@ -586,6 +654,7 @@ public sealed class MercadoPagoFlowTests
             status_detail = status,
             external_reference = order.ToString(),
             transaction_amount = 15_000m,
+            currency_id = "ARS",
             transaction_amount_refunded = refunded,
         };
 

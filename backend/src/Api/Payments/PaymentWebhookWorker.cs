@@ -54,9 +54,13 @@ public sealed class PaymentWebhookWorker(
             return;
         }
 
+        // El user_id del aviso no lo cubre la firma y el external_reference lo
+        // pone quien crea el pago: la venta tiene que ser de la tienda de esta
+        // conexión y lo aprobado tiene que cubrirla (ver PaymentOrigin).
         var settle = sp.GetRequiredService<SettlePaymentHandler>();
         var result = await settle.HandleAsync(orderId, payment.Value.Status, payment.Value.PaymentId,
-            payment.Value.TransactionAmountRefunded, payment.Value.FeeAmount, ct);
+            payment.Value.TransactionAmountRefunded, payment.Value.FeeAmount,
+            new PaymentOrigin(connection.TenantId, payment.Value.TransactionAmount, payment.Value.CurrencyId), ct);
         if (result.IsFailure || result.Value.Order is null) return;
 
         // Side-effects (emails + WhatsApp) según lo que cambió.

@@ -130,7 +130,10 @@ public sealed class AbandonedPaymentService(
         // el cobro y el guardado): se aplica como en el momento.
         if (attempts.FirstOrDefault(a => a.Status == PaywayPaymentStatus.Approved && a.ProviderPaymentId is not null) is { } approved)
         {
-            await SettleApprovedAsync(order, approved.ProviderPaymentId!, null, null, ct);
+            // El cobro lo armamos nosotros por el total de la venta y se busca por
+            // nuestro id de operación: solo se controla la tienda.
+            await SettleApprovedAsync(order, approved.ProviderPaymentId!, null, null,
+                new PaymentOrigin(TenantId.From(approved.TenantId)), ct);
             return Decision.Paid;
         }
 
@@ -165,7 +168,8 @@ public sealed class AbandonedPaymentService(
 
         if (mine.FirstOrDefault(p => string.Equals(p.Status, "approved", StringComparison.OrdinalIgnoreCase)) is { } approved)
         {
-            await SettleApprovedAsync(order, approved.PaymentId, approved.TransactionAmountRefunded, approved.FeeAmount, ct);
+            await SettleApprovedAsync(order, approved.PaymentId, approved.TransactionAmountRefunded, approved.FeeAmount,
+                new PaymentOrigin(order.TenantId, approved.TransactionAmount, approved.CurrencyId), ct);
             return Decision.Paid;
         }
 
@@ -191,9 +195,9 @@ public sealed class AbandonedPaymentService(
     }
 
     private async Task SettleApprovedAsync(
-        Candidate order, string paymentId, decimal? refunded, decimal? fee, CancellationToken ct)
+        Candidate order, string paymentId, decimal? refunded, decimal? fee, PaymentOrigin origin, CancellationToken ct)
     {
-        var settled = await settle.HandleAsync(order.Id, "approved", paymentId, refunded, fee, ct);
+        var settled = await settle.HandleAsync(order.Id, "approved", paymentId, refunded, fee, origin, ct);
         await paidEffects.RunIfJustPaidAsync(settled, ct);
         logger.LogWarning("La venta {OrderId} tenía el pago aprobado {PaymentId} sin aplicar (no llegó el aviso): quedó pagada.",
             order.Id, paymentId);
