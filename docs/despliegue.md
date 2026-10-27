@@ -731,8 +731,16 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   descargas) vale. Y toda escritura de `/auth` (entrar, salir, el segundo paso y
   configurarlo, la contraseña) responde 403 `Auth.ForeignOrigin` con un `Origin`
   que no sea el del panel: son pedidos anónimos y, sin eso, un script en una
-  tienda podía cerrarle la sesión al admin o loguearlo con otra cuenta. La
-  cookie del comprador no cambia: se usa desde su tienda.
+  tienda podía cerrarle la sesión al admin o loguearlo con otra cuenta.
+- **Sesión del comprador solo desde su tienda** (`Api/Shop/StoreOrigins.cs`): la
+  cookie `shop_<tienda>` es del host de la API y viaja desde cualquier tienda.
+  Con `Origin`, vale solo si es un host de ESA tienda (su subdominio, su dominio
+  propio con o sin www, el dominio pelado si es la principal de
+  `Tenancy__PrimaryStoreSubdomain`); si no, el pedido es anónimo y el logout no
+  cierra nada. Sin `Origin` (la tienda armando la página en el servidor) vale.
+- **Links de los mails de cuenta**: verificar, restablecer, activar, la
+  bienvenida de alguien del equipo y la confirmación del newsletter apuntan a
+  `Admin__BaseUrl` o a la URL canónica de la tienda, nunca al `Origin` del pedido.
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,

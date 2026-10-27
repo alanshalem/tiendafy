@@ -69,7 +69,8 @@ public sealed class StoreOrigins(TenancyDbContext tenancy, IMemoryCache cache, I
         if (string.IsNullOrEmpty(origin)) return true;
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
         var host = uri.Host.ToLowerInvariant();
-        if (host == request.Host.Host.ToLowerInvariant()) return true; // la propia API
+        // La propia API (mismo host y puerto).
+        if (host == request.Host.Host.ToLowerInvariant() && uri.Port == (request.Host.Port ?? (request.IsHttps ? 443 : 80))) return true;
 
         var store = await HostsAsync(tenantId, ct);
         if (store is null) return false;
@@ -78,11 +79,15 @@ public sealed class StoreOrigins(TenancyDbContext tenancy, IMemoryCache cache, I
         if (host == $"{store.Subdomain}.{platform}") return true;
         if (store.CustomDomain is { } custom && (host == custom || host == $"www.{custom}" || $"www.{host}" == custom)) return true;
 
-        // El dominio pelado (o su www) es de la tienda principal. En desarrollo,
-        // sin la variable configurada en la API, localhost:3000 atiende la que
+        // El dominio pelado (o su www) es de la tienda principal. En desarrollo
+        // es localhost:3000 (otro puerto de localhost es otra cosa: el panel,
+        // las fotos) y, sin la variable configurada en la API, atiende la que
         // diga la tienda: se acepta para cualquiera (solo en Development).
         if (host == platform || host == $"www.{platform}")
+        {
+            if (StoreLinks.IsDevHost(platform) && uri.Port != DevStorefrontPort) return false;
             return store.Subdomain == PrimaryStore || (PrimaryStore is null && environment.IsDevelopment());
+        }
         return false;
     }
 

@@ -21,7 +21,8 @@ namespace Api.Auth;
 /// (<c>Media:PublicBaseUrl</c>): ahí se sirve lo que suben los comercios.</item>
 /// </list>
 /// El comprador no depende de esto: su cookie (<c>shop_*</c>) solo se lee con el
-/// header <c>X-Tenant-Id</c>, que exige preflight, y la tienda la usa desde su origen.
+/// header <c>X-Tenant-Id</c>, que exige preflight, y solo vale desde un host de
+/// ESA tienda o sin <c>Origin</c> (<see cref="Api.Shop.StoreOrigins"/>).
 /// </summary>
 public sealed class OriginRules
 {

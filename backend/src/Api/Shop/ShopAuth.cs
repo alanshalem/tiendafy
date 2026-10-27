@@ -59,28 +59,48 @@ public static class ShopAuth
     public static void ClearSessionCookie(HttpContext http, Guid tid) =>
         http.Response.Cookies.Delete(CookieName(tid), new CookieOptions { Path = "/" });
 
-    private static string? ReadToken(HttpContext http)
+    /// <summary>
+    /// El token de la sesión y si vino en la cookie (la que el navegador manda
+    /// solo, desde cualquier página) o en el header Bearer (que un script de
+    /// otra página no tiene).
+    /// </summary>
+    private static (string? Token, bool FromCookie) ReadToken(HttpContext http)
     {
         // 1) Cookie por-tenant (preferida). 2) Bearer (clientes sin cookie / compat).
         if (http.Request.Headers.TryGetValue("X-Tenant-Id", out var rawTenant)
             && Guid.TryParse(rawTenant.ToString(), out var tid)
             && http.Request.Cookies.TryGetValue(CookieName(tid), out var cookieToken)
             && !string.IsNullOrEmpty(cookieToken))
-            return cookieToken;
+            return (cookieToken, true);
 
         var header = http.Request.Headers.Authorization.ToString();
         if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             var t = header["Bearer ".Length..].Trim();
-            return t.Length == 0 ? null : t;
+            return (t.Length == 0 ? null : t, false);
         }
-        return null;
+        return (null, false);
     }
+
+    /// <summary>
+    /// La cookie de la tienda vale solo desde un host de esa tienda o sin
+    /// <c>Origin</c> (<see cref="StoreOrigins.AllowsSessionAsync"/>). La cookie
+    /// es del host de la API y viaja desde cualquier tienda de la plataforma:
+    /// sin esto, un script en la tienda A mandaba <c>X-Tenant-Id</c> de la B y
+    /// actuaba como el comprador de la B que la visitaba.
+    /// </summary>
+    private static Task<bool> CookieAllowedAsync(HttpContext http, Guid tenantId, CancellationToken ct) =>
+        http.RequestServices.GetRequiredService<StoreOrigins>().AllowsSessionAsync(http.Request, tenantId, ct);
 
     /// <summary>Cierra la sesión actual: borra la sesión del token y limpia la cookie.</summary>
     public static async Task LogoutAsync(HttpContext http, CustomersDbContext db, CancellationToken ct)
     {
-        var token = ReadToken(http);
+        var hasTenant = http.Request.Headers.TryGetValue("X-Tenant-Id", out var rt) && Guid.TryParse(rt.ToString(), out _);
+        var tid = hasTenant ? Guid.Parse(rt.ToString()) : Guid.Empty;
+        // Desde otra tienda (u otro sitio) no se cierra nada: ni la sesión ni la cookie.
+        if (hasTenant && !await CookieAllowedAsync(http, tid, ct)) return;
+
+        var (token, _) = ReadToken(http);
         if (!string.IsNullOrEmpty(token))
         {
             var hash = ShopperTokenHash.Of(token);
@@ -88,14 +108,13 @@ public static class ShopAuth
             await db.CustomerSessions.Where(s => s.TokenHash == hash).ExecuteDeleteAsync(ct);
             if (session is not null) ClearSessionCookie(http, session.TenantId);
         }
-        if (http.Request.Headers.TryGetValue("X-Tenant-Id", out var rt) && Guid.TryParse(rt.ToString(), out var tid))
-            ClearSessionCookie(http, tid);
+        if (hasTenant) ClearSessionCookie(http, tid);
     }
 
     /// <summary>Resuelve el comprador desde la cookie HttpOnly (o bearer). Null si inválido/expirado.</summary>
     public static async Task<Customer?> ResolveAsync(HttpContext http, CustomersDbContext db, CancellationToken ct)
     {
-        var token = ReadToken(http);
+        var (token, fromCookie) = ReadToken(http);
         if (string.IsNullOrEmpty(token)) return null;
 
         var hash = ShopperTokenHash.Of(token);
@@ -108,6 +127,8 @@ public static class ShopAuth
             && Guid.TryParse(rawTenant.ToString(), out var headerTenant)
             && headerTenant != session.TenantId)
             return null;
+
+        if (fromCookie && !await CookieAllowedAsync(http, session.TenantId, ct)) return null;
 
         return await db.Customers.FirstOrDefaultAsync(c => c.Id == session.CustomerId, ct);
     }

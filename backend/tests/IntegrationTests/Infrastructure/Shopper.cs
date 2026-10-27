@@ -20,11 +20,18 @@ public sealed class Shopper(Merchant store)
     public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null) =>
         SendAsync(method, path, body is null ? null : JsonContent.Create(body, options: Merchant.Json));
 
-    public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content)
+    public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content) =>
+        SendFromAsync(ReturnUrl, method, path, content);
+
+    /// <summary>
+    /// Con la sesión de este comprador (su cookie) pero desde otro origen (null
+    /// = sin Origin, como la tienda armando la página en el servidor).
+    /// </summary>
+    public Task<HttpResponseMessage> SendFromAsync(string? origin, HttpMethod method, string path, HttpContent? content = null, Guid? tenantId = null)
     {
         var req = new HttpRequestMessage(method, path) { Content = content };
-        req.Headers.Add("X-Tenant-Id", store.TenantId.ToString());
-        req.Headers.Add("Origin", ReturnUrl);
+        req.Headers.Add("X-Tenant-Id", (tenantId ?? store.TenantId).ToString());
+        if (origin is not null) req.Headers.Add("Origin", origin);
         return _client.SendAsync(req);
     }
 
