@@ -9,7 +9,7 @@ export const CLIENTES = {
       {
         heading: 'Cuentas de cliente',
         paragraphs: [
-          'Tus compradores pueden crear una cuenta en tu tienda (email y contraseña, con verificación por email, o con su cuenta de Google si la plataforma lo tiene activado). Con cuenta ven sus pedidos, guardan favoritos y sus direcciones (el checkout se las completa solo) y te escriben por el chat posventa, que les queda a mano en “Mis conversaciones”.',
+          'Tus compradores pueden crear una cuenta en tu tienda con su nombre y su email, o con su cuenta de Google si la plataforma lo tiene activado. Les llega un mail de activación: con ese link eligen su contraseña y la cuenta queda activa (así la contraseña la pone siempre quien recibe los mails de ese email). Con cuenta ven sus pedidos (los que compraron con ese email; por eso los ven recién con el email verificado), guardan favoritos y sus direcciones (el checkout se las completa solo) y te escriben por el chat posventa, que les queda a mano en “Mis conversaciones”.',
           'Sin cuenta también pueden seguir su compra: el link “Seguí tu pedido” de los emails abre el estado del pedido sin pedir datos.',
         ],
       },
@@ -175,7 +175,7 @@ export const CLIENTES = {
               ],
               [
                 'Cuenta de usuarios',
-                'Activación de cuenta y Cambio de contraseña. Estos dos salen siempre: sin ellos tus clientes no pueden entrar a su cuenta. Podés cambiarles el texto, no apagarlos.',
+                'Activación de cuenta, Cambio de contraseña e Intento de registro (le avisa a quien ya tiene cuenta que alguien quiso crear otra con su email). Estos tres salen siempre: sin ellos tus clientes no pueden entrar a su cuenta. Podés cambiarles el texto, no apagarlos.',
               ],
               [
                 'Promociones',

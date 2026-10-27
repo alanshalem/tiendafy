@@ -45,7 +45,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound,
             (await merchant.SendAsync(HttpMethod.Put, "/api/v1/email-templates/confirmacion-compra", new { enabled = true })).StatusCode);
 
-        foreach (var type in new[] { "activacion-cuenta", "cambio-contrasena" })
+        foreach (var type in new[] { "activacion-cuenta", "cambio-contrasena", "intento-registro" })
         {
             var t = Template(list, type)!.Value;
             Assert.True(t.GetProperty("alwaysOn").GetBoolean());
@@ -73,7 +73,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
         var shopper = new Shopper(merchant);
         var email = $"nueva-{merchant.Subdomain}@mail.com";
         await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "José <b>Pérez</b>", email, password = "una-clave-larga" });
+            new { name = "José <b>Pérez</b>", email });
 
         var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email));
         // El asunto es texto plano: sin entidades HTML ("Jos&#233;").
@@ -85,7 +85,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
         Assert.DoesNotContain("O copiá este link", mail.Html, StringComparison.Ordinal);
         Assert.Contains($"{shopper.ReturnUrl}/cuenta/verificar?token=", mail.Html, StringComparison.Ordinal);
 
-        await shopper.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html) });
+        await shopper.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html), password = "una-clave-larga" });
     }
 
     [Fact]
@@ -94,8 +94,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
         var merchant = await Merchant.CreateAsync(factory, "sar");
         var shopper = new Shopper(merchant);
         var email = $"olvido-{merchant.Subdomain}@mail.com";
-        await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Beto", email, password = "una-clave-larga" });
+        await shopper.RegisterVerifiedAsync(email, "Beto");
 
         await merchant.PutAsync("/api/v1/email-templates/cambio-contrasena", new
         {
@@ -106,7 +105,7 @@ public sealed partial class ShopAuthEmailTemplateTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent,
             (await shopper.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/forgot", new { email })).StatusCode);
-        var mail = Assert.Single(factory.ExternalHttp.EmailsTo(email), m => m.Subject.StartsWith("Tu clave", StringComparison.Ordinal));
+        var mail = await factory.ExternalHttp.WaitForEmailAsync(email, m => m.Subject.StartsWith("Tu clave", StringComparison.Ordinal));
         Assert.Equal($"Tu clave de Tienda {merchant.Subdomain}", mail.Subject);
         Assert.Contains("Hola Beto, escribinos si no fuiste vos.", mail.Html, StringComparison.Ordinal);
         Assert.Contains("Cambiar contraseña", mail.Html, StringComparison.Ordinal);

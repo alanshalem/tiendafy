@@ -39,10 +39,18 @@ public static class ShopOrdersEndpoints
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             if (customer is null || string.IsNullOrEmpty(customer.Email)) return Results.Unauthorized();
 
+            // Los pedidos se atan a la cuenta por el email de la compra: sin el
+            // email verificado no se muestra ninguno (cualquiera puede crear una
+            // cuenta con el email de otro). La tienda lee emailVerified=false y
+            // le pide que lo verifique.
+            if (!customer.EmailVerified)
+                return Results.Ok(new { items = Array.Empty<object>(), emailVerified = false });
+
             var list = await orders.ListByBuyerEmailAsync(tenant.TenantId, customer.Email, ct);
             var tracking = await TrackingByOrderAsync(checkout, tenant.TenantId.Value, list, ct);
             return Results.Ok(new
             {
+                emailVerified = true,
                 items = list.Select(o => new
                 {
                     o.Id,
@@ -129,16 +137,17 @@ public static class ShopOrdersEndpoints
         return group;
     }
 
-    /// <summary>El pedido, solo si es del comprador logueado (por su email, como "Mis pedidos").</summary>
+    /// <summary>
+    /// El pedido, solo si es del comprador logueado: por su email, como "Mis
+    /// pedidos", y con el email verificado (<see cref="ShopAuth.OwnsOrder"/>).
+    /// </summary>
     private static async Task<Order?> OwnOrderAsync(
         Guid id, HttpContext http, ITenantContext tenant, CustomersDbContext db, IOrderRepository orders, CancellationToken ct)
     {
         var customer = await ShopAuth.ResolveAsync(http, db, ct);
-        if (customer is null || string.IsNullOrEmpty(customer.Email)) return null;
+        if (customer is null || !customer.EmailVerified) return null;
         var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-        return order is not null && string.Equals(order.BuyerEmail.Trim(), customer.Email.Trim(), StringComparison.OrdinalIgnoreCase)
-            ? order
-            : null;
+        return order is not null && ShopAuth.OwnsOrder(customer, order.BuyerEmail) ? order : null;
     }
 
     /// <summary>

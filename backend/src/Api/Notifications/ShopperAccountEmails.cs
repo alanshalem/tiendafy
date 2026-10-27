@@ -19,14 +19,22 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
 {
     public const string Activation = "activacion-cuenta";
     public const string PasswordReset = "cambio-contrasena";
+    public const string RegistrationAttempt = "intento-registro";
 
     /// <summary>Email para verificar la dirección de una cuenta recién creada.</summary>
     public Task SendActivationAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
-        SendAsync(tenantId, to, Activation, name, link, "Verificar email", ct);
+        SendAsync(tenantId, to, Activation, name, link, "Activar mi cuenta", ct);
 
     /// <summary>Email con el link (de un solo uso) para elegir una contraseña nueva.</summary>
     public Task SendPasswordResetAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
         SendAsync(tenantId, to, PasswordReset, name, link, "Cambiar contraseña", ct);
+
+    /// <summary>
+    /// Al dueño de una cuenta: alguien intentó registrarse con su email. El
+    /// registro le contesta a quien lo intentó lo mismo que a una cuenta nueva.
+    /// </summary>
+    public Task SendRegistrationAttemptAsync(Guid tenantId, string to, string? name, string link, CancellationToken ct) =>
+        SendAsync(tenantId, to, RegistrationAttempt, name, link, "Ir a mi cuenta", ct);
 
     private async Task SendAsync(
         Guid tenantId, string to, string template, string? name, string link, string ctaLabel, CancellationToken ct)
@@ -40,7 +48,7 @@ public sealed class ShopperAccountEmails(IEmailTemplates templates, BrandedEmail
             ["link"] = safeLink,
         };
 
-        // Las dos claves están en el catálogo y son AlwaysOn: siempre hay
+        // Las tres claves están en el catálogo y son AlwaysOn: siempre hay
         // render y siempre está prendido. El default es solo red de seguridad.
         var rendered = await templates.RenderAsync(tenantId, template, vars, ct);
         var def = EmailTemplateCatalog.Find(template);

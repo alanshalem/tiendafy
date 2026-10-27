@@ -87,8 +87,9 @@ Variables: `{{store}}`, `{{name}}`, `{{order_id}}` (sin `#`), `{{total}}`, `{{it
 | `reembolso-parcial` | apagada | `RefundedOrderSideEffects.NotifyPartialAsync`, desde `OrderRefundService` (panel) y `PaymentWebhookWorker` (parcial hecho en Mercado Pago). Apagada, sale igual con el texto de fábrica. Uno por reembolso: el webhook solo avisa cuando creció lo devuelto |
 | `favorito-baja-precio` / `favorito-repuesto` | apagadas | `FavoriteAlertWorker` |
 | `carritos-abandonados` | prendida | `AbandonedCartWorker` (pasa cada 15 min: 1 h después de lo último que el comprador tocó en un checkout con email que no terminó en compra, hasta 7 días de armado; uno por comprador, ver abajo) |
-| `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` |
-| `cambio-contrasena` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/forgot` |
+| `activacion-cuenta` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` (el link lleva a "Elegí tu contraseña": el registro no pide contraseña) |
+| `cambio-contrasena` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/forgot` (sale después de contestar, por `ShopperMailDispatch`: la respuesta tarda lo mismo exista o no la cuenta) |
+| `intento-registro` | siempre (no se apaga) | `ShopAuthEndpoints` `/shop/auth/register` con un email que ya tiene cuenta: el registro contesta lo mismo que a uno nuevo y el aviso le llega solo al dueño |
 | `factura` | apagada | `Api/Fiscal/InvoiceEmail.cs`, cuando la venta obtiene el CAE (desde `FiscalEmissionWorker` o el botón "Facturar"), con el PDF adjunto. Sale una sola vez por comprobante (se reclama con `BuyerNotifiedAtUtc`), nunca para ventas de Mercado Libre ni ventas sin email |
 | `nota-credito` | apagada | El mismo `InvoiceEmail`, por cada nota de crédito autorizada de la venta (un reembolso total o parcial, una pedida a mano o un ajuste), con su PDF. Mismas reglas que `factura` |
 
@@ -96,11 +97,11 @@ Ni `factura` ni `nota-credito` salen si el comprobante es de **homologación** (
 
 Pasan por `BrandedEmailSender` pero no son plantillas editables (no figuran en el catálogo): el aviso de **stock bajo** al equipo de la tienda (`Api/Purchasing/StockAlertService.cs`, tag de uso `stock-bajo`), la **respuesta a una consulta** desde la Bandeja (`ContactEndpoints`, tag `respuesta-contacto`, con reply-to a quien respondió), el **acuse de un pedido de arrepentimiento** (`ContactEndpoints`) y la prueba de una campaña (`campaign-test`).
 
-Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión y llevan el link para darse de baja (`UnsubscribeToken.Footer`; el de stock tiene su propia baja, por producto). Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña) salen siempre.
+Los avisos de marketing (stock, favoritos, reseñas, carritos abandonados) respetan la lista de supresión y llevan el link para darse de baja (`UnsubscribeToken.Footer`; el de stock tiene su propia baja, por producto). Los transaccionales (pago, envío, reembolso) y los de la cuenta (activación, cambio de contraseña, intento de registro) salen siempre.
 
 Cancelar una venta (a mano o porque venció el plazo de una transferencia o efectivo) o devolver plata siempre le avisa al comprador, una vez por venta, aunque la plantilla esté apagada: las cancelaciones y el parcial pasan por `OrderNotifier.NotifyWithDefaultAsync` (la de la tienda si la prendió; si no, el texto de fábrica del catálogo, o el `fallback` que pasa quien llama cuando el de fábrica no cuenta lo que pasó) y el reembolso total cae en `OrderEmail.Refund`. Prenderla sirve para mandar el texto propio. `reembolso-parcial` es una plantilla aparte (y no variables en `cancelacion-compra`) porque dice otra cosa: la compra sigue en pie.
 
-En las dos de la cuenta, `{{link}}` es el link con el token. Si la tienda lo borró del cuerpo, `ShopperAccountEmails` agrega al final el botón y el link en texto: sin el link el email no sirve.
+En activación y cambio de contraseña, `{{link}}` es el link con el token; en intento de registro, la página de la cuenta en la tienda. Si la tienda lo borró del cuerpo, `ShopperAccountEmails` agrega al final el botón y el link en texto: sin el link el email no sirve.
 
 Se sacaron del catálogo (oct-2026) `confirmacion-compra` y `bienvenida`: no tenían un evento propio (la compra ya avisa con `instrucciones-pago` o `confirmacion-pago`; el registro, con `activacion-cuenta`) y conectarlas habría mandado un segundo email por la misma cosa, a tiendas que nunca lo mandaron. Las filas que alguna tienda guardó con esas claves quedan en `email_templates` sin uso: el panel lista el catálogo, no la tabla, y un `PUT` a esas claves da 404.
 

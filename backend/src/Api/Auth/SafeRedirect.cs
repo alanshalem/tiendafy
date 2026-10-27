@@ -22,6 +22,13 @@ public static class SafeRedirect
     public static bool IsSafeReturnUrl(string? url, IConfiguration cfg)
     {
         if (string.IsNullOrWhiteSpace(url)) return false;
+        // Los navegadores leen "\" como "/" y se saltean tabs y saltos de
+        // línea: "/\evil.com" o "/\t/evil.com" terminan en otro sitio aunque
+        // empiecen con una sola barra. Ninguna URL propia los necesita (y
+        // tampoco su forma codificada, por si alguien la decodifica después).
+        if (url.Any(c => c == '\\' || char.IsControl(c))
+            || url.Contains("%5c", StringComparison.OrdinalIgnoreCase))
+            return false;
         if (url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal)) return true;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
         if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;

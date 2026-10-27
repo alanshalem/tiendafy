@@ -234,8 +234,8 @@ public static class OrderEndpoints
 
             // ¿Shopper dueño de la orden?
             var customer = await Api.Shop.ShopAuth.ResolveAsync(http, customersDb, ct);
-            var isOwnerShopper = customer is not null && !string.IsNullOrEmpty(customer.Email)
-                && string.Equals(order.BuyerEmail, customer.Email, StringComparison.OrdinalIgnoreCase);
+            // Con el email verificado: si no, cualquiera que se registre con el email de otro vería su pedido.
+            var isOwnerShopper = Api.Shop.ShopAuth.OwnsOrder(customer, order.BuyerEmail);
 
             // ¿Alguien del equipo que puede ver las ventas?
             var isStaff = (await http.GetAccessAsync())?.Can(Permission.OrdersRead) == true;

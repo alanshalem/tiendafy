@@ -4,7 +4,7 @@ import { StorefrontPageShell } from '@/lib/storefront-page';
 import { VerifyEmail } from '@/components/store/VerifyEmail';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Verificar email' };
+export const metadata: Metadata = { title: 'Activar cuenta' };
 
 export default function VerifyPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   return (

@@ -74,15 +74,24 @@ public static class EmailTemplateCatalog
         // contraseña, quien la olvidó pierde la cuenta. {{link}} es el link
         // con el token; si la tienda lo borra del texto, se agrega al final.
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
-            "Le pide al cliente que confirme su email al crear la cuenta. Sale siempre.", true,
+            "Le pide al cliente que confirme su email y elija su contraseña al crear la cuenta. Sale siempre.", true,
             "Verificá tu email",
-            Wrap("Verificá tu email", "<p>Hola {{name}}, confirmá tu dirección para activar tu cuenta.</p>" + Cta("Verificar email")),
+            Wrap("Verificá tu email", "<p>Hola {{name}}, confirmá tu dirección y elegí tu contraseña para activar tu cuenta. Si no creaste una cuenta, ignorá este email.</p>" + Cta("Activar mi cuenta")),
             AlwaysOn: true),
 
         new("cambio-contrasena", "Cuenta de usuarios", "Cambio de contraseña",
             "Le manda el link para elegir una contraseña nueva a quien la olvidó. Sale siempre.", true,
             "Restablecé tu contraseña",
             Wrap("Restablecé tu contraseña", "<p>Hola {{name}}, pediste cambiar tu contraseña. El link vence en 1 hora. Si no fuiste vos, ignorá este email.</p>" + Cta("Cambiar contraseña")),
+            AlwaysOn: true),
+
+        // El registro contesta igual exista o no la cuenta (así no se puede
+        // averiguar quién compra en la tienda); el aviso de que el email ya
+        // tenía cuenta le llega solo al dueño. {{link}} es la cuenta en la tienda.
+        new("intento-registro", "Cuenta de usuarios", "Intento de registro",
+            "Avisa a quien ya tiene cuenta que alguien intentó crear otra con su email. Sale siempre.", true,
+            "Ya tenés una cuenta en {{store}}",
+            Wrap("Ya tenés una cuenta", "<p>Hola {{name}}, alguien intentó crear una cuenta en {{store}} con tu email, pero ya tenés una. Si fuiste vos, entrá con tu contraseña o, si no te la acordás, tocá “¿Olvidaste tu contraseña?” para elegir una nueva. Si no fuiste vos, ignorá este email: tu cuenta sigue igual.</p>" + Cta("Ir a mi cuenta")),
             AlwaysOn: true),
 
         // Encendida por defecto: sin este email el que eligió transferencia no

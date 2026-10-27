@@ -288,8 +288,8 @@ public static class ReviewEndpoints
             var tid = tenant.TenantId.Value;
             var order = await orders.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == orderId && o.TenantId == TenantId.From(tid), ct);
-            // Una venta de otro comprador no existe para este.
-            if (order is null || !string.Equals(order.BuyerEmail, customer.Email, StringComparison.OrdinalIgnoreCase))
+            // Una venta de otro comprador (o de un email que la cuenta no verificó) no existe para este.
+            if (order is null || !ShopAuth.OwnsOrder(customer, order.BuyerEmail))
                 return Results.NotFound();
 
             var resolved = await ReviewEligibility.ResolveAsync(tid, orderId, orders, catalog, db, ct);

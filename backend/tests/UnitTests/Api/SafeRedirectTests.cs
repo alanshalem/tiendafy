@@ -41,4 +41,30 @@ public class SafeRedirectTests
     [InlineData("https://evil.com", false)]
     public void IsSafeReturnUrl_RelativeOrOwnHost(string url, bool expected) =>
         Assert.Equal(expected, SafeRedirect.IsSafeReturnUrl(url, Cfg()));
+
+    // El navegador lee "\" como "/" y se saltea tabs y saltos de línea: todos
+    // estos terminan en evil.com aunque empiecen con una sola barra.
+    [Theory]
+    [InlineData("/\\evil.com")]
+    [InlineData("/\\\\evil.com")]
+    [InlineData("\\\\evil.com")]
+    [InlineData("/ok\\..\\\\evil.com")]
+    [InlineData("/\t/evil.com")]
+    [InlineData("/\n/evil.com")]
+    [InlineData("/%5Cevil.com")]                         // codificada: por si alguien la decodifica después
+    [InlineData("https://mitienda.tiendafy.com\\@evil.com")]
+    public void IsSafeReturnUrl_RejectsBackslashesAndControlChars(string url) =>
+        Assert.False(SafeRedirect.IsSafeReturnUrl(url, Cfg()));
+
+    [Fact]
+    public void IsSafeReturnUrl_RejectsTheDecodedQueryValue() =>
+        // Lo que llega al endpoint desde ?return=/%5Cevil.com: el framework ya lo decodificó.
+        Assert.False(SafeRedirect.IsSafeReturnUrl(Uri.UnescapeDataString("/%5Cevil.com"), Cfg()));
+
+    [Theory]
+    [InlineData("/ok/path")]
+    [InlineData("/cuenta?tab=pedidos")]
+    [InlineData("/productos/remera%20azul")]
+    public void IsSafeReturnUrl_KeepsOwnPaths(string url) =>
+        Assert.True(SafeRedirect.IsSafeReturnUrl(url, Cfg()));
 }

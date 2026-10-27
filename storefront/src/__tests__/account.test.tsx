@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountButton } from '../components/store/AccountButton';
 import { AccountDashboard } from '../components/store/AccountDashboard';
+import { VerifyEmail } from '../components/store/VerifyEmail';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { nav } from '../test/next';
@@ -87,13 +88,14 @@ describe('entrar a la cuenta', () => {
     expect(screen.getByRole('button', { name: 'Mi cuenta' })).toHaveTextContent(me.name.split(' ')[0]!);
   });
 
-  it('el gestor de contraseñas sabe qué es cada campo: la guardada al entrar, una nueva al registrarse', async () => {
+  it('el gestor de contraseñas ofrece la guardada al entrar; el registro no pide contraseña', async () => {
     const { user } = await openModal();
     expect(screen.getByLabelText('Email')).toHaveAttribute('autocomplete', 'email');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
     await user.click(screen.getByRole('button', { name: 'Registrate' }));
     expect(screen.getByLabelText('Nombre')).toHaveAttribute('autocomplete', 'name');
-    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+    // La contraseña se elige con el link del mail (la pone quien controla el email).
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
   });
 
   it('una clave incorrecta muestra el motivo de la API', async () => {
@@ -106,17 +108,25 @@ describe('entrar a la cuenta', () => {
     expect(screen.getByText('Email o contraseña incorrectos.')).toBeInTheDocument();
   });
 
-  it('se registra con nombre', async () => {
-    api.on('POST', '/api/v1/shop/auth/register', { customer: me });
+  it('se registra con nombre y le pide activar la cuenta desde el mail (sin sesión todavía)', async () => {
+    api.on(
+      'POST',
+      '/api/v1/shop/auth/register',
+      { message: 'Te mandamos un mail para activar tu cuenta.' },
+      202,
+    );
     const { user, submit } = await openModal();
     await user.click(screen.getByRole('button', { name: 'Registrate' }));
     await user.type(screen.getByPlaceholderText('Nombre'), me.name);
     await user.type(screen.getByPlaceholderText('Email'), me.email);
-    await user.type(screen.getByPlaceholderText('Contraseña'), 'una-clave-larga');
     await user.click(submit());
     await settle(1);
-    expect(posted('/shop/auth/register')[0]).toMatchObject({ name: me.name, email: me.email });
-    expect(screen.getByRole('button', { name: 'Mi cuenta' })).toBeInTheDocument();
+    expect(posted('/shop/auth/register')[0]).toEqual({ name: me.name, email: me.email });
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
+      `Te mandamos un mail a ${me.email} para activar tu cuenta`,
+    );
+    expect(screen.queryByRole('button', { name: 'Mi cuenta' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
   });
 
   it('recupera la clave: avisa sin decir si la cuenta existe', async () => {
@@ -275,6 +285,28 @@ describe('con la sesión iniciada', () => {
     expect(screen.queryByText('Enviado')).toBeNull();
   });
 
+  it('sin el email verificado pide verificarlo y reenvía el mail', async () => {
+    api.on('GET', '/api/v1/shop/orders', { items: [], emailVerified: false });
+    api.on('POST', '/api/v1/shop/auth/verify/resend', {}, 204);
+    const user = await show(<AccountDashboard />);
+    expect(screen.getByText('Verificá tu email para ver tus compras')).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hiciste ningún pedido.')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reenviar el mail' }));
+    await settle(1);
+    expect(posted('/shop/auth/verify/resend')).toHaveLength(1);
+    expect(screen.getByText(/Te mandamos otro mail/)).toBeInTheDocument();
+  });
+
+  it('si el reenvío falla, lo dice', async () => {
+    api.on('GET', '/api/v1/shop/orders', { items: [], emailVerified: false });
+    api.on('POST', '/api/v1/shop/auth/verify/resend', { detail: 'Demasiados intentos.' }, 429);
+    const user = await show(<AccountDashboard />);
+    await user.click(screen.getByRole('button', { name: 'Reenviar el mail' }));
+    await settle(1);
+    expect(screen.getByText('Demasiados intentos.')).toBeInTheDocument();
+  });
+
   it('sin pedidos lo dice', async () => {
     api.on('GET', '/api/v1/shop/orders', { items: [] });
     await show(<AccountDashboard />);
@@ -377,5 +409,63 @@ describe('chat posventa', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('el link de activación: elegí tu contraseña', () => {
+  async function openLink(token: string) {
+    anonymous();
+    nav.at(`/cuenta/verificar?token=${token}`);
+    const user = await show(<VerifyEmail />);
+    const save = () => screen.getByRole('button', { name: 'Guardar y entrar' });
+    return { user, save };
+  }
+
+  it('pide la contraseña dos veces, la guarda y deja la sesión iniciada', async () => {
+    api.on('POST', '/api/v1/shop/auth/verify', { customer: { ...me, emailVerified: true } });
+    const { user, save } = await openLink('tok-123');
+    expect(screen.getByRole('heading', { name: 'Elegí tu contraseña' })).toBeInTheDocument();
+    expect(posted('/shop/auth/verify')).toEqual([]); // abrir el link no gasta el token
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+
+    await user.type(screen.getByLabelText('Contraseña'), 'mi-clave-larga');
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'otra-clave-larga');
+    expect(screen.getByText('Las contraseñas no coinciden.')).toBeInTheDocument();
+    expect(save()).toBeDisabled();
+
+    await user.clear(screen.getByLabelText('Repetí la contraseña'));
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'mi-clave-larga');
+    await user.click(save());
+    await settle(1);
+
+    expect(posted('/shop/auth/verify')).toEqual([{ token: 'tok-123', password: 'mi-clave-larga' }]);
+    expect(screen.getByText('Tu cuenta quedó activada y ya iniciaste sesión.')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)!)).toMatchObject({
+      email: me.email,
+    });
+  });
+
+  it('un link vencido o usado lo dice con el motivo de la API', async () => {
+    api.on(
+      'POST',
+      '/api/v1/shop/auth/verify',
+      { detail: 'El link venció. Volvé a registrarte con tu email para recibir uno nuevo.' },
+      400,
+    );
+    const { user, save } = await openLink('viejo');
+    await user.type(screen.getByLabelText('Contraseña'), 'mi-clave-larga');
+    await user.type(screen.getByLabelText('Repetí la contraseña'), 'mi-clave-larga');
+    await user.click(save());
+    await settle(1);
+    expect(screen.getByText(/El link venció/)).toBeInTheDocument();
+    expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
+  });
+
+  it('sin token no muestra el formulario', async () => {
+    anonymous();
+    nav.at('/cuenta/verificar');
+    await show(<VerifyEmail />);
+    expect(screen.getByText(/Link inválido/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Guardar y entrar' })).not.toBeInTheDocument();
   });
 });

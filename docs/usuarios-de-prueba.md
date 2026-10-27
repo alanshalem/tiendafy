@@ -45,8 +45,15 @@ Usuarios. Una cuenta sirve para todas las tiendas; el rol es por tienda.
 
 Son cuentas de comprador, aparte de las del panel, y cada tienda tiene las
 suyas (el email es único por tienda). En la tienda: ícono de cuenta → Iniciar
-sesión. Desde el mismo modal se puede registrar una cuenta nueva (contraseña
-de 8 caracteres o más).
+sesión. Desde el mismo modal se puede registrar una cuenta nueva: pide
+nombre y email, no contraseña. La contraseña (8 caracteres o más) se elige en
+el link del mail de activación (`/cuenta/verificar`, "Elegí tu contraseña"),
+que además verifica el email y deja la sesión iniciada: así la pone siempre
+quien controla el email. En dev, sin `Email:ResendApiKey`, el mail no sale (el
+log de la API muestra solo el asunto): para probar una cuenta nueva entera
+hace falta la clave de Resend; si no, usá las de arriba, que ya vienen
+verificadas. Hasta verificar el email, "Mis pedidos" no muestra nada: los
+pedidos se atan a la cuenta por el email de la compra.
 
 ## Login con Google (opcional)
 

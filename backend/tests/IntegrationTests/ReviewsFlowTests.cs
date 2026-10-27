@@ -35,14 +35,13 @@ public sealed partial class ReviewsFlowTests(ApiFactory factory)
 
         // El comprador logueado ve su venta, pero todavía no se despachó.
         var buyer = new Shopper(merchant);
-        await buyer.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register", new { name = "Ana", email = buyerEmail, password = "una-clave-larga" });
+        await buyer.RegisterVerifiedAsync(buyerEmail, "Ana");
         var notYet = await buyer.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/shop/orders/{orderId}/review-invite");
         Assert.False(notYet.GetProperty("eligible").GetBoolean());
 
         // Otro comprador no ve la venta ajena.
         var stranger = new Shopper(merchant);
-        await stranger.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
-            new { name = "Otro", email = $"otro-{merchant.Subdomain}@mail.com", password = "una-clave-larga" });
+        await stranger.RegisterVerifiedAsync($"otro-{merchant.Subdomain}@mail.com", "Otro");
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.SendAsync(HttpMethod.Get, $"/api/v1/shop/orders/{orderId}/review-invite")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.SendAsync(HttpMethod.Get, $"/api/v1/shop/orders/{orderId}/review-invite")).StatusCode);
 
@@ -171,7 +170,7 @@ public sealed partial class ReviewsFlowTests(ApiFactory factory)
         var buyerEmail = $"juan-{a.Subdomain}@mail.com";
         var orderId = await SaleAsync(a, variantA, buyerEmail, "Juan Gómez", fulfill: true);
         var buyer = new Shopper(a);
-        await buyer.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/register", new { name = "Juan", email = buyerEmail, password = "una-clave-larga" });
+        await buyer.RegisterVerifiedAsync(buyerEmail, "Juan");
         var (token, item) = await InviteAsync(buyer, new Shopper(a), orderId);
         var review = await new Shopper(a).ExpectJsonAsync(HttpMethod.Post, "/api/v1/reviews",
             new { token, orderItemId = item, rating = 4, body = "Mantiene el agua caliente todo el día." });

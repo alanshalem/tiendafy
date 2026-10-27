@@ -44,6 +44,23 @@ public sealed class Shopper(Merchant store)
     }
 
     /// <summary>
+    /// Crea la cuenta y la activa con el link del mail, como la persona: el
+    /// registro pide nombre y email, y la contraseña se elige en el link.
+    /// Queda logueada y con el email verificado.
+    /// </summary>
+    public async Task<JsonElement> RegisterVerifiedAsync(string email, string name = "Ana Pérez", string password = "una-clave-larga")
+    {
+        var res = await SendAsync(HttpMethod.Post, "/api/v1/shop/auth/register", new { name, email });
+        Assert.Equal(System.Net.HttpStatusCode.Accepted, res.StatusCode);
+        var mail = store.Factory.ExternalHttp.EmailsTo(email).Last(m => m.Html.Contains("/cuenta/verificar?token=", StringComparison.Ordinal));
+        return await ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/auth/verify", new { token = TokenFrom(mail.Html), password });
+    }
+
+    /// <summary>El token del link de un mail de la cuenta (verificar, reset).</summary>
+    public static string TokenFrom(string html) =>
+        System.Text.RegularExpressions.Regex.Match(html, @"token=([A-Za-z0-9_\-%]+)").Groups[1].Value;
+
+    /// <summary>
     /// Carrito con esa variante, checkout completo con retiro en el local (sin
     /// costo de envío) y stock reservado. Devuelve el id de la sesión.
     /// </summary>

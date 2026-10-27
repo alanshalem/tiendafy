@@ -18,7 +18,7 @@ namespace Customers.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -328,18 +328,18 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
-                    b.Property<string>("Token")
+                    b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
-                        .HasColumnName("token");
+                        .HasColumnName("token_hash");
 
                     b.HasKey("Id")
                         .HasName("pk_customer_sessions");
 
-                    b.HasIndex("Token")
+                    b.HasIndex("TokenHash")
                         .IsUnique()
-                        .HasDatabaseName("ix_customer_sessions_token");
+                        .HasDatabaseName("ix_customer_sessions_token_hash");
 
                     b.ToTable("customer_sessions", (string)null);
                 });
@@ -372,11 +372,11 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
-                    b.Property<string>("Token")
+                    b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
-                        .HasColumnName("token");
+                        .HasColumnName("token_hash");
 
                     b.Property<DateTime?>("UsedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -385,9 +385,9 @@ namespace Customers.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_customer_tokens");
 
-                    b.HasIndex("Token")
+                    b.HasIndex("TokenHash")
                         .IsUnique()
-                        .HasDatabaseName("ix_customer_tokens_token");
+                        .HasDatabaseName("ix_customer_tokens_token_hash");
 
                     b.ToTable("customer_tokens", (string)null);
                 });

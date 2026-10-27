@@ -3,6 +3,7 @@ using System.Text.Json;
 using Api.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -117,30 +118,104 @@ public sealed class GoogleLoginTests(ApiFactory factory)
         var client = NoRedirects(app);
         async Task<HttpStatusCode> Callback(string query) =>
             (await client.GetAsync($"/api/v1/shop/auth/google/callback?{query}")).StatusCode;
+        // Cada vuelta de Google gasta el nonce del navegador: se arranca de nuevo.
+        async Task<HttpStatusCode> FreshCallback() =>
+            await Callback($"code=abc&state={Uri.EscapeDataString(await StartAsync(client, merchant.TenantId, "/"))}");
 
         // Sin parámetros, con state inventado o con un tenant que no es un id.
         Assert.Equal(HttpStatusCode.BadRequest, await Callback("code=abc"));
         Assert.Equal(HttpStatusCode.BadRequest, await Callback("code=abc&state=inventado"));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/v1/shop/auth/google/start?tenant=x")).StatusCode);
 
-        var state = Uri.EscapeDataString(await StartAsync(client, merchant.TenantId, "/"));
-
         // Google no valida el código.
         factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { error = "invalid_grant" }, HttpStatusCode.BadRequest);
-        Assert.Equal(HttpStatusCode.BadGateway, await Callback($"code=abc&state={state}"));
+        Assert.Equal(HttpStatusCode.BadGateway, await FreshCallback());
 
         // Responde sin id_token.
         factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { access_token = "x" });
-        Assert.Equal(HttpStatusCode.BadGateway, await Callback($"code=abc&state={state}"));
+        Assert.Equal(HttpStatusCode.BadGateway, await FreshCallback());
 
         // Un id_token que no pasa la verificación (firma, audiencia o vencimiento).
         factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "falsificado" });
-        Assert.Equal(HttpStatusCode.BadGateway, await Callback($"code=abc&state={state}"));
+        Assert.Equal(HttpStatusCode.BadGateway, await FreshCallback());
 
         // Válido pero sin email verificado: no se crea una cuenta con un email ajeno.
         factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "id-token-ok" });
         _google.Next = new GoogleIdentity("google-sub-2", $"sin-verificar-{merchant.Subdomain}@gmail.com", "X", EmailVerified: false);
-        Assert.Equal(HttpStatusCode.BadGateway, await Callback($"code=abc&state={state}"));
+        Assert.Equal(HttpStatusCode.BadGateway, await FreshCallback());
+    }
+
+    [Fact]
+    public async Task El_callback_sin_la_cookie_del_navegador_que_empezo_se_rechaza()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "ggc");
+        await using var app = WithGoogle();
+        var victim = NoRedirects(app);
+        var attacker = NoRedirects(app);
+        factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "id-token-ok" });
+        _google.Next = new GoogleIdentity("google-sub-atk", $"atacante-{merchant.Subdomain}@gmail.com", "Atacante", EmailVerified: true);
+
+        // El atacante empieza el login y le pasa a otro el link de vuelta con
+        // SU código (login CSRF): el navegador de la víctima no tiene la cookie.
+        var state = Uri.EscapeDataString(await StartAsync(attacker, merchant.TenantId, "/"));
+        var forged = await victim.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={state}");
+        Assert.Equal(HttpStatusCode.BadRequest, forged.StatusCode);
+        var forgedCookies = forged.Headers.TryGetValues("Set-Cookie", out var set) ? set.ToList() : [];
+        Assert.DoesNotContain(forgedCookies, c => c.StartsWith($"shop_{merchant.TenantId:N}=", StringComparison.Ordinal));
+
+        // Con la cookie de OTRO arranque (otro nonce), tampoco.
+        await StartAsync(victim, merchant.TenantId, "/");
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await victim.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={state}")).StatusCode);
+
+        // En el navegador que lo empezó anda, una sola vez: la cookie se borra.
+        var ok = await attacker.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={state}");
+        Assert.Equal(HttpStatusCode.Redirect, ok.StatusCode);
+        Assert.Contains(ok.Headers.GetValues("Set-Cookie"), c => c.StartsWith("shop_google_nonce=;", StringComparison.Ordinal));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await attacker.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={state}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Google_sobre_una_cuenta_sin_verificar_borra_la_contrasena_que_puso_otro()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "ggp");
+        var email = $"victima-{merchant.Subdomain}@gmail.com";
+
+        // Alguien pre-registró el email de la víctima y quedó logueado. Hoy el
+        // registro ya no guarda contraseña (se elige con el link del mail), pero
+        // quedan cuentas de antes así: con contraseña y sin verificar.
+        using (var seed = factory.Services.CreateScope())
+        {
+            var customers = seed.ServiceProvider.GetRequiredService<Customers.Infrastructure.CustomersDbContext>();
+            var legacy = Customers.Infrastructure.Customer.CreateShopper(merchant.TenantId, "Intruso", email).Value;
+            legacy.SetPasswordHash(Api.Shop.ShopAuth.HashPassword(legacy, "clave-del-intruso"));
+            customers.Customers.Add(legacy);
+            await customers.SaveChangesAsync();
+        }
+        var intruder = new Shopper(merchant);
+        await intruder.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/login", new { email, password = "clave-del-intruso" });
+
+        // La víctima entra con Google (que verificó el email).
+        await using var app = WithGoogle();
+        var client = NoRedirects(app);
+        var state = await StartAsync(client, merchant.TenantId, "/");
+        factory.ExternalHttp.OnJson(HttpMethod.Post, GoogleToken, new { id_token = "id-token-ok" });
+        _google.Next = new GoogleIdentity("google-sub-victima", email, "Víctima", EmailVerified: true);
+        var callback = await client.GetAsync($"/api/v1/shop/auth/google/callback?code=abc&state={Uri.EscapeDataString(state)}");
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+
+        // La contraseña del intruso ya no sirve y su sesión se cerró.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await intruder.SendAsync(HttpMethod.Get, "/api/v1/shop/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await intruder.SendAsync(HttpMethod.Post, "/api/v1/shop/auth/login",
+            new { email, password = "clave-del-intruso" })).StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Customers.Infrastructure.CustomersDbContext>();
+        var account = await db.Customers.IgnoreQueryFilters().SingleAsync(c => c.TenantId == merchant.TenantId && c.Email == email);
+        Assert.Null(account.PasswordHash);
+        Assert.True(account.EmailVerified);
+        Assert.Equal("google-sub-victima", account.GoogleSubject);
     }
 
     [Fact]
