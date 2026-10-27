@@ -14,7 +14,7 @@ import {
   type SectionType,
   type ThemeSection,
 } from '@tiendafy/types';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { radio } from '../test/choice';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -227,8 +227,10 @@ describe('texto con formato', () => {
     const again = await screen.findByRole('textbox', { name: /A dónde lleva/ });
     await user.clear(again);
     await user.type(again, 'mitienda.com/envios{Enter}');
-    await settle(1);
-    expect(JSON.stringify(latest.body)).toContain('"href":"https://mitienda.com/envios"');
+    // En CI (más lento) el cuerpo puede llegar después de un solo tick.
+    await waitFor(() =>
+      expect(JSON.stringify(latest.body ?? {})).toContain('"href":"https://mitienda.com/envios"'),
+    );
   });
 
   it('la imagen elige su lugar y el link del botón aparece con el texto', async () => {
