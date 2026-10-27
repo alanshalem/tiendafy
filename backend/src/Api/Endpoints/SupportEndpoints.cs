@@ -263,6 +263,9 @@ public static class SupportEndpoints
 
     // ---- Helpers -------------------------------------------------------------
 
+    /// <summary>Adjuntos que puede mandar el comprador en una conversación.</summary>
+    private const int MaxCustomerAttachmentsPerConversation = 10;
+
     private static async Task<IResult> SendAttachmentAsync(
         SupportDbContext db, IMediaStorage storage, Conversation conv, IFormFile file,
         string? body, bool isFromStaff, string authorName, CancellationToken ct)
@@ -270,6 +273,18 @@ public static class SupportEndpoints
         if (file.Length is <= 0 or > S3MediaStorage.MaxAttachmentBytes)
             return Error.Validation("Support.AttachmentTooLarge",
                 $"El archivo debe pesar hasta {S3MediaStorage.MaxAttachmentBytes / 1024 / 1024} MB.").ToProblem();
+
+        // Tope por conversación para el comprador: sin él, cualquiera con una
+        // cuenta llenaba el bucket de adjuntos de 10 MB. No se guarda el peso de
+        // cada adjunto, así que el tope de bytes sale del de cantidad (10 × 10 MB).
+        if (!isFromStaff)
+        {
+            var sent = await db.Messages.CountAsync(
+                m => m.ConversationId == conv.Id && !m.IsFromStaff && m.AttachmentKey != null, ct);
+            if (sent >= MaxCustomerAttachmentsPerConversation)
+                return Error.Validation("Support.TooManyAttachments",
+                    $"Ya enviaste {MaxCustomerAttachmentsPerConversation} archivos en esta conversación. Si necesitás mandar más, escribinos por mensaje.").ToProblem();
+        }
 
         // Buffer en memoria: el form stream no siempre es seekable y la validación
         // de magic bytes necesita releer el inicio. Cap de 10 MB ya validado.

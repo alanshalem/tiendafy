@@ -79,7 +79,7 @@ Comprador (`/api/v1/shop/support`, sesión de comprador + `X-Tenant-Id`):
 | GET | `/conversations` | Mis conversaciones: las que tienen al menos un mensaje, la más reciente primero, con `orderNumber`/`orderLabel`, `unreadForCustomer` y `lastMessage` (texto en un renglón de hasta 160 caracteres, o el nombre del adjunto, y si lo escribió la tienda) |
 | GET | `/conversations/{id}/messages` | Los últimos 500 mensajes + marca leído (comprador); adjuntos con URL firmada |
 | POST | `/conversations/{id}/messages` | Enviar texto |
-| POST | `/conversations/{id}/attachments` | Enviar adjunto (multipart `file` + `body` opcional) |
+| POST | `/conversations/{id}/attachments` | Enviar adjunto (multipart `file` + `body` opcional); el comprador puede mandar hasta 10 por conversación (`Support.TooManyAttachments`), el equipo no tiene tope |
 
 Equipo (`/api/v1/support`, `support.chat`):
 

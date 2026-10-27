@@ -266,6 +266,42 @@ public sealed partial class ShopperFlowTests
     }
 
     [Fact]
+    public async Task El_comprador_tiene_un_tope_de_adjuntos_por_conversacion()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "adj");
+        var shopper = new Shopper(merchant);
+        var email = $"adj-{merchant.Subdomain}@mail.com";
+        await shopper.RegisterVerifiedAsync(email, "Adj");
+        var orderId = await merchant.CreateSaleAsync(buyerEmail: email);
+        var conversationId = (await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/support/conversations", new { orderId }))
+            .GetProperty("id").GetGuid();
+
+        async Task<HttpResponseMessage> SendPhotoAsync()
+        {
+            using var photo = new MultipartFormDataContent
+            {
+                { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "file", "foto.png" },
+            };
+            return await shopper.SendAsync(HttpMethod.Post, $"/api/v1/shop/support/conversations/{conversationId}/attachments", photo);
+        }
+
+        for (var i = 0; i < 10; i++) Assert.True((await SendPhotoAsync()).IsSuccessStatusCode);
+
+        var over = await SendPhotoAsync();
+        Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
+        Assert.Contains("Support.TooManyAttachments", await over.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        // El equipo de la tienda no tiene ese tope.
+        using var label = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "file", "etiqueta.png" },
+        };
+        var req = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/support/conversations/{conversationId}/attachments") { Content = label };
+        req.Headers.Add("X-Tenant-Id", merchant.TenantId.ToString());
+        Assert.True((await merchant.Client.SendAsync(req)).IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Un_carrito_abandonado_recibe_un_solo_mail()
     {
         var merchant = await Merchant.CreateAsync(_factory, "aba");
