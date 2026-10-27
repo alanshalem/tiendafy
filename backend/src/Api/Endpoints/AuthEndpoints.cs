@@ -13,6 +13,22 @@ public static class AuthEndpoints
     {
         var auth = group.MapGroup("/auth");
 
+        // Entrar, salir, el segundo paso, configurarlo, la contraseña: todo lo
+        // que escribe en /auth se acepta solo desde el panel (o sin Origin: un
+        // pedido que no sale de un navegador). La cookie del panel ya no vale
+        // desde una tienda (OriginRules), pero estos pedidos son anónimos: sin
+        // esto, un script en una tienda podía cerrarle la sesión al admin que
+        // la visita o dejarlo logueado con una cuenta ajena (login CSRF).
+        auth.AddEndpointFilter(async (ctx, next) =>
+        {
+            var request = ctx.HttpContext.Request;
+            if (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method)
+                || ctx.HttpContext.RequestServices.GetRequiredService<OriginRules>().AllowsPanelSession(request))
+                return await next(ctx);
+            return Results.Problem(title: "Auth.ForeignOrigin",
+                detail: "Esto solo se puede hacer desde el panel.", statusCode: StatusCodes.Status403Forbidden);
+        });
+
         // Esta plataforma es de UNA empresa, no un SaaS con registro abierto: el
         // alta la hace un dueño desde Usuarios. La única excepción es el
         // arranque — en una instalación sin ningún usuario hay que poder crear

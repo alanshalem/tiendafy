@@ -728,7 +728,11 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
   viven en subdominios con GTM, Pixel y Clarity de cada comercio. Si el pedido trae
   `Origin` y no es el del panel (`Admin:BaseUrl`) ni el de la API, la sesión del
   panel se ignora (anónimo, 401) sin borrar la cookie. Sin `Origin` (navegación,
-  descargas) vale. La cookie del comprador no cambia: se usa desde su tienda.
+  descargas) vale. Y toda escritura de `/auth` (entrar, salir, el segundo paso y
+  configurarlo, la contraseña) responde 403 `Auth.ForeignOrigin` con un `Origin`
+  que no sea el del panel: son pedidos anónimos y, sin eso, un script en una
+  tienda podía cerrarle la sesión al admin o loguearlo con otra cuenta. La
+  cookie del comprador no cambia: se usa desde su tienda.
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
