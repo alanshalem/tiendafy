@@ -38,7 +38,7 @@ public sealed class PanelTwoFactorTests
         Assert.False(status.GetProperty("enabled").GetBoolean());
 
         // Sin empezar no se puede confirmar.
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = "123456" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = "123456", password = Password })).StatusCode);
 
         // La clave para la app, el link otpauth:// y el QR.
         var setup = await (await client.PostAsJsonAsync("/api/v1/auth/2fa/setup", new { })).Content.ReadFromJsonAsync<JsonElement>();
@@ -52,9 +52,19 @@ public sealed class PanelTwoFactorTests
         // La clave queda cifrada en la base, no en texto plano.
         Assert.DoesNotContain(await StoredTokensAsync(email), t => t.Contains(Raw(key), StringComparison.OrdinalIgnoreCase));
 
+        // Activarla pide la contraseña: con solo la cookie (robada), quien la
+        // tenga activaría su propia app y dejaría afuera al dueño.
+        var noPassword = await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0) });
+        Assert.Equal(HttpStatusCode.BadRequest, noPassword.StatusCode);
+        Assert.Equal("Auth.PasswordRequired", (await noPassword.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        var wrongPassword = await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0), password = "otra-clave-larga" });
+        Assert.Equal(HttpStatusCode.BadRequest, wrongPassword.StatusCode);
+        Assert.Equal("Auth.InvalidPassword", (await wrongPassword.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        Assert.False((await client.GetFromJsonAsync<JsonElement>("/api/v1/auth/2fa")).GetProperty("enabled").GetBoolean());
+
         // Un código equivocado no la activa; uno de la app sí, y entrega 10 de recuperación.
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 20) })).StatusCode);
-        var enabled = await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0) });
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 20), password = Password })).StatusCode);
+        var enabled = await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0), password = Password });
         Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
         var recovery = (await enabled.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("recoveryCodes")
             .EnumerateArray().Select(c => c.GetString()!).ToList();
@@ -199,7 +209,7 @@ public sealed class PanelTwoFactorTests
     {
         var setup = await (await client.PostAsJsonAsync("/api/v1/auth/2fa/setup", new { })).Content.ReadFromJsonAsync<JsonElement>();
         var key = setup.GetProperty("sharedKey").GetString()!;
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0) })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp(key, 0), password = Password })).StatusCode);
         return key;
     }
 

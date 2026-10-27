@@ -13,12 +13,20 @@ public sealed partial record Subdomain
     [GeneratedRegex("^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])$")]
     private static partial Regex ValidPattern();
 
+    // img/media: el host de las fotos (MEDIA_PUBLIC_BASE_URL, ver .env.prod.example).
+    // stg: staging cuelga de producción (stg.<dominio>).
     private static readonly HashSet<string> Reserved =
     [
-        "www", "admin", "api", "app", "staging", "dev", "test",
+        "www", "admin", "api", "app", "staging", "stg", "dev", "test",
         "mail", "smtp", "ftp", "blog", "docs", "status", "cdn",
-        "assets", "static", "checkout", "pay", "billing", "support",
+        "assets", "static", "img", "media", "checkout", "pay", "billing", "support",
     ];
+
+    /// <summary>
+    /// ¿Es un subdominio de la plataforma que no es una tienda (el panel, la API,
+    /// las fotos…)? CORS no les da credenciales como si fueran una tienda.
+    /// </summary>
+    public static bool IsReserved(string label) => Reserved.Contains(label.ToLowerInvariant());
 
     public string Value { get; }
 

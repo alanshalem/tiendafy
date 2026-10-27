@@ -74,26 +74,45 @@ backups_writable() {
   chmod 700 "$dir"
   find "$dir" -maxdepth 1 -type f -exec chmod 600 {} +
 }
-# Valor de una variable en el archivo de un ambiente (la última definición).
-env_value() { sed -n "s/^$2=//p" "$1" | tail -1; }
+# Valor de una variable en el archivo de un ambiente (la última definición),
+# como lo lee compose: sin `export `, sin \r (archivo con CRLF), sin espacios
+# alrededor, sin un comentario al final (` # …`) y sin comillas que lo
+# envuelvan. Comparar el texto crudo dejaba pasar MEDIA_BUCKET="tiendafy-media"
+# o MEDIA_BUCKET=tiendafy-media # prod, que compose resuelve al de producción.
+env_file_value() {
+  sed -n "s/^[[:space:]]*\(export[[:space:]][[:space:]]*\)\{0,1\}$2[[:space:]]*=//p" "$1" | tail -1 |
+    tr -d '\r' |
+    sed -e 's/[[:space:]]#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+      -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
+}
 # Staging con los buckets de producción es staging borrando fotos de producción:
 # el compose cae a los nombres por defecto cuando falta MEDIA_BUCKET, que son
 # los de producción. Acá se exige que staging defina los suyos y que no sean
-# los de prod (ni los por defecto ni los que declare .env.prod).
-if [ "$ENVIRONMENT" = staging ]; then
+# los de prod (ni los por defecto ni los que declare .env.prod). Recibe el
+# archivo de staging y el de producción; corta con exit 1.
+staging_buckets_guard() {
+  local stg_file="$1" prod_file="$2" pair var prod_default stg_value prod_value
   for pair in MEDIA_BUCKET:tiendafy-media MEDIA_PRIVATE_BUCKET:tiendafy-private; do
     var="${pair%%:*}"
     prod_default="${pair##*:}"
-    stg_value="$(env_value "$ENV_FILE" "$var")"
+    # Una variable del shell le gana al archivo, aunque esté vacía (así lo
+    # resuelve compose; vacía, cae al nombre por defecto: el de producción).
+    if [ -n "${!var+x}" ]; then
+      stg_value="${!var}"
+    else
+      stg_value="$(env_file_value "$stg_file" "$var")"
+    fi
     prod_value=""
-    [ -f .env.prod ] && prod_value="$(env_value .env.prod "$var")"
+    [ -f "$prod_file" ] && prod_value="$(env_file_value "$prod_file" "$var")"
     if [ -z "$stg_value" ] || [ "$stg_value" = "$prod_default" ] || [ "$stg_value" = "${prod_value:-$prod_default}" ]; then
-      echo "Staging tiene que usar sus propios buckets: definí $var en $ENV_FILE con un nombre distinto del de producción (hoy: \"${stg_value:-sin definir}\")." >&2
+      echo "Staging tiene que usar sus propios buckets: definí $var en $stg_file con un nombre distinto del de producción (hoy: \"${stg_value:-sin definir}\")." >&2
       exit 1
     fi
   done
+}
+if [ "$ENVIRONMENT" = staging ]; then
+  staging_buckets_guard "$ENV_FILE" .env.prod
 fi
-
 # Tag de una imagen "registro/nombre:tag" (lo que va después de los últimos dos puntos).
 tag_of() { echo "${1##*:}"; }
 
@@ -123,10 +142,27 @@ fi
 API_ID="$(compose ps -q api)"
 PREV_TAG=""
 [ -n "$API_ID" ] && PREV_TAG="$(tag_of "$(docker inspect -f '{{.Config.Image}}' "$API_ID")")"
+# Volver de imagen no deshace las migraciones. Si este deploy aplicó alguna que
+# la versión anterior no conoce (por ejemplo, las de oct-2026 que cifran el
+# teléfono, el DNI y la dirección del comprador y que renombran las columnas de
+# tokens de sus sesiones), la versión vieja sobre la base migrada no encuentra
+# columnas y lee cifrado lo que muestra, factura y manda por mail: hay que
+# restaurar la copia de antes de migrar. Se pierde lo que se guardó después.
 rollback_hint() {
   [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$NEW_TAG" ] || return 0
   echo "Para volver a lo que corría antes:  ./infra/deploy.sh $ENVIRONMENT $PREV_TAG" >&2
-  [ -n "${PREDEPLOY_DUMP:-}" ] && echo "La base antes de las migraciones: infra/docker/$PREDEPLOY_DUMP" >&2
+  [ -n "${PREDEPLOY_DUMP:-}" ] || return 0
+  cat >&2 << EOF
+OJO: eso vuelve el código, no la base. Si $PREV_TAG es anterior a alguna
+migración que aplicó este deploy (las del cifrado de datos del comprador y de
+los tokens de sus sesiones, oct-2026, por ejemplo), la versión vieja NO anda
+sobre la base migrada: antes de volver, restaurá la copia de antes de migrar
+(se pierde lo que se guardó desde entonces). Desde infra/docker:
+  docker compose -f docker-compose.stack.yml --env-file $ENV_FILE stop api storefront admin
+  docker compose -f docker-compose.stack.yml --env-file $ENV_FILE exec -T postgres \\
+    pg_restore -U tiendafy -d tiendafy --clean --if-exists --single-transaction --exit-on-error < $PREDEPLOY_DUMP
+  cd ../.. && ./infra/deploy.sh $ENVIRONMENT $PREV_TAG
+EOF
   return 0
 }
 trap 'echo "DEPLOY FALLÓ." >&2; rollback_hint' ERR
@@ -199,5 +235,8 @@ for svc in storefront:3000 admin:8080; do
 done
 
 compose ps
-[ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$NEW_TAG" ] && echo "Si algo no anda: ./infra/deploy.sh $ENVIRONMENT $PREV_TAG"
+if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$NEW_TAG" ]; then
+  echo "Si algo no anda:" >&2
+  rollback_hint
+fi
 exit 0

@@ -15,12 +15,54 @@ namespace Api.Shop;
 /// en el request. Es best-effort, como el envío de antes: si la API se
 /// reinicia justo, ese mail no sale y la persona lo vuelve a pedir.
 /// </para>
+///
+/// <para>
+/// Con tope: si hay más de <see cref="Capacity"/> trabajos sin terminar (un
+/// ataque de "olvidé mi contraseña" en masa, Resend lento), los nuevos se
+/// descartan con un aviso en el log en vez de acumular tareas en memoria
+/// hasta tumbar la API.
+/// </para>
 /// </summary>
-public sealed class ShopperMailDispatch(
-    IServiceScopeFactory scopes, IHostApplicationLifetime lifetime, ILogger<ShopperMailDispatch> log)
+public sealed class ShopperMailDispatch
 {
+    /// <summary>Cuántos trabajos pueden estar en curso o esperando a la vez.</summary>
+    public const int Capacity = 1000;
+
+    private readonly IServiceScopeFactory scopes;
+    private readonly IHostApplicationLifetime lifetime;
+    private readonly ILogger<ShopperMailDispatch> log;
+    private readonly int capacity;
+    private int pending;
+
+    public ShopperMailDispatch(
+        IServiceScopeFactory scopes, IHostApplicationLifetime lifetime, ILogger<ShopperMailDispatch> log)
+        : this(scopes, lifetime, log, Capacity)
+    {
+    }
+
+    internal ShopperMailDispatch(
+        IServiceScopeFactory scopes, IHostApplicationLifetime lifetime, ILogger<ShopperMailDispatch> log, int capacity)
+    {
+        this.scopes = scopes;
+        this.lifetime = lifetime;
+        this.log = log;
+        this.capacity = capacity;
+    }
+
+    /// <summary>Trabajos en curso o esperando (para los tests).</summary>
+    internal int Pending => Volatile.Read(ref pending);
+
     public void Run(Guid tenantId, Func<IServiceProvider, CancellationToken, Task> work)
     {
+        if (Interlocked.Increment(ref pending) > capacity)
+        {
+            Interlocked.Decrement(ref pending);
+            log.LogWarning(
+                "Demasiados emails de la cuenta del comprador en curso ({Capacity}): se descarta uno (tienda {TenantId}).",
+                capacity, tenantId);
+            return;
+        }
+
         var ct = lifetime.ApplicationStopping;
         _ = Task.Run(async () =>
         {
@@ -37,6 +79,10 @@ public sealed class ShopperMailDispatch(
             catch (Exception ex)
             {
                 log.LogError(ex, "No se pudo mandar un email de la cuenta del comprador (tienda {TenantId}).", tenantId);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref pending);
             }
         }, CancellationToken.None);
     }

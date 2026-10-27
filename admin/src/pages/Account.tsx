@@ -170,12 +170,18 @@ function SetupView({
   onEnabled: (r: RecoveryCodes) => void;
 }) {
   const [code, setCode] = useState('');
+  // Activarla pide la contraseña: con una sesión abierta en una compu ajena,
+  // otro podría activarla con su teléfono y dejarte afuera de tu cuenta.
+  const [password, setPassword] = useState('');
   const enable = useMutation({
-    mutationFn: () => api.post<RecoveryCodes>('/api/v1/auth/2fa/enable', { code }),
+    mutationFn: () => api.post<RecoveryCodes>('/api/v1/auth/2fa/enable', { code, password }),
     onSuccess: onEnabled,
     // El error se muestra en el campo.
     meta: { errorShown: true },
   });
+  const error = enable.isError ? problem(enable.error, 'No se pudo activar.') : undefined;
+  const errorCode = enable.error instanceof ApiRequestError ? enable.error.error.code : null;
+  const passwordError = errorCode === 'Auth.InvalidPassword' || errorCode === 'Auth.PasswordRequired';
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -202,13 +208,12 @@ function SetupView({
           </code>
         </li>
         <li>
-          <p className="font-medium">2. Escribí el código de 6 dígitos que te muestra la app.</p>
+          <p className="font-medium">
+            2. Escribí el código de 6 dígitos que te muestra la app y, para confirmar que sos vos, tu
+            contraseña.
+          </p>
           <form onSubmit={submit} className="mt-3 flex flex-wrap items-start gap-2">
-            <FormField
-              label="Código de la app"
-              error={enable.isError ? problem(enable.error, 'No se pudo activar.') : undefined}
-              className="w-44"
-            >
+            <FormField label="Código de la app" error={passwordError ? undefined : error} className="w-44">
               <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -219,8 +224,21 @@ function SetupView({
                 required
               />
             </FormField>
+            <FormField label="Tu contraseña" error={passwordError ? error : undefined} className="w-56">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </FormField>
             <div className="flex gap-2 sm:mt-6">
-              <Button type="submit" loading={enable.isPending} disabled={code.trim().length < 6}>
+              <Button
+                type="submit"
+                loading={enable.isPending}
+                disabled={code.trim().length < 6 || password.length === 0}
+              >
                 Confirmar y activar
               </Button>
               <Button type="button" variant="ghost" onClick={onCancel}>

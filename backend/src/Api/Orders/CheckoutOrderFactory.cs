@@ -103,44 +103,57 @@ public sealed class CheckoutOrderFactory(
             }
         }
 
-        // Un cupón de envío gratis no descuenta del producto: pone el envío en
-        // cero. Sin esto, el carrito prometía "envío gratis" y el comprador
-        // igual pagaba el envío completo.
-        var shippingCost = freeShipping ? Money.Zero(session.Currency) : session.ShippingCost;
+        // Desde acá hasta que la venta nace, una excepción (la base que se cae a
+        // mitad, un bug) no es un Failure: sin esto el uso tomado no volvía y un
+        // cupón de un uso quedaba agotado sin ninguna venta.
+        Result<PlacedOrder> placed;
+        try
+        {
+            // Un cupón de envío gratis no descuenta del producto: pone el envío en
+            // cero. Sin esto, el carrito prometía "envío gratis" y el comprador
+            // igual pagaba el envío completo.
+            var shippingCost = freeShipping ? Money.Zero(session.Currency) : session.ShippingCost;
 
-        // Snapshot de COSTO al momento de la venta (rentabilidad): se lee del
-        // catálogo acá y no en el checkout — el costo que importa es el vigente
-        // cuando la orden nace. Best effort: sin costo cargado, la orden va igual.
-        var variantCosts = (await catalogQuery.GetVariantsAsync(
-                tenantId.Value, session.Items.Select(i => i.VariantId).Distinct().ToList(), ct))
-            .Where(v => v.Cost is not null)
-            .ToDictionary(v => v.VariantId, v => new Money(v.Cost!.Amount, v.Cost.Currency));
+            // Snapshot de COSTO al momento de la venta (rentabilidad): se lee del
+            // catálogo acá y no en el checkout — el costo que importa es el vigente
+            // cuando la orden nace. Best effort: sin costo cargado, la orden va igual.
+            var variantCosts = (await catalogQuery.GetVariantsAsync(
+                    tenantId.Value, session.Items.Select(i => i.VariantId).Distinct().ToList(), ct))
+                .Where(v => v.Cost is not null)
+                .ToDictionary(v => v.VariantId, v => new Money(v.Cost!.Amount, v.Cost.Currency));
 
-        var lines = session.Items.Select(i => new CreateOrderLine(
-            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId,
-            variantCosts.TryGetValue(i.VariantId, out var cost) ? cost : null)).ToList();
+            var lines = session.Items.Select(i => new CreateOrderLine(
+                i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId,
+                variantCosts.TryGetValue(i.VariantId, out var cost) ? cost : null)).ToList();
 
-        // Retiro en el local: lo dice el medio que eligió (los de carrier, aunque sean
-        // "a sucursal", se despachan y siguen con su seguimiento).
-        var isPickup = session.ShippingMethodId is { } methodId
-            && (await shippingMethods.GetByIdAsync(tenantId, methodId, ct))?.Kind == ShippingKind.Pickup;
+            // Retiro en el local: lo dice el medio que eligió (los de carrier, aunque sean
+            // "a sucursal", se despachan y siguen con su seguimiento).
+            var isPickup = session.ShippingMethodId is { } methodId
+                && (await shippingMethods.GetByIdAsync(tenantId, methodId, ct))?.Kind == ShippingKind.Pickup;
 
-        var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
+            var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
 
-        var placed = await createOrder.HandleAsync(new CreateOrderCommand(
-            tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
-            discount.IsZero ? null : discount, code.Length > 0 ? code : null,
-            ShippingCost: shippingCost,
-            ShippingMethodName: session.ShippingMethodName,
-            ShippingAddress: session.ShippingAddress,
-            BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,
-            BuyerPhone: session.Phone,
-            DocNumber: session.DocNumber,
-            Notes: session.Notes,
-            UtmSource: utmSource,
-            IsPickup: isPickup,
-            OfflinePayment: offline), ct);
+            placed = await createOrder.HandleAsync(new CreateOrderCommand(
+                tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
+                discount.IsZero ? null : discount, code.Length > 0 ? code : null,
+                ShippingCost: shippingCost,
+                ShippingMethodName: session.ShippingMethodName,
+                ShippingAddress: session.ShippingAddress,
+                BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,
+                BuyerPhone: session.Phone,
+                DocNumber: session.DocNumber,
+                Notes: session.Notes,
+                UtmSource: utmSource,
+                IsPickup: isPickup,
+                OfflinePayment: offline), ct);
+        }
+        catch when (tookCouponUse)
+        {
+            await ReleaseAfterCrashAsync(tenantId, session.Id, code);
+            throw;
+        }
+
         // La venta no nació, o la que nació en el mismo instante (otro pedido
         // de la misma compra) no lleva este cupón: el uso tomado acá vuelve.
         if (tookCouponUse && (placed.IsFailure || (!placed.Value.IsNew && placed.Value.Order.CouponCode != code)))
@@ -151,6 +164,28 @@ public sealed class CheckoutOrderFactory(
         return placed.Value.IsNew
             ? new CheckoutOrder(placed.Value.Order, true)
             : Reuse(placed.Value.Order, offline);
+    }
+
+    /// <summary>
+    /// Devuelve el uso del cupón cuando crear la venta tiró una excepción. Salvo
+    /// que la venta de esta compra igual exista con el cupón (la creó otro pedido
+    /// suyo en el mismo instante): ese uso es de ella. Sin CancellationToken: el
+    /// pedido pudo haberse cortado, y el uso tiene que volver igual. Si esto
+    /// también falla, gana la excepción original (se loguea arriba).
+    /// </summary>
+    private async Task ReleaseAfterCrashAsync(TenantId tenantId, Guid sessionId, string code)
+    {
+        try
+        {
+            if (await orders.GetByCheckoutSessionAsync(tenantId, sessionId, CancellationToken.None) is { } order
+                && order.CouponCode == code)
+                return;
+            await couponRedemptions.ReleaseAsync(tenantId.Value, sessionId, CancellationToken.None);
+        }
+        catch
+        {
+            // La base sigue caída: el uso queda tomado, como antes de este arreglo.
+        }
     }
 
     private static Result<CheckoutOrder> CouponExhausted() =>

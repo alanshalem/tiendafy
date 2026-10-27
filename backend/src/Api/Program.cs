@@ -38,6 +38,17 @@ if (args.Contains("migrate"))
     return;
 }
 
+// Mantenimiento, una sola vez después del deploy que cambió el sanitizador de
+// SVG: `dotnet Api.dll resanitize-svg` re-sanea los .svg que ya estaban en el
+// bucket público y los vuelve a subir con Content-Disposition: attachment.
+// Idempotente (ver SvgResanitizer y docs/despliegue.md).
+if (args.Contains("resanitize-svg"))
+{
+    var report = await app.Services.GetRequiredService<SvgResanitizer>().RunAsync();
+    app.Logger.LogInformation("SVG re-saneados: {Report}. Saliendo.", report);
+    return;
+}
+
 // Migraciones pendientes de todos los módulos, antes de servir (idempotente).
 // Prod multi-instancia: poné Database__MigrateOnStartup=false y corré las
 // migraciones como paso de deploy (evita carreras de migración al boot).

@@ -6,13 +6,17 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
+import { TOKEN_PAGES, useScrubUrlParams } from '@/lib/scrub-url';
 
 import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 export function ResetPassword() {
   const params = useSearchParams();
-  const token = params.get('token') ?? '';
+  // Se guarda al montar y se saca de la URL (ver lib/scrub-url): con la URL
+  // sin el token, useSearchParams deja de verlo.
+  const [token] = useState(() => params.get('token') ?? '');
+  useScrubUrlParams(TOKEN_PAGES['/cuenta/reset']);
   const { tenantId } = useCart();
   const href = usePreviewHref();
   const [password, setPassword] = useState('');

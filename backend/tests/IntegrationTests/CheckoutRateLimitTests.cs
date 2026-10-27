@@ -39,6 +39,24 @@ public sealed class CheckoutRateLimitTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.TooManyRequests, submit[2]);
     }
 
+    /// <summary>
+    /// El cupo de fábrica para pagar: en Argentina los celulares comparten IPv4
+    /// (CGNAT), y en un pico (Hot Sale) muchos compradores detrás de la misma
+    /// IP pagan en pocos minutos. Con 10, el undécimo recibía 429 al pagar.
+    /// </summary>
+    [Fact]
+    public async Task Por_defecto_enviar_un_checkout_admite_30_cada_10_minutos_por_IP()
+    {
+        // Sin el valor de la suite ni el de desarrollo: el de fábrica.
+        await using var app = factory.WithWebHostBuilder(b =>
+            b.UseSetting("RateLimiting:CheckoutPermitLimit", null));
+        var client = app.CreateClient();
+
+        var submit = await HitAsync(client, 31, _ => Post($"/api/v1/checkout/{Guid.NewGuid()}/submit", new { email = "a@b.com" }));
+        Assert.DoesNotContain(HttpStatusCode.TooManyRequests, submit.Take(30));
+        Assert.Equal(HttpStatusCode.TooManyRequests, submit[30]);
+    }
+
     [Fact]
     public async Task Cotizar_buscar_y_el_beacon_de_visitas_tienen_cupo_por_IP()
     {

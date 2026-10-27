@@ -19,7 +19,8 @@ handover() {
   [ -n "$owner" ] || return 0
   chown "$owner" "$1" || echo "backup: no pude pasar $1 a $owner" >&2
 }
-chmod 700 /backups 2> /dev/null\n[ -n "$owner" ] && chown "$owner" /backups 2> /dev/null
+chmod 700 /backups 2> /dev/null
+[ -n "$owner" ] && chown "$owner" /backups 2> /dev/null
 while true; do
   stamp="$(date +%Y%m%d-%H%M)"
 
@@ -43,5 +44,7 @@ while true; do
   fi
 
   find /backups -maxdepth 1 \( -name 'tiendafy-*.dump' -o -name 'dpkeys-*.tgz' \) -mtime +14 -delete
+  # Un .tmp que quedó de una corrida cortada (el contenedor se reinició a mitad).
+  find /backups -maxdepth 1 -name '.*.tmp' -mtime +1 -delete
   sleep 86400
 done

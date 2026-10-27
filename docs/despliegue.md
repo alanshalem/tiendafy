@@ -67,7 +67,8 @@ que sale a producción son exactamente los bytes que se probaron en staging.
 ```
 
 Restaura el backup en staging y le pasa `infra/sql/anonymize-staging.sql`, que
-reemplaza los datos de contacto por direcciones `@example.invalid`, borra las
+reemplaza los datos de contacto por direcciones `@example.invalid` (y borra el
+teléfono, el DNI/CUIT y la dirección de ventas y checkouts), borra las
 credenciales de cobro y facturación y deja a los usuarios del panel **sin
 contraseña** y sin sesiones (`password_hash` en NULL, `security_stamp` nuevo). Si algo queda sin anonimizar, el script
 **no levanta staging**. Restaurar producción sin anonimizar es la forma más
@@ -289,13 +290,20 @@ Notas de build (ya resueltas en los Dockerfiles):
   del store, e install `--frozen-lockfile --offline` del workspace completo (un
   install filtrado deja a tsc sin los tipos compartidos).
 - **Contenedores endurecidos** (`docker-compose.stack.yml`): `api`,
-  `storefront` y `admin` corren con `no-new-privileges`, `cap_drop: ALL` y
-  el sistema de archivos de solo lectura; lo que escriben va a un tmpfs: `/tmp`
-  en los tres, la caché de Next (`.next/cache`, con tope de 128 MB que cuenta
-  para el límite de memoria) en la tienda y, en el panel, `config.js` y su CSP
-  de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). `/keys` de
-  la API es un volumen. Si agregás algo que escribe a disco, declaralo ahí: con
-  el sistema de solo lectura falla con `EROFS`.
+  `storefront` y `admin` corren con `no-new-privileges` y `cap_drop: ALL`.
+  Solo el panel (y los de backup) tienen además el sistema de archivos de solo
+  lectura; lo que escriben va a un tmpfs: `/tmp`, y en el panel `config.js` y
+  su CSP de runtime (`docker-config.sh` los escribe en `/tmp/tiendafy`). Si
+  agregás algo que escribe a disco en uno de esos, declaralo ahí: con el
+  sistema de solo lectura falla con `EROFS`.
+  - La **API** no es de solo lectura y su `/tmp` es el disco del contenedor:
+    la importación de fotos extrae ahí el ZIP (hasta 2 GB descomprimidos),
+    Kestrel guarda los archivos grandes de un multipart (hasta 1 GB) y
+    QuestPDF/Skia escriben su caché de fuentes. En un tmpfs eso sería memoria
+    del contenedor y una subida grande la mataría por OOM. `/keys` es un
+    volumen.
+  - La **tienda** tampoco: Next escribe su caché (`.next/cache`) en runtime y
+    crece con el catálogo.
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
 - Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
@@ -353,6 +361,49 @@ y si algo falla). Las imágenes viejas siguen en GHCR.
 Ojo: eso vuelve el código, no la base. Una migración que borra datos no se
 deshace con un rollback de imagen: para eso está la copia `tiendafy-predeploy-*`
 de ese deploy (restaurarla como se explica abajo).
+
+Lo mismo con una migración que la versión anterior no conoce y que cambia
+columnas que esa versión usa. Volver a un tag anterior a las migraciones de
+oct-2026 que cifran el teléfono, el DNI y la dirección del comprador
+(`EncryptBuyerPii`, en ventas y checkouts) y que guardan hasheados los tokens de
+sus sesiones (`HashShopperTokens`) **exige restaurar el `PREDEPLOY_DUMP`** de
+ese deploy: la versión vieja no encuentra la columna `token` y leería cifrado
+lo que muestra, factura y manda por mail. Se pierde lo que se guardó desde el
+deploy. `deploy.sh` imprime los comandos con la ruta del dump; desde
+`infra/docker`:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod stop api storefront admin
+docker compose -f docker-compose.stack.yml --env-file .env.prod exec -T postgres \
+  pg_restore -U tiendafy -d tiendafy --clean --if-exists --single-transaction --exit-on-error \
+  < backups/prod/tiendafy-predeploy-AAAAMMDD-HHMM-sha-NUEVO.dump
+cd ../.. && ./infra/deploy.sh prod sha-EL_ANTERIOR
+```
+
+Con `--single-transaction` y `--exit-on-error`, si algo falla la base queda
+como estaba.
+
+**Paso único después del deploy de oct-2026 (sanitizador de SVG):** el
+sanitizador nuevo y el `Content-Disposition: attachment` solo se aplican a lo
+que se sube de ahí en adelante; los `.svg` que ya estaban en el bucket público
+pasaron por el sanitizador viejo (con bypass conocidos) y se sirven en línea.
+Una vez, con la versión nueva ya arriba, desde `infra/docker`:
+
+```bash
+docker compose -f docker-compose.stack.yml --env-file .env.prod run --rm api dotnet Api.dll resanitize-svg
+```
+
+Recorre los `.svg` del bucket de media, los re-sanea y los vuelve a subir en la
+misma clave (las URLs no cambian) con `attachment`. Es idempotente: lo que ya
+está bien no se toca, así que se puede volver a correr. Lo que el sanitizador
+rechaza no se borra (es el logo de alguien): queda con `attachment` y sale en el
+log como `SVG <clave>: el sanitizador lo rechaza`, para revisarlo a mano. En
+staging, lo mismo con `.env.staging`.
+
+El cifrado de los datos del comprador que estaban en claro no corre en
+`migrate` sino al arrancar la versión nueva (`BuyerPiiBackfillService`, con
+`Workers:Enabled`): mientras corre `migrate` sigue atendiendo la versión vieja,
+que no sabe descifrar.
 
 **Actualizar Postgres dentro de la misma major** (18.6 → 18.7, parches de
 seguridad): el deploy no lo hace solo, a propósito, porque reinicia la base.
@@ -637,12 +688,21 @@ modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/sm
 - **CSRF**: las escrituras con cookie exigen el header custom `X-Tenant-Id` (no
   enviable por un form cross-site sin preflight CORS, que no permitimos) **y** la
   cookie es `SameSite=Lax` → doble defensa. No usamos tokens CSRF dedicados.
+- **Sesión del panel solo desde el panel** (`Api/Auth/OriginRules.cs`): la cookie
+  `tiendafy.session` es `Lax` y viaja en todo pedido del mismo sitio, y las tiendas
+  viven en subdominios con GTM, Pixel y Clarity de cada comercio. Si el pedido trae
+  `Origin` y no es el del panel (`Admin:BaseUrl`) ni el de la API, la sesión del
+  panel se ignora (anónimo, 401) sin borrar la cookie. Sin `Origin` (navegación,
+  descargas) vale. La cookie del comprador no cambia: se usa desde su tienda.
 
 **Headers de seguridad:** el panel los manda desde el nginx de su imagen
 (`admin/nginx-security-headers.conf`: HSTS, nosniff, `X-Frame-Options: DENY`,
 referrer, permissions policy y el CSP con `frame-ancestors 'none'`; al arrancar,
-`docker-config.sh` suma un segundo CSP que acota `connect-src` a la API y a
-Sentry del ambiente, y el navegador aplica los dos). La API manda nosniff,
+`docker-config.sh` suma un segundo CSP que acota `connect-src` a la API, a
+Sentry del ambiente y a Turnstile, y el navegador aplica los dos; el CSP y el
+meta de `index.html` permiten el script y el iframe de
+`https://challenges.cloudflare.com`, o con el captcha configurado nadie entra
+al panel). La API manda nosniff,
 `X-Frame-Options: DENY`, `frame-ancestors 'none'` y `Referrer-Policy:
 no-referrer` (`SecurityHeadersMiddleware`; en Development `/scalar` queda sin
 CSP). La tienda desde `storefront/next.config.ts`
@@ -667,11 +727,15 @@ las claves de DataProtection, ver *Rotar las claves de DataProtection*.
 
 **Decisiones / roadmap pendientes:**
 - **MFA/2FA** para admins (TOTP/WebAuthn) — feature de producto.
-- **CORS multi-tenant**: el API refleja `*.PlatformBaseDomain` con credenciales
-  porque el storefront vive en subdominios. Es seguro mientras **nosotros** sirvamos
-  el storefront ahí (el merchant no inyecta JS propio; su `customCss` es solo CSS
-  saneado). Aislamiento total = servir las tiendas en un **dominio registrable
-  aparte** del admin/API (decisión de infra, modelo `myshopify.com`).
+- **CORS multi-tenant**: el API acepta con credenciales el panel, el dominio de la
+  plataforma y `<tienda>.PlatformBaseDomain` (un solo nivel, que no sea un
+  subdominio reservado de `Subdomain.cs`: admin, api, img, media, stg…) y los de
+  `Cors__AllowedOrigins`; nunca el host de las fotos (`Media:PublicBaseUrl`) ni
+  lo de staging cuando cuelga de producción (`x.stg.<dominio>`). Las tiendas
+  cargan scripts de terceros que configura cada comercio (GTM, Pixel, Clarity):
+  por eso la sesión del panel no vale desde ellas (ver *CSRF* arriba). Aislamiento
+  total = servir las tiendas en un **dominio registrable aparte** del admin/API
+  (decisión de infra, modelo `myshopify.com`).
 - **Dominios propios de tiendas**: hoy hay que sumar cada uno a
   `Cors__AllowedOrigins`, y la sesión del comprador vive en `api.` (desde otro
   dominio es una cookie de terceros). Se resuelve sirviendo la API desde el

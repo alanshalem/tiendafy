@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { apiUrl, tenantHeaders } from '@/lib/api-client';
+import { isTokenPage } from '@/lib/scrub-url';
 import { setTrackSink, valueOf, type FunnelEvent } from '@/lib/track';
 
 interface TrackingConfig {
@@ -38,6 +39,14 @@ const ok = (value: string | null | undefined, shape: RegExp): string | null =>
 export const isPaymentPage = (pathname: string) => pathname === '/checkout';
 
 /**
+ * Páginas sin medición de terceros: la de pago y las que se abren con un token
+ * en la URL (activación, reset, seguimiento, reseñas; ver lib/scrub-url). GA4 y
+ * Meta mandan la URL completa y Clarity graba la sesión: con el token, quien lo
+ * reciba entra a la cuenta del comprador o ve su compra.
+ */
+export const isUnmeasuredPage = (pathname: string) => isPaymentPage(pathname) || isTokenPage(pathname);
+
+/**
  * La regla completa de cuándo se carga algo, aparte del componente para poder
  * probarla. Es la parte que no puede fallar: si esto devuelve true de más, hay
  * un script de un tercero en la pantalla donde se escribe una tarjeta.
@@ -49,7 +58,7 @@ export function shouldLoad(input: {
   decision: Decision | null;
 }): boolean {
   if (!input.hasAnyTag) return false;
-  if (isPaymentPage(input.pathname)) return false;
+  if (isUnmeasuredPage(input.pathname)) return false;
   if (!input.requireConsent) return true;
   return input.decision === 'granted';
 }
@@ -61,7 +70,9 @@ export function shouldAskConsent(input: {
   requireConsent: boolean;
   decision: Decision | null;
 }): boolean {
-  return input.hasAnyTag && input.requireConsent && input.decision === null && !isPaymentPage(input.pathname);
+  return (
+    input.hasAnyTag && input.requireConsent && input.decision === null && !isUnmeasuredPage(input.pathname)
+  );
 }
 
 const consentKey = (tenantId: string) => `tiendafy.consent.${tenantId}`;
@@ -182,7 +193,9 @@ function loadClarity(projectId: string) {
  * Tres reglas que no se negocian:
  *  1. Nunca en la página de pago. El formulario de tarjeta vive ahí; ningún
  *     script ajeno entra a esa página. Se entra al checkout con una carga
- *     completa de página, así que tampoco queda nada cargado de antes.
+ *     completa de página, así que tampoco queda nada cargado de antes. Lo
+ *     mismo en las páginas que se abren con un token en la URL (activación,
+ *     reset de contraseña, seguimiento, reseñas: isUnmeasuredPage).
  *  2. Nada se carga sin permiso, si el comercio pidió pedirlo.
  *  3. Si el navegador manda la señal de "no me rastreen" (Global Privacy
  *     Control), se toma como un no y ni siquiera se pregunta.
@@ -286,7 +299,7 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
   // no se sabe (o falta la respuesta del aviso) se encola; con un "no", en la
   // página de pago o sin herramientas configuradas, se descarta.
   const waiting =
-    !ready || (config?.requireConsent === true && decision === null && hasAny && !isPaymentPage(pathname));
+    !ready || (config?.requireConsent === true && decision === null && hasAny && !isUnmeasuredPage(pathname));
   useEffect(() => {
     if (allowed && loaded.current) {
       setTrackSink((e) => {

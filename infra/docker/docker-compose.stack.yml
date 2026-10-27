@@ -31,7 +31,8 @@ x-logging: &logging
 # Endurecimiento de los contenedores de la app: sin escalar privilegios, sin
 # ninguna capability de Linux (ninguno necesita una: escuchan puertos altos y
 # escriben solo en sus volúmenes) y con el sistema de archivos de solo lectura;
-# lo que escribe va a un tmpfs o a un volumen declarado.
+# lo que escribe va a un tmpfs o a un volumen declarado. La API y la tienda
+# pisan read_only (ver en cada una por qué).
 x-hardening: &hardening
   security_opt:
     - no-new-privileges:true
@@ -147,9 +148,15 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     <<: [*logging, *hardening]
-    # /tmp: lo único que escribe fuera de /keys (QuestPDF, archivos temporales).
-    tmpfs:
-      - /tmp
+    # La API NO va de solo lectura y su /tmp es el disco del contenedor, no un
+    # tmpfs: la importación de fotos extrae el ZIP en /tmp (hasta 2 GB
+    # descomprimidos), Kestrel guarda ahí cada archivo de un multipart de más
+    # de 64 KB (hasta 1 GB), y QuestPDF/Skia escriben caché de fuentes. Un
+    # tmpfs vive en la memoria del contenedor y cuenta para mem_limit: una
+    # subida grande y legítima mataría la API por OOM y todas las tiendas se
+    # quedarían sin checkout mientras reinicia. Sin privilegios ni
+    # capabilities sí, como las demás.
+    read_only: false
     mem_limit: ${API_MEM_LIMIT:-1g}
     depends_on:
       postgres:

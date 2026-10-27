@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from './auth';
 import { usePreviewHref } from './preview';
+import { TOKEN_PAGES, useScrubUrlParams } from '@/lib/scrub-url';
 import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 /**
@@ -16,7 +17,10 @@ import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
  */
 export function VerifyEmail() {
   const params = useSearchParams();
-  const token = params.get('token') ?? '';
+  // Se guarda al montar y se saca de la URL (ver lib/scrub-url): con la URL
+  // sin el token, useSearchParams deja de verlo.
+  const [token] = useState(() => params.get('token') ?? '');
+  useScrubUrlParams(TOKEN_PAGES['/cuenta/verificar']);
   const { verify } = useAuth();
   const href = usePreviewHref();
   const [password, setPassword] = useState('');

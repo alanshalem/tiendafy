@@ -20,13 +20,32 @@ namespace Api.Auth;
 /// email no sale y la persona lo vuelve a pedir (los dos son a pedido y el
 /// link vence en poco, así que no vale una cola durable).
 /// </para>
+///
+/// <para>
+/// Con tope: si se juntan más de <see cref="Capacity"/> sin mandar (un ataque
+/// de "olvidé mi contraseña" en masa, Resend caído), los nuevos se descartan
+/// con un aviso en el log en vez de crecer en memoria hasta tumbar la API.
+/// </para>
 /// </summary>
 public sealed class PanelAccountEmails
 {
-    private readonly Channel<PanelAccountEmail> _queue = Channel.CreateUnbounded<PanelAccountEmail>(
-        new UnboundedChannelOptions { SingleReader = true });
+    /// <summary>Cuántos emails pueden esperar en la cola.</summary>
+    public const int Capacity = 1000;
 
-    /// <summary>Encola el email. No espera el envío.</summary>
+    private readonly Channel<PanelAccountEmail> _queue;
+
+    public PanelAccountEmails(ILogger<PanelAccountEmails> logger) : this(logger, Capacity)
+    {
+    }
+
+    internal PanelAccountEmails(ILogger<PanelAccountEmails> logger, int capacity) =>
+        _queue = Channel.CreateBounded<PanelAccountEmail>(
+            new BoundedChannelOptions(capacity) { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite },
+            dropped => logger.LogWarning(
+                "Cola de emails de la cuenta del panel llena ({Capacity}): se descarta uno ({Subject}).",
+                capacity, dropped.Subject));
+
+    /// <summary>Encola el email. No espera el envío (con la cola llena, se descarta: ver la clase).</summary>
     public void Enqueue(string to, string subject, string html) =>
         _queue.Writer.TryWrite(new PanelAccountEmail(to, subject, html));
 

@@ -68,12 +68,12 @@ arma estas claves a partir del `.env.prod` (columna "En `.env.prod`").
 | `Database:MigrateOnStartup` | Migrar al arrancar | `true` | Fija en `false`: `deploy.sh` corre `dotnet Api.dll migrate` antes del `up` |
 | `DataProtection:KeyPath` | Keyring que cifra todos los secretos de las tiendas | Vacío = `%LOCALAPPDATA%`. En Production es obligatoria (sin ella la API no arranca) | Fija en `/keys` (volumen `dpkeys`) |
 | `Tenancy:PlatformBaseDomain` | Dominio base: las tiendas son `<sub>.<dominio>` | `localhost` | `STACK_DOMAIN` |
-| `Cors:AllowedOrigins` | Orígenes extra. El dominio base y sus subdominios ya se aceptan; `localhost` y `*.localhost`, solo en Development | `[]` | No se mapea (ver Pendientes) |
+| `Cors:AllowedOrigins` | Orígenes extra (dominios propios de tiendas). Ya se aceptan el panel (`Admin:BaseUrl`), el dominio base y `<tienda>.<dominio>` (un nivel, sin los reservados de `Subdomain.cs` ni el host de `Media:PublicBaseUrl`); `localhost` y `*.localhost`, solo en Development. La sesión del panel solo vale desde el panel | `[]` | No se mapea (ver Pendientes) |
 | `ForwardedHeaders:KnownNetworks` | CIDRs de los proxies en los que se confía para `X-Forwarded-For`; también marcan el tráfico interno del storefront, que no tiene techo global | `[]` | `TRUSTED_PROXY_CIDR_0..2` (default: los tres rangos privados) |
 | `RateLimiting:GlobalPermitLimit` | Pedidos por minuto por IP | `300` (dev: `5000`, en `appsettings.Development.json`) | No se mapea (usa 300) |
 | `RateLimiting:AuthPermitLimit` / `:PaymentsPermitLimit` | Intentos cada 5 min por IP y ruta: formularios públicos (login, registro, contacto, cupón, reseñas, "avisame"); pagos de la tienda | `10` / `15` | No se mapea |
 | `RateLimiting:CheckoutContactPermitLimit` | Guardados del email del checkout (`POST /checkout/contact`) cada 5 min por IP | `30` (dev: `1000`) | No se mapea |
-| `RateLimiting:CheckoutPermitLimit` | Armar (`POST /checkout`) y enviar (`/checkout/{id}/submit`) un checkout cada 10 min por IP y ruta (el id no cuenta: otra compra no da cupo nuevo) | `10` (dev: `1000`) | No se mapea |
+| `RateLimiting:CheckoutPermitLimit` | Armar (`POST /checkout`) y enviar (`/checkout/{id}/submit`) un checkout cada 10 min por IP y ruta (el id no cuenta: otra compra no da cupo nuevo). Holgado por el CGNAT de los celulares | `30` (dev: `1000`) | No se mapea |
 | `RateLimiting:ShippingQuotePermitLimit` | Cotizaciones de envío (Correo, Zipnova, Andreani) cada 5 min por IP y carrier | `30` (dev: `1000`) | No se mapea |
 | `RateLimiting:SearchPermitLimit` / `:TrackPermitLimit` | Por minuto por IP y ruta: búsqueda de la tienda (`products/search`, `products/suggest`, `search/log`) / beacon de visitas (`POST /track`). El storefront por la red interna no tiene cupo | `120` / `120` (dev: `5000`) | No se mapea |
 | `Workers:Enabled` | Workers de polling (webhooks, campañas, etc.) | `true` | `WORKERS_ENABLED`: `true` en una sola instancia |
