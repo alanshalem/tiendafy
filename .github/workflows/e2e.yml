@@ -123,7 +123,7 @@ jobs:
         run: nohup dotnet run --configuration Release --no-build --no-launch-profile > "$RUNNER_TEMP/api.log" 2>&1 &
 
       # ---------------------------------------------------------- Frontends
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
 
       - uses: actions/setup-node@v7
         with:
