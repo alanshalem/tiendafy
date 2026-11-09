@@ -4,35 +4,35 @@
     "net10.0": {
       "AngleSharp": {
         "type": "Direct",
-        "requested": "[1.8.6, )",
-        "resolved": "1.8.6",
-        "contentHash": "tdvrWSsHz8iRcb8U2cbFtYF6/1Mvhbe5ZxN/VdhVeIfp5vOvbwz3Bn7OZknnm2QSyGvM9ZaZLNLvfanPzNa61Q=="
+        "requested": "[1.10.1, )",
+        "resolved": "1.10.1",
+        "contentHash": "yWQuJAaxcvKmhzl77SYfiIbSMloqsHWrzJaqgY5QOoIfEFk0HQZbQQv3gKyIuQBxMwmglcqzXfykGZ4JrkWK5Q=="
       },
       "Anthropic": {
         "type": "Direct",
-        "requested": "[13.3.0, )",
-        "resolved": "13.3.0",
-        "contentHash": "LaqSBrXFuHxTG6+liUGZLL1kJbpyUfyD5UjiCO8CI90il+udIbaqwqA8iRKClSzLk57f+xhtFcqiCrKIFdW8jQ==",
+        "requested": "[13.6.0, )",
+        "resolved": "13.6.0",
+        "contentHash": "KPmqMhlU3Q2hOlslb4TgRMgQGDzf5v4qW/1bgE+D8dK5BbB1v3Ml40eMGmktmwm+5FPL9arV5MgXWoMBJLHniw==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.5.1"
         }
       },
       "Google.Apis.Auth": {
         "type": "Direct",
-        "requested": "[1.77.0, )",
-        "resolved": "1.77.0",
-        "contentHash": "lcgXlzM+JkX0nKKc7KBwTdiei2IbV20PuTe3cVQ2zOhq0j4IiS9I4xlRQY4igdCMLlmobthz5xtHiPr/wxl0Ew==",
+        "requested": "[1.78.0, )",
+        "resolved": "1.78.0",
+        "contentHash": "C+Jzd1tTqZ3/2wVi5Tlkcvqt/+o67/JHvXSZCy89CfhSRwL5bm1HsKbk1KM0sBKGc/RKC8Pr/FsG6n6OZO/MFA==",
         "dependencies": {
-          "Google.Apis": "1.77.0",
-          "Google.Apis.Core": "1.77.0",
+          "Google.Apis": "1.78.0",
+          "Google.Apis.Core": "1.78.0",
           "System.Management": "7.0.2"
         }
       },
       "Google.GenAI": {
         "type": "Direct",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "hIoqvTL8Vf5E+kxGws/PkWlGgUFEZicl3kslIMOHf1u4cQGgbgQLJHvfLK2IqLzy9nAdjrrO4TIgqBTmMQG7qQ==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "C7WPxdvdALpADeGpvhTotNGBOBxcuBYYaALTULYKPV1EUv9+nj3LMuK/Td7g9AyfMqj4pNomY0lbdee+RyjPaQ==",
         "dependencies": {
           "Google.Apis.Auth": "1.69.0",
           "Microsoft.Extensions.AI.Abstractions": "10.6.0",
@@ -118,11 +118,11 @@
       },
       "OpenAI": {
         "type": "Direct",
-        "requested": "[2.14.0, )",
-        "resolved": "2.14.0",
-        "contentHash": "AeyC3GxbrJ7KRoWDyFeNSUOQQWD9AnNvM7LYQijCcXcqjyr53aGRcf5GBLExcSBzIs0RWYHe+NbzPrHTeuU5zA==",
+        "requested": "[2.15.0, )",
+        "resolved": "2.15.0",
+        "contentHash": "04Lvp/guze35OdYsEcQY58SmSCBWCEDCGkiLiTQXDJy5L3d20n7I/zg94ry9hQ5c4dMDF1ASqlxD/IIMy47gFg==",
         "dependencies": {
-          "System.ClientModel": "1.15.0"
+          "System.ClientModel": "1.16.0"
         }
       },
       "QuestPDF": {
@@ -133,9 +133,9 @@
       },
       "Scalar.AspNetCore": {
         "type": "Direct",
-        "requested": "[2.18.3, )",
-        "resolved": "2.18.3",
-        "contentHash": "6KXPOkCNnoZTXBl8GVNxq/zpS9UdGnz1a23EWy3CEiwYbZKQ5gi2APZ5mBruXcdXIr+ZXSZYiwX81UagjKFxeg=="
+        "requested": "[2.19.0, )",
+        "resolved": "2.19.0",
+        "contentHash": "nTXL9wsg6UhQ27KPUhuMr3/BE02H3zjuii2I5x7vbx7myPHkJzvzGDj7hfd1lKZBmJgUcKI+W7wcIzDdV/N/Dg=="
       },
       "Sentry.AspNetCore": {
         "type": "Direct",
@@ -171,15 +171,15 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "4.0.102.13",
-        "contentHash": "vaYs/kwfB+Lv9PeVKYE4g2mQlzVtHImXLWgfTG8UgeCybUAPkew5kwb8GS6RhuzwvImbolyLHT+IM34WoM9lJg=="
+        "resolved": "4.0.102.19",
+        "contentHash": "Hb6P2ui6y0U+UNUjcC4ASFFoTLzCijhMzfOCXfoFTXq/o0YWQsO1oSH1NG2GQ9dlIT693xeeih0yAcfeL1dphg=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "4.0.104.6",
-        "contentHash": "fSqAOkftU8jKemilzLGZDU0zLEJXHjAemU+8Nd29+sUwRxVK04w6/GY3O4f9S1+JIYwEnHDGcW66VK4AZ2kx6g==",
+        "resolved": "4.0.104.11",
+        "contentHash": "leP2ZC3gVaNHXZleKOMHmedex6fTrr6u1ZQFuezIGjT01oPwP0j6YI00jlPwlakTC0Uo5a0eOOY2Q/eYzsU9wg==",
         "dependencies": {
-          "AWSSDK.Core": "[4.0.102.13, 5.0.0)"
+          "AWSSDK.Core": "[4.0.102.19, 5.0.0)"
         }
       },
       "EFCore.NamingConventions": {
@@ -193,16 +193,16 @@
       },
       "Google.Apis": {
         "type": "Transitive",
-        "resolved": "1.77.0",
-        "contentHash": "zj7MKdZz7lWRM7z2meqh5S9KSf83c1xY8Fa+b1KzYxw9xMugUxcQtwPoxJgFzxKJgLE64dAra0ze++P/Up4k6Q==",
+        "resolved": "1.78.0",
+        "contentHash": "pKMYqVircLwkdWwTIkNlwJ8FlUNuG9ZqkmnyJ03vJ51j/Ph59+C/Cp4XWLj0NeeTH6LmLaScweJ3kw+kjZ+clg==",
         "dependencies": {
-          "Google.Apis.Core": "1.77.0"
+          "Google.Apis.Core": "1.78.0"
         }
       },
       "Google.Apis.Core": {
         "type": "Transitive",
-        "resolved": "1.77.0",
-        "contentHash": "7Yj4dpbOLFbxct6x5AFHQEZ25E8/f+5zqW39Q8f/GZknLyuS+uhnt2DIcKQplBNJTK9WNXompbYLWsPRhO6Nmg==",
+        "resolved": "1.78.0",
+        "contentHash": "rkiq62czYwim6XtS4GEI80zQMOHZbB8UqP3oeFcjvj8x5bUmdWagcT7oHQeQhMR1eq9tbmpvYvNy490iDvk6bQ==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.4"
         }
@@ -451,10 +451,10 @@
       },
       "System.ClientModel": {
         "type": "Transitive",
-        "resolved": "1.15.0",
-        "contentHash": "y6zQLInrpX+oGL1gXM04DrUSu1O1esWxt4rD/zrujTnzIFChn/noD1OiVVpTrU8ZvglwqO2Uw038svUR3SiAOg==",
+        "resolved": "1.16.0",
+        "contentHash": "vLljZON+8lXDUtsPP8uwsPvsBSQaUHhh8NvB+D9TQsXu5n622RLtuLyZAcyIFc98b8ixrwD0AhzUQhtg2NwJnQ==",
         "dependencies": {
-          "System.Memory.Data": "10.0.9"
+          "System.Memory.Data": "10.0.10"
         }
       },
       "System.CodeDom": {
@@ -528,8 +528,8 @@
       },
       "System.Memory.Data": {
         "type": "Transitive",
-        "resolved": "10.0.9",
-        "contentHash": "YweovHiLUoEdbr2Xv8eRqCSkTu1vMms4a6xBHaQiMSFVy32PL+hXv6Vhol2NWOmLHjaVgTyhJ3R52U6JxS6w3Q=="
+        "resolved": "10.0.10",
+        "contentHash": "roR+5AeOpflUxJQlqSfsZs/Bvi1uw4KBuTkIgF1e8l0RdalG4AUn84+sjJLclEfOV85gAjc8+Pp540qjDE5UIg=="
       },
       "System.Numerics.Tensors": {
         "type": "Transitive",
@@ -693,7 +693,7 @@
       "media.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[4.0.104.6, )",
+          "AWSSDK.S3": "[4.0.104.11, )",
           "SharedKernel": "[1.0.0, )",
           "SharedKernel.Persistence": "[1.0.0, )"
         }
