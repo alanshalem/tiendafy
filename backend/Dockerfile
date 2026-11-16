@@ -6,7 +6,7 @@
 # - Cache mount de NuGet: cambiar código NO re-descarga paquetes (el store
 #   persiste entre builds de BuildKit sin engordar capas).
 # - Publish directo en un solo RUN (menos capas; el SDK no viaja al runtime).
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 COPY backend/ ./backend/
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
