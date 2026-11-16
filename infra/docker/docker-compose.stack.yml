@@ -120,7 +120,7 @@ services:
   # que nunca viajan ni quedan en claro. Apagado hasta configurarlo
   # (OFFSITE_REPLICAS=1 y las variables OFFSITE_*; ver docs/despliegue.md).
   backup-offsite:
-    image: rclone/rclone:1.75
+    image: rclone/rclone:1.76
     restart: unless-stopped
     <<: [*logging, *hardening, *backupuser]
     tmpfs:
