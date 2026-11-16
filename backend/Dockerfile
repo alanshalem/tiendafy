@@ -12,7 +12,7 @@ COPY backend/ ./backend/
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet publish backend/src/Api/Api.csproj -c Release -o /app /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:11.0
 WORKDIR /app
 # QuestPDF/SkiaSharp (PDFs de facturas) necesita fontconfig + una fuente en
 # Linux. libgssapi-krb5-2: Npgsql la busca al conectar y, si falta, ensucia
