@@ -26,8 +26,8 @@
       },
       "Microsoft.AspNetCore.DataProtection.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "/4+1KX8VIKCCHZ8p/1dZ2WGxvIijm5lXmgHecxEwGnBYXiSjAqfF/Q7p9m6eojUDlpKMHkt1HHXeNdL9WH3YHw=="
+        "resolved": "10.0.15",
+        "contentHash": "Jm8UPQkNEzqgX3bu9ceIFu//8Knk5XN7xgGERBCoaAHOXXvmrU+WWWm6dhPZVp0vxnvAQQpgZ2O7cPgx/d+2Sw=="
       },
       "Microsoft.EntityFrameworkCore": {
         "type": "Transitive",
@@ -83,10 +83,10 @@
       },
       "Microsoft.Extensions.Configuration.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "4YdfvaoWn3tB1xQQHGrhRTFWJ8fGOqxThxduynSZy9ZFTiSaUi3vX4EK/kj8h2HQMwTlks9MWV1fv2WRBv5/1w==",
+        "resolved": "10.0.15",
+        "contentHash": "0vztB/x4zuR/KT82cgTiiw9DqigfT1FjBgq9FjEFvJUgeacjTG4e7hWD2PCRXzL2kWWl/vBAwtXddIRV3AIU6Q==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.14"
+          "Microsoft.Extensions.Primitives": "10.0.15"
         }
       },
       "Microsoft.Extensions.DependencyInjection": {
@@ -99,8 +99,8 @@
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "QtpQzuSZVyTPCuHW058yCs9Nj0394uUkNyFHS813nOmK9UgUdBdaprJ5PPsBgsQIpxADTsTkbaMMonykem6qdw=="
+        "resolved": "10.0.15",
+        "contentHash": "KczR2nV7ooeimtZxAawPht/FJUHnX+uoWy7y4pba+iaRQBwUM2NwtiqZg+/FpZDHUf2RkkzveGkhMTWDNzmDUA=="
       },
       "Microsoft.Extensions.Logging": {
         "type": "Transitive",
@@ -131,8 +131,8 @@
       },
       "Microsoft.Extensions.Primitives": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "1bbZqqCJTPba3inTADExbp/9PsGVyvGOX3zr6tFr7ySCgVkX9Lpw7BV0TizktNItd3SsbUu1sQfSAYm1GZMoNw=="
+        "resolved": "10.0.15",
+        "contentHash": "NjzLiZ1/bYx8VwLqHxNnCfDTQQbCY7P1dwT7JM5FiANiaSfI6UKHi0/sla+jyRbOIbPAMJkhWQ/9pH3tMf+IrQ=="
       },
       "Npgsql": {
         "type": "Transitive",
@@ -161,9 +161,9 @@
         "type": "Project",
         "dependencies": {
           "EFCore.NamingConventions": "[10.0.1, )",
-          "Microsoft.AspNetCore.DataProtection.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.Configuration.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.AspNetCore.DataProtection.Abstractions": "[10.0.15, )",
+          "Microsoft.Extensions.Configuration.Abstractions": "[10.0.15, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.15, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "SharedKernel": "[1.0.0, )"
         }

@@ -4,32 +4,41 @@
     "net10.0": {
       "AWSSDK.S3": {
         "type": "Direct",
-        "requested": "[4.0.104.6, )",
-        "resolved": "4.0.104.6",
-        "contentHash": "fSqAOkftU8jKemilzLGZDU0zLEJXHjAemU+8Nd29+sUwRxVK04w6/GY3O4f9S1+JIYwEnHDGcW66VK4AZ2kx6g==",
+        "requested": "[4.1.0, )",
+        "resolved": "4.1.0",
+        "contentHash": "uV//Txuga5jW6wIE5UXi6RaqAvc0eg76i7vmUDgK2H4yOtrSG4BxF+IdXYOu4sbPG/L6q/k2UbK5L6ptysj9oA==",
         "dependencies": {
-          "AWSSDK.Core": "[4.0.102.13, 5.0.0)"
+          "AWSSDK.Core": "[4.1.0, 5.0.0)"
         }
       },
       "Microsoft.Extensions.Configuration.Abstractions": {
         "type": "Direct",
-        "requested": "[10.0.14, )",
-        "resolved": "10.0.14",
-        "contentHash": "4YdfvaoWn3tB1xQQHGrhRTFWJ8fGOqxThxduynSZy9ZFTiSaUi3vX4EK/kj8h2HQMwTlks9MWV1fv2WRBv5/1w==",
+        "requested": "[10.0.15, )",
+        "resolved": "10.0.15",
+        "contentHash": "0vztB/x4zuR/KT82cgTiiw9DqigfT1FjBgq9FjEFvJUgeacjTG4e7hWD2PCRXzL2kWWl/vBAwtXddIRV3AIU6Q==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.14"
+          "Microsoft.Extensions.Primitives": "10.0.15"
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Direct",
-        "requested": "[10.0.14, )",
-        "resolved": "10.0.14",
-        "contentHash": "QtpQzuSZVyTPCuHW058yCs9Nj0394uUkNyFHS813nOmK9UgUdBdaprJ5PPsBgsQIpxADTsTkbaMMonykem6qdw=="
+        "requested": "[10.0.15, )",
+        "resolved": "10.0.15",
+        "contentHash": "KczR2nV7ooeimtZxAawPht/FJUHnX+uoWy7y4pba+iaRQBwUM2NwtiqZg+/FpZDHUf2RkkzveGkhMTWDNzmDUA=="
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "4.0.102.13",
-        "contentHash": "vaYs/kwfB+Lv9PeVKYE4g2mQlzVtHImXLWgfTG8UgeCybUAPkew5kwb8GS6RhuzwvImbolyLHT+IM34WoM9lJg=="
+        "resolved": "4.1.0",
+        "contentHash": "7a4eOI65Mn4dzc9kmRiI+y3EiS80NCMnu/j3ZR9H2dyO3d597eVPVV+ClzSFXnQkA0r8n2iig+Vg/Q/mozh5MQ==",
+        "dependencies": {
+          "AWSSDK.Extensions.Numerics": "[4.1.0, 5.0.0)",
+          "System.IO.Hashing": "11.0.0"
+        }
+      },
+      "AWSSDK.Extensions.Numerics": {
+        "type": "Transitive",
+        "resolved": "4.1.0",
+        "contentHash": "hhoiXT1aUyVgIiQbQoqG3L1EEneqXDh2GKyH5izUlO6Rzi9GAAi8S6mlLiVwow23+EGg77zHjdmUi+ia3RSUTg=="
       },
       "EFCore.NamingConventions": {
         "type": "Transitive",
@@ -43,8 +52,8 @@
       },
       "Microsoft.AspNetCore.DataProtection.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "/4+1KX8VIKCCHZ8p/1dZ2WGxvIijm5lXmgHecxEwGnBYXiSjAqfF/Q7p9m6eojUDlpKMHkt1HHXeNdL9WH3YHw=="
+        "resolved": "10.0.15",
+        "contentHash": "Jm8UPQkNEzqgX3bu9ceIFu//8Knk5XN7xgGERBCoaAHOXXvmrU+WWWm6dhPZVp0vxnvAQQpgZ2O7cPgx/d+2Sw=="
       },
       "Microsoft.EntityFrameworkCore": {
         "type": "Transitive",
@@ -135,8 +144,8 @@
       },
       "Microsoft.Extensions.Primitives": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "1bbZqqCJTPba3inTADExbp/9PsGVyvGOX3zr6tFr7ySCgVkX9Lpw7BV0TizktNItd3SsbUu1sQfSAYm1GZMoNw=="
+        "resolved": "10.0.15",
+        "contentHash": "NjzLiZ1/bYx8VwLqHxNnCfDTQQbCY7P1dwT7JM5FiANiaSfI6UKHi0/sla+jyRbOIbPAMJkhWQ/9pH3tMf+IrQ=="
       },
       "Npgsql": {
         "type": "Transitive",
@@ -156,6 +165,11 @@
           "Npgsql": "10.0.3"
         }
       },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
+      },
       "sharedkernel": {
         "type": "Project"
       },
@@ -163,9 +177,9 @@
         "type": "Project",
         "dependencies": {
           "EFCore.NamingConventions": "[10.0.1, )",
-          "Microsoft.AspNetCore.DataProtection.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.Configuration.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.AspNetCore.DataProtection.Abstractions": "[10.0.15, )",
+          "Microsoft.Extensions.Configuration.Abstractions": "[10.0.15, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.15, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "SharedKernel": "[1.0.0, )"
         }
