@@ -30,9 +30,9 @@
       },
       "Google.GenAI": {
         "type": "Direct",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "hIoqvTL8Vf5E+kxGws/PkWlGgUFEZicl3kslIMOHf1u4cQGgbgQLJHvfLK2IqLzy9nAdjrrO4TIgqBTmMQG7qQ==",
+        "requested": "[2.2.0, )",
+        "resolved": "2.2.0",
+        "contentHash": "WuVrdkPHU0M1uT67ONuChfsA9SqLVqYT8TpcVD2BuKxrO40H/MjR20OJ4Pyuqh6SOxVcTv3Ta5FcFBw40Sm5bg==",
         "dependencies": {
           "Google.Apis.Auth": "1.69.0",
           "Microsoft.Extensions.AI.Abstractions": "10.6.0",
